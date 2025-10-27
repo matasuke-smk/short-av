@@ -67,7 +67,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-screen w-full snap-start snap-always flex flex-col relative"
               >
                 {/* メインコンテンツエリア */}
-                <div className="flex-1 flex flex-col items-center justify-start pt-20 pb-32">
+                <div className="flex-1 flex flex-col items-center justify-start pt-28 pb-32">
                   {/* タイトル */}
                   <h2 className="text-white text-sm font-bold mb-3 text-center px-4 line-clamp-2">
                     {video.title}
