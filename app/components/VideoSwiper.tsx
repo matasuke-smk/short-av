@@ -67,7 +67,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-screen w-full snap-start snap-always flex flex-col relative"
               >
                 {/* メインコンテンツエリア */}
-                <div className="flex-1 flex flex-col items-center justify-start pt-4 pb-32">
+                <div className="flex-1 flex flex-col items-center justify-start pt-20 pb-32">
                   {/* タイトル */}
                   <h2 className="text-white text-sm font-bold mb-3 text-center px-4 line-clamp-2">
                     {video.title}
@@ -86,8 +86,8 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                   </div>
 
                   {/* 広告バナー領域 (640×200) */}
-                  <div className="w-full px-4">
-                    <div className="w-full bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm rounded-lg" style={{ aspectRatio: '640 / 200' }}>
+                  <div className="w-full">
+                    <div className="w-full bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm" style={{ aspectRatio: '640 / 200' }}>
                       広告バナー領域 (640×200)
                     </div>
                   </div>
