@@ -1,0 +1,224 @@
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+import useEmblaCarousel from 'embla-carousel-react';
+import type { Database } from '@/lib/supabase';
+
+type Video = Database['public']['Tables']['videos']['Row'];
+
+interface VideoSwiperProps {
+  videos: Video[];
+}
+
+export default function VideoSwiper({ videos }: VideoSwiperProps) {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    axis: 'y',
+    loop: false,
+    align: 'start',
+    containScroll: false,
+    skipSnaps: false,
+  });
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [modalVideoUrl, setModalVideoUrl] = useState('');
+
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const onSelect = () => {
+      setCurrentIndex(emblaApi.selectedScrollSnap());
+    };
+
+    emblaApi.on('select', onSelect);
+    onSelect();
+
+    return () => {
+      emblaApi.off('select', onSelect);
+    };
+  }, [emblaApi]);
+
+  const currentVideo = videos[currentIndex];
+
+  const handleThumbnailClick = useCallback(() => {
+    if (currentVideo?.sample_video_url) {
+      setModalVideoUrl(currentVideo.sample_video_url);
+      setShowVideoModal(true);
+    }
+  }, [currentVideo]);
+
+  const closeModal = useCallback(() => {
+    setShowVideoModal(false);
+    setModalVideoUrl('');
+  }, []);
+
+  if (!videos || videos.length === 0) {
+    return <div className="text-center py-12">動画がありません</div>;
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-black overflow-hidden">
+      {/* 縦スクロールエリア */}
+      <div className="flex-1 relative">
+        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide" ref={emblaRef}>
+          <div className="flex flex-col">
+            {videos.map((video) => (
+              <div
+                key={video.id}
+                className="h-screen w-full snap-start snap-always flex flex-col relative"
+              >
+                {/* ランキングバッジ */}
+                {video.rank_position && (
+                  <div className="absolute top-6 left-6 z-20 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full font-bold text-lg shadow-lg">
+                    #{video.rank_position}
+                  </div>
+                )}
+
+                {/* メインコンテンツエリア */}
+                <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+                  {/* タイトル */}
+                  <h2 className="text-white text-xl font-bold mb-6 text-center px-4 line-clamp-3 max-w-3xl">
+                    {video.title}
+                  </h2>
+
+                  {/* サムネイル（タップで動画再生） */}
+                  <div
+                    className="relative w-full max-w-3xl aspect-video cursor-pointer group mb-6"
+                    onClick={handleThumbnailClick}
+                  >
+                    <img
+                      src={video.thumbnail_url}
+                      alt={video.title}
+                      className="w-full h-full object-cover rounded-2xl shadow-2xl"
+                    />
+                    {video.sample_video_url && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/60 transition-colors rounded-2xl">
+                        <div className="bg-white/90 rounded-full p-8 shadow-lg group-hover:scale-110 transition-transform">
+                          <svg
+                            className="w-16 h-16 text-blue-500"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* バナー領域（後で設定） */}
+                  <div className="w-full max-w-3xl h-24 bg-gray-800/50 rounded-xl flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm">
+                    広告バナー領域
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 下部固定エリア */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 py-4">
+        <div className="max-w-3xl mx-auto">
+          {/* 動画情報 */}
+          <div className="text-white text-sm mb-3 space-y-1">
+            {currentVideo?.maker && (
+              <p className="text-gray-300">
+                <span className="text-gray-400">メーカー:</span> {currentVideo.maker}
+              </p>
+            )}
+            {currentVideo?.release_date && (
+              <p className="text-gray-300">
+                <span className="text-gray-400">リリース:</span>{' '}
+                {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}
+              </p>
+            )}
+          </div>
+
+          {/* ボタンエリア */}
+          <div className="grid grid-cols-5 gap-3">
+            {/* 4種類のボタン（機能は後で実装） */}
+            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <span className="text-xs">いいね</span>
+            </button>
+
+            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              <span className="text-xs">シェア</span>
+            </button>
+
+            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              <span className="text-xs">保存</span>
+            </button>
+
+            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-xs">詳細</span>
+            </button>
+
+            {/* 詳細ページリンク（最安価格表示） */}
+            <a
+              href={currentVideo?.dmm_product_url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all font-bold shadow-lg active:scale-95"
+            >
+              <span className="text-lg">¥{currentVideo?.price || 0}~</span>
+              <span className="text-xs">購入</span>
+            </a>
+          </div>
+
+          {/* 縦スワイプインジケーター */}
+          <div className="flex justify-center gap-1.5 mt-4">
+            {videos.slice(0, Math.min(20, videos.length)).map((_, index) => (
+              <div
+                key={index}
+                className={`rounded-full transition-all ${
+                  index === currentIndex
+                    ? 'bg-blue-500 w-2 h-2'
+                    : 'bg-gray-600 w-1.5 h-1.5'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* サンプル動画モーダル */}
+      {showVideoModal && (
+        <div
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+          onClick={closeModal}
+        >
+          <div className="flex flex-col items-center gap-2 w-full max-w-[560px]" onClick={(e) => e.stopPropagation()}>
+            <iframe
+              src={modalVideoUrl}
+              className="w-full aspect-[560/360]"
+              allowFullScreen
+              allow="autoplay; fullscreen"
+              frameBorder="0"
+            />
+            <button
+              onClick={closeModal}
+              className="text-white hover:text-gray-300 text-xl font-bold flex items-center gap-2 bg-black/50 rounded-full px-6 py-3"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
