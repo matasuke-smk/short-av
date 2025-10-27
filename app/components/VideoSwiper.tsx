@@ -84,15 +84,12 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                     </h2>
                   </div>
 
-                  {/* サムネイル（タップで動画再生） - 4:3固定、高さ基準 */}
-                  <div
-                    className="relative cursor-pointer mb-6"
-                    style={{ height: '50vh', width: 'calc(50vh * 4 / 3)', maxWidth: '100vw' }}
-                  >
+                  {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
+                  <div className="relative w-full aspect-[4/3] cursor-pointer mb-6 bg-black">
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   </div>
 
