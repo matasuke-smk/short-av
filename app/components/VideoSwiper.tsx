@@ -66,47 +66,27 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 key={video.id}
                 className="h-screen w-full snap-start snap-always flex flex-col relative"
               >
-                {/* ランキングバッジ */}
-                {video.rank_position && (
-                  <div className="absolute top-6 left-6 z-20 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full font-bold text-lg shadow-lg">
-                    #{video.rank_position}
-                  </div>
-                )}
-
                 {/* メインコンテンツエリア */}
-                <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+                <div className="flex-1 flex flex-col items-center justify-start pt-4 pb-32">
                   {/* タイトル */}
-                  <h2 className="text-white text-xl font-bold mb-6 text-center px-4 line-clamp-3 max-w-3xl">
+                  <h2 className="text-white text-sm font-bold mb-3 text-center px-4 line-clamp-2">
                     {video.title}
                   </h2>
 
                   {/* サムネイル（タップで動画再生） */}
                   <div
-                    className="relative w-full max-w-3xl aspect-video cursor-pointer group mb-6"
+                    className="relative w-full aspect-video cursor-pointer mb-6"
                     onClick={handleThumbnailClick}
                   >
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
-                      className="w-full h-full object-cover rounded-2xl shadow-2xl"
+                      className="w-full h-full object-cover"
                     />
-                    {video.sample_video_url && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/60 transition-colors rounded-2xl">
-                        <div className="bg-white/90 rounded-full p-8 shadow-lg group-hover:scale-110 transition-transform">
-                          <svg
-                            className="w-16 h-16 text-blue-500"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* バナー領域（後で設定） */}
-                  <div className="w-full max-w-3xl h-24 bg-gray-800/50 rounded-xl flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm">
+                  <div className="w-full h-24 bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm px-4">
                     広告バナー領域
                   </div>
                 </div>
@@ -177,18 +157,11 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </a>
           </div>
 
-          {/* 縦スワイプインジケーター */}
-          <div className="flex justify-center gap-1.5 mt-4">
-            {videos.slice(0, Math.min(20, videos.length)).map((_, index) => (
-              <div
-                key={index}
-                className={`rounded-full transition-all ${
-                  index === currentIndex
-                    ? 'bg-blue-500 w-2 h-2'
-                    : 'bg-gray-600 w-1.5 h-1.5'
-                }`}
-              />
-            ))}
+          {/* クレジット */}
+          <div className="flex justify-center mt-4">
+            <p className="text-gray-400 text-xs">
+              Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a>
+            </p>
           </div>
         </div>
       </div>
