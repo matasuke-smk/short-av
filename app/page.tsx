@@ -2,6 +2,9 @@ import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 
+// 動的レンダリングを強制（ランダム表示のため）
+export const dynamic = 'force-dynamic';
+
 // 配列をシャッフルする関数
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];

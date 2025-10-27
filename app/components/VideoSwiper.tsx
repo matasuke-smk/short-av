@@ -73,29 +73,31 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             {videos.map((video) => (
               <div
                 key={video.id}
-                className="h-screen w-full snap-start snap-always flex flex-col relative"
+                className="h-screen w-full snap-start snap-always relative"
               >
-                {/* メインコンテンツエリア */}
-                <div className="flex-1 flex flex-col items-center justify-start pt-28 pb-32">
-                  {/* タイトル */}
-                  <h2 className="text-white text-sm font-bold mb-3 text-center px-4 line-clamp-2">
-                    {video.title}
-                  </h2>
+                {/* メインコンテンツエリア - 絶対配置で位置固定 */}
+                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-20 pb-32">
+                  {/* タイトル - 固定高さ */}
+                  <div className="h-12 flex items-center px-4 mb-4">
+                    <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full">
+                      {video.title}
+                    </h2>
+                  </div>
 
-                  {/* サムネイル（タップで動画再生） */}
+                  {/* サムネイル（タップで動画再生） - 4:3固定、最大幅設定 */}
                   <div
-                    className="relative w-full aspect-[4/3] cursor-pointer mb-6"
+                    className="relative w-full max-w-md aspect-[4/3] cursor-pointer mb-6 px-4"
                     onClick={handleThumbnailClick}
                   >
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-lg"
                     />
                   </div>
 
-                  {/* 広告バナー領域 (640×200) */}
-                  <div className="w-full">
+                  {/* 広告バナー領域 (640×200) - 固定位置 */}
+                  <div className="w-full max-w-md px-4">
                     <a
                       href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
                       target="_blank"
