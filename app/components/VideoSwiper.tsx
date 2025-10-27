@@ -76,28 +76,28 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-screen w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-20 pb-32">
+                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-16 pb-32">
                   {/* タイトル - 固定高さ */}
-                  <div className="h-12 flex items-center px-4 mb-4">
-                    <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full">
+                  <div className="h-12 flex items-center mb-4 w-full">
+                    <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
                       {video.title}
                     </h2>
                   </div>
 
-                  {/* サムネイル（タップで動画再生） - 4:3固定、最大幅設定 */}
+                  {/* サムネイル（タップで動画再生） - 4:3固定、高さ基準 */}
                   <div
-                    className="relative w-full max-w-md aspect-[4/3] cursor-pointer mb-6 px-4"
+                    className="relative h-[50vh] aspect-[4/3] cursor-pointer mb-6"
                     onClick={handleThumbnailClick}
                   >
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
-                      className="w-full h-full object-cover rounded-lg"
+                      className="w-full h-full object-contain"
                     />
                   </div>
 
                   {/* 広告バナー領域 (640×200) - 固定位置 */}
-                  <div className="w-full max-w-md px-4">
+                  <div className="w-full">
                     <a
                       href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
                       target="_blank"
