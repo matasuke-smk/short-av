@@ -196,17 +196,22 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
       {/* サンプル動画モーダル */}
       {showVideoModal && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center"
           onClick={closeModal}
         >
           <div className="flex flex-col items-center gap-2 w-full max-w-[560px]" onClick={(e) => e.stopPropagation()}>
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/360]"
-              style={{ backgroundColor: 'red' }}
+              className="w-full"
+              style={{
+                overflow: 'hidden',
+                height: 'auto',
+                aspectRatio: '560 / 420'
+              }}
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
+              scrolling="no"
             />
             <button
               onClick={closeModal}
