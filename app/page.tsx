@@ -15,7 +15,8 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-async function VideoList({ searchParams }: { searchParams: { v?: string } }) {
+async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
+  const params = await searchParams;
   // ランキング順で動画を取得
   const { data: videos, error } = await supabase
     .from('videos')
@@ -61,7 +62,7 @@ async function VideoList({ searchParams }: { searchParams: { v?: string } }) {
   let shuffledVideos = shuffleArray(videos);
 
   // URLパラメータで指定された動画があれば、それを先頭に配置
-  const targetContentId = searchParams?.v;
+  const targetContentId = params?.v;
   if (targetContentId) {
     const targetIndex = shuffledVideos.findIndex(v => v.dmm_content_id === targetContentId);
     if (targetIndex !== -1) {
@@ -77,7 +78,7 @@ async function VideoList({ searchParams }: { searchParams: { v?: string } }) {
   return <VideoSwiper videos={shuffledVideos} />;
 }
 
-export default function Home({ searchParams }: { searchParams: { v?: string } }) {
+export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
       <VideoList searchParams={searchParams} />
