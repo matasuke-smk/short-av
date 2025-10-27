@@ -87,9 +87,20 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
                   {/* 広告バナー領域 (640×200) */}
                   <div className="w-full">
-                    <div className="w-full bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm" style={{ aspectRatio: '640 / 200' }}>
-                      広告バナー領域 (640×200)
-                    </div>
+                    <a
+                      href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
+                      target="_blank"
+                      rel="sponsored"
+                      className="block w-full"
+                    >
+                      <img
+                        src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
+                        alt="初回購入限定！500円OFF！"
+                        width="640"
+                        height="200"
+                        className="w-full h-auto"
+                      />
+                    </a>
                   </div>
                 </div>
               </div>
