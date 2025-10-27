@@ -84,7 +84,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
                   {/* サムネイル（タップで動画再生） */}
                   <div
-                    className="relative w-full aspect-video cursor-pointer mb-6"
+                    className="relative w-full aspect-[4/3] cursor-pointer mb-6"
                     onClick={handleThumbnailClick}
                   >
                     <img
