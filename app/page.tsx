@@ -1,7 +1,8 @@
+import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 
-export default async function Home() {
+async function VideoList() {
   // ランキング順で動画を取得
   const { data: videos, error } = await supabase
     .from('videos')
@@ -44,4 +45,12 @@ export default async function Home() {
   }
 
   return <VideoSwiper videos={videos} />;
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <VideoList />
+    </Suspense>
+  );
 }
