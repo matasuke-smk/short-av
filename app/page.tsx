@@ -2,7 +2,17 @@ import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 
-async function VideoList() {
+// 配列をシャッフルする関数
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+async function VideoList({ searchParams }: { searchParams: { v?: string } }) {
   // ランキング順で動画を取得
   const { data: videos, error } = await supabase
     .from('videos')
@@ -44,13 +54,30 @@ async function VideoList() {
     );
   }
 
-  return <VideoSwiper videos={videos} />;
+  // 動画をシャッフル
+  let shuffledVideos = shuffleArray(videos);
+
+  // URLパラメータで指定された動画があれば、それを先頭に配置
+  const targetContentId = searchParams?.v;
+  if (targetContentId) {
+    const targetIndex = shuffledVideos.findIndex(v => v.dmm_content_id === targetContentId);
+    if (targetIndex !== -1) {
+      const targetVideo = shuffledVideos[targetIndex];
+      shuffledVideos = [
+        targetVideo,
+        ...shuffledVideos.slice(0, targetIndex),
+        ...shuffledVideos.slice(targetIndex + 1)
+      ];
+    }
+  }
+
+  return <VideoSwiper videos={shuffledVideos} />;
 }
 
-export default function Home() {
+export default function Home({ searchParams }: { searchParams: { v?: string } }) {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <VideoList />
+      <VideoList searchParams={searchParams} />
     </Suspense>
   );
 }

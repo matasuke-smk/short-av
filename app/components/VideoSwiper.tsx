@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import useEmblaCarousel from 'embla-carousel-react';
 import type { Database } from '@/lib/supabase';
 
@@ -12,25 +11,15 @@ interface VideoSwiperProps {
 }
 
 export default function VideoSwiper({ videos }: VideoSwiperProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // URLパラメータから初期インデックスを取得（配信品番で検索）
-  const initialContentId = searchParams.get('v');
-  const initialIndex = initialContentId
-    ? videos.findIndex(v => v.dmm_content_id === initialContentId)
-    : 0;
-  const startIndex = initialIndex !== -1 ? initialIndex : 0;
-
+  // サーバー側でシャッフル済みなので、常に先頭から開始
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
     align: 'start',
     containScroll: false,
     skipSnaps: false,
-    startIndex,
   });
-  const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
 
