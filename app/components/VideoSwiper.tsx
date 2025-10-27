@@ -203,6 +203,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             <iframe
               src={modalVideoUrl}
               className="w-full aspect-[560/360]"
+              style={{ backgroundColor: 'red' }}
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
