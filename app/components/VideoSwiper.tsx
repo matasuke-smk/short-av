@@ -85,9 +85,11 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                     />
                   </div>
 
-                  {/* バナー領域（後で設定） */}
-                  <div className="w-full h-24 bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm px-4">
-                    広告バナー領域
+                  {/* 広告バナー領域 (640×200) */}
+                  <div className="w-full px-4">
+                    <div className="w-full bg-gray-800/50 flex items-center justify-center text-gray-400 text-sm backdrop-blur-sm rounded-lg" style={{ aspectRatio: '640 / 200' }}>
+                      広告バナー領域 (640×200)
+                    </div>
                   </div>
                 </div>
               </div>
