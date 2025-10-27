@@ -18,7 +18,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   // URLパラメータから初期インデックスを取得（配信品番で検索）
   const initialContentId = searchParams.get('v');
   const initialIndex = initialContentId
-    ? videos.findIndex(v => v.content_id === initialContentId)
+    ? videos.findIndex(v => v.dmm_content_id === initialContentId)
     : 0;
   const startIndex = initialIndex !== -1 ? initialIndex : 0;
 
@@ -43,8 +43,8 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
       // URLを更新（履歴に追加、配信品番を使用）
       const currentVideo = videos[index];
-      if (currentVideo && currentVideo.content_id) {
-        const newUrl = `/?v=${currentVideo.content_id}`;
+      if (currentVideo && currentVideo.dmm_content_id) {
+        const newUrl = `/?v=${currentVideo.dmm_content_id}`;
         window.history.pushState({}, '', newUrl);
       }
     };
