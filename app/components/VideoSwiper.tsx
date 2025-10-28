@@ -221,7 +221,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
       </div>
 
       {/* 下部固定エリア */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-purple-500 px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] h-[calc(100dvh-1.5rem-75vw-31.25vw-3rem)]">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-purple-500 px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] h-[calc(100dvh-1.5rem-75vw-31.25vw-2rem)]">
         <div className="max-w-3xl mx-auto">
           {/* 動画情報 */}
           <div className="text-white text-sm mb-3 space-y-1">
