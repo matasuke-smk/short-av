@@ -148,15 +148,15 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
-        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide" ref={emblaRef}>
+        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide pt-6" ref={emblaRef}>
           <div className="flex flex-col">
             {videos.map((video) => (
               <div
                 key={video.id}
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
-                {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-[calc(max(env(safe-area-inset-top),0)+1.5rem)] left-0 right-0 bottom-0 flex flex-col items-center pb-[calc(env(safe-area-inset-bottom)+8rem)] bg-orange-500">
+                {/* メインコンテンツエリア */}
+                <div className="flex flex-col items-center bg-orange-500">
                   {/* タイトル */}
                   <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4 bg-blue-500">
                     {video.title}
