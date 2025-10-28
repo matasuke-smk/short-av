@@ -40,22 +40,24 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
       className="fixed inset-0 bg-black/60 z-[9998] flex items-center justify-center"
       onClick={handleDismiss}
     >
-      {/* スワイプジェスチャー（指アイコンで上下に動く） */}
-      <div className="absolute right-8 top-[40%] pointer-events-none">
-        <div className="animate-swipe-gesture">
-          {/* 指アイコン */}
-          <svg className="w-12 h-12 text-white opacity-90" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M13.5 2C13.5 1.17 12.83 0.5 12 0.5C11.17 0.5 10.5 1.17 10.5 2V10.5H9.5V5C9.5 4.17 8.83 3.5 8 3.5C7.17 3.5 6.5 4.17 6.5 5V10.5H5.5V7C5.5 6.17 4.83 5.5 4 5.5C3.17 5.5 2.5 6.17 2.5 7V15C2.5 19.14 5.86 22.5 10 22.5H13C17.14 22.5 20.5 19.14 20.5 15V8C20.5 7.17 19.83 6.5 19 6.5C18.17 6.5 17.5 7.17 17.5 8V10.5H16.5V4C16.5 3.17 15.83 2.5 15 2.5C14.17 2.5 13.5 3.17 13.5 4V2Z"/>
-          </svg>
-        </div>
-      </div>
-
       {/* タップして再生（サムネイル中央 - 画面上部1/3あたり） */}
       <div className="absolute top-[30%] left-1/2 -translate-x-1/2 pointer-events-none">
-        <div className="animate-pulse-slow">
-          <p className="text-white text-xl font-bold bg-black/70 backdrop-blur-sm rounded-full px-8 py-3">
-            タップして再生
-          </p>
+        <div className="flex flex-col items-center gap-6">
+          {/* タップして再生テキスト */}
+          <div className="animate-pulse-slow">
+            <p className="text-white text-lg font-bold bg-black/70 backdrop-blur-sm rounded-full px-6 py-2 whitespace-nowrap">
+              タップして再生
+            </p>
+          </div>
+
+          {/* スワイプアップアイコン（下から上にモーション） */}
+          <div className="animate-swipe-up">
+            <img
+              src="/swipe-up.png"
+              alt="Swipe up"
+              className="w-16 h-16 opacity-90"
+            />
+          </div>
         </div>
       </div>
 
