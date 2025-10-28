@@ -120,7 +120,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain relative z-0"
                     />
 
                     {/* いいねボタン - 左下 */}
