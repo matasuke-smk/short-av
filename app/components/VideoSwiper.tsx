@@ -143,7 +143,6 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
       {/* 広告・PR表記とクレジット（画面上部固定） */}
       <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-yellow-400 text-black py-1 text-xs font-bold flex items-center justify-between px-4">
-        <span></span>
         <span>広告・PR</span>
         <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-black hover:opacity-80 transition-opacity font-normal">
           FANZA
