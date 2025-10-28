@@ -29,11 +29,13 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   const maxOffset = Math.max(0, totalVideos - 20);
   const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
 
-  // ランダムな位置から動画を取得
+  // ランダムな位置から動画を取得（サムネイル&サンプル動画必須）
   const { data: videos, error } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
     .order('rank_position', { ascending: true })
     .range(randomOffset, randomOffset + 19);
 

@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
       .from('videos')
       .select('*')
       .eq('is_active', true)
+      .not('thumbnail_url', 'is', null)
+      .not('sample_video_url', 'is', null)
       .order('rank_position', { ascending: true })
       .range(offset, offset + limit - 1);
 
