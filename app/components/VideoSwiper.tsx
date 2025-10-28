@@ -11,9 +11,11 @@ type Video = Database['public']['Tables']['videos']['Row'];
 
 interface VideoSwiperProps {
   videos: Video[];
+  initialOffset: number;
+  totalVideos: number;
 }
 
-export default function VideoSwiper({ videos: initialVideos }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos }: VideoSwiperProps) {
   // サーバー側でシャッフル済みなので、常に先頭から開始
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -30,7 +32,6 @@ export default function VideoSwiper({ videos: initialVideos }: VideoSwiperProps)
   const [userId, setUserId] = useState<string>('');
   const [showTutorial, setShowTutorial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMoreVideos, setHasMoreVideos] = useState(true);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -57,26 +58,27 @@ export default function VideoSwiper({ videos: initialVideos }: VideoSwiperProps)
     fetchLikes();
   }, [userId]);
 
-  // 追加の動画を読み込む関数
+  // 追加の動画を読み込む関数（循環式）
   const loadMoreVideos = useCallback(async () => {
-    if (isLoadingMore || !hasMoreVideos) return;
+    if (isLoadingMore) return;
 
     setIsLoadingMore(true);
     try {
-      const response = await fetch(`/api/videos?offset=${videos.length}&limit=20`);
+      // 現在のオフセットを計算（初期オフセット + 現在の件数）
+      const currentOffset = (initialOffset + videos.length) % totalVideos;
+
+      const response = await fetch(`/api/videos?offset=${currentOffset}&limit=20`);
       const data = await response.json();
 
       if (data.videos && data.videos.length > 0) {
         setVideos(prev => [...prev, ...data.videos]);
-      } else {
-        setHasMoreVideos(false);
       }
     } catch (error) {
       console.error('追加動画の読み込みエラー:', error);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos.length, isLoadingMore, hasMoreVideos]);
+  }, [videos.length, isLoadingMore, initialOffset, totalVideos]);
 
   // いいねを切り替える関数
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
@@ -129,8 +131,8 @@ export default function VideoSwiper({ videos: initialVideos }: VideoSwiperProps)
       const index = emblaApi.selectedScrollSnap();
       setCurrentIndex(index);
 
-      // 残り5件になったら追加読み込み
-      if (index >= videos.length - 5 && !isLoadingMore && hasMoreVideos) {
+      // 残り5件になったら追加読み込み（無限ループ）
+      if (index >= videos.length - 5 && !isLoadingMore) {
         loadMoreVideos();
       }
 
@@ -148,7 +150,7 @@ export default function VideoSwiper({ videos: initialVideos }: VideoSwiperProps)
     return () => {
       emblaApi.off('select', onSelect);
     };
-  }, [emblaApi, videos, loadMoreVideos, isLoadingMore, hasMoreVideos]);
+  }, [emblaApi, videos, loadMoreVideos, isLoadingMore]);
 
   const currentVideo = videos[currentIndex];
 

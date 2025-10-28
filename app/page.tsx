@@ -17,13 +17,25 @@ function shuffleArray<T>(array: T[]): T[] {
 
 async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   const params = await searchParams;
-  // ランキング順で動画を取得
+
+  // 全動画件数を取得
+  const { count } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  // ランダムなオフセットを生成（0からtotal-20の間）
+  const totalVideos = count || 200;
+  const maxOffset = Math.max(0, totalVideos - 20);
+  const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
+
+  // ランダムな位置から動画を取得
   const { data: videos, error } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .order('rank_position', { ascending: true })
-    .limit(20);
+    .range(randomOffset, randomOffset + 19);
 
   if (error) {
     console.error('動画取得エラー:', error);
@@ -75,7 +87,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     }
   }
 
-  return <VideoSwiper videos={shuffledVideos} />;
+  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} />;
 }
 
 export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
