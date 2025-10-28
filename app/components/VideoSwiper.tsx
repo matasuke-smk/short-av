@@ -109,34 +109,32 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
                 <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[max(env(safe-area-inset-top),0.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
                   {/* タイトル - 固定高さ */}
-                  <div className="h-12 flex items-center w-full">
+                  <div className="h-12 flex items-center w-full relative">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
                       {video.title}
                     </h2>
+                    {/* タイトル横のテストボタン */}
+                    <div className="absolute right-4 top-0 bottom-0 w-12 h-12 bg-green-500 flex items-center justify-center text-white font-bold">
+                      OK
+                    </div>
                   </div>
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
-                  <div className="relative w-full aspect-[4/3] cursor-pointer bg-black">
+                  <div className="relative w-full aspect-[4/3] bg-pink-500 border-4 border-red-500">
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
                       className="w-full h-full object-contain"
                     />
+                  </div>
 
-                    {/* 超シンプルなテストボタン */}
-                    <div className="absolute top-10 left-10 w-20 h-20 bg-yellow-400 z-[999] text-black font-bold flex items-center justify-center text-xs">
-                      TEST
-                    </div>
-
-                    {/* いいねボタン - 左上（テスト用） */}
+                  {/* サムネイル外のいいねボタン */}
+                  <div className="w-full bg-blue-500 p-4">
                     <button
                       onClick={(e) => toggleLike(video.id, e)}
-                      className="absolute top-3 left-3 z-50 bg-red-500 rounded-full p-3 transition-all active:scale-90 shadow-lg"
-                      aria-label="いいね"
+                      className="bg-red-500 rounded-full p-4 text-white font-bold"
                     >
-                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
+                      {likedVideos.has(video.id) ? 'いいね済み' : 'いいね'}
                     </button>
                   </div>
 
