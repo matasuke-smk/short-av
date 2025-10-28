@@ -17,41 +17,33 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
     const hasSeenTutorial = localStorage.getItem(TUTORIAL_KEY);
 
     if (!hasSeenTutorial) {
-      // 年齢確認ゲートが表示されているかチェック
-      const checkAndShowTutorial = () => {
-        const today = new Date().toISOString().split('T')[0];
-        const lastVerificationDate = localStorage.getItem('age_verification_date');
+      // 年齢確認完了イベントをリスン
+      const handleAgeVerified = () => {
+        setShow(true);
 
-        // 年齢確認が完了している場合のみチュートリアルを表示
-        if (lastVerificationDate === today) {
-          setShow(true);
+        // サムネイル要素の位置を計算
+        const calculateThumbnailCenter = () => {
+          const thumbnailElement = document.querySelector('.aspect-\\[4\\/3\\]');
+          if (thumbnailElement) {
+            const rect = thumbnailElement.getBoundingClientRect();
+            const center = rect.top + rect.height / 2;
+            setThumbnailCenter(center);
+          }
+        };
 
-          // サムネイル要素の位置を計算
-          const calculateThumbnailCenter = () => {
-            const thumbnailElement = document.querySelector('.aspect-\\[4\\/3\\]');
-            if (thumbnailElement) {
-              const rect = thumbnailElement.getBoundingClientRect();
-              const center = rect.top + rect.height / 2;
-              setThumbnailCenter(center);
-            }
-          };
+        setTimeout(calculateThumbnailCenter, 100);
 
-          setTimeout(calculateThumbnailCenter, 100);
-
-          // 3秒後に自動で消える
-          const timer = setTimeout(() => {
-            handleDismiss();
-          }, 3000);
-
-          return () => clearTimeout(timer);
-        } else {
-          // 年齢確認がまだの場合、少し待ってから再チェック
-          const recheckTimer = setTimeout(checkAndShowTutorial, 500);
-          return () => clearTimeout(recheckTimer);
-        }
+        // 3秒後に自動で消える
+        setTimeout(() => {
+          handleDismiss();
+        }, 3000);
       };
 
-      checkAndShowTutorial();
+      window.addEventListener('age-verified', handleAgeVerified);
+
+      return () => {
+        window.removeEventListener('age-verified', handleAgeVerified);
+      };
     }
   }, []);
 

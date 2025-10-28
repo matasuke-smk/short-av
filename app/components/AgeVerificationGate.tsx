@@ -33,7 +33,13 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
     localStorage.setItem('age_verification_date', today);
     setShowGate(false);
 
-    // 親コンポーネントに通知（チュートリアル表示のトリガー）
+    // カスタムイベントを発火してチュートリアルを表示
+    setTimeout(() => {
+      const event = new CustomEvent('age-verified');
+      window.dispatchEvent(event);
+    }, 300); // 年齢確認ゲートが完全に閉じるのを待つ
+
+    // 親コンポーネントに通知（オプショナル）
     if (onAccept) {
       onAccept();
     }
