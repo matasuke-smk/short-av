@@ -40,39 +40,34 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
       className="fixed inset-0 bg-black/60 z-[9998] flex items-center justify-center"
       onClick={handleDismiss}
     >
-      {/* スワイプアニメーション（中央） */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="flex flex-col items-center gap-8">
-          {/* 上矢印（アニメーション） */}
-          <div className="animate-bounce-slow">
-            <svg className="w-16 h-16 text-white opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" />
-            </svg>
-          </div>
+      {/* スワイプジェスチャー（画面右側） */}
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-center gap-16 pointer-events-none">
+        {/* 上矢印（アニメーション） */}
+        <div className="animate-bounce-slow">
+          <svg className="w-20 h-20 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+          </svg>
+        </div>
 
-          {/* スワイプテキスト */}
-          <div className="bg-black/70 backdrop-blur-sm rounded-2xl px-8 py-4">
-            <p className="text-white text-xl font-bold text-center whitespace-nowrap">
-              スワイプして閲覧
-            </p>
-          </div>
-
-          {/* 下矢印（アニメーション） */}
-          <div className="animate-bounce-slow" style={{ animationDelay: '0.5s' }}>
-            <svg className="w-16 h-16 text-white opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+        {/* 下矢印（アニメーション） */}
+        <div className="animate-bounce-slow" style={{ animationDelay: '0.5s' }}>
+          <svg className="w-20 h-20 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
 
-      {/* タップして再生（サムネイル位置に配置） */}
-      <div className="absolute top-[calc(50%-8rem)] left-1/2 -translate-x-1/2 pointer-events-none">
-        <div className="flex items-center gap-3 bg-black/70 backdrop-blur-sm rounded-full px-6 py-4 animate-pulse-slow">
-          <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-          <p className="text-white text-lg font-bold whitespace-nowrap">
+      {/* タップして再生（サムネイル中央） */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+        <div className="flex flex-col items-center gap-4 animate-pulse-slow">
+          {/* 再生アイコン */}
+          <div className="bg-white/90 rounded-full p-6 shadow-2xl">
+            <svg className="w-16 h-16 text-black" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+          {/* テキスト */}
+          <p className="text-white text-lg font-bold bg-black/70 backdrop-blur-sm rounded-full px-6 py-2">
             タップして再生
           </p>
         </div>
