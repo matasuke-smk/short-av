@@ -55,15 +55,15 @@ export default function AgeVerificationGate() {
       {/* DMMバナー広告 */}
       <div className="w-full max-w-xs aspect-[6/5] rounded-lg overflow-hidden shadow-xl">
         <a
-          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_468_390&af_id=matasuke-002"
+          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-002"
           target="_blank"
-          rel="sponsored noopener noreferrer"
-          className="block w-full h-full"
+          rel="sponsored"
         >
           <img
-            src="https://pics.dmm.com/af/a_digital_500off01/468_390.jpg"
+            src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg"
             alt="初回購入限定！500円OFF！"
-            className="w-full h-full object-cover"
+            height="250"
+            className="w-full h-auto"
           />
         </a>
       </div>
