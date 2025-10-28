@@ -55,7 +55,7 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
             <img
               src="/swipe-up.png"
               alt="Swipe up"
-              className="w-16 h-16 opacity-90"
+              className="w-48 h-48 opacity-90"
             />
           </div>
         </div>
