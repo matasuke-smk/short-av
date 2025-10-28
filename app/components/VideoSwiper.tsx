@@ -143,7 +143,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
       {/* FANZAクレジット（画面上部固定） */}
       <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white py-1 text-xs flex items-center justify-center px-4">
-        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-white hover:opacity-80 transition-opacity">FANZA Webサービス</a></span>
+        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-white hover:opacity-80 transition-opacity underline">FANZA Webサービス</a></span>
       </div>
 
       {/* 縦スクロールエリア */}
@@ -191,6 +191,11 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                         </svg>
                       )}
                     </button>
+
+                    {/* PRバッジ - サムネイル右下 */}
+                    <div className="absolute bottom-6 right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg">
+                      PR
+                    </div>
                   </div>
 
                   {/* 広告バナー領域 (640×200) - 固定位置 */}
@@ -278,20 +283,15 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </a>
           </div>
 
-          {/* 広告表記とポリシーリンク */}
-          <div className="mt-4 text-xs">
-            <div className="flex items-center justify-center mb-2">
-              <span className="text-gray-400">PR・広告</span>
-            </div>
-            <div className="flex items-center justify-center gap-4">
-              <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-                プライバシーポリシー
-              </Link>
-              <span className="text-gray-400">|</span>
-              <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-                利用規約
-              </Link>
-            </div>
+          {/* ポリシーリンク */}
+          <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+              プライバシーポリシー
+            </Link>
+            <span className="text-gray-400">|</span>
+            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+              利用規約
+            </Link>
           </div>
         </div>
       </div>
