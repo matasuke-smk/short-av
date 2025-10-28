@@ -223,7 +223,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
       </div>
 
       {/* 下部固定エリア */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
         <div className="max-w-3xl mx-auto">
           {/* 動画情報 */}
           <div className="text-white text-sm mb-3 space-y-1">
@@ -284,7 +284,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
           </div>
 
           {/* ポリシーリンク */}
-          <div className="flex items-center justify-center gap-6 mt-4 text-xs">
+          <div className="flex items-center justify-center gap-6 mt-2 text-xs">
             <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
               プライバシーポリシー
             </Link>
