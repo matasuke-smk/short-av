@@ -22,7 +22,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
-  const [likedVideos, setLikedVideos] = useState<Set<number>>(new Set());
+  const [likedVideos, setLikedVideos] = useState<Set<string | number>>(new Set());
 
   // LocalStorageからいいね状態を読み込み
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   }, []);
 
   // いいねを切り替える関数
-  const toggleLike = useCallback((videoId: number, event: React.MouseEvent) => {
+  const toggleLike = useCallback((videoId: string | number, event: React.MouseEvent) => {
     event.stopPropagation(); // サムネイルクリックイベントの伝播を防ぐ
 
     setLikedVideos(prev => {
@@ -109,32 +109,35 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
                 <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[max(env(safe-area-inset-top),0.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
                   {/* タイトル - 固定高さ */}
-                  <div className="h-12 flex items-center w-full relative">
+                  <div className="h-12 flex items-center w-full">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
                       {video.title}
                     </h2>
-                    {/* タイトル横のテストボタン */}
-                    <div className="absolute right-4 top-0 bottom-0 w-12 h-12 bg-green-500 flex items-center justify-center text-white font-bold">
-                      OK
-                    </div>
                   </div>
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
-                  <div className="relative w-full aspect-[4/3] bg-pink-500 border-4 border-red-500">
+                  <div className="relative w-full aspect-[4/3] cursor-pointer bg-black">
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
                       className="w-full h-full object-contain"
                     />
-                  </div>
 
-                  {/* サムネイル外のいいねボタン */}
-                  <div className="w-full bg-blue-500 p-4">
+                    {/* いいねボタン - サムネイル左下 */}
                     <button
                       onClick={(e) => toggleLike(video.id, e)}
-                      className="bg-red-500 rounded-full p-4 text-white font-bold"
+                      className="absolute bottom-3 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-2.5 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
+                      aria-label="いいね"
                     >
-                      {likedVideos.has(video.id) ? 'いいね済み' : 'いいね'}
+                      {likedVideos.has(video.id) ? (
+                        <svg className="w-6 h-6 text-red-500 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      )}
                     </button>
                   </div>
 
