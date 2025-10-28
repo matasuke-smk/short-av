@@ -179,7 +179,10 @@ export async function fetchRankingVideos(limit: number = 20): Promise<DMMItem[]>
 export async function searchByActress(actressName: string, limit: number = 20): Promise<DMMItem[]> {
   try {
     const response = await fetchDMMProducts({
-      actress: actressName,
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
+      keyword: actressName,
       hits: limit,
     });
 
@@ -196,6 +199,9 @@ export async function searchByActress(actressName: string, limit: number = 20): 
 export async function searchByKeyword(keyword: string, limit: number = 20): Promise<DMMItem[]> {
   try {
     const response = await fetchDMMProducts({
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
       keyword: keyword,
       hits: limit,
     });
@@ -213,6 +219,10 @@ export async function searchByKeyword(keyword: string, limit: number = 20): Prom
 export async function searchByGenre(genreId: string, limit: number = 20): Promise<DMMItem[]> {
   try {
     const response = await fetchDMMProducts({
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
+      article: 'genre',
       article_id: genreId,
       hits: limit,
     });
@@ -230,6 +240,9 @@ export async function searchByGenre(genreId: string, limit: number = 20): Promis
 export async function fetchNewReleases(limit: number = 20): Promise<DMMItem[]> {
   try {
     const response = await fetchDMMProducts({
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
       sort: 'date',
       hits: limit,
     });
