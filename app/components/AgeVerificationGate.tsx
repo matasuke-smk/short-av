@@ -38,8 +38,8 @@ export default function AgeVerificationGate() {
   if (!showGate) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white/95 backdrop-blur-sm rounded-xl max-w-sm w-full shadow-2xl">
+    <div className="fixed inset-0 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white/70 backdrop-blur-md rounded-xl max-w-sm w-full shadow-2xl">
         {/* コンテンツ */}
         <div className="p-6 space-y-4">
           {/* 広告表記 */}
