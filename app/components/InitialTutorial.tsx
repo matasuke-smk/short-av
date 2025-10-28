@@ -40,8 +40,8 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
       className="fixed inset-0 bg-black/60 z-[9998] flex items-center justify-center"
       onClick={handleDismiss}
     >
-      {/* タップして再生（サムネイル中央 - 画面上部1/3あたり） */}
-      <div className="absolute top-[30%] left-1/2 -translate-x-1/2 pointer-events-none">
+      {/* タップして再生（サムネイル中央） */}
+      <div className="absolute top-[22%] left-1/2 -translate-x-1/2 pointer-events-none">
         <div className="flex flex-col items-center gap-6">
           {/* タップして再生テキスト */}
           <div className="animate-pulse-slow">
