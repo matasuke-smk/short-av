@@ -255,6 +255,40 @@ export async function fetchNewReleases(limit: number = 20): Promise<DMMItem[]> {
 }
 
 /**
+ * ジャンル一覧を取得
+ */
+export async function fetchGenres(): Promise<Array<{ id: string; name: string }>> {
+  const apiId = process.env.DMM_API_ID;
+  const affiliateId = process.env.DMM_AFFILIATE_ID;
+
+  if (!apiId || !affiliateId) {
+    throw new Error('DMM API credentials are not configured');
+  }
+
+  const url = `https://api.dmm.com/affiliate/v3/GenreSearch?api_id=${apiId}&affiliate_id=${affiliateId}&floor_id=43&hits=100&output=json`;
+
+  try {
+    const response = await fetch(url, {
+      next: { revalidate: 86400 }, // 24時間キャッシュ
+    });
+
+    if (!response.ok) {
+      throw new Error(`Genre API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return data.result?.genre?.map((g: any) => ({
+      id: g.genre_id.toString(),
+      name: g.name,
+    })) || [];
+  } catch (error) {
+    console.error('Failed to fetch genres:', error);
+    throw error;
+  }
+}
+
+/**
  * DMMItemをデータベース用の形式に変換
  */
 export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {

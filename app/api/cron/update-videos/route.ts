@@ -21,18 +21,10 @@ import {
   fetchRankingVideos,
   fetchNewReleases,
   searchByGenre,
+  fetchGenres,
   convertDMMItemToVideo,
   type DMMItem
 } from '@/lib/dmm-api';
-
-// 人気ジャンルID
-const POPULAR_GENRES = [
-  '6001', // 美少女
-  '6004', // 単体作品
-  '6102', // 熟女
-  '6003', // 巨乳
-  '6009', // スレンダー
-];
 import type { Database } from '@/lib/supabase';
 
 // Vercel Cronからのリクエストを検証
@@ -69,20 +61,38 @@ export async function GET(request: Request) {
     console.log('[Cron] 新着動画取得中...');
     const newVideos = await fetchNewReleases(50);
 
-    // 3. 各ジャンルのTOP5を取得
+    // 3. 全ジャンル一覧を取得
+    console.log('[Cron] 全ジャンル一覧を取得中...');
+    const genres = await fetchGenres();
+    console.log(`[Cron] ジャンル数: ${genres.length}件`);
+
+    // 4. 各ジャンルのTOP5を取得
     console.log('[Cron] 各ジャンルのTOP5を取得中...');
     const genreVideos: DMMItem[] = [];
-    for (const genreId of POPULAR_GENRES) {
-      try {
-        const videos = await searchByGenre(genreId, 5);
-        genreVideos.push(...videos);
-        console.log(`[Cron] ジャンル${genreId}: ${videos.length}件`);
-      } catch (error) {
-        console.error(`[Cron] ジャンル${genreId}の取得失敗:`, error);
-      }
-    }
+    let successCount = 0;
+    let failCount = 0;
 
-    // 4. 重複を除去してマージ（サムネイル&サンプル動画のフィルタリング）
+    for (const genre of genres) {
+      try {
+        const videos = await searchByGenre(genre.id, 5);
+        genreVideos.push(...videos);
+        successCount++;
+
+        if (successCount % 10 === 0) {
+          console.log(`[Cron] 進捗: ${successCount}/${genres.length}ジャンル完了`);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`[Cron] ジャンル${genre.name}(${genre.id})の取得失敗`);
+      }
+
+      // APIレート制限対策：各リクエスト間に100msの遅延
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log(`[Cron] ジャンル動画合計: ${genreVideos.length}件`);
+    console.log(`[Cron] 成功: ${successCount}件 / 失敗: ${failCount}件`);
+
+    // 5. 重複を除去してマージ（サムネイル&サンプル動画のフィルタリング）
     const allVideos = new Map<string, DMMItem>();
 
     const addVideo = (video: DMMItem) => {
@@ -98,7 +108,7 @@ export async function GET(request: Request) {
 
     console.log(`[Cron] 重複除去&フィルタリング後: ${allVideos.size}件`);
 
-    // 5. 古いデータを削除（1ヶ月以上更新されず、いいねもされていない動画）
+    // 6. 古いデータを削除（1ヶ月以上更新されず、いいねもされていない動画）
     console.log('[Cron] 古いデータを削除中...');
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
@@ -130,7 +140,7 @@ export async function GET(request: Request) {
     }
     console.log(`[Cron] 削除: ${deletedCount}件`);
 
-    // 6. Supabaseに保存
+    // 7. Supabaseに保存
     let savedCount = 0;
     let updatedCount = 0;
     let errorCount = 0;

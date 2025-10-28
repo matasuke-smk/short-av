@@ -12,21 +12,12 @@ import { resolve } from 'path';
 config({ path: resolve(process.cwd(), '.env.local') });
 
 import { createClient } from '@supabase/supabase-js';
-import { fetchRankingVideos, fetchNewReleases, searchByGenre, convertDMMItemToVideo, type DMMItem } from '../lib/dmm-api';
+import { fetchRankingVideos, fetchNewReleases, searchByGenre, fetchGenres, convertDMMItemToVideo, type DMMItem } from '../lib/dmm-api';
 import type { Database } from '../lib/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient<Database>(supabaseUrl, supabaseKey);
-
-// 人気ジャンルID（ジャンル検索APIで取得したID）
-const POPULAR_GENRES = [
-  '6001', // 美少女
-  '6004', // 単体作品
-  '6102', // 熟女
-  '6003', // 巨乳
-  '6009', // スレンダー
-];
 
 async function updateVideos() {
   console.log('=== 動画データ更新開始 ===\n');
@@ -42,21 +33,38 @@ async function updateVideos() {
     const newVideos = await fetchNewReleases(50);
     console.log(`✓ 取得成功: ${newVideos.length}件\n`);
 
-    // 3. 各ジャンルのTOP5を取得
-    console.log('3. 各ジャンルのTOP5を取得中...');
-    const genreVideos: DMMItem[] = [];
-    for (const genreId of POPULAR_GENRES) {
-      try {
-        const videos = await searchByGenre(genreId, 5);
-        genreVideos.push(...videos);
-        console.log(`  ✓ ジャンル${genreId}: ${videos.length}件`);
-      } catch (error) {
-        console.error(`  ✗ ジャンル${genreId}の取得失敗:`, error);
-      }
-    }
-    console.log(`✓ ジャンル動画合計: ${genreVideos.length}件\n`);
+    // 3. 全ジャンル一覧を取得
+    console.log('3. 全ジャンル一覧を取得中...');
+    const genres = await fetchGenres();
+    console.log(`✓ ジャンル数: ${genres.length}件\n`);
 
-    // 4. 重複を除去してマージ（サムネイル&サンプル動画のフィルタリング）
+    // 4. 各ジャンルのTOP5を取得
+    console.log('4. 各ジャンルのTOP5を取得中...');
+    const genreVideos: DMMItem[] = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const genre of genres) {
+      try {
+        const videos = await searchByGenre(genre.id, 5);
+        genreVideos.push(...videos);
+        successCount++;
+
+        if (successCount % 10 === 0) {
+          console.log(`  進捗: ${successCount}/${genres.length}ジャンル完了`);
+        }
+      } catch (error) {
+        failCount++;
+        console.error(`  ✗ ジャンル${genre.name}(${genre.id})の取得失敗`);
+      }
+
+      // APIレート制限対策：各リクエスト間に100msの遅延
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    console.log(`✓ ジャンル動画合計: ${genreVideos.length}件`);
+    console.log(`  成功: ${successCount}件 / 失敗: ${failCount}件\n`);
+
+    // 5. 重複を除去してマージ（サムネイル&サンプル動画のフィルタリング）
     const allVideos = new Map<string, DMMItem>();
 
     const addVideo = (video: DMMItem) => {
@@ -70,10 +78,10 @@ async function updateVideos() {
     newVideos.forEach(addVideo);
     genreVideos.forEach(addVideo);
 
-    console.log(`4. 重複除去&フィルタリング後: ${allVideos.size}件のユニーク動画\n`);
+    console.log(`5. 重複除去&フィルタリング後: ${allVideos.size}件のユニーク動画\n`);
 
-    // 5. 古いデータを削除（1ヶ月以上更新されず、いいねもされていない動画）
-    console.log('5. 古いデータを削除中...');
+    // 6. 古いデータを削除（1ヶ月以上更新されず、いいねもされていない動画）
+    console.log('6. 古いデータを削除中...');
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
@@ -106,8 +114,8 @@ async function updateVideos() {
     }
     console.log(`✓ 削除: ${deletedCount}件\n`);
 
-    // 6. Supabaseに保存
-    console.log('6. Supabaseに保存中...');
+    // 7. Supabaseに保存
+    console.log('7. Supabaseに保存中...');
     let savedCount = 0;
     let updatedCount = 0;
     let errorCount = 0;
