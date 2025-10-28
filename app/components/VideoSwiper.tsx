@@ -142,7 +142,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
       {/* FANZAクレジット（画面上部固定） */}
-      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-red-500 text-white py-1 text-xs flex items-center justify-center px-4">
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-red-500 text-white h-6 text-xs flex items-center justify-center px-4">
         <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-gray-300 transition-colors">FANZA Webサービス</a></span>
       </div>
 
@@ -156,7 +156,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[calc(max(env(safe-area-inset-top),0)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)] bg-orange-500">
+                <div className="absolute top-[calc(max(env(safe-area-inset-top),0)+1.5rem)] left-0 right-0 bottom-0 flex flex-col items-center pb-[calc(env(safe-area-inset-bottom)+8rem)] bg-orange-500">
                   {/* タイトル */}
                   <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4 bg-blue-500">
                     {video.title}
