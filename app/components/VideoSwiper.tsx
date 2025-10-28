@@ -141,9 +141,13 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
-      {/* 広告・PR表記（画面上部固定） */}
-      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-yellow-400 text-black text-center py-1 text-xs font-bold">
-        広告・PR
+      {/* 広告・PR表記とクレジット（画面上部固定） */}
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-yellow-400 text-black py-1 text-xs font-bold flex items-center justify-between px-4">
+        <span></span>
+        <span>広告・PR</span>
+        <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-black hover:opacity-80 transition-opacity font-normal">
+          FANZA
+        </a>
       </div>
 
       {/* 縦スクロールエリア */}
@@ -278,20 +282,13 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </a>
           </div>
 
-          {/* クレジット・ポリシーリンク */}
-          <div className="flex items-center justify-between mt-4 px-2">
-            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline text-xs">
+          {/* ポリシーリンク */}
+          <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
               プライバシーポリシー
             </Link>
-            <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer">
-              <img
-                src="https://p.dmm.co.jp/p/affiliate/web_service/r18_135_17.gif"
-                width="135"
-                height="17"
-                alt="WEB SERVICE BY FANZA"
-              />
-            </a>
-            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline text-xs">
+            <span className="text-gray-400">|</span>
+            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
               利用規約
             </Link>
           </div>
