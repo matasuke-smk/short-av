@@ -10,6 +10,7 @@ interface InitialTutorialProps {
 
 export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
   const [show, setShow] = useState(false);
+  const [thumbnailCenter, setThumbnailCenter] = useState<number | null>(null);
 
   useEffect(() => {
     // チュートリアルを既に見たかチェック
@@ -17,6 +18,20 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
 
     if (!hasSeenTutorial) {
       setShow(true);
+
+      // サムネイル要素の位置を計算
+      const calculateThumbnailCenter = () => {
+        // aspect-[4/3]のサムネイルコンテナを探す
+        const thumbnailElement = document.querySelector('.aspect-\\[4\\/3\\]');
+        if (thumbnailElement) {
+          const rect = thumbnailElement.getBoundingClientRect();
+          const center = rect.top + rect.height / 2;
+          setThumbnailCenter(center);
+        }
+      };
+
+      // DOM読み込み後に計算
+      setTimeout(calculateThumbnailCenter, 100);
 
       // 3秒後に自動で消える
       const timer = setTimeout(() => {
@@ -41,7 +56,13 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
       onClick={handleDismiss}
     >
       {/* タップして再生（サムネイル中央） */}
-      <div className="absolute top-[22%] left-1/2 -translate-x-1/2 pointer-events-none">
+      <div
+        className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+        style={{
+          top: thumbnailCenter ? `${thumbnailCenter}px` : '22%',
+          transform: 'translate(-50%, -50%)'
+        }}
+      >
         <div className="flex flex-col items-center gap-6">
           {/* タップして再生テキスト */}
           <div className="animate-pulse-slow">
