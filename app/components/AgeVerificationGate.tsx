@@ -31,33 +31,25 @@ export default function AgeVerificationGate() {
   if (!showGate) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-900 rounded-2xl max-w-md w-full shadow-2xl border border-gray-700 my-auto">
-        {/* ヘッダー */}
-        <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white p-6 rounded-t-2xl">
-          <h1 className="text-2xl font-bold text-center">年齢確認</h1>
-        </div>
-
+    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-sm w-full shadow-xl">
         {/* コンテンツ */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-4">
           {/* 広告表記 */}
-          <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-center font-bold text-sm">
-            📢 広告・PR
+          <div className="bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded text-center text-xs font-medium">
+            広告・PR
           </div>
 
-          {/* 警告メッセージ */}
-          <div className="text-white text-center space-y-3">
-            <p className="text-lg font-semibold">
-              このサイトはアダルトコンテンツを含みます
-            </p>
-            <p className="text-sm text-gray-300">
-              18歳未満の方の閲覧は法律で禁止されています。<br />
+          {/* メッセージ */}
+          <div className="text-gray-800 text-center space-y-2">
+            <p className="text-base font-medium">年齢確認</p>
+            <p className="text-sm text-gray-600">
               あなたは18歳以上ですか？
             </p>
           </div>
 
-          {/* DMMバナー広告（6:5アスペクト比） */}
-          <div className="w-full aspect-[6/5] bg-gray-800 rounded-lg overflow-hidden">
+          {/* DMMバナー広告 */}
+          <div className="w-full aspect-[6/5] rounded-lg overflow-hidden">
             <a
               href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_468_390&af_id=matasuke-002"
               target="_blank"
@@ -73,28 +65,26 @@ export default function AgeVerificationGate() {
           </div>
 
           {/* ボタン */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <button
               onClick={handleAccept}
-              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-all transform active:scale-95 shadow-lg"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors"
             >
-              18歳以上です（入場する）
+              はい（18歳以上）
             </button>
 
             <button
               onClick={handleReject}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 rounded-lg transition-colors text-sm"
             >
-              18歳未満です（退出する）
+              いいえ
             </button>
           </div>
 
-          {/* 注意事項 */}
-          <div className="text-xs text-gray-400 text-center space-y-1 pt-4 border-t border-gray-700">
-            <p>※ このサイトはアフィリエイト広告を掲載しています</p>
-            <p>※ 入場は1日1回の確認となります</p>
-            <p className="text-gray-500">Powered by DMM アフィリエイト</p>
-          </div>
+          {/* 注意 */}
+          <p className="text-xs text-gray-500 text-center">
+            ※ アフィリエイト広告を掲載しています
+          </p>
         </div>
       </div>
     </div>
