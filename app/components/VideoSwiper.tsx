@@ -123,10 +123,10 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                       className="w-full h-full object-contain relative z-0"
                     />
 
-                    {/* いいねボタン - 左下 */}
+                    {/* いいねボタン - 左上（テスト用） */}
                     <button
                       onClick={(e) => toggleLike(video.id, e)}
-                      className="absolute bottom-3 left-3 z-50 bg-black/60 backdrop-blur-sm rounded-full p-3 transition-all active:scale-90 hover:bg-black/80 shadow-lg"
+                      className="absolute top-3 left-3 z-50 bg-red-500 rounded-full p-3 transition-all active:scale-90 shadow-lg"
                       aria-label="いいね"
                     >
                       {likedVideos.has(video.id) ? (
