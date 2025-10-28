@@ -38,7 +38,7 @@ export default function AgeVerificationGate() {
   if (!showGate) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-[2px] bg-black/40 z-[9999] flex flex-col items-center justify-center p-6 space-y-6">
+    <div className="fixed inset-0 backdrop-blur-[2px] bg-black/50 z-[9999] flex flex-col items-center justify-center p-6 space-y-6">
       {/* 広告表記 */}
       <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-medium">
         広告・PR
