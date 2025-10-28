@@ -141,9 +141,9 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
-      {/* 広告・PR表記とクレジット（画面上部固定） */}
-      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-yellow-400 text-black py-1 text-xs font-bold flex items-center justify-center px-4">
-        <span>PR・告知　Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-black hover:opacity-80 transition-opacity">FANZA Webサービス</a></span>
+      {/* FANZAクレジット（画面上部固定） */}
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white py-1 text-xs flex items-center justify-center px-4">
+        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-white hover:opacity-80 transition-opacity">FANZA Webサービス</a></span>
       </div>
 
       {/* 縦スクロールエリア */}
@@ -278,15 +278,20 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </a>
           </div>
 
-          {/* ポリシーリンク */}
-          <div className="flex items-center justify-center gap-4 mt-4 text-xs">
-            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              プライバシーポリシー
-            </Link>
-            <span className="text-gray-400">|</span>
-            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              利用規約
-            </Link>
+          {/* 広告表記とポリシーリンク */}
+          <div className="mt-4 text-xs">
+            <div className="flex items-center justify-center mb-2">
+              <span className="text-gray-400">PR・広告</span>
+            </div>
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+                プライバシーポリシー
+              </Link>
+              <span className="text-gray-400">|</span>
+              <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+                利用規約
+              </Link>
+            </div>
           </div>
         </div>
       </div>
