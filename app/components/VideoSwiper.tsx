@@ -142,8 +142,8 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
       {/* FANZAクレジット（画面上部固定） */}
-      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-red-500 text-white h-6 text-xs flex items-center justify-center px-4">
-        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-gray-300 transition-colors">FANZA Webサービス</a></span>
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
+        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
       </div>
 
       {/* 縦スクロールエリア */}
@@ -156,9 +156,9 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア */}
-                <div className="flex flex-col items-center bg-orange-500">
+                <div className="flex flex-col items-center">
                   {/* タイトル */}
-                  <div className="h-10 w-full px-4 bg-blue-500 flex items-center justify-center">
+                  <div className="h-10 w-full px-4 flex items-center justify-center">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 overflow-hidden">
                       {video.title}
                     </h2>
@@ -166,7 +166,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
                   <div
-                    className="relative w-full aspect-[4/3] cursor-pointer bg-green-500"
+                    className="relative w-full aspect-[4/3] cursor-pointer bg-black"
                     onClick={handleThumbnailClick}
                   >
                     <img
@@ -199,7 +199,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                   </div>
 
                   {/* 広告バナー領域 (640×200) - 固定位置 */}
-                  <div className="w-full bg-yellow-500">
+                  <div className="w-full">
                     <a
                       href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
                       target="_blank"
@@ -223,7 +223,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
       </div>
 
       {/* 下部固定エリア */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-purple-500 px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] h-[calc(100dvh-1.5rem-75vw-31.25vw-2.5rem)] flex flex-col justify-end">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] h-[calc(100dvh-1.5rem-75vw-31.25vw-2.5rem)] flex flex-col justify-end">
         <div className="max-w-3xl mx-auto w-full">
           {/* 動画情報 */}
           <div className="text-white text-sm mb-3 space-y-1">
