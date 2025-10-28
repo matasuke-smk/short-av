@@ -278,19 +278,17 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </a>
           </div>
 
-          {/* クレジット */}
-          <div className="flex flex-col items-center gap-2 mt-4">
+          {/* クレジット・ポリシーリンク */}
+          <div className="flex items-center justify-between mt-4 text-xs px-2">
+            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+              プライバシーポリシー
+            </Link>
             <p className="text-gray-400 text-xs">
               Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a>
             </p>
-            <div className="flex gap-4 text-xs">
-              <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-                プライバシーポリシー
-              </Link>
-              <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-                利用規約
-              </Link>
-            </div>
+            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+              利用規約
+            </Link>
           </div>
         </div>
       </div>
