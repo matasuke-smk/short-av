@@ -30,6 +30,7 @@ export type Database = {
           actress_ids: string[] | null;
           view_count: number;
           click_count: number;
+          likes_count: number;
           rank_position: number | null;
           is_active: boolean;
           created_at: string;
@@ -37,6 +38,16 @@ export type Database = {
         };
         Insert: Omit<Database['public']['Tables']['videos']['Row'], 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Database['public']['Tables']['videos']['Insert']>;
+      };
+      likes: {
+        Row: {
+          id: string;
+          video_id: string;
+          user_identifier: string;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['likes']['Row'], 'id' | 'created_at'>;
+        Update: Partial<Database['public']['Tables']['likes']['Insert']>;
       };
       articles: {
         Row: {

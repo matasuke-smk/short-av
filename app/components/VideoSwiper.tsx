@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import type { Database } from '@/lib/supabase';
+import { getUserId } from '@/lib/user-id';
+import Link from 'next/link';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -22,37 +24,77 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
-  const [likedVideos, setLikedVideos] = useState<Set<string | number>>(new Set());
+  const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
+  const [userId, setUserId] = useState<string>('');
 
-  // LocalStorageからいいね状態を読み込み
+  // ユーザーIDを取得・設定
   useEffect(() => {
-    const stored = localStorage.getItem('likedVideos');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setLikedVideos(new Set(parsed));
-      } catch (e) {
-        console.error('Failed to parse liked videos:', e);
-      }
-    }
+    const id = getUserId();
+    setUserId(id);
   }, []);
 
+  // サーバーからいいね状態を読み込み
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchLikes = async () => {
+      try {
+        const response = await fetch(`/api/likes/my-likes?userId=${userId}`);
+        const data = await response.json();
+        if (data.videoIds) {
+          setLikedVideos(new Set(data.videoIds));
+        }
+      } catch (error) {
+        console.error('Failed to fetch likes:', error);
+      }
+    };
+
+    fetchLikes();
+  }, [userId]);
+
   // いいねを切り替える関数
-  const toggleLike = useCallback((videoId: string | number, event: React.MouseEvent) => {
+  const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // サムネイルクリックイベントの伝播を防ぐ
 
+    if (!userId) return;
+
+    // 楽観的UI更新
+    const wasLiked = likedVideos.has(videoId);
     setLikedVideos(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(videoId)) {
+      if (wasLiked) {
         newSet.delete(videoId);
       } else {
         newSet.add(videoId);
       }
-      // LocalStorageに保存
-      localStorage.setItem('likedVideos', JSON.stringify(Array.from(newSet)));
       return newSet;
     });
-  }, []);
+
+    try {
+      // APIを呼び出し
+      const response = await fetch('/api/likes/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ videoId, userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle like');
+      }
+    } catch (error) {
+      console.error('Like toggle error:', error);
+      // エラー時は元に戻す
+      setLikedVideos(prev => {
+        const newSet = new Set(prev);
+        if (wasLiked) {
+          newSet.add(videoId);
+        } else {
+          newSet.delete(videoId);
+        }
+        return newSet;
+      });
+    }
+  }, [userId, likedVideos]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -185,13 +227,13 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
           {/* ボタンエリア */}
           <div className="grid grid-cols-5 gap-3">
-            {/* 4種類のボタン（機能は後で実装） */}
-            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            {/* いいね一覧ページへのリンク */}
+            <Link href="/liked" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
               <span className="text-xs">いいね</span>
-            </button>
+            </Link>
 
             <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
