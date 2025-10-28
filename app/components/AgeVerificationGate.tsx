@@ -38,62 +38,57 @@ export default function AgeVerificationGate() {
   if (!showGate) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white/70 backdrop-blur-md rounded-xl max-w-sm w-full shadow-2xl">
-        {/* コンテンツ */}
-        <div className="p-6 space-y-4">
-          {/* 広告表記 */}
-          <div className="bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded text-center text-xs font-medium">
-            広告・PR
-          </div>
-
-          {/* メッセージ */}
-          <div className="text-gray-800 text-center space-y-2">
-            <p className="text-base font-medium">年齢確認</p>
-            <p className="text-sm text-gray-600">
-              あなたは18歳以上ですか？
-            </p>
-          </div>
-
-          {/* DMMバナー広告 */}
-          <div className="w-full aspect-[6/5] rounded-lg overflow-hidden">
-            <a
-              href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_468_390&af_id=matasuke-002"
-              target="_blank"
-              rel="sponsored noopener noreferrer"
-              className="block w-full h-full"
-            >
-              <img
-                src="https://pics.dmm.com/af/a_digital_500off01/468_390.jpg"
-                alt="初回購入限定！500円OFF！"
-                className="w-full h-full object-cover"
-              />
-            </a>
-          </div>
-
-          {/* ボタン */}
-          <div className="space-y-2">
-            <button
-              onClick={handleAccept}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-colors"
-            >
-              はい（18歳以上）
-            </button>
-
-            <button
-              onClick={handleReject}
-              className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2.5 rounded-lg transition-colors text-sm"
-            >
-              いいえ
-            </button>
-          </div>
-
-          {/* 注意 */}
-          <p className="text-xs text-gray-500 text-center">
-            ※ アフィリエイト広告を掲載しています
-          </p>
-        </div>
+    <div className="fixed inset-0 backdrop-blur-md bg-black/50 z-[9999] flex flex-col items-center justify-center p-6 space-y-6">
+      {/* 広告表記 */}
+      <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-medium">
+        広告・PR
       </div>
+
+      {/* メッセージ */}
+      <div className="text-white text-center space-y-2">
+        <p className="text-xl font-medium">年齢確認</p>
+        <p className="text-sm">
+          あなたは18歳以上ですか？
+        </p>
+      </div>
+
+      {/* DMMバナー広告 */}
+      <div className="w-full max-w-xs aspect-[6/5] rounded-lg overflow-hidden shadow-xl">
+        <a
+          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_468_390&af_id=matasuke-002"
+          target="_blank"
+          rel="sponsored noopener noreferrer"
+          className="block w-full h-full"
+        >
+          <img
+            src="https://pics.dmm.com/af/a_digital_500off01/468_390.jpg"
+            alt="初回購入限定！500円OFF！"
+            className="w-full h-full object-cover"
+          />
+        </a>
+      </div>
+
+      {/* ボタン */}
+      <div className="w-full max-w-xs space-y-3">
+        <button
+          onClick={handleAccept}
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3.5 rounded-lg transition-colors shadow-lg"
+        >
+          はい（18歳以上）
+        </button>
+
+        <button
+          onClick={handleReject}
+          className="w-full bg-white/20 hover:bg-white/30 text-white font-medium py-2.5 rounded-lg transition-colors backdrop-blur-sm text-sm"
+        >
+          いいえ
+        </button>
+      </div>
+
+      {/* 注意 */}
+      <p className="text-xs text-white/70 text-center">
+        ※ アフィリエイト広告を掲載しています
+      </p>
     </div>
   );
 }
