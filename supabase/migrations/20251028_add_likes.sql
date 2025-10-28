@@ -7,7 +7,7 @@ ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0 NOT NULL;
 -- 2. likesテーブルを作成（ユーザーのいいね情報を保存）
 CREATE TABLE IF NOT EXISTS likes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  video_id TEXT NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+  video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
   user_identifier TEXT NOT NULL, -- LocalStorageのユニークID、将来的にはユーザーIDに変更可能
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
 
