@@ -5,6 +5,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import type { Database } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
+import InitialTutorial from './InitialTutorial';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -26,6 +27,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string>('');
+  const [showTutorial, setShowTutorial] = useState(true);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -311,6 +313,11 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* 初回チュートリアル */}
+      {showTutorial && (
+        <InitialTutorial onDismiss={() => setShowTutorial(false)} />
       )}
     </div>
   );
