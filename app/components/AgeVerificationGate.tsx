@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-export default function AgeVerificationGate() {
+interface AgeVerificationGateProps {
+  onAccept?: () => void;
+}
+
+export default function AgeVerificationGate({ onAccept }: AgeVerificationGateProps) {
   const [showGate, setShowGate] = useState(false);
 
   useEffect(() => {
@@ -28,6 +32,11 @@ export default function AgeVerificationGate() {
     const today = new Date().toISOString().split('T')[0];
     localStorage.setItem('age_verification_date', today);
     setShowGate(false);
+
+    // 親コンポーネントに通知（チュートリアル表示のトリガー）
+    if (onAccept) {
+      onAccept();
+    }
   };
 
   const handleReject = () => {

@@ -17,28 +17,41 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
     const hasSeenTutorial = localStorage.getItem(TUTORIAL_KEY);
 
     if (!hasSeenTutorial) {
-      setShow(true);
+      // 年齢確認ゲートが表示されているかチェック
+      const checkAndShowTutorial = () => {
+        const today = new Date().toISOString().split('T')[0];
+        const lastVerificationDate = localStorage.getItem('age_verification_date');
 
-      // サムネイル要素の位置を計算
-      const calculateThumbnailCenter = () => {
-        // aspect-[4/3]のサムネイルコンテナを探す
-        const thumbnailElement = document.querySelector('.aspect-\\[4\\/3\\]');
-        if (thumbnailElement) {
-          const rect = thumbnailElement.getBoundingClientRect();
-          const center = rect.top + rect.height / 2;
-          setThumbnailCenter(center);
+        // 年齢確認が完了している場合のみチュートリアルを表示
+        if (lastVerificationDate === today) {
+          setShow(true);
+
+          // サムネイル要素の位置を計算
+          const calculateThumbnailCenter = () => {
+            const thumbnailElement = document.querySelector('.aspect-\\[4\\/3\\]');
+            if (thumbnailElement) {
+              const rect = thumbnailElement.getBoundingClientRect();
+              const center = rect.top + rect.height / 2;
+              setThumbnailCenter(center);
+            }
+          };
+
+          setTimeout(calculateThumbnailCenter, 100);
+
+          // 3秒後に自動で消える
+          const timer = setTimeout(() => {
+            handleDismiss();
+          }, 3000);
+
+          return () => clearTimeout(timer);
+        } else {
+          // 年齢確認がまだの場合、少し待ってから再チェック
+          const recheckTimer = setTimeout(checkAndShowTutorial, 500);
+          return () => clearTimeout(recheckTimer);
         }
       };
 
-      // DOM読み込み後に計算
-      setTimeout(calculateThumbnailCenter, 100);
-
-      // 3秒後に自動で消える
-      const timer = setTimeout(() => {
-        handleDismiss();
-      }, 3000);
-
-      return () => clearTimeout(timer);
+      checkAndShowTutorial();
     }
   }, []);
 
