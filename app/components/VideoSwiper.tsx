@@ -65,7 +65,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-black overflow-hidden">
+    <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
         <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide" ref={emblaRef}>
@@ -73,12 +73,12 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
             {videos.map((video) => (
               <div
                 key={video.id}
-                className="h-screen w-full snap-start snap-always relative"
+                className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-16 pb-32">
+                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[max(env(safe-area-inset-top),0.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
                   {/* タイトル - 固定高さ */}
-                  <div className="h-12 flex items-center mb-4 w-full">
+                  <div className="h-12 flex items-center mb-2 w-full">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
                       {video.title}
                     </h2>
@@ -118,7 +118,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
       </div>
 
       {/* 下部固定エリア */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 py-4">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)]">
         <div className="max-w-3xl mx-auto">
           {/* 動画情報 */}
           <div className="text-white text-sm mb-3 space-y-1">
