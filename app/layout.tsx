@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import AgeVerificationGate from './components/AgeVerificationGate';
 
 export const metadata: Metadata = {
   title: 'Short AV - 動画レビューサイト',
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className="antialiased">
+        <AgeVerificationGate />
         {children}
       </body>
     </html>
