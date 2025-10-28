@@ -141,6 +141,11 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
+      {/* 広告・PR表記（画面上部固定） */}
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-yellow-400 text-black text-center py-1 text-xs font-bold">
+        広告・PR
+      </div>
+
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
         <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide" ref={emblaRef}>
@@ -151,7 +156,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[max(env(safe-area-inset-top),0.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
+                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[calc(max(env(safe-area-inset-top),0.5rem)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
                   {/* タイトル - 固定高さ */}
                   <div className="h-12 flex items-center w-full">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
@@ -274,10 +279,18 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
           </div>
 
           {/* クレジット */}
-          <div className="flex justify-center mt-4">
+          <div className="flex flex-col items-center gap-2 mt-4">
             <p className="text-gray-400 text-xs">
               Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a>
             </p>
+            <div className="flex gap-4 text-xs">
+              <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+                プライバシーポリシー
+              </Link>
+              <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+                利用規約
+              </Link>
+            </div>
           </div>
         </div>
       </div>
