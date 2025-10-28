@@ -57,9 +57,10 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
     >
       {/* タップして再生（サムネイル中央） */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+        className="absolute pointer-events-none"
         style={{
           top: thumbnailCenter ? `${thumbnailCenter}px` : '22%',
+          left: '50%',
           transform: 'translate(-50%, -50%)'
         }}
       >
