@@ -6,6 +6,13 @@ export default function AgeVerificationGate() {
   const [showGate, setShowGate] = useState(false);
 
   useEffect(() => {
+    // URLパラメータで強制表示（デバッグ用）
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('show_gate') === '1') {
+      setShowGate(true);
+      return;
+    }
+
     // 今日の日付を取得（YYYY-MM-DD形式）
     const today = new Date().toISOString().split('T')[0];
     const lastVerificationDate = localStorage.getItem('age_verification_date');
@@ -31,8 +38,8 @@ export default function AgeVerificationGate() {
   if (!showGate) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl max-w-sm w-full shadow-xl">
+    <div className="fixed inset-0 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+      <div className="bg-white/95 backdrop-blur-sm rounded-xl max-w-sm w-full shadow-2xl">
         {/* コンテンツ */}
         <div className="p-6 space-y-4">
           {/* 広告表記 */}
