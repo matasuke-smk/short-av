@@ -78,14 +78,14 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
                 <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[max(env(safe-area-inset-top),0.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)]">
                   {/* タイトル - 固定高さ */}
-                  <div className="h-12 flex items-center mb-2 w-full">
+                  <div className="h-12 flex items-center w-full">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
                       {video.title}
                     </h2>
                   </div>
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
-                  <div className="relative w-full aspect-[4/3] cursor-pointer mb-6 bg-black">
+                  <div className="relative w-full aspect-[4/3] cursor-pointer bg-black">
                     <img
                       src={video.thumbnail_url}
                       alt={video.title}
