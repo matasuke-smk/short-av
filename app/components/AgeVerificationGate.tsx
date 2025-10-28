@@ -13,6 +13,8 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
     // URLパラメータで強制表示（デバッグ用）
     const params = new URLSearchParams(window.location.search);
     if (params.get('show_gate') === '1') {
+      // デバッグモード：チュートリアルのフラグもクリア
+      localStorage.removeItem('short-av-tutorial-shown');
       setShowGate(true);
       return;
     }
