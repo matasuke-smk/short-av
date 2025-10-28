@@ -156,7 +156,7 @@ export default function VideoSwiper({ videos }: VideoSwiperProps) {
                 className="h-[100dvh] w-full snap-start snap-always relative"
               >
                 {/* メインコンテンツエリア - 絶対配置で位置固定 */}
-                <div className="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center pt-[calc(max(env(safe-area-inset-top),0.5rem)+1.5rem)] pb-[calc(env(safe-area-inset-bottom)+8rem)] bg-orange-500">
+                <div className="absolute top-[calc(max(env(safe-area-inset-top),0)+1.5rem)] left-0 right-0 bottom-0 flex flex-col items-center pb-[calc(env(safe-area-inset-bottom)+8rem)] bg-orange-500">
                   {/* タイトル - 固定高さ */}
                   <div className="h-12 flex items-center w-full bg-blue-500">
                     <h2 className="text-white text-sm font-bold text-center line-clamp-2 w-full px-4">
