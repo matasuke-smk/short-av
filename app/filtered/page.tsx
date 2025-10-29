@@ -185,7 +185,9 @@ function FilteredVideosContent() {
 
         setVideos(data);
         if (indexParam) {
-          setInitialIndex(parseInt(indexParam));
+          // 選択した動画の1つ前から表示（上にも動画があることを示すため）
+          const selectedIndex = parseInt(indexParam);
+          setInitialIndex(Math.max(0, selectedIndex - 1));
         }
       } catch (error) {
         console.error('動画読み込みエラー:', error);
