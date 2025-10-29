@@ -13,9 +13,10 @@ interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onVideoSelect: (videoId: string) => void;
+  currentVideoId?: string;
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
@@ -286,8 +287,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
             </button>
             <button
               onClick={() => {
-                const filters = genderFilters.join(',');
-                window.location.href = `/filtered?filters=${filters}`;
+                const params = new URLSearchParams();
+                params.set('filters', genderFilters.join(','));
+                if (currentVideoId) {
+                  params.set('v', currentVideoId);
+                }
+                window.location.href = `/filtered?${params.toString()}`;
               }}
               disabled={genderFilters.length === 0 || genderFilters.length === 3}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
