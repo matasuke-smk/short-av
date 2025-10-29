@@ -627,7 +627,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   // 同じフィルタをクリックした場合は直接検索
                   handleSearch();
                 } else {
+                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('straight');
+                  setSelectedGenreIds([]);
+                  setSelectedActressIds([]);
+                  setSearchResults(null);
+                  setKeyword('');
                 }
               }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
@@ -644,7 +649,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   // 同じフィルタをクリックした場合は直接検索
                   handleSearch();
                 } else {
+                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('lesbian');
+                  setSelectedGenreIds([]);
+                  setSelectedActressIds([]);
+                  setSearchResults(null);
+                  setKeyword('');
                 }
               }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
@@ -661,7 +671,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   // 同じフィルタをクリックした場合は直接検索
                   handleSearch();
                 } else {
+                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('gay');
+                  setSelectedGenreIds([]);
+                  setSelectedActressIds([]);
+                  setSearchResults(null);
+                  setKeyword('');
                 }
               }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
