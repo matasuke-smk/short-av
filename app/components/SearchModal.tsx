@@ -14,16 +14,13 @@ interface SearchModalProps {
   onClose: () => void;
   onVideoSelect: (videoId: string) => void;
   currentVideoId?: string;
-  initialVideos: Video[];
+  videos: Video[]; // VideoSwiperから直接渡される
   currentIndex: number;
-  initialOffset: number;
-  totalVideos: number;
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, initialVideos, currentIndex, initialOffset, totalVideos }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, videos, currentIndex }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
-  const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
@@ -38,13 +35,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const isInitialMount = useRef(true);
   const videoListRef = useRef<HTMLDivElement>(null);
   const currentVideoRef = useRef<HTMLButtonElement>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(20); // 初期表示の20件の次から
-  const [hasMore, setHasMore] = useState(true);
   const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
-  const videoCount = useRef(0); // 読み込んだ動画の数を追跡
   const hasScrolledRef = useRef(false); // スクロール済みかどうかのフラグ
 
   useEffect(() => {
@@ -55,14 +48,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
-
-    // 初期動画リストをそのまま表示（並び替えしない）
-    setVideos(initialVideos);
-    videoCount.current = initialVideos.length;
-
-    // オフセットとhasMoreをリセット（initialOffsetを基準にする）
-    setOffset(initialOffset + initialVideos.length);
-    setHasMore(true);
 
     // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
     const params = new URLSearchParams(window.location.search);
@@ -153,7 +138,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     loadGenres();
     loadActresses();
-  }, [isOpen, initialVideos]);
+  }, [isOpen]);
 
   // 性別フィルタが変更されたら自動的に検索を実行
   useEffect(() => {
@@ -248,76 +233,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
       hasScrolledRef.current = true;
     }
   }, [isOpen, videos]);
-
-  // スクロールイベントのリスナーを追加（無限スクロール）
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleScroll = (e: Event) => {
-      const target = e.target as HTMLDivElement;
-      const scrollHeight = target.scrollHeight;
-      const scrollTop = target.scrollTop;
-      const clientHeight = target.clientHeight;
-
-      // 下部から200px以内までスクロールしたら追加読み込み
-      if (scrollHeight - scrollTop - clientHeight < 200 && !isLoadingMore && hasMore && !isSearchResult.current) {
-        loadMoreVideos();
-      }
-    };
-
-    const contentArea = document.querySelector('.search-modal-content');
-    if (contentArea) {
-      contentArea.addEventListener('scroll', handleScroll);
-      return () => contentArea.removeEventListener('scroll', handleScroll);
-    }
-  }, [isOpen, isLoadingMore, hasMore, offset, genderFilter, genres]);
-
-  // 追加の動画を読み込む（無限スクロール用）
-  const loadMoreVideos = async () => {
-    if (isLoadingMore || !hasMore || isSearchResult.current) return;
-
-    setIsLoadingMore(true);
-    try {
-      // 循環式オフセットを計算（VideoSwiperと同じロジック）
-      const currentOffset = offset % totalVideos;
-      const response = await fetch(`/api/videos?offset=${currentOffset}&limit=20`);
-      const data = await response.json();
-
-      if (data.videos && data.videos.length > 0) {
-        // 性別フィルタを適用
-        const genreMap = new Map(genres.map(g => [g.id, g.name]));
-
-        const filteredNewVideos = data.videos.filter((video: Video) => {
-          const videoGenreNames = (video.genre_ids || [])
-            .map((id: string) => genreMap.get(id) || '')
-            .join(',');
-
-          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-          const hasGay = videoGenreNames.includes('ゲイ');
-
-          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-          if (genderFilter === 'gay') return hasGay && !hasLesbian;
-          return false;
-        });
-
-        setVideos(prev => [...prev, ...filteredNewVideos]);
-        setOffset(prev => prev + 20);
-        videoCount.current += filteredNewVideos.length;
-
-        // 取得した動画が20件未満なら、もう読み込めるデータがない
-        if (data.videos.length < 20) {
-          setHasMore(false);
-        }
-      } else {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.error('追加動画読み込みエラー:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
 
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能

@@ -449,10 +449,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
-        initialVideos={videos}
+        videos={videos}
         currentIndex={currentIndex}
-        initialOffset={initialOffset}
-        totalVideos={totalVideos}
       />
     </div>
   );
