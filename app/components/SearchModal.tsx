@@ -31,9 +31,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    // モーダルを開くたびに初回マウントフラグをリセット
+    isInitialMount.current = true;
+    setVideos([]); // 検索結果をクリア
 
     const loadGenres = async () => {
       try {
@@ -48,6 +53,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           return;
         }
         setGenres(data || []);
+        // ジャンル読み込み完了後、次回から性別フィルタ変更で検索が実行されるようにする
+        isInitialMount.current = false;
       } catch (error) {
         console.error('ジャンル読み込みエラー:', error);
       }
@@ -73,16 +80,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     loadGenres();
     loadActresses();
-
-    // モーダルを開いたら自動的に性別フィルタで検索を実行
-    if (isOpen) {
-      handleSearch();
-    }
   }, [isOpen]);
 
   // 性別フィルタが変更されたら自動的に検索を実行
   useEffect(() => {
-    if (isOpen && genres.length > 0) {
+    if (!isInitialMount.current && isOpen && genres.length > 0) {
       handleSearch();
     }
   }, [genderFilter]);
@@ -402,7 +404,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <p className="text-gray-400 text-sm">
-                {keyword || selectedGenreIds.length > 0 || selectedActressIds.length > 0 ? '検索結果がありません' : '検索ワードを入力してください'}
+                {keyword || selectedGenreIds.length > 0 || selectedActressIds.length > 0 ? '検索結果がありません' : '性別フィルタを選択するか、キーワード・ジャンル・女優で検索してください'}
               </p>
             </div>
           ) : (
