@@ -319,11 +319,9 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
  */
 export function extractActresses(item: DMMItem) {
   return item.iteminfo.actress?.map((actress) => ({
+    id: actress.id,
     name: actress.name,
-    slug: actress.name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, ''),
+    slug: actress.id.toString(), // DMM APIのIDをslugとして使用
   })) || [];
 }
 
@@ -332,10 +330,8 @@ export function extractActresses(item: DMMItem) {
  */
 export function extractGenres(item: DMMItem) {
   return item.iteminfo.genre?.map((genre) => ({
+    id: genre.id,
     name: genre.name,
-    slug: genre.name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\-]+/g, ''),
+    slug: genre.id.toString(), // DMM APIのIDをslugとして使用
   })) || [];
 }
