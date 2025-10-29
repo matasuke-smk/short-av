@@ -67,7 +67,7 @@ function FilteredVideosContent() {
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('release_date', { ascending: false })
-            .limit(1000);
+            .limit(10000);
 
           if (error) throw error;
           data = result || [];
@@ -80,7 +80,7 @@ function FilteredVideosContent() {
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('release_date', { ascending: false })
-            .limit(1000);
+            .limit(10000);
 
           if (error) throw error;
 
@@ -148,7 +148,7 @@ function FilteredVideosContent() {
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('release_date', { ascending: false })
-            .limit(1000);
+            .limit(10000);
 
           if (error) throw error;
           data = result || [];

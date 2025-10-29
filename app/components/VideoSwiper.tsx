@@ -136,12 +136,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     }
   }, [userId, likedVideos]);
 
-  // 初期位置にスクロール
+  // 初期位置にスクロール（アニメーション付き）
   useEffect(() => {
     if (!emblaApi || initialOffset === 0) return;
 
-    // スクロール位置を設定（アニメーションなし）
-    emblaApi.scrollTo(initialOffset, false);
+    // スクロール位置を設定（アニメーション付き）
+    emblaApi.scrollTo(initialOffset, true);
   }, [emblaApi, initialOffset]);
 
   useEffect(() => {
@@ -326,8 +326,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             )}
           </div>
 
-          {/* ボタンエリア - 4つに変更 */}
-          <div className="grid grid-cols-4 gap-3">
+          {/* ボタンエリア - 5つに変更 */}
+          <div className="grid grid-cols-5 gap-3">
             {/* 検索ボタン */}
             <button
               onClick={() => setShowSearchModal(true)}
@@ -345,6 +345,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               <span className="text-xs">人気</span>
+            </Link>
+
+            {/* ホームボタン（中央） */}
+            <Link href="https://short-av.com/" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              <span className="text-xs">ホーム</span>
             </Link>
 
             {/* お気に入り一覧ページへのリンク */}

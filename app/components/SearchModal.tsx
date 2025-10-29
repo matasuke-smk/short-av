@@ -225,18 +225,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // 動画リストが表示されたときのスクロール処理を無効化
-  // ユーザーは検索結果を見ている場所にとどまりたい
+  // 動画リストが表示されたときのスクロール処理（控えめに）
   useEffect(() => {
-    // スクロール処理を完全に無効化
-    // if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
-    //   setTimeout(() => {
-    //     currentVideoRef.current?.scrollIntoView({
-    //       behavior: 'smooth',
-    //       block: 'center'
-    //     });
-    //   }, 100);
-    // }
+    if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
+      // 控えめなスクロール: 1つ分スクロールして表示される程度
+      setTimeout(() => {
+        currentVideoRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',  // 'center'ではなく'nearest'で控えめに
+          inline: 'nearest'
+        });
+      }, 100);
+    }
   }, [isOpen, videos]);
 
   // スクロールイベントのリスナーを追加（無限スクロール）
@@ -413,7 +413,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           return dateB - dateA;
         }).slice(0, 100);
       } else {
-        // 性別フィルタのみの場合、全動画を取得
+        // 性別フィルタのみの場合、全動画を取得（limitを大幅に増やして将来のデータ増加に対応）
         const { data: result, error } = await supabase
           .from('videos')
           .select('*')
@@ -421,7 +421,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .limit(1000);
+          .limit(10000);
 
         if (error) {
           console.error('検索エラー:', error);
