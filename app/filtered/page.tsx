@@ -16,14 +16,44 @@ function FilteredVideosContent() {
   useEffect(() => {
     const loadFilteredVideos = async () => {
       try {
-        // URLパラメータから検索条件を取得
+        // URLパラメータから検索条件を取得（短縮版と長縮版の両方に対応）
         const params = new URLSearchParams(window.location.search);
-        const genderFilter = (params.get('filters') || 'straight') as GenderFilter;
-        const searchMode = params.get('searchMode') as 'keyword' | 'genre' | 'actress' | null;
-        const keyword = params.get('keyword');
-        const genreIds = params.get('genreIds') ? JSON.parse(params.get('genreIds')!) : [];
-        const actressIds = params.get('actressIds') ? JSON.parse(params.get('actressIds')!) : [];
+        const genderFilter = (params.get('f') || params.get('filters') || 'straight') as GenderFilter;
+        const searchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
+        const keyword = params.get('q') || params.get('keyword');
         const indexParam = params.get('index');
+
+        // ジャンルIDを取得（slugから変換）
+        let genreIds: string[] = [];
+        const genreSlugs = params.get('g');
+        const oldGenreIds = params.get('genreIds');
+
+        if (genreSlugs) {
+          const slugArray = genreSlugs.split(',');
+          const { data: genresData } = await supabase
+            .from('genres')
+            .select('id, slug')
+            .in('slug', slugArray);
+          genreIds = genresData?.map(g => g.id) || [];
+        } else if (oldGenreIds) {
+          genreIds = JSON.parse(oldGenreIds);
+        }
+
+        // 女優IDを取得（名前から変換）
+        let actressIds: string[] = [];
+        const actressNames = params.get('a');
+        const oldActressIds = params.get('actressIds');
+
+        if (actressNames) {
+          const nameArray = actressNames.split(',');
+          const { data: actressesData } = await supabase
+            .from('actresses')
+            .select('id, name')
+            .in('name', nameArray);
+          actressIds = actressesData?.map(a => a.id) || [];
+        } else if (oldActressIds) {
+          actressIds = JSON.parse(oldActressIds);
+        }
 
         let data: Video[] = [];
 

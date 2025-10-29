@@ -56,19 +56,50 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     setOffset(20);
     setHasMore(true);
 
-    // URLパラメータから検索条件を復元
+    // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
     const params = new URLSearchParams(window.location.search);
-    const savedSearchMode = params.get('searchMode') as 'keyword' | 'genre' | 'actress' | null;
-    const savedKeyword = params.get('keyword');
-    const savedGenreIds = params.get('genreIds');
-    const savedActressIds = params.get('actressIds');
-    const savedFilter = params.get('filters');
+    const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
+    const savedKeyword = params.get('q') || params.get('keyword');
+    const savedFilter = params.get('f') || params.get('filters');
 
     if (savedSearchMode) setSearchMode(savedSearchMode);
     if (savedKeyword) setKeyword(savedKeyword);
-    if (savedGenreIds) setSelectedGenreIds(JSON.parse(savedGenreIds));
-    if (savedActressIds) setSelectedActressIds(JSON.parse(savedActressIds));
     if (savedFilter) setGenderFilter(savedFilter as GenderFilter);
+
+    // ジャンルと女優は非同期で復元
+    const restoreSearchConditions = async () => {
+      // ジャンルIDを復元（slugから変換）
+      const genreSlugs = params.get('g');
+      const oldGenreIds = params.get('genreIds');
+
+      if (genreSlugs) {
+        const slugArray = genreSlugs.split(',');
+        const { data: genresData } = await supabase
+          .from('genres')
+          .select('id, slug')
+          .in('slug', slugArray);
+        if (genresData) setSelectedGenreIds(genresData.map(g => g.id));
+      } else if (oldGenreIds) {
+        setSelectedGenreIds(JSON.parse(oldGenreIds));
+      }
+
+      // 女優IDを復元（名前から変換）
+      const actressNames = params.get('a');
+      const oldActressIds = params.get('actressIds');
+
+      if (actressNames) {
+        const nameArray = actressNames.split(',');
+        const { data: actressesData } = await supabase
+          .from('actresses')
+          .select('id, name')
+          .in('name', nameArray);
+        if (actressesData) setSelectedActressIds(actressesData.map(a => a.id));
+      } else if (oldActressIds) {
+        setSelectedActressIds(JSON.parse(oldActressIds));
+      }
+    };
+
+    restoreSearchConditions();
 
     const loadGenres = async () => {
       try {
@@ -194,17 +225,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // 動画リストが表示されたら、現在の動画位置にスクロール（初期表示のみ）
+  // 動画リストが表示されたときのスクロール処理を無効化
+  // ユーザーは検索結果を見ている場所にとどまりたい
   useEffect(() => {
-    if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
-      // 少し遅延させてスクロールを実行（レンダリング完了後）
-      setTimeout(() => {
-        currentVideoRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }, 100);
-    }
+    // スクロール処理を完全に無効化
+    // if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
+    //   setTimeout(() => {
+    //     currentVideoRef.current?.scrollIntoView({
+    //       behavior: 'smooth',
+    //       block: 'center'
+    //     });
+    //   }, 100);
+    // }
   }, [isOpen, videos]);
 
   // スクロールイベントのリスナーを追加（無限スクロール）
@@ -389,7 +421,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .limit(100);
+          .limit(1000);
 
         if (error) {
           console.error('検索エラー:', error);
@@ -642,14 +674,20 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       key={video.id}
                       ref={isCurrentVideo ? currentVideoRef : null}
                       onClick={() => {
-                        // 検索条件のみをURLパラメータとして渡す（シンプルなURL）
+                        // 検索条件のみをURLパラメータとして渡す（slugを使って短縮）
                         const params = new URLSearchParams();
                         params.set('index', index.toString());
-                        params.set('filters', genderFilter);
-                        params.set('searchMode', searchMode);
-                        if (keyword) params.set('keyword', keyword);
-                        if (selectedGenreIds.length > 0) params.set('genreIds', JSON.stringify(selectedGenreIds));
-                        if (selectedActressIds.length > 0) params.set('actressIds', JSON.stringify(selectedActressIds));
+                        params.set('f', genderFilter);
+                        params.set('m', searchMode);
+                        if (keyword) params.set('q', keyword);
+                        if (selectedGenreIds.length > 0) {
+                          const slugs = selectedGenreIds.map(id => genres.find(g => g.id === id)?.slug).filter(Boolean);
+                          params.set('g', slugs.join(','));
+                        }
+                        if (selectedActressIds.length > 0) {
+                          const names = selectedActressIds.map(id => actresses.find(a => a.id === id)?.name).filter(Boolean);
+                          params.set('a', names.join(','));
+                        }
 
                         window.location.href = `/filtered?${params.toString()}`;
                       }}
