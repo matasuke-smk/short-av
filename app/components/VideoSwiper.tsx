@@ -14,10 +14,11 @@ interface VideoSwiperProps {
   videos: Video[];
   initialOffset: number;
   totalVideos: number;
+  startIndex?: number; // 配列内の開始位置（デフォルト0）
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, isFiniteList = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList = false }: VideoSwiperProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
@@ -26,7 +27,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     skipSnaps: false,
   });
   const [videos, setVideos] = useState<Video[]>(initialVideos);
-  const [currentIndex, setCurrentIndex] = useState(initialOffset);
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -138,11 +139,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // 初期位置にスクロール（アニメーション付き）
   useEffect(() => {
-    if (!emblaApi || initialOffset === 0) return;
+    if (!emblaApi || startIndex === 0) return;
 
     // スクロール位置を設定（アニメーション付き）
-    emblaApi.scrollTo(initialOffset, true);
-  }, [emblaApi, initialOffset]);
+    emblaApi.scrollTo(startIndex, true);
+  }, [emblaApi, startIndex]);
 
   useEffect(() => {
     if (!emblaApi) return;

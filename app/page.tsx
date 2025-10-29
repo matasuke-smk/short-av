@@ -93,6 +93,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
 
   // URLパラメータで指定された動画があれば、それを先頭に配置
   const targetContentId = params?.v;
+  let startIndex = 0;
   if (targetContentId) {
     const targetIndex = shuffledVideos.findIndex(v => v.dmm_content_id === targetContentId);
     if (targetIndex !== -1) {
@@ -102,10 +103,11 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
         ...shuffledVideos.slice(0, targetIndex),
         ...shuffledVideos.slice(targetIndex + 1)
       ];
+      startIndex = 0; // 先頭に配置したので0から開始
     }
   }
 
-  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} />;
+  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} startIndex={startIndex} />;
 }
 
 export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
