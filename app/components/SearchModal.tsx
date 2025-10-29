@@ -54,6 +54,20 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     setOffset(20);
     setHasMore(true);
 
+    // URLパラメータから検索条件を復元
+    const params = new URLSearchParams(window.location.search);
+    const savedSearchMode = params.get('searchMode') as 'keyword' | 'genre' | 'actress' | null;
+    const savedKeyword = params.get('keyword');
+    const savedGenreIds = params.get('genreIds');
+    const savedActressIds = params.get('actressIds');
+    const savedFilter = params.get('filters');
+
+    if (savedSearchMode) setSearchMode(savedSearchMode);
+    if (savedKeyword) setKeyword(savedKeyword);
+    if (savedGenreIds) setSelectedGenreIds(JSON.parse(savedGenreIds));
+    if (savedActressIds) setSelectedActressIds(JSON.parse(savedActressIds));
+    if (savedFilter) setGenderFilter(savedFilter as GenderFilter);
+
     const loadGenres = async () => {
       try {
         const { data, error } = await supabase
@@ -446,7 +460,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                   : 'bg-gray-700 text-gray-300'
               }`}
             >
-              女優
+              {genderFilter === 'gay' ? '男優' : '女優'}
             </button>
           </div>
 
@@ -476,7 +490,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       .filter((a: Actress) => selectedActressIds.includes(a.id))
                       .map((a: Actress) => a.name)
                       .join(', ')
-                  : '女優を選択'}
+                  : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
               </button>
             </div>
           ) : (
@@ -546,6 +560,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
                         // 性別フィルタも渡す
                         params.set('filters', genderFilter);
+
+                        // 検索条件を保存
+                        params.set('searchMode', searchMode);
+                        if (keyword) params.set('keyword', keyword);
+                        if (selectedGenreIds.length > 0) params.set('genreIds', JSON.stringify(selectedGenreIds));
+                        if (selectedActressIds.length > 0) params.set('actressIds', JSON.stringify(selectedActressIds));
 
                         window.location.href = `/filtered?${params.toString()}`;
                       }}
@@ -664,7 +684,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
           <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <h2 className="text-lg font-bold text-white">女優を選択</h2>
+              <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
               <button
                 onClick={() => setShowActressModal(false)}
                 className="text-gray-400 hover:text-white"
@@ -684,7 +704,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                     e.currentTarget.blur();
                   }
                 }}
-                placeholder="女優名で検索..."
+                placeholder={genderFilter === 'gay' ? '男優名で検索...' : '女優名で検索...'}
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
               />
             </div>
