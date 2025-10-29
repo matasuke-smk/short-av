@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
+type Genre = Database['public']['Tables']['genres']['Row'];
+type Actress = Database['public']['Tables']['actresses']['Row'];
 type GenderFilter = 'straight' | 'lesbian' | 'gay';
 
 interface SearchModalProps {
@@ -18,12 +20,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
   const [keyword, setKeyword] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
-  const [genres, setGenres] = useState<string[]>([]);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilters, setGenderFilters] = useState<GenderFilter[]>(['straight']);
   const [showGenreModal, setShowGenreModal] = useState(false);
-  const [actresses, setActresses] = useState<string[]>([]);
-  const [selectedActresses, setSelectedActresses] = useState<string[]>([]);
+  const [actresses, setActresses] = useState<Actress[]>([]);
+  const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
   const [showActressModal, setShowActressModal] = useState(false);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,21 +36,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
     const loadGenres = async () => {
       try {
         const { data, error } = await supabase
-          .from('videos')
-          .select('genre')
+          .from('genres')
+          .select('*')
           .eq('is_active', true)
-          .not('genre', 'is', null);
+          .order('sort_order', { ascending: true });
 
-        if (error) return;
-        if (data) {
-          const genreSet = new Set<string>();
-          data.forEach(item => {
-            if (item.genre) {
-              item.genre.split(',').forEach((g: string) => genreSet.add(g.trim()));
-            }
-          });
-          setGenres(Array.from(genreSet).sort());
+        if (error) {
+          console.error('ジャンル取得エラー:', error);
+          return;
         }
+        setGenres(data || []);
       } catch (error) {
         console.error('ジャンル読み込みエラー:', error);
       }
@@ -57,21 +54,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
     const loadActresses = async () => {
       try {
         const { data, error } = await supabase
-          .from('videos')
-          .select('actresses')
+          .from('actresses')
+          .select('*')
           .eq('is_active', true)
-          .not('actresses', 'is', null);
+          .order('name', { ascending: true });
 
-        if (error) return;
-        if (data) {
-          const actressSet = new Set<string>();
-          data.forEach(item => {
-            if (item.actresses) {
-              item.actresses.split(',').forEach((a: string) => actressSet.add(a.trim()));
-            }
-          });
-          setActresses(Array.from(actressSet).sort());
+        if (error) {
+          console.error('女優取得エラー:', error);
+          return;
         }
+        setActresses(data || []);
       } catch (error) {
         console.error('女優読み込みエラー:', error);
       }
@@ -90,7 +82,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
   };
 
   const handleSearch = async () => {
-    if (!keyword.trim() && selectedGenres.length === 0 && selectedActresses.length === 0) return;
+    // 性別フィルタのみでも検索可能に変更
+    if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0 && genderFilters.length === 3) {
+      return;
+    }
 
     if (inputRef.current) {
       inputRef.current.blur();
@@ -105,12 +100,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
 
       if (searchMode === 'keyword' && keyword.trim()) {
         query = query.ilike('title', `%${keyword}%`);
-      } else if (searchMode === 'genre' && selectedGenres.length > 0) {
-        const genreConditions = selectedGenres.map(g => `genre.ilike.%${g}%`).join(',');
-        query = query.or(genreConditions);
-      } else if (searchMode === 'actress' && selectedActresses.length > 0) {
-        const actressConditions = selectedActresses.map(a => `actresses.ilike.%${a}%`).join(',');
-        query = query.or(actressConditions);
+      } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+        query = query.overlaps('genre_ids', selectedGenreIds);
+      } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
+        query = query.overlaps('actress_ids', selectedActressIds);
       }
 
       const { data, error } = await query
@@ -124,12 +117,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
         return;
       }
 
+      // 性別フィルターを適用
       let filteredData = data || [];
       if (genderFilters.length > 0 && genderFilters.length < 3) {
+        // ジャンルIDからジャンル名を取得して判定
+        const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
+
         filteredData = filteredData.filter(video => {
-          const genre = video.genre?.toLowerCase() || '';
-          const hasLesbian = genre.includes('レズビアン') || genre.includes('レズキス');
-          const hasGay = genre.includes('ゲイ');
+          const videoGenreNames = (video.genre_ids || [])
+            .map(id => genreMap.get(id) || '')
+            .join(',');
+
+          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+          const hasGay = videoGenreNames.includes('ゲイ');
 
           return genderFilters.some(filter => {
             if (filter === 'straight') return !hasLesbian && !hasGay;
@@ -154,55 +154,36 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
     }
   };
 
-  const toggleGenreSelection = (genre: string) => {
-    setSelectedGenres(prev =>
-      prev.includes(genre)
-        ? prev.filter(g => g !== genre)
-        : [...prev, genre]
+  const toggleGenreSelection = (genreId: string) => {
+    setSelectedGenreIds(prev =>
+      prev.includes(genreId)
+        ? prev.filter(id => id !== genreId)
+        : [...prev, genreId]
     );
   };
 
-  const toggleActressSelection = (actress: string) => {
-    setSelectedActresses(prev =>
-      prev.includes(actress)
-        ? prev.filter(a => a !== actress)
-        : [...prev, actress]
+  const toggleActressSelection = (actressId: string) => {
+    setSelectedActressIds(prev =>
+      prev.includes(actressId)
+        ? prev.filter(id => id !== actressId)
+        : [...prev, actressId]
     );
   };
 
   const filteredActresses = actressSearchKeyword
-    ? actresses.filter(a => a.includes(actressSearchKeyword))
+    ? actresses.filter(a => a.name.includes(actressSearchKeyword))
     : actresses;
 
   if (!isOpen) return null;
 
   return (
     <>
-      {/* モーダル背景 */}
-      <div
-        className="fixed inset-0 bg-black/60 z-40"
-        onClick={onClose}
-      />
-
-      {/* モーダルコンテンツ */}
-      <div className="fixed inset-x-0 bottom-0 z-50 bg-gray-900 rounded-t-2xl max-h-[90vh] flex flex-col animate-slide-up">
-        {/* ハンドル */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
-        </div>
-
+      {/* モーダルコンテンツ - 全画面表示 */}
+      <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
         {/* ヘッダー */}
-        <div className="px-4 pb-4 border-b border-gray-800">
+        <div className="px-4 py-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">検索</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
           </div>
 
           {/* 性別フィルター */}
@@ -280,13 +261,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 onClick={() => setShowGenreModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
-                {selectedGenres.length > 0
-                  ? `${selectedGenres.length}個のジャンルを選択中`
+                {selectedGenreIds.length > 0
+                  ? `${selectedGenreIds.length}個のジャンルを選択中`
                   : 'ジャンルを選択'}
               </button>
               <button
                 onClick={handleSearch}
-                disabled={selectedGenres.length === 0 || loading}
+                disabled={loading}
                 className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2.5 rounded-lg transition-colors font-medium text-sm"
               >
                 {loading ? '検索中...' : '検索'}
@@ -298,13 +279,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 onClick={() => setShowActressModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
-                {selectedActresses.length > 0
-                  ? `${selectedActresses.length}人の女優を選択中`
+                {selectedActressIds.length > 0
+                  ? `${selectedActressIds.length}人の女優を選択中`
                   : '女優を選択'}
               </button>
               <button
                 onClick={handleSearch}
-                disabled={selectedActresses.length === 0 || loading}
+                disabled={loading}
                 className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2.5 rounded-lg transition-colors font-medium text-sm"
               >
                 {loading ? '検索中...' : '検索'}
@@ -323,7 +304,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
               />
               <button
                 onClick={handleSearch}
-                disabled={!keyword.trim() || loading}
+                disabled={loading}
                 className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white px-5 rounded-lg transition-colors"
               >
                 {loading ? (
@@ -351,7 +332,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <p className="text-gray-400 text-sm">
-                {keyword || selectedGenres.length > 0 || selectedActresses.length > 0 ? '検索結果がありません' : '検索ワードを入力してください'}
+                {keyword || selectedGenreIds.length > 0 || selectedActressIds.length > 0 ? '検索結果がありません' : '検索ワードを入力してください'}
               </p>
             </div>
           ) : (
@@ -361,7 +342,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                   {videos.length}件の動画が見つかりました
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 pb-20">
                 {videos.map((video) => (
                   <button
                     key={video.id}
@@ -393,6 +374,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
             </>
           )}
         </div>
+
+        {/* 閉じるボタン - 最下部 */}
+        <div className="border-t border-gray-800 p-4">
+          <button
+            onClick={onClose}
+            className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
+          >
+            閉じる
+          </button>
+        </div>
       </div>
 
       {/* ジャンル選択モーダル */}
@@ -414,15 +405,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
               <div className="grid grid-cols-2 gap-2">
                 {genres.map((genre) => (
                   <button
-                    key={genre}
-                    onClick={() => toggleGenreSelection(genre)}
+                    key={genre.id}
+                    onClick={() => toggleGenreSelection(genre.id)}
                     className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedGenres.includes(genre)
+                      selectedGenreIds.includes(genre.id)
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {genre}
+                    {genre.name}
                   </button>
                 ))}
               </div>
@@ -467,15 +458,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
               <div className="grid grid-cols-2 gap-2">
                 {filteredActresses.map((actress) => (
                   <button
-                    key={actress}
-                    onClick={() => toggleActressSelection(actress)}
+                    key={actress.id}
+                    onClick={() => toggleActressSelection(actress.id)}
                     className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedActresses.includes(actress)
+                      selectedActressIds.includes(actress.id)
                         ? 'bg-blue-500 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
                   >
-                    {actress}
+                    {actress.name}
                   </button>
                 ))}
               </div>
@@ -491,20 +482,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes slide-up {
-          from {
-            transform: translateY(100%);
-          }
-          to {
-            transform: translateY(0);
-          }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out;
-        }
-      `}</style>
     </>
   );
 }

@@ -394,8 +394,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
         onVideoSelect={(videoId) => {
-          // 選択された動画にジャンプ
-          window.location.href = `/?v=${videoId}`;
+          // 選択された動画にジャンプ（ページリロード）
+          const url = new URL(window.location.href);
+          url.searchParams.set('v', videoId);
+          window.location.href = url.toString();
         }}
       />
     </div>
