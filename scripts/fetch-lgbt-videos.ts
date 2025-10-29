@@ -18,7 +18,7 @@ const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 // ジャンルIDの定義
 const LESBIAN_GENRE_ID = '4013'; // レズビアン
-const GAY_GENRE_ID = '1017'; // ゲイ
+const GAY_GENRE_ID = '4060'; // ゲイ
 
 async function fetchLGBTVideos() {
   console.log('=== レズビアン・ゲイジャンル動画取得開始 ===\n');

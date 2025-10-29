@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const { data: lgbtGenres } = await supabase
       .from('genres')
       .select('id')
-      .or('slug.eq.4013,slug.eq.1017,slug.eq.5062'); // レズビアン、ゲイ、レズキス
+      .or('slug.eq.4013,slug.eq.4060,slug.eq.5062'); // レズビアン、ゲイ、レズキス
 
     const lgbtGenreIds = lgbtGenres?.map(g => g.id) || [];
 
