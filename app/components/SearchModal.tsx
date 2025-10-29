@@ -16,9 +16,12 @@ interface SearchModalProps {
   currentVideoId?: string;
   videos: Video[]; // VideoSwiperから直接渡される
   currentIndex: number;
+  onLoadMore: () => Promise<void>; // ブラウズモード用の追加読み込み
+  isLoadingMoreVideos: boolean; // VideoSwiperの読み込み状態
+  hasMoreVideos: boolean; // まだ読み込めるデータがあるか
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, videos, currentIndex }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -238,22 +241,30 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     }
   }, [isOpen, videos]);
 
-  // 検索結果の無限スクロール
+  // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
     const videoList = videoListRef.current;
-    if (!videoList || searchResults === null) return;
+    if (!videoList) return;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = videoList;
       // 下から200px以内に達したら追加読み込み
       if (scrollHeight - scrollTop - clientHeight < 200) {
-        loadMoreSearchResults();
+        if (searchResults !== null) {
+          // 検索モード: SearchModal内で管理
+          loadMoreSearchResults();
+        } else {
+          // ブラウズモード: VideoSwiperに委譲
+          if (hasMoreVideos && !isLoadingMoreVideos) {
+            onLoadMore();
+          }
+        }
       }
     };
 
     videoList.addEventListener('scroll', handleScroll);
     return () => videoList.removeEventListener('scroll', handleScroll);
-  }, [searchResults, isLoadingMore, hasMoreSearch, searchOffset]);
+  }, [searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
 
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
@@ -799,13 +810,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                   );
                 })}
               </div>
-              {/* 検索モードの追加読み込み中インジケーター */}
-              {searchResults !== null && isLoadingMore && (
+              {/* 追加読み込み中インジケーター */}
+              {(searchResults !== null ? isLoadingMore : isLoadingMoreVideos) && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
                 </div>
               )}
-              {/* 検索モードのすべて表示済みメッセージ */}
+              {/* すべて表示済みメッセージ */}
               {searchResults !== null && !hasMoreSearch && searchResults.length > 0 && (
                 <div className="text-center py-8">
                   <p className="text-gray-400 text-sm">すべての動画を表示しました</p>
