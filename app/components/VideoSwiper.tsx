@@ -5,6 +5,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import type { Database } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import InitialTutorial from './InitialTutorial';
 import SearchModal from './SearchModal';
 
@@ -19,6 +20,7 @@ interface VideoSwiperProps {
 }
 
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList = false }: VideoSwiperProps) {
+  const router = useRouter();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
@@ -348,13 +350,18 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">人気</span>
             </Link>
 
-            {/* ホームボタン（中央） */}
-            <Link href="/" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            {/* ホームボタン（中央） - 毎回ランダムな動画を表示 */}
+            <button
+              onClick={() => {
+                window.location.href = '/';
+              }}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
               <span className="text-xs">ホーム</span>
-            </Link>
+            </button>
 
             {/* お気に入り一覧ページへのリンク */}
             <Link href="/liked" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
@@ -450,19 +457,25 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: 動画リストを置き換え', { count: newVideos.length, selectedVideoId });
-          // 動画リストを置き換え
-          setVideos(newVideos);
           // 選択された動画のindexを見つける
           const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
           console.log('VideoSwiper: targetIndex =', targetIndex);
           if (targetIndex !== -1) {
-            // 少し待ってからスクロール（DOMの更新を待つ）
-            setTimeout(() => {
+            // 動画リストを置き換え
+            setVideos(newVideos);
+            // currentIndexを設定
+            setCurrentIndex(targetIndex);
+            // 次のフレームでEmblaを再初期化してからスクロール
+            requestAnimationFrame(() => {
               if (emblaApi) {
-                emblaApi.scrollTo(targetIndex, false); // 即座にスクロール
-                setCurrentIndex(targetIndex);
+                // Emblaを再初期化（新しいスライド数を反映）
+                emblaApi.reInit();
+                // 再初期化後、即座に目的の位置へジャンプ
+                requestAnimationFrame(() => {
+                  emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
+                });
               }
-            }, 100);
+            });
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
