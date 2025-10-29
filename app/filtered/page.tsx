@@ -16,83 +16,136 @@ function FilteredVideosContent() {
   useEffect(() => {
     const loadFilteredVideos = async () => {
       try {
-        // URLパラメータから条件を取得
+        // URLパラメータから検索条件を取得
         const params = new URLSearchParams(window.location.search);
-        const filters = params.get('filters')?.split(',') as GenderFilter[] | null;
-        const videoIds = params.get('videoIds');
-        const targetVideoId = params.get('v');
+        const genderFilter = (params.get('filters') || 'straight') as GenderFilter;
+        const searchMode = params.get('searchMode') as 'keyword' | 'genre' | 'actress' | null;
+        const keyword = params.get('keyword');
+        const genreIds = params.get('genreIds') ? JSON.parse(params.get('genreIds')!) : [];
+        const actressIds = params.get('actressIds') ? JSON.parse(params.get('actressIds')!) : [];
         const indexParam = params.get('index');
-
-        let query = supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null);
 
         let data: Video[] = [];
 
-        // 検索結果のvideoIdsが指定されている場合
-        if (videoIds) {
-          const ids = JSON.parse(decodeURIComponent(videoIds));
-          const { data: fetchedData, error } = await query
-            .in('dmm_content_id', ids);
-
-          if (error) {
-            console.error('動画取得エラー:', error);
-            return;
-          }
-
-          // 検索結果の順序を維持
-          data = ids
-            .map((id: string) => fetchedData?.find((v: Video) => v.dmm_content_id === id))
-            .filter((v: Video | undefined): v is Video => v !== undefined);
-
-          // インデックスを設定
-          if (indexParam) {
-            setInitialIndex(parseInt(indexParam));
-          }
-        } else {
-          // 性別フィルタのみの場合は全動画を取得してフィルタリング
-          const { data: allData, error } = await query
+        // 検索モードに応じて動画を取得
+        if (searchMode === 'keyword' && keyword) {
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .ilike('title', `%${keyword}%`)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
             .order('release_date', { ascending: false })
             .limit(1000);
 
-          if (error) {
-            console.error('動画取得エラー:', error);
-            return;
-          }
+          if (error) throw error;
+          data = result || [];
+        } else if (searchMode === 'genre' && genreIds.length > 0) {
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .overlaps('genre_ids', genreIds)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .limit(1000);
 
-          data = allData || [];
+          if (error) throw error;
 
-          // 性別フィルタを適用
-          if (filters && filters.length > 0 && filters.length < 3) {
-            // genresテーブルからジャンル情報を取得
-            const { data: genresData } = await supabase
-              .from('genres')
+          // AND条件でフィルタリング（すべてのジャンルが含まれている動画のみ）
+          data = (result || []).filter(video =>
+            genreIds.every((genreId: string) =>
+              (video.genre_ids || []).includes(genreId)
+            )
+          );
+        } else if (searchMode === 'actress' && actressIds.length > 0) {
+          // 女優ID検索と女優名検索の両方を実行
+          const { data: actresses } = await supabase
+            .from('actresses')
+            .select('*')
+            .in('id', actressIds);
+
+          const { data: idResults, error: idError } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .overlaps('actress_ids', actressIds)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false });
+
+          if (idError) throw idError;
+
+          // 女優名でのキーワード検索
+          const nameResults: Video[] = [];
+          for (const actress of actresses || []) {
+            const { data: nameResult } = await supabase
+              .from('videos')
               .select('*')
-              .eq('is_active', true);
+              .eq('is_active', true)
+              .ilike('title', `%${actress.name}%`)
+              .not('thumbnail_url', 'is', null)
+              .not('sample_video_url', 'is', null)
+              .order('release_date', { ascending: false });
 
-            if (genresData) {
-              const genreMap = new Map(genresData.map((g: any) => [g.id, g.name]));
-
-              data = data.filter((video: Video) => {
-                const videoGenreNames = (video.genre_ids || [])
-                  .map((id: string) => genreMap.get(id) || '')
-                  .join(',');
-
-                const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-                const hasGay = videoGenreNames.includes('ゲイ');
-
-                return filters.some((filter: string) => {
-                  if (filter === 'straight') return !hasLesbian && !hasGay;
-                  if (filter === 'lesbian') return hasLesbian && !hasGay;
-                  if (filter === 'gay') return hasGay && !hasLesbian;
-                  return false;
-                });
-              });
-            }
+            if (nameResult) nameResults.push(...nameResult);
           }
+
+          // 結果を合算（重複を除去）
+          const combinedResults = [...(idResults || []), ...nameResults];
+          const uniqueResults = Array.from(
+            new Map(combinedResults.map(v => [v.id, v])).values()
+          );
+
+          // AND条件でフィルタリング（すべての女優が含まれている動画のみ）
+          data = uniqueResults.filter(video =>
+            actressIds.every((actressId: string) =>
+              (video.actress_ids || []).includes(actressId)
+            )
+          ).sort((a, b) => {
+            const dateA = new Date(a.release_date || 0).getTime();
+            const dateB = new Date(b.release_date || 0).getTime();
+            return dateB - dateA;
+          });
+        } else {
+          // 性別フィルタのみの場合、全動画を取得
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .limit(1000);
+
+          if (error) throw error;
+          data = result || [];
+        }
+
+        // 性別フィルタを適用
+        const { data: genresData } = await supabase
+          .from('genres')
+          .select('*')
+          .eq('is_active', true);
+
+        if (genresData) {
+          const genreMap = new Map(genresData.map((g: any) => [g.id, g.name]));
+
+          data = data.filter((video: Video) => {
+            const videoGenreNames = (video.genre_ids || [])
+              .map((id: string) => genreMap.get(id) || '')
+              .join(',');
+
+            const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+            const hasGay = videoGenreNames.includes('ゲイ');
+
+            if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+            if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+            if (genderFilter === 'gay') return hasGay && !hasLesbian;
+            return false;
+          });
         }
 
         if (data.length === 0) {
@@ -101,6 +154,9 @@ function FilteredVideosContent() {
         }
 
         setVideos(data);
+        if (indexParam) {
+          setInitialIndex(parseInt(indexParam));
+        }
       } catch (error) {
         console.error('動画読み込みエラー:', error);
         window.location.href = '/';

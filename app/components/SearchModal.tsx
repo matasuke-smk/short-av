@@ -194,9 +194,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // 動画リストが表示されたら、現在の動画位置にスクロール
+  // 動画リストが表示されたら、現在の動画位置にスクロール（初期表示のみ）
   useEffect(() => {
-    if (isOpen && videos.length > 0 && currentVideoRef.current) {
+    if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
       // 少し遅延させてスクロールを実行（レンダリング完了後）
       setTimeout(() => {
         currentVideoRef.current?.scrollIntoView({
@@ -642,17 +642,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       key={video.id}
                       ref={isCurrentVideo ? currentVideoRef : null}
                       onClick={() => {
-                        // 検索結果のビデオIDをURLパラメータとして渡す
-                        const videoIds = videos.map((v: Video) => v.dmm_content_id);
+                        // 検索条件のみをURLパラメータとして渡す（シンプルなURL）
                         const params = new URLSearchParams();
-                        params.set('videoIds', JSON.stringify(videoIds));
-                        params.set('v', video.dmm_content_id);
-                        params.set('index', index.toString()); // インデックスを追加
-
-                        // 性別フィルタも渡す
+                        params.set('index', index.toString());
                         params.set('filters', genderFilter);
-
-                        // 検索条件を保存
                         params.set('searchMode', searchMode);
                         if (keyword) params.set('keyword', keyword);
                         if (selectedGenreIds.length > 0) params.set('genreIds', JSON.stringify(selectedGenreIds));
