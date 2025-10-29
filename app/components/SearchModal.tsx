@@ -22,6 +22,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<Video[] | null>(null); // 検索結果用の状態
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
@@ -375,7 +376,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
         return false;
       });
 
-      setVideos(filteredData);
+      setSearchResults(filteredData);
     } catch (error) {
       console.error('検索実行エラー:', error);
     } finally {
@@ -414,6 +415,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     : genres.filter(g => availableGenres.size === 0 || availableGenres.has(g.id));
 
   if (!isOpen) return null;
+
+  // 表示する動画リストを決定: 検索結果がある場合はそれを、なければVideoSwiperから渡された動画を使用
+  const displayVideos = searchResults !== null ? searchResults : videos;
 
   return (
     <>
@@ -578,7 +582,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-gray-400 text-sm">検索中...</p>
             </div>
-          ) : videos.length === 0 ? (
+          ) : displayVideos.length === 0 ? (
             <div className="text-center py-12">
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -591,11 +595,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
             <>
               <div className="mb-3">
                 <p className="text-gray-400 text-sm">
-                  {videos.length}件の動画が見つかりました
+                  {displayVideos.length}件の動画が見つかりました
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-20">
-                {videos.map((video, index) => {
+                {displayVideos.map((video, index) => {
                   const isCurrentVideo = video.dmm_content_id === currentVideoId;
                   return (
                     <button
@@ -648,18 +652,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                   );
                 })}
               </div>
-              {/* 追加読み込み中インジケーター */}
-              {isLoadingMore && (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-                </div>
-              )}
-              {/* もう読み込めるデータがない場合 */}
-              {!hasMore && !isSearchResult.current && videos.length > 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-400 text-sm">すべての動画を表示しました</p>
-                </div>
-              )}
             </>
           )}
         </div>
