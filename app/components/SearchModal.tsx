@@ -23,6 +23,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<Video[] | null>(null); // 検索結果用の状態
+  const [searchOffset, setSearchOffset] = useState(100); // 検索結果の読み込み位置
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
@@ -235,6 +238,23 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     }
   }, [isOpen, videos]);
 
+  // 検索結果の無限スクロール
+  useEffect(() => {
+    const videoList = videoListRef.current;
+    if (!videoList || searchResults === null) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = videoList;
+      // 下から200px以内に達したら追加読み込み
+      if (scrollHeight - scrollTop - clientHeight < 200) {
+        loadMoreSearchResults();
+      }
+    };
+
+    videoList.addEventListener('scroll', handleScroll);
+    return () => videoList.removeEventListener('scroll', handleScroll);
+  }, [searchResults, isLoadingMore, hasMoreSearch, searchOffset]);
+
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
     isSearchResult.current = true; // 検索結果フラグをオン
@@ -377,6 +397,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
       });
 
       setSearchResults(filteredData);
+      setSearchOffset(100); // 初回検索は100件まで取得
+      setHasMoreSearch(filteredData.length >= 100); // 100件未満なら追加読み込み不要
     } catch (error) {
       console.error('検索実行エラー:', error);
     } finally {
@@ -387,6 +409,131 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  // 検索結果の追加読み込み
+  const loadMoreSearchResults = async () => {
+    if (isLoadingMore || !hasMoreSearch || searchResults === null) return;
+
+    setIsLoadingMore(true);
+    try {
+      let data: Video[] = [];
+
+      if (searchMode === 'keyword' && keyword.trim()) {
+        const { data: result, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .ilike('title', `%${keyword}%`)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .range(searchOffset, searchOffset + 49);
+
+        if (error) {
+          console.error('追加検索エラー:', error);
+          return;
+        }
+        data = result || [];
+      } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+        const { data: result, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .contains('genre_ids', selectedGenreIds)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .range(searchOffset, searchOffset + 49);
+
+        if (error) {
+          console.error('追加検索エラー:', error);
+          return;
+        }
+        data = result || [];
+      } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
+        // 女優検索の追加読み込み
+        const { data: idResults, error: idError } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .contains('actress_ids', selectedActressIds)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .range(searchOffset, searchOffset + 49);
+
+        if (idError) {
+          console.error('女優ID検索エラー:', idError);
+        }
+
+        const nameResults: Video[] = [];
+        const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
+        for (const actress of selectedActressList) {
+          const { data: nameResult, error: nameError } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .ilike('title', `%${actress.name}%`)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .range(searchOffset, searchOffset + 49);
+
+          if (nameError) {
+            console.error(`女優名検索エラー (${actress.name}):`, nameError);
+          } else if (nameResult) {
+            nameResults.push(...nameResult);
+          }
+        }
+
+        const combinedResults = [...(idResults || []), ...nameResults];
+        const uniqueResults = Array.from(
+          new Map(combinedResults.map(v => [v.id, v])).values()
+        );
+
+        const filteredResults = uniqueResults.filter(video =>
+          selectedActressIds.every(actressId =>
+            (video.actress_ids || []).includes(actressId)
+          )
+        );
+
+        data = filteredResults.sort((a, b) => {
+          const dateA = new Date(a.release_date || 0).getTime();
+          const dateB = new Date(b.release_date || 0).getTime();
+          return dateB - dateA;
+        });
+      }
+
+      // 性別フィルターを適用
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+
+      const filteredData = data.filter(video => {
+        const videoGenreNames = (video.genre_ids || [])
+          .map((id: string) => genreMap.get(id) || '')
+          .join(',');
+
+        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+        const hasGay = videoGenreNames.includes('ゲイ');
+
+        if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+        if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+        if (genderFilter === 'gay') return hasGay && !hasLesbian;
+        return false;
+      });
+
+      if (filteredData.length > 0) {
+        setSearchResults([...searchResults, ...filteredData]);
+        setSearchOffset(searchOffset + 50);
+        setHasMoreSearch(filteredData.length >= 50);
+      } else {
+        setHasMoreSearch(false);
+      }
+    } catch (error) {
+      console.error('追加読み込みエラー:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -652,6 +799,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                   );
                 })}
               </div>
+              {/* 検索モードの追加読み込み中インジケーター */}
+              {searchResults !== null && isLoadingMore && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+                </div>
+              )}
+              {/* 検索モードのすべて表示済みメッセージ */}
+              {searchResults !== null && !hasMoreSearch && searchResults.length > 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 text-sm">すべての動画を表示しました</p>
+                </div>
+              )}
             </>
           )}
         </div>
