@@ -244,19 +244,39 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
     const videoList = videoListRef.current;
-    if (!videoList) return;
+    if (!videoList) {
+      console.log('SearchModal: videoListRef is null');
+      return;
+    }
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = videoList;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+      console.log('SearchModal scroll:', {
+        scrollTop,
+        scrollHeight,
+        clientHeight,
+        distanceFromBottom,
+        searchResults: searchResults !== null ? 'フィルタ検索結果' : 'ブラウズモード',
+        hasMoreVideos,
+        isLoadingMoreVideos
+      });
+
       // 下から200px以内に達したら追加読み込み
-      if (scrollHeight - scrollTop - clientHeight < 200) {
+      if (distanceFromBottom < 200) {
         if (searchResults !== null) {
-          // 検索モード: SearchModal内で管理
+          // フィルタ検索モード: SearchModal内で管理
+          console.log('SearchModal: フィルタ検索の追加読み込み開始');
           loadMoreSearchResults();
         } else {
           // ブラウズモード: VideoSwiperに委譲
+          console.log('SearchModal: ブラウズモードの追加読み込み', { hasMoreVideos, isLoadingMoreVideos });
           if (hasMoreVideos && !isLoadingMoreVideos) {
+            console.log('SearchModal: onLoadMore()を呼び出し');
             onLoadMore();
+          } else {
+            console.log('SearchModal: 追加読み込みスキップ', { hasMoreVideos, isLoadingMoreVideos });
           }
         }
       }
