@@ -36,14 +36,23 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const isInitialMount = useRef(true);
   const videoListRef = useRef<HTMLDivElement>(null);
   const currentVideoRef = useRef<HTMLButtonElement>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(20); // 初期表示の20件の次から
+  const [hasMore, setHasMore] = useState(true);
+  const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
 
   useEffect(() => {
     if (!isOpen) return;
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
+    // 検索結果フラグをリセット
+    isSearchResult.current = false;
     // 初期動画リストを表示
     setVideos(initialVideos);
+    // オフセットとhasMoreをリセット
+    setOffset(20);
+    setHasMore(true);
 
     const loadGenres = async () => {
       try {
@@ -107,8 +116,76 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     }
   }, [isOpen, videos]);
 
+  // スクロールイベントのリスナーを追加（無限スクロール）
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLDivElement;
+      const scrollHeight = target.scrollHeight;
+      const scrollTop = target.scrollTop;
+      const clientHeight = target.clientHeight;
+
+      // 下部から200px以内までスクロールしたら追加読み込み
+      if (scrollHeight - scrollTop - clientHeight < 200 && !isLoadingMore && hasMore && !isSearchResult.current) {
+        loadMoreVideos();
+      }
+    };
+
+    const contentArea = document.querySelector('.search-modal-content');
+    if (contentArea) {
+      contentArea.addEventListener('scroll', handleScroll);
+      return () => contentArea.removeEventListener('scroll', handleScroll);
+    }
+  }, [isOpen, isLoadingMore, hasMore, offset, genderFilter, genres]);
+
+  // 追加の動画を読み込む（無限スクロール用）
+  const loadMoreVideos = async () => {
+    if (isLoadingMore || !hasMore || isSearchResult.current) return;
+
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(`/api/videos?offset=${offset}&limit=20`);
+      const data = await response.json();
+
+      if (data.videos && data.videos.length > 0) {
+        // 性別フィルタを適用
+        const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
+
+        const filteredNewVideos = data.videos.filter((video: Video) => {
+          const videoGenreNames = (video.genre_ids || [])
+            .map((id: string) => genreMap.get(id) || '')
+            .join(',');
+
+          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+          const hasGay = videoGenreNames.includes('ゲイ');
+
+          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+          if (genderFilter === 'gay') return hasGay && !hasLesbian;
+          return false;
+        });
+
+        setVideos(prev => [...prev, ...filteredNewVideos]);
+        setOffset(prev => prev + 20);
+
+        // 取得した動画が20件未満なら、もう読み込めるデータがない
+        if (data.videos.length < 20) {
+          setHasMore(false);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('追加動画読み込みエラー:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
+    isSearchResult.current = true; // 検索結果フラグをオン
 
     if (inputRef.current) {
       inputRef.current.blur();
@@ -431,7 +508,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
         </div>
 
         {/* コンテンツエリア */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 search-modal-content">
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
@@ -494,6 +571,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                   );
                 })}
               </div>
+              {/* 追加読み込み中インジケーター */}
+              {isLoadingMore && (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+                </div>
+              )}
+              {/* もう読み込めるデータがない場合 */}
+              {!hasMore && !isSearchResult.current && videos.length > 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 text-sm">すべての動画を表示しました</p>
+                </div>
+              )}
             </>
           )}
         </div>
