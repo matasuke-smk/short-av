@@ -98,23 +98,6 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* 広告バナー */}
-      <div className="bg-gray-800 py-4">
-        <div className="max-w-7xl mx-auto px-4">
-          <a
-            href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
-            target="_blank"
-            rel="sponsored"
-            className="block w-full max-w-2xl mx-auto"
-          >
-            <img
-              src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-              alt="初回購入限定！500円OFF！"
-              className="w-full h-auto rounded-lg"
-            />
-          </a>
-        </div>
-      </div>
 
       {/* コンテンツ */}
       <div className="max-w-7xl mx-auto px-4 py-6">
