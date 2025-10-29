@@ -269,7 +269,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           {/* 性別フィルター */}
           <div className="flex gap-2 mb-3">
             <button
-              onClick={() => setGenderFilter('straight')}
+              onClick={() => {
+                if (genderFilter === 'straight') {
+                  // 同じフィルタをクリックした場合は直接検索
+                  handleSearch();
+                } else {
+                  setGenderFilter('straight');
+                }
+              }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'straight'
                   ? 'bg-pink-500 text-white'
@@ -279,7 +286,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
               ♂♀
             </button>
             <button
-              onClick={() => setGenderFilter('lesbian')}
+              onClick={() => {
+                if (genderFilter === 'lesbian') {
+                  // 同じフィルタをクリックした場合は直接検索
+                  handleSearch();
+                } else {
+                  setGenderFilter('lesbian');
+                }
+              }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'lesbian'
                   ? 'bg-pink-500 text-white'
@@ -289,7 +303,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
               ♀♀
             </button>
             <button
-              onClick={() => setGenderFilter('gay')}
+              onClick={() => {
+                if (genderFilter === 'gay') {
+                  // 同じフィルタをクリックした場合は直接検索
+                  handleSearch();
+                } else {
+                  setGenderFilter('gay');
+                }
+              }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'gay'
                   ? 'bg-pink-500 text-white'
