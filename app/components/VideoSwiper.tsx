@@ -461,23 +461,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
           console.log('VideoSwiper: targetIndex =', targetIndex);
           if (targetIndex !== -1) {
-            // 選択された動画を先頭に配置（スクロール不要にする）
-            const targetVideo = newVideos[targetIndex];
-            const reorderedVideos = [
-              targetVideo,
-              ...newVideos.slice(0, targetIndex),
-              ...newVideos.slice(targetIndex + 1)
-            ];
-            // 動画リストを置き換え（選択動画が先頭）
-            setVideos(reorderedVideos);
-            // currentIndexを0に設定（先頭に配置したため）
-            setCurrentIndex(0);
-            // Emblaを再初期化（先頭から表示される）
-            requestAnimationFrame(() => {
-              if (emblaApi) {
-                emblaApi.reInit();
-              }
-            });
+            // 動画リストを置き換え
+            setVideos(newVideos);
+            // currentIndexを設定
+            setCurrentIndex(targetIndex);
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
