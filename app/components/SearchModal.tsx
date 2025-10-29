@@ -225,19 +225,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // 動画リストが表示されたときのスクロール処理（控えめに）
-  useEffect(() => {
-    if (isOpen && videos.length > 0 && currentVideoRef.current && !isSearchResult.current) {
-      // 控えめなスクロール: 1つ分スクロールして表示される程度
-      setTimeout(() => {
-        currentVideoRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',  // 'center'ではなく'nearest'で控えめに
-          inline: 'nearest'
-        });
-      }, 100);
-    }
-  }, [isOpen, videos]);
+  // 自動スクロール機能を完全に削除
+  // ユーザーが手動でスクロールした位置を維持する
 
   // スクロールイベントのリスナーを追加（無限スクロール）
   useEffect(() => {
