@@ -74,7 +74,7 @@ function FilteredVideosContent() {
               .eq('is_active', true);
 
             if (genresData) {
-              const genreMap = new Map(genresData.map((g: any) => [g.id, g.name.toLowerCase()]));
+              const genreMap = new Map(genresData.map((g: any) => [g.id, g.name]));
 
               data = data.filter((video: Video) => {
                 const videoGenreNames = (video.genre_ids || [])

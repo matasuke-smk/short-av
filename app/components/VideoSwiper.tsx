@@ -150,8 +150,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       const currentVideo = videos[index];
       if (currentVideo && currentVideo.dmm_content_id) {
-        const newUrl = `/?v=${currentVideo.dmm_content_id}`;
-        window.history.pushState({}, '', newUrl);
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', currentVideo.dmm_content_id);
+
+        // 有限リストの場合は、indexも更新
+        if (isFiniteList) {
+          url.searchParams.set('index', index.toString());
+        }
+
+        window.history.pushState({}, '', url.toString());
       }
     };
 

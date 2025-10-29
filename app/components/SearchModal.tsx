@@ -152,22 +152,22 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           return false;
         });
 
-        // さらに選択済みジャンル/女優でフィルタ（複数選択の組み合わせを考慮）
+        // さらに選択済みジャンル/女優でフィルタ（AND条件：すべて含む必要がある）
         const finalVideos = filteredVideos.filter(video => {
-          // 選択済みジャンルがある場合、少なくとも1つのジャンルが含まれている必要がある
+          // 選択済みジャンルがある場合、すべてのジャンルが含まれている必要がある
           if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-            const hasSelectedGenre = selectedGenreIds.some(genreId =>
+            const hasAllSelectedGenres = selectedGenreIds.every(genreId =>
               (video.genre_ids || []).includes(genreId)
             );
-            if (!hasSelectedGenre) return false;
+            if (!hasAllSelectedGenres) return false;
           }
 
-          // 選択済み女優がある場合、少なくとも1人の女優が含まれている必要がある
+          // 選択済み女優がある場合、すべての女優が含まれている必要がある
           if (searchMode === 'actress' && selectedActressIds.length > 0) {
-            const hasSelectedActress = selectedActressIds.some(actressId =>
+            const hasAllSelectedActresses = selectedActressIds.every(actressId =>
               (video.actress_ids || []).includes(actressId)
             );
-            if (!hasSelectedActress) return false;
+            if (!hasAllSelectedActresses) return false;
           }
 
           return true;
@@ -311,13 +311,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .limit(100);
+          .limit(1000);
 
         if (error) {
           console.error('検索エラー:', error);
           return;
         }
-        data = result || [];
+
+        // AND条件でフィルタリング（すべてのジャンルが含まれている動画のみ）
+        data = (result || []).filter(video =>
+          selectedGenreIds.every(genreId =>
+            (video.genre_ids || []).includes(genreId)
+          )
+        ).slice(0, 100);
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
         // 女優ID検索と女優名検索の両方を実行して結果を合算
         const selectedActresses = actresses.filter(a => selectedActressIds.includes(a.id));
@@ -361,8 +367,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           new Map(combinedResults.map(v => [v.id, v])).values()
         );
 
+        // AND条件でフィルタリング（すべての女優が含まれている動画のみ）
+        const filteredResults = uniqueResults.filter(video =>
+          selectedActressIds.every(actressId =>
+            (video.actress_ids || []).includes(actressId)
+          )
+        );
+
         // リリース日順にソート
-        data = uniqueResults.sort((a, b) => {
+        data = filteredResults.sort((a, b) => {
           const dateA = new Date(a.release_date || 0).getTime();
           const dateB = new Date(b.release_date || 0).getTime();
           return dateB - dateA;
