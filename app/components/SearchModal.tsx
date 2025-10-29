@@ -685,22 +685,29 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       key={video.id}
                       ref={isCurrentVideo ? currentVideoRef : null}
                       onClick={() => {
-                        // 検索条件のみをURLパラメータとして渡す（slugを使って短縮）
-                        const params = new URLSearchParams();
-                        params.set('index', index.toString());
-                        params.set('f', genderFilter);
-                        params.set('m', searchMode);
-                        if (keyword) params.set('q', keyword);
-                        if (selectedGenreIds.length > 0) {
-                          const slugs = selectedGenreIds.map(id => genres.find(g => g.id === id)?.slug).filter(Boolean);
-                          params.set('g', slugs.join(','));
-                        }
-                        if (selectedActressIds.length > 0) {
-                          const names = selectedActressIds.map(id => actresses.find(a => a.id === id)?.name).filter(Boolean);
-                          params.set('a', names.join(','));
-                        }
+                        // 初期表示（ホーム画面の動画リスト）の場合
+                        if (!isSearchResult.current) {
+                          // VideoSwiper内で動画を切り替え（ページリロードなし）
+                          onVideoSelect(video.dmm_content_id);
+                          onClose();
+                        } else {
+                          // 検索結果の場合は/filteredに遷移
+                          const params = new URLSearchParams();
+                          params.set('index', index.toString());
+                          params.set('f', genderFilter);
+                          params.set('m', searchMode);
+                          if (keyword) params.set('q', keyword);
+                          if (selectedGenreIds.length > 0) {
+                            const slugs = selectedGenreIds.map(id => genres.find(g => g.id === id)?.slug).filter(Boolean);
+                            params.set('g', slugs.join(','));
+                          }
+                          if (selectedActressIds.length > 0) {
+                            const names = selectedActressIds.map(id => actresses.find(a => a.id === id)?.name).filter(Boolean);
+                            params.set('a', names.join(','));
+                          }
 
-                        window.location.href = `/filtered?${params.toString()}`;
+                          window.location.href = `/filtered?${params.toString()}`;
+                        }
                       }}
                       className={`group text-left ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
                     >
