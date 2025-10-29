@@ -441,7 +441,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           // 選択された動画のindexを見つけてスクロール（ページリロードなし）
           const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
           if (targetIndex !== -1 && emblaApi) {
-            emblaApi.scrollTo(targetIndex, true); // アニメーション付きでスクロール
+            emblaApi.scrollTo(targetIndex, false); // 即座にスクロール（アニメーションなし）
             // URLを更新（履歴に追加）
             const url = new URL(window.location.href);
             url.searchParams.set('v', videoId);
