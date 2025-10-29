@@ -28,6 +28,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
   const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
   const [showActressModal, setShowActressModal] = useState(false);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
+  const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -234,6 +235,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
   const filteredActresses = actressSearchKeyword
     ? actresses.filter(a => a.name.includes(actressSearchKeyword))
     : actresses;
+
+  const filteredGenres = genreSearchKeyword
+    ? genres.filter(g => g.name.includes(genreSearchKeyword))
+    : genres;
 
   if (!isOpen) return null;
 
@@ -488,9 +493,23 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 </svg>
               </button>
             </div>
+            <div className="p-4 border-b border-gray-700">
+              <input
+                type="text"
+                value={genreSearchKeyword}
+                onChange={(e) => setGenreSearchKeyword(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
+                placeholder="ジャンル名で検索..."
+                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              />
+            </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2">
-                {genres.map((genre) => (
+                {filteredGenres.map((genre) => (
                   <button
                     key={genre.id}
                     onClick={() => toggleGenreSelection(genre.id)}
@@ -537,6 +556,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 type="text"
                 value={actressSearchKeyword}
                 onChange={(e) => setActressSearchKeyword(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur();
+                  }
+                }}
                 placeholder="女優名で検索..."
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
               />
