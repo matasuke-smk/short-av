@@ -526,7 +526,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
             </div>
             <div className="p-4 border-t border-gray-700">
               <button
-                onClick={() => setShowGenreModal(false)}
+                onClick={() => {
+                  setShowGenreModal(false);
+                  handleSearch();
+                }}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
               >
                 決定
@@ -584,7 +587,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
             </div>
             <div className="p-4 border-t border-gray-700">
               <button
-                onClick={() => setShowActressModal(false)}
+                onClick={() => {
+                  setShowActressModal(false);
+                  handleSearch();
+                }}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
               >
                 決定
