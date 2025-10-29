@@ -164,7 +164,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
       if (data.videos && data.videos.length > 0) {
         // 性別フィルタを適用
-        const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
+        const genreMap = new Map(genres.map(g => [g.id, g.name]));
 
         const filteredNewVideos = data.videos.filter((video: Video) => {
           const videoGenreNames = (video.genre_ids || [])
@@ -309,7 +309,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
       }
 
       // 性別フィルターを適用
-      const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
 
       const filteredData = data.filter(video => {
         const videoGenreNames = (video.genre_ids || [])
