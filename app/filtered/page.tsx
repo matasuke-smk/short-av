@@ -220,7 +220,7 @@ function FilteredVideosContent() {
     );
   }
 
-  return <VideoSwiper videos={videos} initialOffset={initialIndex} totalVideos={videos.length} isFiniteList={true} />;
+  return <VideoSwiper videos={videos} initialOffset={0} totalVideos={videos.length} startIndex={initialIndex} isFiniteList={true} />;
 }
 
 export default function FilteredVideosPage() {

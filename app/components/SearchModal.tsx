@@ -55,8 +55,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
-    // 検索結果フラグをリセット
-    isSearchResult.current = false;
 
     // 初期動画リストをそのまま表示（並び替えしない）
     setVideos(initialVideos);
@@ -71,6 +69,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
     const savedKeyword = params.get('q') || params.get('keyword');
     const savedFilter = params.get('f') || params.get('filters');
+
+    // URLパラメータに検索条件がある場合は検索結果として扱う
+    const hasSearchParams = savedSearchMode || savedKeyword || params.get('g') || params.get('a');
+    isSearchResult.current = !!hasSearchParams;
 
     if (savedSearchMode) setSearchMode(savedSearchMode);
     if (savedKeyword) setKeyword(savedKeyword);
