@@ -14,9 +14,11 @@ interface SearchModalProps {
   onClose: () => void;
   onVideoSelect: (videoId: string) => void;
   currentVideoId?: string;
+  initialVideos: Video[];
+  currentIndex: number;
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, initialVideos, currentIndex }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
@@ -32,13 +34,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const isInitialMount = useRef(true);
+  const videoListRef = useRef<HTMLDivElement>(null);
+  const currentVideoRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
-    setVideos([]); // 検索結果をクリア
+    // 初期動画リストを表示
+    setVideos(initialVideos);
 
     const loadGenres = async () => {
       try {
@@ -80,7 +85,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     loadGenres();
     loadActresses();
-  }, [isOpen]);
+  }, [isOpen, initialVideos]);
 
   // 性別フィルタが変更されたら自動的に検索を実行
   useEffect(() => {
@@ -88,6 +93,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
       handleSearch();
     }
   }, [genderFilter]);
+
+  // 動画リストが表示されたら、現在の動画位置にスクロール
+  useEffect(() => {
+    if (isOpen && videos.length > 0 && currentVideoRef.current) {
+      // 少し遅延させてスクロールを実行（レンダリング完了後）
+      setTimeout(() => {
+        currentVideoRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 100);
+    }
+  }, [isOpen, videos]);
 
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
@@ -436,23 +454,26 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-20">
-                {videos.map((video) => (
-                  <button
-                    key={video.id}
-                    onClick={() => {
-                      // 検索結果のビデオIDをURLパラメータとして渡す
-                      const videoIds = videos.map((v: Video) => v.dmm_content_id);
-                      const params = new URLSearchParams();
-                      params.set('videoIds', JSON.stringify(videoIds));
-                      params.set('v', video.dmm_content_id);
+                {videos.map((video, index) => {
+                  const isCurrentVideo = video.dmm_content_id === currentVideoId;
+                  return (
+                    <button
+                      key={video.id}
+                      ref={isCurrentVideo ? currentVideoRef : null}
+                      onClick={() => {
+                        // 検索結果のビデオIDをURLパラメータとして渡す
+                        const videoIds = videos.map((v: Video) => v.dmm_content_id);
+                        const params = new URLSearchParams();
+                        params.set('videoIds', JSON.stringify(videoIds));
+                        params.set('v', video.dmm_content_id);
 
-                      // 性別フィルタも渡す
-                      params.set('filters', genderFilter);
+                        // 性別フィルタも渡す
+                        params.set('filters', genderFilter);
 
-                      window.location.href = `/filtered?${params.toString()}`;
-                    }}
-                    className="group text-left"
-                  >
+                        window.location.href = `/filtered?${params.toString()}`;
+                      }}
+                      className={`group text-left ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
+                    >
                     <div className="relative aspect-[4/3] bg-gray-800 rounded-lg overflow-hidden mb-1.5">
                       <img
                         src={video.thumbnail_url || ''}

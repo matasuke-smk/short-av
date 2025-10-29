@@ -420,6 +420,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           window.location.href = url.toString();
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
+        initialVideos={videos}
+        currentIndex={currentIndex}
       />
     </div>
   );
