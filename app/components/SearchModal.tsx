@@ -16,9 +16,11 @@ interface SearchModalProps {
   currentVideoId?: string;
   initialVideos: Video[];
   currentIndex: number;
+  initialOffset: number;
+  totalVideos: number;
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, initialVideos, currentIndex }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, initialVideos, currentIndex, initialOffset, totalVideos }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [videos, setVideos] = useState<Video[]>([]);
@@ -42,6 +44,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
+  const videoCount = useRef(0); // 読み込んだ動画の数を追跡
 
   useEffect(() => {
     if (!isOpen) return;
@@ -52,8 +55,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     isSearchResult.current = false;
     // 初期動画リストを表示
     setVideos(initialVideos);
-    // オフセットとhasMoreをリセット
-    setOffset(20);
+    // 読み込んだ動画数を記録
+    videoCount.current = initialVideos.length;
+    // オフセットとhasMoreをリセット（initialOffsetを基準にする）
+    setOffset(initialOffset + initialVideos.length);
     setHasMore(true);
 
     // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
@@ -225,8 +230,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // 自動スクロール機能を完全に削除
-  // ユーザーが手動でスクロールした位置を維持する
+  // モーダルを開いたとき、初期表示の場合のみ現在の動画位置までスクロール
+  useEffect(() => {
+    if (isOpen && !isSearchResult.current && videos.length > 0 && currentVideoRef.current) {
+      // 初期表示（ホーム画面の動画一覧）の場合のみスクロール
+      setTimeout(() => {
+        currentVideoRef.current?.scrollIntoView({
+          behavior: 'auto',  // 瞬時にスクロール
+          block: 'start',    // 画面の上部に配置
+        });
+      }, 100);
+    }
+  }, [isOpen]);
 
   // スクロールイベントのリスナーを追加（無限スクロール）
   useEffect(() => {
@@ -257,7 +272,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     setIsLoadingMore(true);
     try {
-      const response = await fetch(`/api/videos?offset=${offset}&limit=20`);
+      // 循環式オフセットを計算（VideoSwiperと同じロジック）
+      const currentOffset = offset % totalVideos;
+      const response = await fetch(`/api/videos?offset=${currentOffset}&limit=20`);
       const data = await response.json();
 
       if (data.videos && data.videos.length > 0) {
@@ -280,6 +297,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
         setVideos(prev => [...prev, ...filteredNewVideos]);
         setOffset(prev => prev + 20);
+        videoCount.current += filteredNewVideos.length;
 
         // 取得した動画が20件未満なら、もう読み込めるデータがない
         if (data.videos.length < 20) {
