@@ -629,6 +629,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('straight');
+                  setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
                   setSearchResults(null);
@@ -651,6 +652,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('lesbian');
+                  setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
                   setSearchResults(null);
@@ -673,6 +675,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして未検索状態に
                   setGenderFilter('gay');
+                  setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
                   setSearchResults(null);
@@ -815,9 +818,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                         // フィルタ検索結果の場合
                         if (searchResults !== null) {
                           console.log('SearchModal: フィルタ検索結果 → onReplaceVideos呼び出し');
+                          // モーダルを先に閉じる（スクロールを見せないため）
+                          onClose();
                           // VideoSwiperの動画リストを検索結果で置き換え（ページリロードなし）
                           onReplaceVideos(searchResults, video.dmm_content_id);
-                          onClose();
                         } else {
                           // ブラウズモード（ホーム画面の動画リスト）の場合
                           console.log('SearchModal: ブラウズモード → onVideoSelect呼び出し');
