@@ -16,7 +16,6 @@ interface VideoSwiperProps {
 }
 
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos }: VideoSwiperProps) {
-  // サーバー側でシャッフル済みなので、常に先頭から開始
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
@@ -58,13 +57,26 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     fetchLikes();
   }, [userId]);
 
+  // 履歴に追加する関数
+  const addToHistory = useCallback((videoId: string) => {
+    const historyKey = 'video_history';
+    const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+
+    // 既存の履歴から同じ動画を削除（重複防止）
+    const filteredHistory = history.filter((id: string) => id !== videoId);
+
+    // 新しい動画を先頭に追加
+    const newHistory = [videoId, ...filteredHistory].slice(0, 100); // 最大100件
+
+    localStorage.setItem(historyKey, JSON.stringify(newHistory));
+  }, []);
+
   // 追加の動画を読み込む関数（循環式）
   const loadMoreVideos = useCallback(async () => {
     if (isLoadingMore) return;
 
     setIsLoadingMore(true);
     try {
-      // 現在のオフセットを計算（初期オフセット + 現在の件数）
       const currentOffset = (initialOffset + videos.length) % totalVideos;
 
       const response = await fetch(`/api/videos?offset=${currentOffset}&limit=20`);
@@ -82,11 +94,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // いいねを切り替える関数
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // サムネイルクリックイベントの伝播を防ぐ
+    event.stopPropagation();
 
     if (!userId) return;
 
-    // 楽観的UI更新
     const wasLiked = likedVideos.has(videoId);
     setLikedVideos(prev => {
       const newSet = new Set(prev);
@@ -99,7 +110,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     });
 
     try {
-      // APIを呼び出し
       const response = await fetch('/api/likes/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,7 +121,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       }
     } catch (error) {
       console.error('Like toggle error:', error);
-      // エラー時は元に戻す
       setLikedVideos(prev => {
         const newSet = new Set(prev);
         if (wasLiked) {
@@ -131,12 +140,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       const index = emblaApi.selectedScrollSnap();
       setCurrentIndex(index);
 
-      // 残り5件になったら追加読み込み（無限ループ）
       if (index >= videos.length - 5 && !isLoadingMore) {
         loadMoreVideos();
       }
 
-      // URLを更新（履歴に追加、配信品番を使用）
       const currentVideo = videos[index];
       if (currentVideo && currentVideo.dmm_content_id) {
         const newUrl = `/?v=${currentVideo.dmm_content_id}`;
@@ -158,8 +165,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (currentVideo?.sample_video_url) {
       setModalVideoUrl(currentVideo.sample_video_url);
       setShowVideoModal(true);
+      // 履歴に追加
+      addToHistory(currentVideo.id);
     }
-  }, [currentVideo]);
+  }, [currentVideo, addToHistory]);
 
   const closeModal = useCallback(() => {
     setShowVideoModal(false);
@@ -280,47 +289,39 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             )}
           </div>
 
-          {/* ボタンエリア */}
-          <div className="grid grid-cols-5 gap-3">
-            {/* いいね一覧ページへのリンク */}
+          {/* ボタンエリア - 4つに変更 */}
+          <div className="grid grid-cols-4 gap-3">
+            {/* 検索ボタン */}
+            <Link href="/search" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span className="text-xs">検索</span>
+            </Link>
+
+            {/* 人気（ランキング）ボタン */}
+            <Link href="/ranking" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              <span className="text-xs">人気</span>
+            </Link>
+
+            {/* お気に入り一覧ページへのリンク */}
             <Link href="/liked" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              <span className="text-xs">いいね</span>
+              <span className="text-xs">お気に入り</span>
             </Link>
 
-            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            {/* 履歴ボタン */}
+            <Link href="/history" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs">シェア</span>
-            </button>
-
-            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
-              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-              <span className="text-xs">保存</span>
-            </button>
-
-            <button className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
-              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-xs">詳細</span>
-            </button>
-
-            {/* 詳細ページリンク（最安価格表示） */}
-            <a
-              href={currentVideo?.dmm_product_url}
-              target="_blank"
-              rel="noopener noreferrer sponsored"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all font-bold shadow-lg active:scale-95"
-            >
-              <span className="text-lg">¥{currentVideo?.price || 0}~</span>
-              <span className="text-xs">購入</span>
-            </a>
+              <span className="text-xs">履歴</span>
+            </Link>
           </div>
 
           {/* ポリシーリンク */}
@@ -335,35 +336,45 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         </div>
       </div>
 
-      {/* サンプル動画モーダル */}
+      {/* サンプル動画モーダル - 改良版 */}
       {showVideoModal && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
           onClick={closeModal}
         >
-          <div className="flex flex-col items-center gap-2 w-full max-w-[560px]" onClick={(e) => e.stopPropagation()}>
-            <iframe
-              src={modalVideoUrl}
-              className="w-full"
-              style={{
-                overflow: 'hidden',
-                height: 'auto',
-                aspectRatio: '560 / 420'
-              }}
-              allowFullScreen
-              allow="autoplay; fullscreen"
-              frameBorder="0"
-              scrolling="no"
-            />
-            <button
-              onClick={closeModal}
-              className="text-white hover:text-gray-300 text-xl font-bold flex items-center gap-2 bg-black/50 rounded-full px-6 py-3"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              閉じる
-            </button>
+          <div className="flex flex-col items-center gap-4 w-full max-w-[560px]">
+            {/* 動画エリア - クリックしても閉じない */}
+            <div onClick={(e) => e.stopPropagation()}>
+              <iframe
+                src={modalVideoUrl}
+                className="w-full"
+                style={{
+                  overflow: 'hidden',
+                  height: 'auto',
+                  aspectRatio: '560 / 420'
+                }}
+                allowFullScreen
+                allow="autoplay; fullscreen"
+                frameBorder="0"
+                scrolling="no"
+              />
+            </div>
+
+            {/* 価格表示と詳細ページボタン - クリックしても閉じない */}
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
+              <a
+                href={currentVideo?.dmm_product_url}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-4 text-center transition-all font-bold shadow-lg active:scale-95"
+              >
+                <div className="text-sm mb-1">フル動画はこちら</div>
+                <div className="text-2xl">¥{currentVideo?.price || 0}〜</div>
+              </a>
+            </div>
+
+            {/* 閉じるヒント */}
+            <p className="text-white/60 text-sm">画面をタップで閉じる</p>
           </div>
         </div>
       )}
