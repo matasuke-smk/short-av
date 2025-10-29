@@ -243,11 +243,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
   // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
-    const videoList = videoListRef.current;
-    if (!videoList) {
-      console.log('SearchModal: videoListRef is null');
+    // モーダルが開いていない場合は何もしない
+    if (!isOpen) {
+      console.log('SearchModal: モーダルが閉じているのでスクロールイベント未設定');
       return;
     }
+
+    const videoList = videoListRef.current;
+    if (!videoList) {
+      console.log('SearchModal: videoListRef is null (isOpen=true)');
+      return;
+    }
+
+    console.log('SearchModal: スクロールイベントリスナーを設定', { searchResults: searchResults !== null, hasMoreVideos, isLoadingMoreVideos });
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = videoList;
@@ -283,8 +291,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     };
 
     videoList.addEventListener('scroll', handleScroll);
-    return () => videoList.removeEventListener('scroll', handleScroll);
-  }, [searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
+    return () => {
+      console.log('SearchModal: スクロールイベントリスナーを削除');
+      videoList.removeEventListener('scroll', handleScroll);
+    };
+  }, [isOpen, searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
 
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
