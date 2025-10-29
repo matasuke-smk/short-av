@@ -457,14 +457,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: 動画リストを置き換え', { count: newVideos.length, selectedVideoId });
+          // 動画リストを置き換え
+          setVideos(newVideos);
           // 選択された動画のindexを見つける
           const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
           console.log('VideoSwiper: targetIndex =', targetIndex);
           if (targetIndex !== -1) {
-            // 動画リストを置き換え
-            setVideos(newVideos);
-            // currentIndexを設定
-            setCurrentIndex(targetIndex);
+            // 少し待ってからスクロール（DOMの更新を待つ）
+            setTimeout(() => {
+              if (emblaApi) {
+                emblaApi.scrollTo(targetIndex, false); // 即座にスクロール
+                setCurrentIndex(targetIndex);
+              }
+            }, 100);
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
