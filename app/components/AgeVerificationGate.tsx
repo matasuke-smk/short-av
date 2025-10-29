@@ -19,8 +19,9 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
       return;
     }
 
-    // 今日の日付を取得（YYYY-MM-DD形式）
-    const today = new Date().toISOString().split('T')[0];
+    // 今日の日付を取得（ローカルタイムゾーンでYYYY-MM-DD形式）
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const lastVerificationDate = localStorage.getItem('age_verification_date');
 
     // 今日まだ確認していない場合は表示
@@ -30,8 +31,9 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
   }, []);
 
   const handleAccept = () => {
-    // 今日の日付を保存
-    const today = new Date().toISOString().split('T')[0];
+    // 今日の日付を保存（ローカルタイムゾーンでYYYY-MM-DD形式）
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     localStorage.setItem('age_verification_date', today);
     setShowGate(false);
 
