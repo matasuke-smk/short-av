@@ -3,7 +3,7 @@ import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 
 export const metadata: Metadata = {
-  title: 'Short AV - 動画レビューサイト',
+  title: 'Short AV',
   description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
 };
 
