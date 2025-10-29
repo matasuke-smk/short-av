@@ -557,6 +557,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                         const params = new URLSearchParams();
                         params.set('videoIds', JSON.stringify(videoIds));
                         params.set('v', video.dmm_content_id);
+                        params.set('index', index.toString()); // インデックスを追加
 
                         // 性別フィルタも渡す
                         params.set('filters', genderFilter);

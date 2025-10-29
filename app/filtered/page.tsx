@@ -11,6 +11,7 @@ type GenderFilter = 'straight' | 'lesbian' | 'gay';
 function FilteredVideosContent() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialIndex, setInitialIndex] = useState(0);
 
   useEffect(() => {
     const loadFilteredVideos = async () => {
@@ -20,6 +21,7 @@ function FilteredVideosContent() {
         const filters = params.get('filters')?.split(',') as GenderFilter[] | null;
         const videoIds = params.get('videoIds');
         const targetVideoId = params.get('v');
+        const indexParam = params.get('index');
 
         let query = supabase
           .from('videos')
@@ -45,6 +47,11 @@ function FilteredVideosContent() {
           data = ids
             .map((id: string) => fetchedData?.find((v: Video) => v.dmm_content_id === id))
             .filter((v: Video | undefined): v is Video => v !== undefined);
+
+          // インデックスを設定
+          if (indexParam) {
+            setInitialIndex(parseInt(indexParam));
+          }
         } else {
           // 性別フィルタのみの場合は全動画を取得してフィルタリング
           const { data: allData, error } = await query
@@ -88,19 +95,6 @@ function FilteredVideosContent() {
           }
         }
 
-        // ターゲット動画を先頭に
-        if (targetVideoId && data.length > 0) {
-          const targetIndex = data.findIndex(v => v.dmm_content_id === targetVideoId);
-          if (targetIndex !== -1) {
-            const targetVideo = data[targetIndex];
-            data = [
-              targetVideo,
-              ...data.slice(0, targetIndex),
-              ...data.slice(targetIndex + 1)
-            ];
-          }
-        }
-
         if (data.length === 0) {
           window.location.href = '/';
           return;
@@ -139,7 +133,7 @@ function FilteredVideosContent() {
     );
   }
 
-  return <VideoSwiper videos={videos} initialOffset={0} totalVideos={videos.length} isFiniteList={true} />;
+  return <VideoSwiper videos={videos} initialOffset={initialIndex} totalVideos={videos.length} isFiniteList={true} />;
 }
 
 export default function FilteredVideosPage() {
