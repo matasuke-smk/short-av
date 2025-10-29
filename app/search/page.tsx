@@ -36,7 +36,7 @@ export default function SearchPage() {
           data.forEach(item => {
             if (item.genre) {
               // カンマ区切りの場合は分割
-              item.genre.split(',').forEach(g => genreSet.add(g.trim()));
+              item.genre.split(',').forEach((g: string) => genreSet.add(g.trim()));
             }
           });
           setGenres(Array.from(genreSet).sort());
