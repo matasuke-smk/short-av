@@ -125,7 +125,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
 
         filteredData = filteredData.filter(video => {
           const videoGenreNames = (video.genre_ids || [])
-            .map(id => genreMap.get(id) || '')
+            .map((id: string) => genreMap.get(id) || '')
             .join(',');
 
           const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
