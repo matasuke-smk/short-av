@@ -161,7 +161,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     return () => {
       emblaApi.off('select', onSelect);
     };
-  }, [emblaApi, videos, loadMoreVideos, isLoadingMore]);
+  }, [emblaApi, videos, loadMoreVideos, isLoadingMore, isFiniteList]);
 
   const currentVideo = videos[currentIndex];
 
@@ -271,8 +271,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 </div>
               </div>
             )}
-            {/* 最後の動画に到達した場合（有限リスト） */}
-            {isFiniteList && currentIndex >= videos.length - 1 && (
+            {/* 最後の動画の次に表示（有限リストの場合） */}
+            {isFiniteList && (
               <div className="h-[100dvh] w-full snap-start snap-always relative flex items-center justify-center">
                 <div className="text-white text-center px-8">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
