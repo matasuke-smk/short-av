@@ -14,9 +14,10 @@ interface VideoSwiperProps {
   videos: Video[];
   initialOffset: number;
   totalVideos: number;
+  isFiniteList?: boolean; // 検索結果など有限のリストの場合true
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, isFiniteList = false }: VideoSwiperProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
@@ -142,7 +143,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       const index = emblaApi.selectedScrollSnap();
       setCurrentIndex(index);
 
-      if (index >= videos.length - 5 && !isLoadingMore) {
+      // 有限リストでない場合のみ、追加の動画を読み込む
+      if (!isFiniteList && index >= videos.length - 5 && !isLoadingMore) {
         loadMoreVideos();
       }
 
@@ -266,6 +268,24 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <div className="text-white text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                   <p className="text-sm">読み込み中...</p>
+                </div>
+              </div>
+            )}
+            {/* 最後の動画に到達した場合（有限リスト） */}
+            {isFiniteList && currentIndex >= videos.length - 1 && (
+              <div className="h-[100dvh] w-full snap-start snap-always relative flex items-center justify-center">
+                <div className="text-white text-center px-8">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="text-2xl font-bold mb-2">これで最後です</h3>
+                  <p className="text-gray-400 mb-8">検索結果は全て表示されました</p>
+                  <Link
+                    href="/"
+                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
+                  >
+                    ホームに戻る
+                  </Link>
                 </div>
               </div>
             )}
