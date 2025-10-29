@@ -13,6 +13,7 @@ interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onVideoSelect: (videoId: string) => void;
+  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void; // フィルタ検索結果で動画リストを置き換え
   currentVideoId?: string;
   videos: Video[]; // VideoSwiperから直接渡される
   currentIndex: number;
@@ -21,7 +22,7 @@ interface SearchModalProps {
   hasMoreVideos: boolean; // まだ読み込めるデータがあるか
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceVideos, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -795,28 +796,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       key={video.id}
                       ref={isCurrentVideo ? currentVideoRef : null}
                       onClick={() => {
-                        // 初期表示（ホーム画面の動画リスト）の場合
-                        if (!isSearchResult.current) {
+                        console.log('SearchModal: 動画選択', { videoId: video.dmm_content_id, searchResults: searchResults !== null });
+                        // フィルタ検索結果の場合
+                        if (searchResults !== null) {
+                          console.log('SearchModal: フィルタ検索結果 → onReplaceVideos呼び出し');
+                          // VideoSwiperの動画リストを検索結果で置き換え（ページリロードなし）
+                          onReplaceVideos(searchResults, video.dmm_content_id);
+                          onClose();
+                        } else {
+                          // ブラウズモード（ホーム画面の動画リスト）の場合
+                          console.log('SearchModal: ブラウズモード → onVideoSelect呼び出し');
                           // VideoSwiper内で動画を切り替え（ページリロードなし）
                           onVideoSelect(video.dmm_content_id);
                           onClose();
-                        } else {
-                          // 検索結果の場合は/filteredに遷移
-                          const params = new URLSearchParams();
-                          params.set('index', index.toString());
-                          params.set('f', genderFilter);
-                          params.set('m', searchMode);
-                          if (keyword) params.set('q', keyword);
-                          if (selectedGenreIds.length > 0) {
-                            const slugs = selectedGenreIds.map(id => genres.find(g => g.id === id)?.slug).filter(Boolean);
-                            params.set('g', slugs.join(','));
-                          }
-                          if (selectedActressIds.length > 0) {
-                            const names = selectedActressIds.map(id => actresses.find(a => a.id === id)?.name).filter(Boolean);
-                            params.set('a', names.join(','));
-                          }
-
-                          window.location.href = `/filtered?${params.toString()}`;
                         }
                       }}
                       className={`group text-left ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}

@@ -349,7 +349,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </Link>
 
             {/* ホームボタン（中央） */}
-            <Link href="https://short-av.com/" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            <Link href="/" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
@@ -446,6 +446,23 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             const url = new URL(window.location.href);
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
+          }
+        }}
+        onReplaceVideos={(newVideos, selectedVideoId) => {
+          console.log('VideoSwiper: 動画リストを置き換え', { count: newVideos.length, selectedVideoId });
+          // 動画リストを置き換え
+          setVideos(newVideos);
+          // 選択された動画のindexを見つける
+          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
+          console.log('VideoSwiper: targetIndex =', targetIndex);
+          if (targetIndex !== -1) {
+            // 少し待ってからスクロール（DOMの更新を待つ）
+            setTimeout(() => {
+              if (emblaApi) {
+                emblaApi.scrollTo(targetIndex, false); // 即座にスクロール
+                setCurrentIndex(targetIndex);
+              }
+            }, 100);
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
