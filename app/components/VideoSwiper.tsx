@@ -438,10 +438,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
         onVideoSelect={(videoId) => {
-          // 選択された動画にジャンプ（ページリロード）
-          const url = new URL(window.location.href);
-          url.searchParams.set('v', videoId);
-          window.location.href = url.toString();
+          // 選択された動画のindexを見つけてスクロール（ページリロードなし）
+          const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
+          if (targetIndex !== -1 && emblaApi) {
+            emblaApi.scrollTo(targetIndex, true); // アニメーション付きでスクロール
+            // URLを更新（履歴に追加）
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', videoId);
+            window.history.pushState({}, '', url.toString());
+          }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
         initialVideos={videos}
