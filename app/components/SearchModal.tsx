@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
@@ -45,18 +45,34 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
   const videoCount = useRef(0); // 読み込んだ動画の数を追跡
+  const hasScrolledRef = useRef(false); // スクロール済みかどうかのフラグ
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      hasScrolledRef.current = false;
+      return;
+    }
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
     // 検索結果フラグをリセット
     isSearchResult.current = false;
-    // 初期動画リストを表示
-    setVideos(initialVideos);
-    // 読み込んだ動画数を記録
-    videoCount.current = initialVideos.length;
+
+    // 現在の動画を先頭に配置
+    const currentVideo = initialVideos[currentIndex];
+    if (currentVideo) {
+      const reorderedVideos = [
+        currentVideo,
+        ...initialVideos.slice(0, currentIndex),
+        ...initialVideos.slice(currentIndex + 1)
+      ];
+      setVideos(reorderedVideos);
+      videoCount.current = reorderedVideos.length;
+    } else {
+      setVideos(initialVideos);
+      videoCount.current = initialVideos.length;
+    }
+
     // オフセットとhasMoreをリセット（initialOffsetを基準にする）
     setOffset(initialOffset + initialVideos.length);
     setHasMore(true);
@@ -231,17 +247,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
   // モーダルを開いたとき、初期表示の場合のみ現在の動画位置までスクロール
-  useEffect(() => {
-    if (isOpen && !isSearchResult.current && videos.length > 0 && currentVideoRef.current) {
+  useLayoutEffect(() => {
+    if (isOpen && !hasScrolledRef.current && !isSearchResult.current && videos.length > 0 && currentVideoRef.current) {
       // 初期表示（ホーム画面の動画一覧）の場合のみスクロール
-      setTimeout(() => {
-        currentVideoRef.current?.scrollIntoView({
-          behavior: 'auto',  // 瞬時にスクロール
-          block: 'start',    // 画面の上部に配置
-        });
-      }, 100);
+      currentVideoRef.current.scrollIntoView({
+        behavior: 'auto',  // 瞬時にスクロール
+        block: 'start',    // 画面の上部に配置
+      });
+      hasScrolledRef.current = true;
     }
-  }, [isOpen]);
+  }, [isOpen, videos]);
 
   // スクロールイベントのリスナーを追加（無限スクロール）
   useEffect(() => {
