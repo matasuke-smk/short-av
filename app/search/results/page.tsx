@@ -51,7 +51,7 @@ function SearchResultsContent() {
 
         // ターゲット動画が指定されている場合は先頭に配置
         if (targetVideoId) {
-          const targetIndex = sortedVideos.findIndex(v => v.dmm_content_id === targetVideoId);
+          const targetIndex = sortedVideos.findIndex((v: Video) => v.dmm_content_id === targetVideoId);
           if (targetIndex !== -1) {
             const targetVideo = sortedVideos[targetIndex];
             const reorderedVideos = [
