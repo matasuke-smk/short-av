@@ -261,7 +261,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   {/* 広告バナー領域 (640×200) - 固定位置 */}
                   <div className="w-full">
                     <a
-                      href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-002"
+                      href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
                       target="_blank"
                       rel="sponsored"
                       className="block w-full"
