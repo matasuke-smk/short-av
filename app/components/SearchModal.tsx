@@ -58,20 +58,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
     // 検索結果フラグをリセット
     isSearchResult.current = false;
 
-    // 現在の動画を先頭に配置
-    const currentVideo = initialVideos[currentIndex];
-    if (currentVideo) {
-      const reorderedVideos = [
-        currentVideo,
-        ...initialVideos.slice(0, currentIndex),
-        ...initialVideos.slice(currentIndex + 1)
-      ];
-      setVideos(reorderedVideos);
-      videoCount.current = reorderedVideos.length;
-    } else {
-      setVideos(initialVideos);
-      videoCount.current = initialVideos.length;
-    }
+    // 初期動画リストをそのまま表示（並び替えしない）
+    setVideos(initialVideos);
+    videoCount.current = initialVideos.length;
 
     // オフセットとhasMoreをリセット（initialOffsetを基準にする）
     setOffset(initialOffset + initialVideos.length);
