@@ -26,7 +26,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     skipSnaps: false,
   });
   const [videos, setVideos] = useState<Video[]>(initialVideos);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(initialOffset);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -135,6 +135,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       });
     }
   }, [userId, likedVideos]);
+
+  // 初期位置にスクロール
+  useEffect(() => {
+    if (!emblaApi || initialOffset === 0) return;
+
+    // スクロール位置を設定（アニメーションなし）
+    emblaApi.scrollTo(initialOffset, false);
+  }, [emblaApi, initialOffset]);
 
   useEffect(() => {
     if (!emblaApi) return;
