@@ -491,7 +491,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       <p className="text-xs text-gray-400">{video.maker}</p>
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
