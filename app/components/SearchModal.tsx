@@ -93,28 +93,89 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
 
     setLoading(true);
     try {
-      let query = supabase
-        .from('videos')
-        .select('*')
-        .eq('is_active', true);
+      let data: Video[] = [];
 
       if (searchMode === 'keyword' && keyword.trim()) {
-        query = query.ilike('title', `%${keyword}%`);
+        const { data: result, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .ilike('title', `%${keyword}%`)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          console.error('検索エラー:', error);
+          return;
+        }
+        data = result || [];
       } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        query = query.overlaps('genre_ids', selectedGenreIds);
+        const { data: result, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .overlaps('genre_ids', selectedGenreIds)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          console.error('検索エラー:', error);
+          return;
+        }
+        data = result || [];
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-        query = query.overlaps('actress_ids', selectedActressIds);
-      }
+        // 女優ID検索と女優名検索の両方を実行して結果を合算
+        const selectedActresses = actresses.filter(a => selectedActressIds.includes(a.id));
 
-      const { data, error } = await query
-        .not('thumbnail_url', 'is', null)
-        .not('sample_video_url', 'is', null)
-        .order('release_date', { ascending: false })
-        .limit(100);
+        // 1. actress_idsでの検索
+        const { data: idResults, error: idError } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .overlaps('actress_ids', selectedActressIds)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false });
 
-      if (error) {
-        console.error('検索エラー:', error);
-        return;
+        if (idError) {
+          console.error('女優ID検索エラー:', idError);
+        }
+
+        // 2. 女優名でのキーワード検索
+        const nameResults: Video[] = [];
+        for (const actress of selectedActresses) {
+          const { data: nameResult, error: nameError } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .ilike('title', `%${actress.name}%`)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false });
+
+          if (nameError) {
+            console.error(`女優名検索エラー (${actress.name}):`, nameError);
+          } else if (nameResult) {
+            nameResults.push(...nameResult);
+          }
+        }
+
+        // 3. 結果を合算（重複を除去）
+        const combinedResults = [...(idResults || []), ...nameResults];
+        const uniqueResults = Array.from(
+          new Map(combinedResults.map(v => [v.id, v])).values()
+        );
+
+        // リリース日順にソート
+        data = uniqueResults.sort((a, b) => {
+          const dateA = new Date(a.release_date || 0).getTime();
+          const dateB = new Date(b.release_date || 0).getTime();
+          return dateB - dateA;
+        }).slice(0, 100);
       }
 
       // 性別フィルターを適用
