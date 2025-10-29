@@ -6,6 +6,7 @@ import type { Database } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import InitialTutorial from './InitialTutorial';
+import SearchModal from './SearchModal';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -31,6 +32,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [userId, setUserId] = useState<string>('');
   const [showTutorial, setShowTutorial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -292,12 +294,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* ボタンエリア - 4つに変更 */}
           <div className="grid grid-cols-4 gap-3">
             {/* 検索ボタン */}
-            <Link href="/search" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            <button
+              onClick={() => setShowSearchModal(true)}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <span className="text-xs">検索</span>
-            </Link>
+            </button>
 
             {/* 人気（ランキング）ボタン */}
             <Link href="/ranking" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
@@ -383,6 +388,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {showTutorial && (
         <InitialTutorial onDismiss={() => setShowTutorial(false)} />
       )}
+
+      {/* 検索モーダル */}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onVideoSelect={(videoId) => {
+          // 選択された動画にジャンプ
+          window.location.href = `/?v=${videoId}`;
+        }}
+      />
     </div>
   );
 }
