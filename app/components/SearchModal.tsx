@@ -337,7 +337,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
           {/* 検索入力エリア */}
           {searchMode === 'genre' ? (
-            <div className="space-y-2">
+            <div>
               <button
                 onClick={() => setShowGenreModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
@@ -349,16 +349,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       .join(', ')
                   : 'ジャンルを選択'}
               </button>
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2.5 rounded-lg transition-colors font-medium text-sm"
-              >
-                {loading ? '検索中...' : '検索'}
-              </button>
             </div>
           ) : searchMode === 'actress' ? (
-            <div className="space-y-2">
+            <div>
               <button
                 onClick={() => setShowActressModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
@@ -369,13 +362,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       .map((a: Actress) => a.name)
                       .join(', ')
                   : '女優を選択'}
-              </button>
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white py-2.5 rounded-lg transition-colors font-medium text-sm"
-              >
-                {loading ? '検索中...' : '検索'}
               </button>
             </div>
           ) : (
