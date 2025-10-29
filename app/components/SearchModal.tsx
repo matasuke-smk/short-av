@@ -40,6 +40,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [offset, setOffset] = useState(20); // 初期表示の20件の次から
   const [hasMore, setHasMore] = useState(true);
   const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
+  const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
+  const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -116,6 +118,81 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
       handleSearch();
     }
   }, [genderFilter]);
+
+  // 利用可能なジャンル/女優を計算
+  useEffect(() => {
+    if (!isOpen || genres.length === 0) return;
+
+    const calculateAvailable = async () => {
+      try {
+        // 全動画を取得
+        const { data: allVideos, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .limit(1000);
+
+        if (error || !allVideos) return;
+
+        // 性別フィルタを適用
+        const genreMap = new Map(genres.map(g => [g.id, g.name]));
+        const filteredVideos = allVideos.filter(video => {
+          const videoGenreNames = (video.genre_ids || [])
+            .map((id: string) => genreMap.get(id) || '')
+            .join(',');
+
+          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+          const hasGay = videoGenreNames.includes('ゲイ');
+
+          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+          if (genderFilter === 'gay') return hasGay && !hasLesbian;
+          return false;
+        });
+
+        // さらに選択済みジャンル/女優でフィルタ（複数選択の組み合わせを考慮）
+        const finalVideos = filteredVideos.filter(video => {
+          // 選択済みジャンルがある場合、少なくとも1つのジャンルが含まれている必要がある
+          if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+            const hasSelectedGenre = selectedGenreIds.some(genreId =>
+              (video.genre_ids || []).includes(genreId)
+            );
+            if (!hasSelectedGenre) return false;
+          }
+
+          // 選択済み女優がある場合、少なくとも1人の女優が含まれている必要がある
+          if (searchMode === 'actress' && selectedActressIds.length > 0) {
+            const hasSelectedActress = selectedActressIds.some(actressId =>
+              (video.actress_ids || []).includes(actressId)
+            );
+            if (!hasSelectedActress) return false;
+          }
+
+          return true;
+        });
+
+        // 利用可能なジャンルIDを収集
+        const genreIds = new Set<string>();
+        finalVideos.forEach(video => {
+          (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
+        });
+        setAvailableGenres(genreIds);
+
+        // 利用可能な女優IDを収集
+        const actressIds = new Set<string>();
+        finalVideos.forEach(video => {
+          (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
+        });
+        setAvailableActresses(actressIds);
+      } catch (error) {
+        console.error('利用可能な選択肢計算エラー:', error);
+      }
+    };
+
+    calculateAvailable();
+  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
   // 動画リストが表示されたら、現在の動画位置にスクロール
   useEffect(() => {
@@ -356,12 +433,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   };
 
   const filteredActresses = actressSearchKeyword
-    ? actresses.filter(a => a.name.includes(actressSearchKeyword))
-    : actresses;
+    ? actresses.filter(a => a.name.includes(actressSearchKeyword) && (availableActresses.size === 0 || availableActresses.has(a.id)))
+    : actresses.filter(a => availableActresses.size === 0 || availableActresses.has(a.id));
 
   const filteredGenres = genreSearchKeyword
-    ? genres.filter(g => g.name.includes(genreSearchKeyword))
-    : genres;
+    ? genres.filter(g => g.name.includes(genreSearchKeyword) && (availableGenres.size === 0 || availableGenres.has(g.id)))
+    : genres.filter(g => availableGenres.size === 0 || availableGenres.has(g.id));
 
   if (!isOpen) return null;
 
