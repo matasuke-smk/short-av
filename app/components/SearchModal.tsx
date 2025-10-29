@@ -23,7 +23,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
   const [loading, setLoading] = useState(false);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
-  const [genderFilters, setGenderFilters] = useState<GenderFilter[]>(['straight']);
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [actresses, setActresses] = useState<Actress[]>([]);
   const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
@@ -73,21 +73,22 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
 
     loadGenres();
     loadActresses();
+
+    // モーダルを開いたら自動的に性別フィルタで検索を実行
+    if (isOpen) {
+      handleSearch();
+    }
   }, [isOpen]);
 
-  const toggleGenderFilter = (filter: GenderFilter) => {
-    setGenderFilters(prev =>
-      prev.includes(filter)
-        ? prev.filter(f => f !== filter)
-        : [...prev, filter]
-    );
-  };
+  // 性別フィルタが変更されたら自動的に検索を実行
+  useEffect(() => {
+    if (isOpen && genres.length > 0) {
+      handleSearch();
+    }
+  }, [genderFilter]);
 
   const handleSearch = async () => {
-    // 性別フィルタのみでも検索可能に変更
-    if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0 && genderFilters.length === 3) {
-      return;
-    }
+    // 性別フィルタのみでも検索可能
 
     if (inputRef.current) {
       inputRef.current.blur();
@@ -178,30 +179,40 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           const dateB = new Date(b.release_date || 0).getTime();
           return dateB - dateA;
         }).slice(0, 100);
+      } else {
+        // 性別フィルタのみの場合、全動画を取得
+        const { data: result, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('is_active', true)
+          .not('thumbnail_url', 'is', null)
+          .not('sample_video_url', 'is', null)
+          .order('release_date', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          console.error('検索エラー:', error);
+          return;
+        }
+        data = result || [];
       }
 
       // 性別フィルターを適用
-      let filteredData = data || [];
-      if (genderFilters.length > 0 && genderFilters.length < 3) {
-        // ジャンルIDからジャンル名を取得して判定
-        const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
+      const genreMap = new Map(genres.map(g => [g.id, g.name.toLowerCase()]));
 
-        filteredData = filteredData.filter(video => {
-          const videoGenreNames = (video.genre_ids || [])
-            .map((id: string) => genreMap.get(id) || '')
-            .join(',');
+      const filteredData = data.filter(video => {
+        const videoGenreNames = (video.genre_ids || [])
+          .map((id: string) => genreMap.get(id) || '')
+          .join(',');
 
-          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-          const hasGay = videoGenreNames.includes('ゲイ');
+        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+        const hasGay = videoGenreNames.includes('ゲイ');
 
-          return genderFilters.some(filter => {
-            if (filter === 'straight') return !hasLesbian && !hasGay;
-            if (filter === 'lesbian') return hasLesbian && !hasGay;
-            if (filter === 'gay') return hasGay && !hasLesbian;
-            return false;
-          });
-        });
-      }
+        if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+        if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+        if (genderFilter === 'gay') return hasGay && !hasLesbian;
+        return false;
+      });
 
       setVideos(filteredData);
     } catch (error) {
@@ -256,9 +267,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
           {/* 性別フィルター */}
           <div className="flex gap-2 mb-3">
             <button
-              onClick={() => toggleGenderFilter('straight')}
+              onClick={() => setGenderFilter('straight')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilters.includes('straight')
+                genderFilter === 'straight'
                   ? 'bg-pink-500 text-white'
                   : 'bg-gray-700 text-gray-300'
               }`}
@@ -266,9 +277,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
               ♂♀
             </button>
             <button
-              onClick={() => toggleGenderFilter('lesbian')}
+              onClick={() => setGenderFilter('lesbian')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilters.includes('lesbian')
+                genderFilter === 'lesbian'
                   ? 'bg-pink-500 text-white'
                   : 'bg-gray-700 text-gray-300'
               }`}
@@ -276,28 +287,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
               ♀♀
             </button>
             <button
-              onClick={() => toggleGenderFilter('gay')}
+              onClick={() => setGenderFilter('gay')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilters.includes('gay')
+                genderFilter === 'gay'
                   ? 'bg-pink-500 text-white'
                   : 'bg-gray-700 text-gray-300'
               }`}
             >
               ♂♂
-            </button>
-            <button
-              onClick={() => {
-                const params = new URLSearchParams();
-                params.set('filters', genderFilters.join(','));
-                if (currentVideoId) {
-                  params.set('v', currentVideoId);
-                }
-                window.location.href = `/filtered?${params.toString()}`;
-              }}
-              disabled={genderFilters.length === 0 || genderFilters.length === 3}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
-            >
-              実行
             </button>
           </div>
 
@@ -427,9 +424,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, currentVid
                       params.set('v', video.dmm_content_id);
 
                       // 性別フィルタも渡す
-                      if (genderFilters.length > 0 && genderFilters.length < 3) {
-                        params.set('filters', genderFilters.join(','));
-                      }
+                      params.set('filters', genderFilter);
 
                       window.location.href = `/filtered?${params.toString()}`;
                     }}
