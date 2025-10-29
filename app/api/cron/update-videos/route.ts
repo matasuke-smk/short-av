@@ -23,6 +23,8 @@ import {
   searchByGenre,
   fetchGenres,
   convertDMMItemToVideo,
+  extractActresses,
+  extractGenres,
   type DMMItem
 } from '@/lib/dmm-api';
 import type { Database } from '@/lib/supabase';
@@ -147,6 +149,68 @@ export async function GET(request: Request) {
 
     for (const [contentId, video] of allVideos.entries()) {
       try {
+        // 女優データを処理
+        const actresses = extractActresses(video);
+        const actressIds: string[] = [];
+
+        for (const actress of actresses) {
+          const { data: existingActress } = await supabase
+            .from('actresses')
+            .select('id')
+            .eq('slug', actress.slug)
+            .single();
+
+          if (existingActress) {
+            actressIds.push(existingActress.id);
+          } else {
+            const { data: newActress } = await supabase
+              .from('actresses')
+              .insert({
+                name: actress.name,
+                slug: actress.slug,
+                video_count: 0,
+                is_active: true,
+              })
+              .select('id')
+              .single();
+
+            if (newActress) {
+              actressIds.push(newActress.id);
+            }
+          }
+        }
+
+        // ジャンルデータを処理
+        const genresFromVideo = extractGenres(video);
+        const genreIds: string[] = [];
+
+        for (const genre of genresFromVideo) {
+          const { data: existingGenre } = await supabase
+            .from('genres')
+            .select('id')
+            .eq('slug', genre.slug)
+            .single();
+
+          if (existingGenre) {
+            genreIds.push(existingGenre.id);
+          } else {
+            const { data: newGenre } = await supabase
+              .from('genres')
+              .insert({
+                name: genre.name,
+                slug: genre.slug,
+                sort_order: 999,
+                is_active: true,
+              })
+              .select('id')
+              .single();
+
+            if (newGenre) {
+              genreIds.push(newGenre.id);
+            }
+          }
+        }
+
         // 既存データをチェック
         const { data: existingVideo } = await supabase
           .from('videos')
@@ -154,7 +218,11 @@ export async function GET(request: Request) {
           .eq('dmm_content_id', contentId)
           .single();
 
-        const videoData = convertDMMItemToVideo(video) as any;
+        const videoData = {
+          ...convertDMMItemToVideo(video),
+          genre_ids: genreIds.length > 0 ? genreIds : null,
+          actress_ids: actressIds.length > 0 ? actressIds : null,
+        } as any;
 
         if (existingVideo) {
           // 更新

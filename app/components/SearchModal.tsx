@@ -218,6 +218,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
             >
               ♂♂
             </button>
+            <button
+              onClick={() => {
+                const filters = genderFilters.join(',');
+                window.location.href = `/filtered?filters=${filters}`;
+              }}
+              disabled={genderFilters.length === 0 || genderFilters.length === 3}
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              実行
+            </button>
           </div>
 
           {/* 検索モード切り替え */}
@@ -262,7 +272,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
                 {selectedGenreIds.length > 0
-                  ? `${selectedGenreIds.length}個のジャンルを選択中`
+                  ? genres
+                      .filter((g: Genre) => selectedGenreIds.includes(g.id))
+                      .map((g: Genre) => g.name)
+                      .join(', ')
                   : 'ジャンルを選択'}
               </button>
               <button
@@ -280,7 +293,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
                 {selectedActressIds.length > 0
-                  ? `${selectedActressIds.length}人の女優を選択中`
+                  ? actresses
+                      .filter((a: Actress) => selectedActressIds.includes(a.id))
+                      .map((a: Actress) => a.name)
+                      .join(', ')
                   : '女優を選択'}
               </button>
               <button
@@ -347,8 +363,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect }: SearchMo
                   <button
                     key={video.id}
                     onClick={() => {
-                      onVideoSelect(video.dmm_content_id);
-                      onClose();
+                      // 検索結果のビデオIDをURLパラメータとして渡す
+                      const videoIds = videos.map((v: Video) => v.dmm_content_id);
+                      const params = new URLSearchParams();
+                      params.set('videoIds', JSON.stringify(videoIds));
+                      params.set('v', video.dmm_content_id);
+
+                      // 性別フィルタも渡す
+                      if (genderFilters.length > 0 && genderFilters.length < 3) {
+                        params.set('filters', genderFilters.join(','));
+                      }
+
+                      window.location.href = `/filtered?${params.toString()}`;
                     }}
                     className="group text-left"
                   >
