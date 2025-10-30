@@ -506,8 +506,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           <div
             className="w-full"
             onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
+            onTouchStart={handleModalTouchStart}
+            onTouchEnd={handleModalTouchEnd}
           >
             <iframe
               src={modalVideoUrl}
@@ -520,12 +520,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           </div>
 
           {/* 価格表示と詳細ページボタン */}
-          <div className="w-full px-4 mt-4 relative">
-            <div
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
+          <div
+            className="w-full px-4 mt-4 relative"
+            onTouchStart={handleModalTouchStart}
+            onTouchEnd={handleModalTouchEnd}
+          >
+            <div onClick={(e) => e.stopPropagation()}>
               {enableAffiliateLinks ? (
                 <a
                   href={currentVideo?.dmm_product_url}
@@ -550,8 +550,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   e.stopPropagation();
                   toggleLike(currentVideo.id, e);
                 }}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
                 className="absolute bottom-0 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                 aria-label="いいね"
               >
