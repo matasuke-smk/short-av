@@ -30,6 +30,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   const [searchOffset, setSearchOffset] = useState(100); // 検索結果の読み込み位置
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
+  const [totalSearchCount, setTotalSearchCount] = useState<number>(0); // 検索結果の総件数
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
@@ -304,6 +305,87 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     };
   }, [isOpen, searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
 
+  // フィルタ適用後の総件数を取得する関数
+  const getFilteredCount = async (genreMap: Map<string, string>) => {
+    try {
+      // 女優検索の場合はactress_idsも必要
+      const selectFields = searchMode === 'actress'
+        ? 'id, genre_ids, actress_ids'
+        : 'id, genre_ids';
+
+      let query = supabase
+        .from('videos')
+        .select(selectFields, { count: 'exact', head: false })
+        .eq('is_active', true)
+        .not('thumbnail_url', 'is', null)
+        .not('sample_video_url', 'is', null);
+
+      // キーワード検索の場合
+      if (searchMode === 'keyword' && keyword.trim()) {
+        query = query.ilike('title', `%${keyword}%`);
+      }
+      // ジャンル検索の場合
+      else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+        query = query.overlaps('genre_ids', selectedGenreIds);
+      }
+      // 女優検索の場合
+      else if (searchMode === 'actress' && selectedActressIds.length > 0) {
+        query = query.overlaps('actress_ids', selectedActressIds);
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) {
+        console.error('カウント取得エラー:', error);
+        setTotalSearchCount(0);
+        return;
+      }
+
+      // データを取得して性別フィルターを適用
+      if (data) {
+        let filteredCount = 0;
+
+        // ジャンル検索の場合はAND条件を適用
+        let filteredVideos = data;
+        if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+          filteredVideos = data.filter(video =>
+            selectedGenreIds.every(genreId =>
+              (video.genre_ids || []).includes(genreId)
+            )
+          );
+        }
+        // 女優検索の場合もAND条件を適用
+        else if (searchMode === 'actress' && selectedActressIds.length > 0) {
+          filteredVideos = data.filter(video =>
+            selectedActressIds.every(actressId =>
+              (video.actress_ids || []).includes(actressId)
+            )
+          );
+        }
+
+        // 性別フィルターを適用
+        filteredCount = filteredVideos.filter(video => {
+          const videoGenreNames = (video.genre_ids || [])
+            .map((id: string) => genreMap.get(id) || '')
+            .join(',');
+
+          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+          const hasGay = videoGenreNames.includes('ゲイ');
+
+          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+          if (genderFilter === 'gay') return hasGay && !hasLesbian;
+          return false;
+        }).length;
+
+        setTotalSearchCount(filteredCount);
+      }
+    } catch (error) {
+      console.error('総件数取得エラー:', error);
+      setTotalSearchCount(0);
+    }
+  };
+
   const handleSearch = async () => {
     // 性別フィルタのみでも検索可能
     isSearchResult.current = true; // 検索結果フラグをオン
@@ -444,6 +526,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         if (genderFilter === 'gay') return hasGay && !hasLesbian;
         return false;
       });
+
+      // 総件数を取得するために、カウントクエリを実行
+      await getFilteredCount(genreMap);
 
       setSearchResults(filteredData);
       setSearchOffset(100); // 初回検索は100件まで取得
@@ -813,7 +898,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <>
               <div className="mb-3">
                 <p className="text-gray-400 text-sm">
-                  {displayVideos.length}件の動画が見つかりました
+                  {searchResults !== null && totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-20">
