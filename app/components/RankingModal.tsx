@@ -39,52 +39,21 @@ export default function RankingModal({
   const [loading, setLoading] = useState(false);
   const videoListRef = useRef<HTMLDivElement>(null);
   const currentVideoRef = useRef<HTMLButtonElement>(null);
-  const hasScrolledRef = useRef(false);
-
-  // 現在のvideosがどのランキングに該当するかチェック
-  const checkCurrentRanking = (): RankingPeriod | null => {
-    if (videos.length === 0 || !currentVideoId) return null;
-
-    // 現在見ている動画が含まれているランキングを探す
-    // 完全一致で判定（全件比較）
-    const periods: RankingPeriod[] = ['weekly', 'monthly', 'all'];
-
-    for (const period of periods) {
-      const rankingList = rankingVideos[period];
-      if (rankingList.length === 0) continue;
-
-      // 現在の動画がこのランキングに含まれているか
-      const currentVideoIndex = rankingList.findIndex(v => v.dmm_content_id === currentVideoId);
-      if (currentVideoIndex === -1) continue;
-
-      // 完全一致チェック（全件比較）
-      if (videos.length === rankingList.length) {
-        const isMatch = videos.every((v, i) => v.id === rankingList[i].id);
-        if (isMatch) {
-          return period;
-        }
-      }
-    }
-    return null;
-  };
+  const hasScrolledRef = useRef<Record<RankingPeriod, boolean>>({
+    weekly: false,
+    monthly: false,
+    all: false
+  });
 
   // モーダルを開いた時の初期化
   useEffect(() => {
     if (!isOpen) {
-      hasScrolledRef.current = false;
       return;
     }
 
-    // 現在のvideosがランキングかチェック
-    const currentRanking = checkCurrentRanking();
-    if (currentRanking) {
-      // 既にランキングを表示中の場合、その期間を選択
-      setPeriod(currentRanking);
-    } else {
-      // ランキング以外を表示中の場合、週間を選択
-      setPeriod('weekly');
-    }
-  }, [isOpen]);
+    // lastSelectedRankingからperiodを設定
+    setPeriod(lastSelectedRanking);
+  }, [isOpen, lastSelectedRanking]);
 
   // 期間が変更されたら、必要に応じて読み込み
   useEffect(() => {
@@ -99,15 +68,18 @@ export default function RankingModal({
 
   // モーダルを開いたとき、現在の動画の位置にスクロール
   useLayoutEffect(() => {
-    if (isOpen && videoListRef.current && !hasScrolledRef.current) {
-      if (currentVideoRef.current) {
-        currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
-      } else {
-        videoListRef.current.scrollTop = 0;
+    if (isOpen && videoListRef.current && !hasScrolledRef.current[period]) {
+      // ランキングが読み込まれているか確認
+      if (rankingVideos[period].length > 0) {
+        if (currentVideoRef.current) {
+          currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+        } else {
+          videoListRef.current.scrollTop = 0;
+        }
+        hasScrolledRef.current[period] = true;
       }
-      hasScrolledRef.current = true;
     }
-  }, [isOpen, period, rankingVideos]);
+  }, [isOpen, period, rankingVideos[period]]);
 
   const loadRanking = async (targetPeriod: RankingPeriod) => {
     setLoading(true);
@@ -139,6 +111,12 @@ export default function RankingModal({
 
   // 表示する動画リスト
   const displayVideos = rankingVideos[period];
+
+  // 現在のvideosが表示中のランキングと一致するかチェック
+  const isCurrentRanking = videos.length > 0 &&
+    displayVideos.length > 0 &&
+    videos.length === displayVideos.length &&
+    videos.every((v: Video, i: number) => v.id === displayVideos[i].id);
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
@@ -228,7 +206,7 @@ export default function RankingModal({
                 {/* 2列グリッド表示 */}
                 <div className="grid grid-cols-2 gap-3">
                   {displayVideos.map((video, index) => {
-                    const isCurrentVideo = video.dmm_content_id === currentVideoId;
+                    const isCurrentVideo = isCurrentRanking && video.dmm_content_id === currentVideoId;
                     return (
                       <button
                         key={video.id}
