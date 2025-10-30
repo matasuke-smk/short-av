@@ -892,7 +892,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSelectedGenreIds([])}
-                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-1.5 rounded-lg transition-colors font-medium"
                 >
                   リセット
                 </button>
@@ -983,7 +983,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSelectedActressIds([])}
-                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                  className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-1.5 rounded-lg transition-colors font-medium"
                 >
                   リセット
                 </button>
