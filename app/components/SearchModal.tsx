@@ -73,6 +73,33 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
 
+    // 現在の動画の性別フィルタを判定して設定
+    const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
+    if (currentVideo && genres.length > 0) {
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+      const videoGenreNames = (currentVideo.genre_ids || [])
+        .map((id: string) => genreMap.get(id) || '')
+        .join(',');
+
+      const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+      const hasGay = videoGenreNames.includes('ゲイ');
+
+      if (hasLesbian && !hasGay) {
+        setGenderFilter('lesbian');
+        if (genderVideos?.lesbian) {
+          setSearchResults(genderVideos.lesbian);
+        }
+      } else if (hasGay && !hasLesbian) {
+        setGenderFilter('gay');
+        if (genderVideos?.gay) {
+          setSearchResults(genderVideos.gay);
+        }
+      } else {
+        setGenderFilter('straight');
+        setSearchResults(null); // ♂♀の場合は初期表示（VideoSwiperから渡された動画）
+      }
+    }
+
     // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
     const params = new URLSearchParams(window.location.search);
     const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
@@ -162,6 +189,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
     loadGenres();
     loadActresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // モーダルを開いたときに性別フィルタの総件数を設定
@@ -277,10 +305,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // モーダルを開いたとき、スクロール位置をトップにリセット
+  // モーダルを開いたとき、現在の動画の位置にスクロール
   useLayoutEffect(() => {
     if (isOpen && videoListRef.current) {
-      videoListRef.current.scrollTop = 0;
+      if (currentVideoRef.current) {
+        // 現在の動画がリストに含まれている場合、その位置にスクロール
+        currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+      } else {
+        // 現在の動画がリストに含まれていない場合、先頭にスクロール
+        videoListRef.current.scrollTop = 0;
+      }
       hasScrolledRef.current = true;
     }
   }, [isOpen]);
@@ -704,11 +738,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => {
-                // スクロール位置をリセット
-                if (videoListRef.current) {
-                  videoListRef.current.scrollTop = 0;
-                }
-
                 if (genderFilter === 'straight') {
                   // 同じフィルタをクリックした場合は初期表示に戻す
                   setSearchResults(null);
@@ -725,6 +754,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   setSearchResults(null);
                   setKeyword('');
                 }
+
+                // 現在の動画の位置にスクロール
+                setTimeout(() => {
+                  if (currentVideoRef.current) {
+                    currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+                  }
+                }, 0);
               }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'straight'
