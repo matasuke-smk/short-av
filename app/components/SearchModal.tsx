@@ -579,11 +579,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
   const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      const results = await handleSearch();
-      if (results && results.length > 0) {
-        onClose();
-        onReplaceVideos(results, results[0].dmm_content_id);
-      }
+      await handleSearch();
     }
   };
 
@@ -940,13 +936,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 className="flex-1 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
               />
               <button
-                onClick={async () => {
-                  const results = await handleSearch();
-                  if (results && results.length > 0) {
-                    onClose();
-                    onReplaceVideos(results, results[0].dmm_content_id);
-                  }
-                }}
+                onClick={() => handleSearch()}
                 disabled={loading}
                 className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white px-5 rounded-lg transition-colors"
               >
@@ -1133,11 +1123,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 <button
                   onClick={async () => {
                     setShowGenreModal(false);
-                    const results = await handleSearch();
-                    if (results && results.length > 0) {
-                      onClose();
-                      onReplaceVideos(results, results[0].dmm_content_id);
-                    }
+                    await handleSearch();
                   }}
                   className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
                 >
@@ -1228,11 +1214,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 <button
                   onClick={async () => {
                     setShowActressModal(false);
-                    const results = await handleSearch();
-                    if (results && results.length > 0) {
-                      onClose();
-                      onReplaceVideos(results, results[0].dmm_content_id);
-                    }
+                    await handleSearch();
                   }}
                   className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
                 >

@@ -326,12 +326,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     >
                       別の条件で検索
                     </button>
-                    <Link
-                      href="/"
+                    <button
+                      onClick={() => window.location.href = '/'}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
                       ホームに戻る
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
