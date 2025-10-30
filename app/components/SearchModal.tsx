@@ -738,52 +738,17 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => {
-                // 現在の動画の性別を判定
-                const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
-                let isCurrentVideoStraight = true;
+                setGenderFilter('straight');
+                setSearchMode('keyword');
+                setSelectedGenreIds([]);
+                setSelectedActressIds([]);
+                setKeyword('');
 
-                if (currentVideo && genres.length > 0) {
-                  const genreMap = new Map(genres.map(g => [g.id, g.name]));
-                  const videoGenreNames = (currentVideo.genre_ids || [])
-                    .map((id: string) => genreMap.get(id) || '')
-                    .join(',');
-                  const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-                  const hasGay = videoGenreNames.includes('ゲイ');
-                  isCurrentVideoStraight = !hasLesbian && !hasGay;
-                }
-
-                if (genderFilter === 'straight') {
-                  // 同じフィルタをクリックした場合
-                  if (isCurrentVideoStraight) {
-                    // 現在♂♀の動画を見ている → 初期表示（20件）に戻す
-                    setSearchResults(null);
-                  } else {
-                    // 現在♀♀や♂♂の動画を見ている → ♂♀の600件を表示
-                    if (genderVideos?.straight) {
-                      setSearchResults(genderVideos.straight);
-                    }
-                  }
-                  setSearchMode('keyword');
-                  setSelectedGenreIds([]);
-                  setSelectedActressIds([]);
-                  setKeyword('');
-                } else {
-                  // 性別フィルタを変更した場合
-                  setGenderFilter('straight');
-                  setSearchMode('keyword');
-                  setSelectedGenreIds([]);
-                  setSelectedActressIds([]);
-                  setKeyword('');
-
-                  if (isCurrentVideoStraight) {
-                    // 現在♂♀の動画を見ている → 初期表示（20件）に戻す
-                    setSearchResults(null);
-                  } else {
-                    // 現在♀♀や♂♂の動画を見ている → ♂♀の600件を表示
-                    if (genderVideos?.straight) {
-                      setSearchResults(genderVideos.straight);
-                    }
-                  }
+                // ♂♀の事前読み込みデータを表示
+                if (genderVideos?.straight) {
+                  setSearchResults(genderVideos.straight);
+                  setSearchOffset(600);
+                  setHasMoreSearch(false);
                 }
 
                 // 現在の動画の位置にスクロール
