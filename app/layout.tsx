@@ -3,15 +3,15 @@ import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 
 export const metadata: Metadata = {
-  title: 'Short AV',
-  description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
+  title: 'Short AV - DMMの人気動画をスワイプで楽しむ次世代レビューサイト',
+  description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。会員登録不要で今すぐ無料で使えます。',
   metadataBase: new URL('https://short-av.com'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Short AV',
-    description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
+    title: 'Short AV - DMMの人気動画をスワイプで楽しむ',
+    description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
     url: 'https://short-av.com',
     siteName: 'Short AV',
     images: [
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Short AV',
-    description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
+    title: 'Short AV - DMMの人気動画をスワイプで楽しむ',
+    description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
     images: ['/og-image.jpg'],
   },
 };

@@ -3,14 +3,14 @@ import { getAllArticles } from '@/lib/articles';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '記事一覧 - Short AV',
-  description: 'Short AVの使い方や機能について解説した記事一覧です。',
+  title: '記事一覧 - Short AV使い方完全ガイド',
+  description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策まで徹底解説！初心者から上級者まで役立つ8つの記事で、DMMの動画をもっと快適に楽しめます。',
   alternates: {
     canonical: '/articles',
   },
   openGraph: {
-    title: '記事一覧 - Short AV',
-    description: 'Short AVの使い方や機能について解説した記事一覧です。',
+    title: '記事一覧 - Short AV使い方完全ガイド',
+    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策まで徹底解説！初心者から上級者まで役立つ記事を多数掲載。',
     url: 'https://short-av.com/articles',
     siteName: 'Short AV',
     images: [
@@ -26,8 +26,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: '記事一覧 - Short AV',
-    description: 'Short AVの使い方や機能について解説した記事一覧です。',
+    title: '記事一覧 - Short AV使い方完全ガイド',
+    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策まで徹底解説！初心者から上級者まで役立つ記事を多数掲載。',
     images: ['/og-image.jpg'],
   },
 };
