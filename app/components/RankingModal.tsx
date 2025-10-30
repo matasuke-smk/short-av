@@ -1,50 +1,114 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 type RankingPeriod = 'weekly' | 'monthly' | 'all';
 
+interface RankingVideos {
+  weekly: Video[];
+  monthly: Video[];
+  all: Video[];
+}
+
 interface RankingModalProps {
   isOpen: boolean;
   onClose: () => void;
+  videos: Video[];
+  currentVideoId?: string;
+  rankingVideos: RankingVideos;
+  setRankingVideos: React.Dispatch<React.SetStateAction<RankingVideos>>;
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function RankingModal({ isOpen, onClose, onReplaceVideos }: RankingModalProps) {
+export default function RankingModal({
+  isOpen,
+  onClose,
+  videos,
+  currentVideoId,
+  rankingVideos,
+  setRankingVideos,
+  onReplaceVideos
+}: RankingModalProps) {
   const [period, setPeriod] = useState<RankingPeriod>('weekly');
-  const [weeklyVideos, setWeeklyVideos] = useState<Video[]>([]);
-  const [monthlyVideos, setMonthlyVideos] = useState<Video[]>([]);
-  const [allTimeVideos, setAllTimeVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const videoListRef = useRef<HTMLDivElement>(null);
+  const currentVideoRef = useRef<HTMLButtonElement>(null);
+  const hasScrolledRef = useRef(false);
 
-  // モーダルを開いた時に全ランキングを読み込み
+  // 現在のvideosがどのランキングに該当するかチェック
+  const checkCurrentRanking = (): RankingPeriod | null => {
+    if (videos.length === 0) return null;
+
+    // 最初の数件のIDで一致チェック（完全一致は重い）
+    const checkLength = Math.min(5, videos.length);
+    const videoIds = videos.slice(0, checkLength).map(v => v.id);
+
+    for (const [key, rankingList] of Object.entries(rankingVideos)) {
+      if (rankingList.length >= checkLength) {
+        const rankingIds = rankingList.slice(0, checkLength).map(v => v.id);
+        if (videoIds.every((id, i) => id === rankingIds[i])) {
+          return key as RankingPeriod;
+        }
+      }
+    }
+    return null;
+  };
+
+  // モーダルを開いた時の初期化
   useEffect(() => {
-    if (isOpen) {
-      loadAllRankings();
+    if (!isOpen) {
+      hasScrolledRef.current = false;
+      return;
+    }
+
+    // 現在のvideosがランキングかチェック
+    const currentRanking = checkCurrentRanking();
+    if (currentRanking) {
+      // 既にランキングを表示中の場合、その期間を選択
+      setPeriod(currentRanking);
+    } else {
+      // ランキング以外を表示中の場合、週間を選択
+      setPeriod('weekly');
     }
   }, [isOpen]);
 
-  const loadAllRankings = async () => {
+  // 期間が変更されたら、必要に応じて読み込み
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const currentRanking = rankingVideos[period];
+    if (currentRanking.length === 0) {
+      // まだ読み込んでいない期間なら読み込み
+      loadRanking(period);
+    }
+  }, [isOpen, period]);
+
+  // モーダルを開いたとき、現在の動画の位置にスクロール
+  useLayoutEffect(() => {
+    if (isOpen && videoListRef.current && !hasScrolledRef.current) {
+      if (currentVideoRef.current) {
+        currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+      } else {
+        videoListRef.current.scrollTop = 0;
+      }
+      hasScrolledRef.current = true;
+    }
+  }, [isOpen, period, rankingVideos]);
+
+  const loadRanking = async (targetPeriod: RankingPeriod) => {
     setLoading(true);
     try {
-      // 3つのランキングを並列で取得
-      const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
-        fetch('/api/ranking?period=weekly&limit=20'),
-        fetch('/api/ranking?period=monthly&limit=20'),
-        fetch('/api/ranking?period=all&limit=20'),
-      ]);
+      const response = await fetch(`/api/ranking?period=${targetPeriod}&limit=20`);
+      const data = await response.json();
 
-      const [weeklyData, monthlyData, allTimeData] = await Promise.all([
-        weeklyRes.json(),
-        monthlyRes.json(),
-        allTimeRes.json(),
-      ]);
-
-      if (weeklyData.success) setWeeklyVideos(weeklyData.data);
-      if (monthlyData.success) setMonthlyVideos(monthlyData.data);
-      if (allTimeData.success) setAllTimeVideos(allTimeData.data);
+      if (data.success) {
+        setRankingVideos(prev => ({
+          ...prev,
+          [targetPeriod]: data.data
+        }));
+      }
     } catch (error) {
       console.error('ランキング読み込みエラー:', error);
     } finally {
@@ -53,25 +117,15 @@ export default function RankingModal({ isOpen, onClose, onReplaceVideos }: Ranki
   };
 
   const handleSelectVideo = (dmmContentId: string) => {
-    // 現在選択されている期間のランキングリストで置き換え
-    let videos: Video[] = [];
-    if (period === 'weekly') videos = weeklyVideos;
-    else if (period === 'monthly') videos = monthlyVideos;
-    else videos = allTimeVideos;
-
+    const currentRankingList = rankingVideos[period];
     onClose();
-    onReplaceVideos(videos, dmmContentId);
+    onReplaceVideos(currentRankingList, dmmContentId);
   };
 
   if (!isOpen) return null;
 
-  // 表示する動画リストを決定
-  const displayVideos =
-    period === 'weekly'
-      ? weeklyVideos
-      : period === 'monthly'
-      ? monthlyVideos
-      : allTimeVideos;
+  // 表示する動画リスト
+  const displayVideos = rankingVideos[period];
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
@@ -128,7 +182,7 @@ export default function RankingModal({ isOpen, onClose, onReplaceVideos }: Ranki
         </div>
 
         {/* コンテンツ */}
-        <div className="flex-1 overflow-y-auto pb-20">
+        <div ref={videoListRef} className="flex-1 overflow-y-auto pb-20">
           <div className="px-4 py-6">
             {loading ? (
               <div className="text-center py-12">
@@ -151,46 +205,50 @@ export default function RankingModal({ isOpen, onClose, onReplaceVideos }: Ranki
                 </div>
                 {/* 2列グリッド表示 */}
                 <div className="grid grid-cols-2 gap-3">
-                  {displayVideos.map((video, index) => (
-                    <button
-                      key={video.id}
-                      onClick={() => handleSelectVideo(video.dmm_content_id)}
-                      className="group text-left relative"
-                    >
-                      {/* ランキング番号バッジ */}
-                      <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
-                        <span
-                          className={`text-sm font-bold ${
-                            index === 0
-                              ? 'text-yellow-400'
-                              : index === 1
-                              ? 'text-gray-300'
-                              : index === 2
-                              ? 'text-orange-400'
-                              : 'text-gray-400'
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
-                      </div>
-
-                      <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden mb-2">
-                        <img
-                          src={video.thumbnail_url || ''}
-                          alt={video.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                        {/* PRバッジ */}
-                        <div className="absolute top-1 right-1 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
-                          PR
+                  {displayVideos.map((video, index) => {
+                    const isCurrentVideo = video.dmm_content_id === currentVideoId;
+                    return (
+                      <button
+                        key={video.id}
+                        ref={isCurrentVideo ? currentVideoRef : null}
+                        onClick={() => handleSelectVideo(video.dmm_content_id)}
+                        className={`group text-left relative ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
+                      >
+                        {/* ランキング番号バッジ */}
+                        <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
+                          <span
+                            className={`text-sm font-bold ${
+                              index === 0
+                                ? 'text-yellow-400'
+                                : index === 1
+                                ? 'text-gray-300'
+                                : index === 2
+                                ? 'text-orange-400'
+                                : 'text-gray-400'
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
                         </div>
-                      </div>
-                      <h3 className="text-xs font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors text-white">
-                        {video.title}
-                      </h3>
-                      {video.maker && <p className="text-xs text-gray-400 truncate">{video.maker}</p>}
-                    </button>
-                  ))}
+
+                        <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden mb-2">
+                          <img
+                            src={video.thumbnail_url || ''}
+                            alt={video.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          {/* PRバッジ */}
+                          <div className="absolute top-1 right-1 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
+                            PR
+                          </div>
+                        </div>
+                        <h3 className="text-xs font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors text-white">
+                          {video.title}
+                        </h3>
+                        {video.maker && <p className="text-xs text-gray-400 truncate">{video.maker}</p>}
+                      </button>
+                    );
+                  })}
                 </div>
               </>
             )}
