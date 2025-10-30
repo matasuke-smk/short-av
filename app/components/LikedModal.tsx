@@ -55,13 +55,19 @@ export default function LikedModal({ isOpen, onClose, onSelectVideo }: LikedModa
           .from('videos')
           .select('id, title, thumbnail_url, dmm_content_id, likes_count, maker, release_date')
           .in('id', likesData.videoIds)
-          .eq('is_active', true)
-          .order('likes_count', { ascending: false });
+          .eq('is_active', true);
 
         if (error) {
           console.error('Failed to fetch videos:', error);
         } else {
-          setLikedVideos(videos || []);
+          // いいねした日時順に並び替え（新しい順）
+          const sortedVideos = (videos || []).sort((a, b) => {
+            const timeA = likesData.likedAtMap?.[a.id];
+            const timeB = likesData.likedAtMap?.[b.id];
+            if (!timeA || !timeB) return 0;
+            return new Date(timeB).getTime() - new Date(timeA).getTime();
+          });
+          setLikedVideos(sortedVideos);
         }
       } catch (error) {
         console.error('Failed to fetch liked videos:', error);

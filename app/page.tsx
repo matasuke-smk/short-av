@@ -171,13 +171,27 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   if (targetContentId) {
     const targetIndex = displayVideos.findIndex(v => v.dmm_content_id === targetContentId);
     if (targetIndex !== -1) {
+      // リスト内に見つかった場合は先頭に移動
       const targetVideo = displayVideos[targetIndex];
       displayVideos = [
         targetVideo,
         ...displayVideos.slice(0, targetIndex),
         ...displayVideos.slice(targetIndex + 1)
       ];
-      startIndex = 0; // 先頭に配置したので0から開始
+      startIndex = 0;
+    } else {
+      // リスト内に見つからない場合はDBから取得して先頭に追加
+      const { data: targetVideo } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('dmm_content_id', targetContentId)
+        .eq('is_active', true)
+        .single();
+
+      if (targetVideo) {
+        displayVideos = [targetVideo, ...displayVideos];
+        startIndex = 0;
+      }
     }
   }
 
