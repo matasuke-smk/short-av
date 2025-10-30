@@ -405,7 +405,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     setTotalSearchCount(filteredData.length);
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (): Promise<Video[]> => {
     // 性別フィルタのみでも検索可能
     isSearchResult.current = true; // 検索結果フラグをオン
 
@@ -568,16 +568,22 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       setSearchResults(displayData);
       setSearchOffset(600); // 初回検索は600件まで取得
       setHasMoreSearch(filteredData.length > 600); // 600件より多い場合は追加読み込み可能
+      return displayData;
     } catch (error) {
       console.error('検索実行エラー:', error);
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSearch();
+      const results = await handleSearch();
+      if (results && results.length > 0) {
+        onClose();
+        onReplaceVideos(results, results[0].dmm_content_id);
+      }
     }
   };
 
@@ -934,7 +940,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 className="flex-1 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
               />
               <button
-                onClick={handleSearch}
+                onClick={async () => {
+                  const results = await handleSearch();
+                  if (results && results.length > 0) {
+                    onClose();
+                    onReplaceVideos(results, results[0].dmm_content_id);
+                  }
+                }}
                 disabled={loading}
                 className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white px-5 rounded-lg transition-colors"
               >
@@ -1119,9 +1131,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="p-4 border-t border-gray-700">
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setShowGenreModal(false);
-                    handleSearch();
+                    const results = await handleSearch();
+                    if (results && results.length > 0) {
+                      onClose();
+                      onReplaceVideos(results, results[0].dmm_content_id);
+                    }
                   }}
                   className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
                 >
@@ -1210,9 +1226,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="p-4 border-t border-gray-700">
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setShowActressModal(false);
-                    handleSearch();
+                    const results = await handleSearch();
+                    if (results && results.length > 0) {
+                      onClose();
+                      onReplaceVideos(results, results[0].dmm_content_id);
+                    }
                   }}
                   className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
                 >

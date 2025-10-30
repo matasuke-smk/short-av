@@ -36,7 +36,7 @@ interface VideoSwiperProps {
   genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
   const router = useRouter();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -57,6 +57,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -318,12 +319,20 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   </svg>
                   <h3 className="text-2xl font-bold mb-2">これで最後です</h3>
                   <p className="text-gray-400 mb-8">検索結果は全て表示されました</p>
-                  <Link
-                    href="/"
-                    className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
-                  >
-                    ホームに戻る
-                  </Link>
+                  <div className="flex flex-col gap-4">
+                    <button
+                      onClick={() => setShowSearchModal(true)}
+                      className="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
+                    >
+                      別の条件で検索
+                    </button>
+                    <Link
+                      href="/"
+                      className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
+                    >
+                      ホームに戻る
+                    </Link>
+                  </div>
                 </div>
               </div>
             )}
@@ -485,6 +494,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           if (targetIndex !== -1) {
             // 動画リストを置き換え
             setVideos(newVideos);
+            // 有限リストとしてマーク（検索結果は有限）
+            setIsFiniteList(true);
             // 次のフレームで即座にスクロール（アニメーションなし）
             requestAnimationFrame(() => {
               if (emblaApi) {
