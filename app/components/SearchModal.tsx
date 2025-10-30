@@ -74,22 +74,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
 
-    // 初期のvideosを保存（初回のみ、または♂♀の動画を見ているとき）
-    const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
-    if (currentVideo && genres.length > 0) {
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
-      const videoGenreNames = (currentVideo.genre_ids || [])
-        .map((id: string) => genreMap.get(id) || '')
-        .join(',');
-      const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-      const hasGay = videoGenreNames.includes('ゲイ');
-
-      if (!hasLesbian && !hasGay) {
-        // ♂♀の動画を見ている場合、現在のvideosを保存
-        initialVideosRef.current = videos;
-      }
-    }
-
     // 現在の動画の性別フィルタを判定して設定
     const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
     if (currentVideo && genres.length > 0) {
@@ -100,6 +84,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
       const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
       const hasGay = videoGenreNames.includes('ゲイ');
+
+      // 初期のvideosを保存（♂♀の動画を見ているとき）
+      if (!hasLesbian && !hasGay) {
+        initialVideosRef.current = videos;
+      }
 
       if (hasLesbian && !hasGay) {
         setGenderFilter('lesbian');
