@@ -597,12 +597,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   };
 
   const filteredActresses = actressSearchKeyword
-    ? actresses.filter(a => a.name.includes(actressSearchKeyword) && (availableActresses.size === 0 || availableActresses.has(a.id)))
-    : actresses.filter(a => availableActresses.size === 0 || availableActresses.has(a.id));
+    ? actresses.filter(a => a.name.includes(actressSearchKeyword))
+    : actresses;
 
   const filteredGenres = genreSearchKeyword
-    ? genres.filter(g => g.name.includes(genreSearchKeyword) && (availableGenres.size === 0 || availableGenres.has(g.id)))
-    : genres.filter(g => availableGenres.size === 0 || availableGenres.has(g.id));
+    ? genres.filter(g => g.name.includes(genreSearchKeyword))
+    : genres;
 
   if (!isOpen) return null;
 
@@ -918,19 +918,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2">
-                {filteredGenres.map((genre) => (
-                  <button
-                    key={genre.id}
-                    onClick={() => toggleGenreSelection(genre.id)}
-                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedGenreIds.includes(genre.id)
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {genre.name}
-                  </button>
-                ))}
+                {filteredGenres.map((genre) => {
+                  const isSelected = selectedGenreIds.includes(genre.id);
+                  const isUnavailable = availableGenres.size > 0 && !availableGenres.has(genre.id);
+                  return (
+                    <button
+                      key={genre.id}
+                      onClick={() => toggleGenreSelection(genre.id)}
+                      className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-blue-500 text-white'
+                          : isUnavailable
+                          ? 'bg-gray-800 text-gray-500'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {genre.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="p-4 border-t border-gray-700">
@@ -987,19 +993,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2">
-                {filteredActresses.map((actress) => (
-                  <button
-                    key={actress.id}
-                    onClick={() => toggleActressSelection(actress.id)}
-                    className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedActressIds.includes(actress.id)
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {actress.name}
-                  </button>
-                ))}
+                {filteredActresses.map((actress) => {
+                  const isSelected = selectedActressIds.includes(actress.id);
+                  const isUnavailable = availableActresses.size > 0 && !availableActresses.has(actress.id);
+                  return (
+                    <button
+                      key={actress.id}
+                      onClick={() => toggleActressSelection(actress.id)}
+                      className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isSelected
+                          ? 'bg-blue-500 text-white'
+                          : isUnavailable
+                          ? 'bg-gray-800 text-gray-500'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {actress.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div className="p-4 border-t border-gray-700">
