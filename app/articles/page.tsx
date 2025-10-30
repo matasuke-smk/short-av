@@ -5,10 +5,30 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '記事一覧 - Short AV',
   description: 'Short AVの使い方や機能について解説した記事一覧です。',
+  alternates: {
+    canonical: '/articles',
+  },
   openGraph: {
     title: '記事一覧 - Short AV',
     description: 'Short AVの使い方や機能について解説した記事一覧です。',
+    url: 'https://short-av.com/articles',
+    siteName: 'Short AV',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Short AV 記事一覧',
+      },
+    ],
+    locale: 'ja_JP',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '記事一覧 - Short AV',
+    description: 'Short AVの使い方や機能について解説した記事一覧です。',
+    images: ['/og-image.png'],
   },
 };
 

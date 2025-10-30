@@ -27,11 +27,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${article.title} - Short AV`,
     description: article.description,
+    alternates: {
+      canonical: `/articles/${article.slug}`,
+    },
     openGraph: {
       title: `${article.title} - Short AV`,
       description: article.description,
+      url: `https://short-av.com/articles/${article.slug}`,
+      siteName: 'Short AV',
+      images: [
+        {
+          url: '/og-image.png',
+          width: 1200,
+          height: 630,
+          alt: article.title,
+        },
+      ],
+      locale: 'ja_JP',
       type: 'article',
       publishedTime: article.publishedAt,
+      modifiedTime: article.publishedAt,
+      authors: ['Short AV'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${article.title} - Short AV`,
+      description: article.description,
+      images: ['/og-image.png'],
     },
   };
 }
@@ -44,8 +66,69 @@ export default async function ArticlePage({ params }: Props) {
     notFound();
   }
 
+  // Article構造化データ
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.description,
+    author: {
+      '@type': 'Organization',
+      name: 'Short AV',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Short AV',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://short-av.com/logo.png',
+      },
+    },
+    datePublished: article.publishedAt,
+    dateModified: article.publishedAt,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `https://short-av.com/articles/${article.slug}`,
+    },
+  };
+
+  // BreadcrumbList構造化データ
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'ホーム',
+        item: 'https://short-av.com',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: '記事一覧',
+        item: 'https://short-av.com/articles',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: article.title,
+        item: `https://short-av.com/articles/${article.slug}`,
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {/* 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       {/* ヘッダー */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
