@@ -936,7 +936,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <>
               <div className="mb-3">
                 <p className="text-gray-400 text-sm">
-                  {searchResults !== null && totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました
+                  {totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-20">
