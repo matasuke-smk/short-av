@@ -60,16 +60,16 @@ export async function GET(request: Request) {
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
-    // 1. ランキングTOP50を取得
+    // 1. ランキングTOP100を取得
     console.log('[Cron] 📊 ランキング取得開始...');
     const rankingStartTime = Date.now();
-    const rankingVideos = await fetchRankingVideos(50);
+    const rankingVideos = await fetchRankingVideos(100);
     console.log(`[Cron] ✅ ランキング取得完了: ${rankingVideos.length}件 (${Date.now() - rankingStartTime}ms)`);
 
-    // 2. 新着50件を取得
+    // 2. 新着100件を取得
     console.log('[Cron] 🆕 新着動画取得開始...');
     const newStartTime = Date.now();
-    const newVideos = await fetchNewReleases(50);
+    const newVideos = await fetchNewReleases(100);
     console.log(`[Cron] ✅ 新着動画取得完了: ${newVideos.length}件 (${Date.now() - newStartTime}ms)`);
 
     // 3. 全ジャンル一覧を取得
@@ -78,8 +78,8 @@ export async function GET(request: Request) {
     const genres = await fetchGenres();
     console.log(`[Cron] ✅ ジャンル取得完了: ${genres.length}件 (${Date.now() - genresStartTime}ms)`);
 
-    // 4. 各ジャンルのTOP5を取得
-    console.log('[Cron] 🎬 各ジャンルのTOP5を取得開始...');
+    // 4. 各ジャンルのTOP100を取得
+    console.log('[Cron] 🎬 各ジャンルのTOP100を取得開始...');
     const genreLoopStartTime = Date.now();
     const genreVideos: DMMItem[] = [];
     let successCount = 0;
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
 
     for (const genre of genres) {
       try {
-        const videos = await searchByGenre(genre.id, 5);
+        const videos = await searchByGenre(genre.id, 100);
         genreVideos.push(...videos);
         successCount++;
 
