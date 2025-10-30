@@ -63,6 +63,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
   const hasScrolledRef = useRef(false); // スクロール済みかどうかのフラグ
+  const initialVideosRef = useRef<Video[]>([]); // 初期のvideos（リスト1）を保存
 
   useEffect(() => {
     if (!isOpen) {
@@ -72,6 +73,22 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
+
+    // 初期のvideosを保存（初回のみ、または♂♀の動画を見ているとき）
+    const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
+    if (currentVideo && genres.length > 0) {
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+      const videoGenreNames = (currentVideo.genre_ids || [])
+        .map((id: string) => genreMap.get(id) || '')
+        .join(',');
+      const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+      const hasGay = videoGenreNames.includes('ゲイ');
+
+      if (!hasLesbian && !hasGay) {
+        // ♂♀の動画を見ている場合、現在のvideosを保存
+        initialVideosRef.current = videos;
+      }
+    }
 
     // 現在の動画の性別フィルタを判定して設定
     const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
@@ -96,8 +113,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         }
       } else {
         setGenderFilter('straight');
-        // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
-        setSearchResults(null);
+        // ♂♀の場合は保存しておいた初期のvideosを表示（既に保存済み）
+        if (initialVideosRef.current.length > 0) {
+          setSearchResults(initialVideosRef.current);
+        } else {
+          setSearchResults(null);
+        }
       }
     }
 
@@ -207,8 +228,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       // 検索条件がない場合
       if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
         if (genderFilter === 'straight') {
-          // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
-          setSearchResults(null);
+          // ♂♀の場合は保存しておいた初期のvideosを表示
+          if (initialVideosRef.current.length > 0) {
+            setSearchResults(initialVideosRef.current);
+          } else {
+            setSearchResults(null);
+          }
         } else {
           // ♀♀と♂♂の場合は事前読み込みデータを使用
           if (genderVideos && genderVideos[genderFilter]) {
@@ -745,8 +770,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 setSelectedActressIds([]);
                 setKeyword('');
 
-                // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
-                setSearchResults(null);
+                // ♂♀の場合は保存しておいた初期のvideosを表示
+                if (initialVideosRef.current.length > 0) {
+                  setSearchResults(initialVideosRef.current);
+                } else {
+                  setSearchResults(null);
+                }
 
                 // 先頭にスクロール
                 setTimeout(() => {
