@@ -735,14 +735,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   // デバッグ用：初期表示時の状態をログ出力
   useEffect(() => {
     if (isOpen && !loading) {
+      const currentDisplayLength = searchResults !== null ? searchResults.length : videos.length;
       console.log('SearchModal 表示状態:', {
-        displayVideosLength: displayVideos.length,
+        displayVideosLength: currentDisplayLength,
         searchResults: searchResults !== null,
         totalSearchCount,
         videosLength: videos.length,
       });
     }
-  }, [isOpen, displayVideos.length, searchResults, totalSearchCount, videos.length, loading]);
+  }, [isOpen, searchResults, totalSearchCount, videos.length, loading]);
 
   return (
     <>
