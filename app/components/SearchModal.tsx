@@ -149,11 +149,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     loadActresses();
   }, [isOpen]);
 
+  // モーダルを開いた時、初回のみ性別フィルタで自動検索を実行
+  const hasAutoSearched = useRef(false);
+  useEffect(() => {
+    if (isOpen && genres.length > 0 && !hasAutoSearched.current) {
+      handleSearch();
+      hasAutoSearched.current = true;
+    }
+
+    if (!isOpen) {
+      hasAutoSearched.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, genres.length]);
+
   // 性別フィルタが変更されたら自動的に検索を実行
   const prevGenderFilter = useRef(genderFilter);
   useEffect(() => {
-    // 初回マウント時はスキップ、性別フィルタが実際に変更された時のみ実行
-    if (prevGenderFilter.current !== genderFilter && !isInitialMount.current && isOpen && genres.length > 0) {
+    // 性別フィルタが実際に変更された時のみ実行（初回は上のuseEffectで実行済み）
+    if (prevGenderFilter.current !== genderFilter && isOpen && genres.length > 0 && hasAutoSearched.current) {
       handleSearch();
     }
     prevGenderFilter.current = genderFilter;
