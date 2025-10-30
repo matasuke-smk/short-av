@@ -176,9 +176,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   useEffect(() => {
     if (!isInitialMount.current && isOpen && genres.length > 0) {
       // 検索条件がない場合は、事前読み込みされたデータを使用
-      if (searchMode === 'keyword' && !keyword.trim() &&
-          selectedGenreIds.length === 0 &&
-          selectedActressIds.length === 0) {
+      if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
         // 事前読み込みされたデータがある場合はそれを使用
         if (genderVideos && genderVideos[genderFilter]) {
           setSearchResults(genderVideos[genderFilter]);
@@ -341,9 +339,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   // 検索結果の総件数を計算する関数（検索時のみ使用）
   const calculateSearchResultCount = (filteredData: Video[]) => {
     // 性別フィルタのみの場合は、propsで渡された件数を使用
-    if (searchMode === 'keyword' && !keyword.trim() &&
-        searchMode === 'genre' && selectedGenreIds.length === 0 &&
-        searchMode === 'actress' && selectedActressIds.length === 0) {
+    if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
       if (genderCounts) {
         setTotalSearchCount(genderCounts[genderFilter]);
       }
