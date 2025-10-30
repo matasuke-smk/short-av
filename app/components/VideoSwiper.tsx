@@ -236,6 +236,29 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     setModalVideoUrl('');
   }, []);
 
+  // スワイプ検知用の状態
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+
+  const handleModalTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+  }, []);
+
+  const handleModalTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchStart) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+
+    // 上下方向のスワイプを検知（50px以上の移動で閉じる）
+    if (Math.abs(deltaY) > 50 && Math.abs(deltaY) > Math.abs(deltaX)) {
+      closeModal();
+    }
+
+    setTouchStart(null);
+  }, [touchStart, closeModal]);
+
   if (!videos || videos.length === 0) {
     return <div className="text-center py-12">動画がありません</div>;
   }
@@ -476,9 +499,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         <div
           className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center"
           onClick={closeModal}
+          onTouchStart={handleModalTouchStart}
+          onTouchEnd={handleModalTouchEnd}
         >
           {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
-          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <iframe
               src={modalVideoUrl}
               className="w-full aspect-[560/420]"
@@ -490,7 +520,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           </div>
 
           {/* 価格表示と詳細ページボタン */}
-          <div className="w-full px-4 mt-4 relative" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full px-4 mt-4 relative"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             {enableAffiliateLinks ? (
               <a
                 href={currentVideo?.dmm_product_url}
