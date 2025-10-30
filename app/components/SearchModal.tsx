@@ -430,7 +430,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
         if (error) {
           console.error('検索エラー:', error);
-          return;
+          return [];
         }
         data = result || [];
       } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
@@ -446,7 +446,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
         if (error) {
           console.error('検索エラー:', error);
-          return;
+          return [];
         }
 
         // AND条件でフィルタリング（すべてのジャンルが含まれている動画のみ）
