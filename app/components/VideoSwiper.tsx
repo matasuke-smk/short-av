@@ -37,6 +37,13 @@ interface VideoSwiperProps {
   genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
 }
 
+// サンプル動画URLからアフィリエイトIDを削除する関数
+function removeAffiliateIdFromUrl(url: string | null): string {
+  if (!url) return '';
+  // /affi_id=xxx/ の部分を削除
+  return url.replace(/\/affi_id=[^/]+\//g, '/');
+}
+
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
   const router = useRouter();
 
@@ -218,7 +225,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   const handleThumbnailClick = useCallback(() => {
     if (currentVideo?.sample_video_url) {
-      setModalVideoUrl(currentVideo.sample_video_url);
+      // アフィリエイトIDを削除してからモーダルに設定
+      setModalVideoUrl(removeAffiliateIdFromUrl(currentVideo.sample_video_url));
       setShowVideoModal(true);
       // 履歴に追加
       addToHistory(currentVideo.id);
