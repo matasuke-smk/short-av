@@ -684,13 +684,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
         if (genderFilter === 'straight') {
           // ♂♀: LGBT以外
-          const { data: result, error } = await supabase
+          let query = supabase
             .from('videos')
             .select('*')
             .eq('is_active', true)
             .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .not('genre_ids', 'ov', lgbtGenreIds)
+            .not('sample_video_url', 'is', null);
+
+          if (lgbtGenreIds.length > 0) {
+            query = query.not('genre_ids', 'ov', lgbtGenreIds);
+          }
+
+          const { data: result, error } = await query
             .order('rank_position', { ascending: true })
             .range(searchOffset, searchOffset + 199);
 

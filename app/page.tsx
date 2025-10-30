@@ -21,13 +21,18 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
   // ♂♀の総件数（レズビアン・ゲイを含まない動画）
-  const { count: straightCount } = await supabase
+  let straightCountQuery = supabase
     .from('videos')
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .not('genre_ids', 'ov', lgbtGenreIds);
+    .not('sample_video_url', 'is', null);
+
+  if (lgbtGenreIds.length > 0) {
+    straightCountQuery = straightCountQuery.not('genre_ids', 'ov', lgbtGenreIds);
+  }
+
+  const { count: straightCount } = await straightCountQuery;
 
   // ♀♀の総件数（レズビアンまたはレズキスを含み、ゲイを含まない）
   const lesbianGenreIds = lgbtGenres
@@ -62,15 +67,20 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     gay: gayCount || 0,
   };
 
-  // 各フィルタから20件ずつランダム取得
+  // 各フィルタから20件ずつ取得
   // ♂♀の動画を20件取得
-  const { data: straightVideos, error: straightError } = await supabase
+  let straightQuery = supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .not('genre_ids', 'ov', lgbtGenreIds)
+    .not('sample_video_url', 'is', null);
+
+  if (lgbtGenreIds.length > 0) {
+    straightQuery = straightQuery.not('genre_ids', 'ov', lgbtGenreIds);
+  }
+
+  const { data: straightVideos, error: straightError } = await straightQuery
     .order('rank_position', { ascending: true })
     .limit(20);
 
