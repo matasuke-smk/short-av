@@ -48,6 +48,12 @@ export default function RankingModal({
   // モーダルを開いた時の初期化と全ランキング読み込み
   useEffect(() => {
     if (!isOpen) {
+      // モーダルを閉じた時、スクロール状態をリセット
+      hasScrolledRef.current = {
+        weekly: false,
+        monthly: false,
+        all: false
+      };
       return;
     }
 
@@ -63,14 +69,20 @@ export default function RankingModal({
     }
   }, [isOpen, lastSelectedRanking]);
 
-  // モーダルを開いたとき、現在の動画の位置にスクロール
+  // モーダルを開いたとき、またはタブ切り替え時のスクロール制御
   useLayoutEffect(() => {
-    if (isOpen && videoListRef.current && !hasScrolledRef.current[period]) {
-      // ランキングが読み込まれているか確認
-      if (rankingVideos[period].length > 0) {
+    if (!isOpen || !videoListRef.current) return;
+
+    // ランキングが読み込まれているか確認
+    if (rankingVideos[period].length > 0) {
+      // 現在表示中のランキングが、ユーザーが選択したランキングと一致する場合のみ
+      // その動画の位置にスクロール。それ以外は先頭を表示
+      if (!hasScrolledRef.current[period]) {
         if (currentVideoRef.current) {
+          // 選択したランキングの動画位置にスクロール
           currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
         } else {
+          // 別のランキングタブに切り替えた場合は先頭にスクロール
           videoListRef.current.scrollTop = 0;
         }
         hasScrolledRef.current[period] = true;
