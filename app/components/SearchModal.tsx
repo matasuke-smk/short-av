@@ -149,6 +149,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     loadActresses();
   }, [isOpen]);
 
+  // 性別フィルタが変更されたら自動的に検索を実行
+  useEffect(() => {
+    if (!isInitialMount.current && isOpen && genres.length > 0) {
+      handleSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genderFilter]);
+
   // 利用可能なジャンル/女優を計算
   useEffect(() => {
     if (!isOpen || genres.length === 0) return;
