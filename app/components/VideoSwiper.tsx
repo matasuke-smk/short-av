@@ -490,7 +490,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           </div>
 
           {/* 価格表示と詳細ページボタン */}
-          <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full px-4 mt-4 relative" onClick={(e) => e.stopPropagation()}>
             {enableAffiliateLinks ? (
               <a
                 href={currentVideo?.dmm_product_url}
@@ -505,6 +505,25 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <div className="block w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl py-3 text-center font-bold">
                 <div className="text-sm">サイト認証後に表示</div>
               </div>
+            )}
+
+            {/* いいねボタン - モーダル内左下 */}
+            {currentVideo && (
+              <button
+                onClick={(e) => toggleLike(currentVideo.id, e)}
+                className="absolute bottom-0 left-7 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
+                aria-label="いいね"
+              >
+                {likedVideos.has(currentVideo.id) ? (
+                  <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-9 h-9 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                )}
+              </button>
             )}
           </div>
 
