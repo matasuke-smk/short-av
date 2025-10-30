@@ -27,7 +27,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<Video[] | null>(null); // 検索結果用の状態
-  const [searchOffset, setSearchOffset] = useState(100); // 検索結果の読み込み位置
+  const [searchOffset, setSearchOffset] = useState(600); // 検索結果の読み込み位置
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [totalSearchCount, setTotalSearchCount] = useState<number>(0); // 検索結果の総件数
@@ -308,14 +308,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   // フィルタ適用後の総件数を取得する関数
   const getFilteredCount = async (genreMap: Map<string, string>) => {
     try {
-      // 女優検索の場合はactress_idsも必要
-      const selectFields = searchMode === 'actress'
-        ? 'id, genre_ids, actress_ids'
-        : 'id, genre_ids';
-
       let query = supabase
         .from('videos')
-        .select(selectFields, { count: 'exact', head: false })
+        .select('*')
         .eq('is_active', true)
         .not('thumbnail_url', 'is', null)
         .not('sample_video_url', 'is', null);
@@ -333,7 +328,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         query = query.overlaps('actress_ids', selectedActressIds);
       }
 
-      const { data, count, error } = await query;
+      const { data, error } = await query;
 
       if (error) {
         console.error('カウント取得エラー:', error);
@@ -407,7 +402,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .limit(100);
+          .limit(600);
 
         if (error) {
           console.error('検索エラー:', error);
@@ -435,7 +430,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           selectedGenreIds.every(genreId =>
             (video.genre_ids || []).includes(genreId)
           )
-        ).slice(0, 100);
+        ).slice(0, 600);
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
         // 女優ID検索と女優名検索の両方を実行して結果を合算
         const selectedActresses = actresses.filter(a => selectedActressIds.includes(a.id));
@@ -491,7 +486,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           const dateA = new Date(a.release_date || 0).getTime();
           const dateB = new Date(b.release_date || 0).getTime();
           return dateB - dateA;
-        }).slice(0, 100);
+        }).slice(0, 600);
       } else {
         // 性別フィルタのみの場合、全動画を取得（limitを大幅に増やして将来のデータ増加に対応）
         const { data: result, error } = await supabase
@@ -531,8 +526,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       await getFilteredCount(genreMap);
 
       setSearchResults(filteredData);
-      setSearchOffset(100); // 初回検索は100件まで取得
-      setHasMoreSearch(filteredData.length >= 100); // 100件未満なら追加読み込み不要
+      setSearchOffset(600); // 初回検索は600件まで取得
+      setHasMoreSearch(filteredData.length >= 600); // 600件未満なら追加読み込み不要
     } catch (error) {
       console.error('検索実行エラー:', error);
     } finally {
@@ -563,7 +558,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 49);
+          .range(searchOffset, searchOffset + 199);
 
         if (error) {
           console.error('追加検索エラー:', error);
@@ -579,7 +574,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 49);
+          .range(searchOffset, searchOffset + 199);
 
         if (error) {
           console.error('追加検索エラー:', error);
@@ -596,7 +591,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
           .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 49);
+          .range(searchOffset, searchOffset + 199);
 
         if (idError) {
           console.error('女優ID検索エラー:', idError);
@@ -613,7 +608,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('release_date', { ascending: false })
-            .range(searchOffset, searchOffset + 49);
+            .range(searchOffset, searchOffset + 199);
 
           if (nameError) {
             console.error(`女優名検索エラー (${actress.name}):`, nameError);
@@ -659,8 +654,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
       if (filteredData.length > 0) {
         setSearchResults([...searchResults, ...filteredData]);
-        setSearchOffset(searchOffset + 50);
-        setHasMoreSearch(filteredData.length >= 50);
+        setSearchOffset(searchOffset + 200);
+        setHasMoreSearch(filteredData.length >= 200);
       } else {
         setHasMoreSearch(false);
       }
