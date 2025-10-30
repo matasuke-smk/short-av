@@ -38,6 +38,12 @@ Short AVへようこそ！このガイドでは、当サイトの基本的な使
 - レスポンシブデザインでスマートフォンに最適化
 
 快適な動画閲覧をお楽しみください！
+
+## 関連記事
+
+- [Short AVの主な機能](/articles/features) - 利用できる機能の詳細
+- [便利な使い方のヒント](/articles/tips-tricks) - より便利に使うテクニック
+- [よくある質問（FAQ）](/articles/faq) - 困ったときはこちら
     `.trim(),
     publishedAt: '2025-10-30',
     category: '使い方'
@@ -74,6 +80,12 @@ Short AVへようこそ！このガイドでは、当サイトの基本的な使
 スマートフォン、タブレット、PCすべてに対応しています。
 
 これらの機能を活用して、お気に入りの動画を見つけてください！
+
+## 関連記事
+
+- [Short AVの使い方ガイド](/articles/getting-started) - 基本的な使い方
+- [便利な使い方のヒント](/articles/tips-tricks) - 機能を使いこなすコツ
+- [ジャンル選びの完全ガイド](/articles/genre-guide) - 好みの動画を探す
     `.trim(),
     publishedAt: '2025-10-30',
     category: '機能紹介'
@@ -105,6 +117,11 @@ Short AVでは、ユーザーのプライバシーとセキュリティを最優
 - 定期的なセキュリティアップデート
 
 詳細は[プライバシーポリシー](/privacy)をご確認ください。
+
+## 関連記事
+
+- [安全なアダルトコンテンツ視聴ガイド](/articles/safe-browsing) - より安全に楽しむために
+- [よくある質問（FAQ）](/articles/faq) - セキュリティに関する質問
     `.trim(),
     publishedAt: '2025-10-30',
     category: 'セキュリティ'
@@ -139,6 +156,12 @@ Short AVをもっと便利に使うためのテクニックをご紹介します
 - いいねボタン: お気に入りを即座に保存
 
 これらのテクニックを使って、効率的に動画を楽しみましょう！
+
+## 関連記事
+
+- [Short AVの主な機能](/articles/features) - 全機能の詳細
+- [ジャンル選びの完全ガイド](/articles/genre-guide) - 検索を効率化
+- [今月の人気動画TOP5](/articles/monthly-ranking) - 人気作品をチェック
     `.trim(),
     publishedAt: '2025-10-30',
     category: 'ヒント'
@@ -179,6 +202,12 @@ Short AVに関するよくある質問にお答えします。
 現在はWebサイトのみですが、スマートフォンのブラウザで快適にご利用いただけます。
 
 その他ご不明な点がございましたら、[利用規約](/terms)もご確認ください。
+
+## 関連記事
+
+- [Short AVの使い方ガイド](/articles/getting-started) - 基本操作を学ぶ
+- [プライバシーとセキュリティ](/articles/privacy-security) - 安全性について
+- [安全なアダルトコンテンツ視聴ガイド](/articles/safe-browsing) - セキュリティ対策
     `.trim(),
     publishedAt: '2025-10-30',
     category: 'FAQ'
@@ -256,6 +285,12 @@ Short AVで今月最も人気のある動画TOP5をご紹介します。
 
 このランキングは、Short AVでのいいね数、再生回数、検索数などを総合的に判断して作成しています。
 毎月更新予定ですので、ぜひチェックしてみてください！
+
+## 関連記事
+
+- [アダルト動画業界の基礎知識](/articles/adult-industry-knowledge) - メーカーの特徴を理解
+- [ジャンル選びの完全ガイド](/articles/genre-guide) - 好みの作品を探す
+- [便利な使い方のヒント](/articles/tips-tricks) - 検索機能の活用法
     `.trim(),
     publishedAt: '2025-10-30',
     category: 'ランキング'
@@ -313,6 +348,12 @@ Short AVで今月最も人気のある動画TOP5をご紹介します。
 - 価格とボリュームのバランスを確認
 
 安全で快適な動画視聴をお楽しみください！
+
+## 関連記事
+
+- [ジャンル選びの完全ガイド](/articles/genre-guide) - ジャンルの詳細を知る
+- [今月の人気動画TOP5](/articles/monthly-ranking) - 人気作品をチェック
+- [安全なアダルトコンテンツ視聴ガイド](/articles/safe-browsing) - 安全に楽しむために
     `.trim(),
     publishedAt: '2025-10-30',
     category: '豆知識'
@@ -398,6 +439,12 @@ Short AVの検索機能を活用すると、より効率的に好みの作品を
 - いいね機能で好みのパターンを記録
 
 自分だけのお気に入りを見つけて、動画視聴を楽しみましょう！
+
+## 関連記事
+
+- [アダルト動画業界の基礎知識](/articles/adult-industry-knowledge) - メーカーやジャンルを理解
+- [便利な使い方のヒント](/articles/tips-tricks) - 検索のコツを学ぶ
+- [今月の人気動画TOP5](/articles/monthly-ranking) - トレンドをチェック
     `.trim(),
     publishedAt: '2025-10-30',
     category: '豆知識'
@@ -496,6 +543,12 @@ Short AVの検索機能を活用すると、より効率的に好みの作品を
 ---
 
 **重要**: インターネット上の活動は常にリスクを伴います。自己責任の原則を忘れず、安全第一で楽しみましょう。
+
+## 関連記事
+
+- [プライバシーとセキュリティ](/articles/privacy-security) - Short AVのセキュリティ
+- [よくある質問（FAQ）](/articles/faq) - トラブル対応について
+- [アダルト動画業界の基礎知識](/articles/adult-industry-knowledge) - 安全な購入方法
     `.trim(),
     publishedAt: '2025-10-30',
     category: '豆知識'
