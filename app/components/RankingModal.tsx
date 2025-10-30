@@ -150,10 +150,7 @@ export default function RankingModal({
             {/* 期間切り替え */}
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  setPeriod('weekly');
-                  setLastSelectedRanking('weekly');
-                }}
+                onClick={() => setPeriod('weekly')}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'weekly'
                     ? 'bg-blue-500 text-white'
@@ -163,10 +160,7 @@ export default function RankingModal({
                 週間
               </button>
               <button
-                onClick={() => {
-                  setPeriod('monthly');
-                  setLastSelectedRanking('monthly');
-                }}
+                onClick={() => setPeriod('monthly')}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'monthly'
                     ? 'bg-blue-500 text-white'
@@ -176,10 +170,7 @@ export default function RankingModal({
                 月間
               </button>
               <button
-                onClick={() => {
-                  setPeriod('all');
-                  setLastSelectedRanking('all');
-                }}
+                onClick={() => setPeriod('all')}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'all'
                     ? 'bg-blue-500 text-white'
