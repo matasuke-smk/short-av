@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: 'Short AV',
     images: [
       {
-        url: '/og-image.png',
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Short AV 記事一覧',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '記事一覧 - Short AV',
     description: 'Short AVの使い方や機能について解説した記事一覧です。',
-    images: ['/og-image.png'],
+    images: ['/og-image.jpg'],
   },
 };
 

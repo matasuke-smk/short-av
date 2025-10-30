@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: 'Short AV',
     images: [
       {
-        url: '/og-image.png', // 1200x630pxの画像を後で追加
+        url: '/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'Short AV - DMMの人気動画をスワイプ操作で楽しめる',
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Short AV',
     description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
-    images: ['/og-image.png'],
+    images: ['/og-image.jpg'],
   },
 };
 
