@@ -2,18 +2,8 @@ import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 
-// 動的レンダリングを強制（ランダム表示のため）
+// 動的レンダリングを強制
 export const dynamic = 'force-dynamic';
-
-// 配列をシャッフルする関数
-function shuffleArray<T>(array: T[]): T[] {
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
 
 async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   const params = await searchParams;
@@ -30,80 +20,96 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   ) || [];
   const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
-  // 全動画を取得（バッチ処理で全件取得）
-  const allVideos: any[] = [];
-  let offset = 0;
-  const batchSize = 1000;
+  // ♂♀の総件数（レズビアン・ゲイを含まない動画）
+  const { count: straightCount } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .not('genre_ids', 'ov', lgbtGenreIds);
 
-  while (true) {
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*')
-      .eq('is_active', true)
-      .not('thumbnail_url', 'is', null)
-      .not('sample_video_url', 'is', null)
-      .order('rank_position', { ascending: true })
-      .range(offset, offset + batchSize - 1);
+  // ♀♀の総件数（レズビアンまたはレズキスを含み、ゲイを含まない）
+  const lesbianGenreIds = lgbtGenres
+    .filter(g => g.slug === '4013' || g.slug === '5062')
+    .map(g => g.id);
 
-    if (error) {
-      console.error('動画取得エラー:', error);
-      break;
-    }
+  const { count: lesbianCount } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .overlaps('genre_ids', lesbianGenreIds);
 
-    if (!data || data.length === 0) break;
-    allVideos.push(...data);
-    if (data.length < batchSize) break;
-    offset += batchSize;
-  }
+  // ♂♂の総件数（ゲイを含む）
+  const gayGenreIds = lgbtGenres
+    .filter(g => g.slug === '4060')
+    .map(g => g.id);
 
-  const fetchError = allVideos.length === 0 ? new Error('動画データがありません') : null;
-
-  // 性別フィルタ別に動画をカウント
-  const straightVideos: any[] = [];
-  const lesbianVideos: any[] = [];
-  const gayVideos: any[] = [];
-
-  allVideos.forEach(video => {
-    const videoGenreNames = (video.genre_ids || [])
-      .map((id: string) => genreMap.get(id) || '')
-      .join(',');
-
-    const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-    const hasGay = videoGenreNames.includes('ゲイ');
-
-    if (!hasLesbian && !hasGay) {
-      straightVideos.push(video);
-    } else if (hasLesbian && !hasGay) {
-      lesbianVideos.push(video);
-    } else if (hasGay && !hasLesbian) {
-      gayVideos.push(video);
-    }
-  });
+  const { count: gayCount } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .overlaps('genre_ids', gayGenreIds);
 
   // 性別フィルタ別の総件数
   const genderCounts = {
-    straight: straightVideos.length,
-    lesbian: lesbianVideos.length,
-    gay: gayVideos.length,
+    straight: straightCount || 0,
+    lesbian: lesbianCount || 0,
+    gay: gayCount || 0,
   };
 
-  // 性別フィルタ別の動画リスト（♀♀と♂♂のみ、♂♀はVideoSwiperのvideosを使用）
+  // 各フィルタから20件ずつランダム取得
+  // ♂♀の動画を20件取得
+  const { data: straightVideos, error: straightError } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .not('genre_ids', 'ov', lgbtGenreIds)
+    .order('rank_position', { ascending: true })
+    .limit(20);
+
+  // ♀♀の動画を20件取得
+  const { data: lesbianVideos, error: lesbianError } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .overlaps('genre_ids', lesbianGenreIds)
+    .order('rank_position', { ascending: true })
+    .limit(20);
+
+  // ♂♂の動画を20件取得
+  const { data: gayVideos, error: gayError } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .overlaps('genre_ids', gayGenreIds)
+    .order('rank_position', { ascending: true })
+    .limit(20);
+
+  const fetchError = straightError || lesbianError || gayError;
+
+  // 性別フィルタ別の動画リスト
   const genderVideos = {
-    straight: [], // 使用しない
-    lesbian: lesbianVideos.slice(0, 600),
-    gay: gayVideos.slice(0, 600),
+    straight: [], // 使用しない（VideoSwiperのvideosを直接使用）
+    lesbian: lesbianVideos || [],
+    gay: gayVideos || [],
   };
 
-  // 同性愛ジャンルを含む動画を除外（デフォルトは♂♀）
-  const filteredVideos = straightVideos;
+  // デフォルトは♂♀
+  const videos = straightVideos || [];
 
-  // 全動画件数（フィルタリング後）
-  const totalVideos = filteredVideos.length;
-  const maxOffset = Math.max(0, totalVideos - 20);
-  const randomOffset = Math.floor(Math.random() * (maxOffset + 1));
-
-  // ランダムな位置から20件取得
-  const videos = filteredVideos.slice(randomOffset, randomOffset + 20);
+  // 全動画件数（総件数を使用）
+  const totalVideos = genderCounts.straight;
   const error = fetchError;
 
   if (error) {
@@ -139,26 +145,25 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     );
   }
 
-  // 動画をシャッフル
-  let shuffledVideos = shuffleArray(videos);
-
   // URLパラメータで指定された動画があれば、それを先頭に配置
   const targetContentId = params?.v;
   let startIndex = 0;
+  let displayVideos = [...videos];
+
   if (targetContentId) {
-    const targetIndex = shuffledVideos.findIndex(v => v.dmm_content_id === targetContentId);
+    const targetIndex = displayVideos.findIndex(v => v.dmm_content_id === targetContentId);
     if (targetIndex !== -1) {
-      const targetVideo = shuffledVideos[targetIndex];
-      shuffledVideos = [
+      const targetVideo = displayVideos[targetIndex];
+      displayVideos = [
         targetVideo,
-        ...shuffledVideos.slice(0, targetIndex),
-        ...shuffledVideos.slice(targetIndex + 1)
+        ...displayVideos.slice(0, targetIndex),
+        ...displayVideos.slice(targetIndex + 1)
       ];
       startIndex = 0; // 先頭に配置したので0から開始
     }
   }
 
-  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} />;
+  return <VideoSwiper videos={displayVideos} initialOffset={0} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} />;
 }
 
 export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {

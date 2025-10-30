@@ -227,8 +227,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           // ♀♀と♂♂の場合は事前読み込みデータを使用
           if (genderVideos && genderVideos[genderFilter]) {
             setSearchResults(genderVideos[genderFilter]);
-            setSearchOffset(600);
-            setHasMoreSearch(false); // 事前読み込みは600件まで
+            setSearchOffset(20);
+            setHasMoreSearch(true); // 追加読み込みを有効化
           }
         }
       } else {
@@ -675,24 +675,98 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           const dateB = new Date(b.release_date || 0).getTime();
           return dateB - dateA;
         });
+      } else {
+        // 性別フィルタのみの場合
+        const lgbtGenres = genres.filter(g =>
+          g.slug === '4013' || g.slug === '4060' || g.slug === '5062'
+        );
+        const lgbtGenreIds = lgbtGenres.map(g => g.id);
+
+        if (genderFilter === 'straight') {
+          // ♂♀: LGBT以外
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .not('genre_ids', 'ov', lgbtGenreIds)
+            .order('rank_position', { ascending: true })
+            .range(searchOffset, searchOffset + 199);
+
+          if (error) {
+            console.error('追加読み込みエラー:', error);
+            setIsLoadingMore(false);
+            return;
+          }
+          data = result || [];
+        } else if (genderFilter === 'lesbian') {
+          // ♀♀: レズビアンまたはレズキス
+          const lesbianGenreIds = lgbtGenres
+            .filter(g => g.slug === '4013' || g.slug === '5062')
+            .map(g => g.id);
+
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .overlaps('genre_ids', lesbianGenreIds)
+            .order('rank_position', { ascending: true })
+            .range(searchOffset, searchOffset + 199);
+
+          if (error) {
+            console.error('追加読み込みエラー:', error);
+            setIsLoadingMore(false);
+            return;
+          }
+          data = result || [];
+        } else if (genderFilter === 'gay') {
+          // ♂♂: ゲイ
+          const gayGenreIds = lgbtGenres
+            .filter(g => g.slug === '4060')
+            .map(g => g.id);
+
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .overlaps('genre_ids', gayGenreIds)
+            .order('rank_position', { ascending: true })
+            .range(searchOffset, searchOffset + 199);
+
+          if (error) {
+            console.error('追加読み込みエラー:', error);
+            setIsLoadingMore(false);
+            return;
+          }
+          data = result || [];
+        }
       }
 
-      // 性別フィルターを適用
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+      // 性別フィルターを適用（検索条件がある場合のみ）
+      let filteredData = data;
 
-      const filteredData = data.filter(video => {
-        const videoGenreNames = (video.genre_ids || [])
-          .map((id: string) => genreMap.get(id) || '')
-          .join(',');
+      if (searchMode === 'keyword' && keyword.trim() || searchMode === 'genre' && selectedGenreIds.length > 0 || searchMode === 'actress' && selectedActressIds.length > 0) {
+        const genreMap = new Map(genres.map(g => [g.id, g.name]));
 
-        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-        const hasGay = videoGenreNames.includes('ゲイ');
+        filteredData = data.filter(video => {
+          const videoGenreNames = (video.genre_ids || [])
+            .map((id: string) => genreMap.get(id) || '')
+            .join(',');
 
-        if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-        if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-        if (genderFilter === 'gay') return hasGay && !hasLesbian;
-        return false;
-      });
+          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+          const hasGay = videoGenreNames.includes('ゲイ');
+
+          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
+          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
+          if (genderFilter === 'gay') return hasGay && !hasLesbian;
+          return false;
+        });
+      }
 
       if (filteredData.length > 0) {
         setSearchResults([...searchResults, ...filteredData]);
@@ -794,8 +868,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   // 同じフィルタをクリックした場合は事前読み込みデータを使用
                   if (genderVideos && genderVideos.lesbian) {
                     setSearchResults(genderVideos.lesbian);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true); // 追加読み込みを有効化
                   }
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
@@ -805,8 +879,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   setSelectedActressIds([]);
                   if (genderVideos && genderVideos.lesbian) {
                     setSearchResults(genderVideos.lesbian);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true); // 追加読み込みを有効化
                   } else {
                     setSearchResults(null);
                   }
@@ -832,8 +906,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   // 同じフィルタをクリックした場合は事前読み込みデータを使用
                   if (genderVideos && genderVideos.gay) {
                     setSearchResults(genderVideos.gay);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true); // 追加読み込みを有効化
                   }
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
@@ -843,8 +917,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                   setSelectedActressIds([]);
                   if (genderVideos && genderVideos.gay) {
                     setSearchResults(genderVideos.gay);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true); // 追加読み込みを有効化
                   } else {
                     setSearchResults(null);
                   }
