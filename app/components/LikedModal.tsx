@@ -140,39 +140,23 @@ export default function LikedModal({ isOpen, onClose, onSelectVideo }: LikedModa
                       onClick={() => handleSelectVideo(video.dmm_content_id)}
                       className="group text-left"
                     >
-                      <div className="bg-gray-700/50 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all">
-                        {/* サムネイル */}
-                        <div className="relative aspect-[4/3] bg-black">
-                          <img
-                            src={video.thumbnail_url}
-                            alt={video.title}
-                            className="w-full h-full object-contain"
-                          />
-                          {/* いいね数バッジ */}
-                          <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                            <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
-                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg>
-                            {video.likes_count}
-                          </div>
-                        </div>
-
-                        {/* 情報 */}
-                        <div className="p-4">
-                          <h3 className="font-bold text-sm line-clamp-2 mb-2 group-hover:text-blue-400 transition-colors text-white">
-                            {video.title}
-                          </h3>
-                          <div className="text-xs text-gray-400 space-y-1">
-                            {video.maker && <p>メーカー: {video.maker}</p>}
-                            {video.release_date && (
-                              <p>
-                                リリース:{' '}
-                                {new Date(video.release_date).toLocaleDateString('ja-JP')}
-                              </p>
-                            )}
-                          </div>
+                      <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden mb-2">
+                        <img
+                          src={video.thumbnail_url || ''}
+                          alt={video.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        {/* PRバッジ */}
+                        <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
+                          PR
                         </div>
                       </div>
+                      <h3 className="text-sm font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors text-white">
+                        {video.title}
+                      </h3>
+                      {video.maker && (
+                        <p className="text-xs text-gray-400">{video.maker}</p>
+                      )}
                     </button>
                   ))}
                 </div>
