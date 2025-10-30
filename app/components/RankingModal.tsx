@@ -19,6 +19,8 @@ interface RankingModalProps {
   currentVideoId?: string;
   rankingVideos: RankingVideos;
   setRankingVideos: React.Dispatch<React.SetStateAction<RankingVideos>>;
+  lastSelectedRanking: RankingPeriod;
+  setLastSelectedRanking: React.Dispatch<React.SetStateAction<RankingPeriod>>;
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
@@ -29,9 +31,11 @@ export default function RankingModal({
   currentVideoId,
   rankingVideos,
   setRankingVideos,
+  lastSelectedRanking,
+  setLastSelectedRanking,
   onReplaceVideos
 }: RankingModalProps) {
-  const [period, setPeriod] = useState<RankingPeriod>('weekly');
+  const [period, setPeriod] = useState<RankingPeriod>(lastSelectedRanking);
   const [loading, setLoading] = useState(false);
   const videoListRef = useRef<HTMLDivElement>(null);
   const currentVideoRef = useRef<HTMLButtonElement>(null);
@@ -126,6 +130,7 @@ export default function RankingModal({
 
   const handleSelectVideo = (dmmContentId: string) => {
     const currentRankingList = rankingVideos[period];
+    setLastSelectedRanking(period);
     onClose();
     onReplaceVideos(currentRankingList, dmmContentId);
   };
@@ -156,7 +161,10 @@ export default function RankingModal({
             {/* 期間切り替え */}
             <div className="flex gap-2">
               <button
-                onClick={() => setPeriod('weekly')}
+                onClick={() => {
+                  setPeriod('weekly');
+                  setLastSelectedRanking('weekly');
+                }}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'weekly'
                     ? 'bg-blue-500 text-white'
@@ -166,7 +174,10 @@ export default function RankingModal({
                 週間
               </button>
               <button
-                onClick={() => setPeriod('monthly')}
+                onClick={() => {
+                  setPeriod('monthly');
+                  setLastSelectedRanking('monthly');
+                }}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'monthly'
                     ? 'bg-blue-500 text-white'
@@ -176,7 +187,10 @@ export default function RankingModal({
                 月間
               </button>
               <button
-                onClick={() => setPeriod('all')}
+                onClick={() => {
+                  setPeriod('all');
+                  setLastSelectedRanking('all');
+                }}
                 className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                   period === 'all'
                     ? 'bg-blue-500 text-white'

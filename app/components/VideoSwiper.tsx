@@ -63,6 +63,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     monthly: [],
     all: []
   });
+  const [lastSelectedRanking, setLastSelectedRanking] = useState<'weekly' | 'monthly' | 'all'>('weekly');
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -529,6 +530,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         currentVideoId={videos[currentIndex]?.dmm_content_id}
         rankingVideos={rankingVideos}
         setRankingVideos={setRankingVideos}
+        lastSelectedRanking={lastSelectedRanking}
+        setLastSelectedRanking={setLastSelectedRanking}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: ランキングから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
           // 選択された動画のindexを見つける
