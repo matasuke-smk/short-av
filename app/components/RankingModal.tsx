@@ -39,17 +39,25 @@ export default function RankingModal({
 
   // 現在のvideosがどのランキングに該当するかチェック
   const checkCurrentRanking = (): RankingPeriod | null => {
-    if (videos.length === 0) return null;
+    if (videos.length === 0 || !currentVideoId) return null;
 
-    // 最初の数件のIDで一致チェック（完全一致は重い）
-    const checkLength = Math.min(5, videos.length);
-    const videoIds = videos.slice(0, checkLength).map(v => v.id);
+    // 現在見ている動画が含まれているランキングを探す
+    // 完全一致で判定（全件比較）
+    const periods: RankingPeriod[] = ['weekly', 'monthly', 'all'];
 
-    for (const [key, rankingList] of Object.entries(rankingVideos)) {
-      if (rankingList.length >= checkLength) {
-        const rankingIds = rankingList.slice(0, checkLength).map((v: Video) => v.id);
-        if (videoIds.every((id, i) => id === rankingIds[i])) {
-          return key as RankingPeriod;
+    for (const period of periods) {
+      const rankingList = rankingVideos[period];
+      if (rankingList.length === 0) continue;
+
+      // 現在の動画がこのランキングに含まれているか
+      const currentVideoIndex = rankingList.findIndex(v => v.dmm_content_id === currentVideoId);
+      if (currentVideoIndex === -1) continue;
+
+      // 完全一致チェック（全件比較）
+      if (videos.length === rankingList.length) {
+        const isMatch = videos.every((v, i) => v.id === rankingList[i].id);
+        if (isMatch) {
+          return period;
         }
       }
     }
