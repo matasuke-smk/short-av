@@ -732,6 +732,18 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   // 表示する動画リストを決定: 検索結果がある場合はそれを、なければVideoSwiperから渡された動画を使用
   const displayVideos = searchResults !== null ? searchResults : videos;
 
+  // デバッグ用：初期表示時の状態をログ出力
+  useEffect(() => {
+    if (isOpen && !loading) {
+      console.log('SearchModal 表示状態:', {
+        displayVideosLength: displayVideos.length,
+        searchResults: searchResults !== null,
+        totalSearchCount,
+        videosLength: videos.length,
+      });
+    }
+  }, [isOpen, displayVideos.length, searchResults, totalSearchCount, videos.length, loading]);
+
   return (
     <>
       {/* モーダルコンテンツ - 全画面表示 */}
