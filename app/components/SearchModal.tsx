@@ -96,7 +96,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         }
       } else {
         setGenderFilter('straight');
-        setSearchResults(null); // ♂♀の場合は初期表示（VideoSwiperから渡された動画）
+        if (genderVideos?.straight) {
+          setSearchResults(genderVideos.straight);
+        }
       }
     }
 
@@ -205,12 +207,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     if (!isInitialMount.current && isOpen && genres.length > 0) {
       // 検索条件がない場合
       if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
-        // ♂♀の場合は初期表示（searchResults = null）を維持
-        if (genderFilter === 'straight') {
-          // 何もしない（初期表示を維持）
-          return;
-        }
-        // ♀♀と♂♂の場合は事前読み込みデータを使用
+        // すべてのフィルタで事前読み込みデータを使用
         if (genderVideos && genderVideos[genderFilter]) {
           setSearchResults(genderVideos[genderFilter]);
           setSearchOffset(600);
