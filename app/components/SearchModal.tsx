@@ -285,6 +285,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     }
   }, [isOpen]);
 
+  // 性別フィルタを切り替えたとき、スクロール位置をトップにリセット
+  useLayoutEffect(() => {
+    if (isOpen && videoListRef.current) {
+      videoListRef.current.scrollTop = 0;
+    }
+  }, [genderFilter, isOpen]);
+
   // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
     // モーダルが開いていない場合は何もしない
