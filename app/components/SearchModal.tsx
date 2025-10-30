@@ -31,6 +31,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreSearch, setHasMoreSearch] = useState(true);
   const [totalSearchCount, setTotalSearchCount] = useState<number>(0); // 検索結果の総件数
+  const [isCountLoading, setIsCountLoading] = useState(false); // 総件数の計算中フラグ
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
@@ -313,6 +314,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
   // フィルタ適用後の総件数を取得する関数
   const getFilteredCount = async (genreMap: Map<string, string>) => {
+    setIsCountLoading(true);
     try {
       // まず全データを取得（性別フィルタ適用前）
       let query = supabase
@@ -401,6 +403,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     } catch (error) {
       console.error('総件数取得エラー:', error);
       setTotalSearchCount(0);
+    } finally {
+      setIsCountLoading(false);
     }
   };
 
@@ -932,7 +936,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <>
               <div className="mb-3">
                 <p className="text-gray-400 text-sm">
-                  {totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました
+                  {isCountLoading ? '計算中...' : `${totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました`}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 pb-20">
