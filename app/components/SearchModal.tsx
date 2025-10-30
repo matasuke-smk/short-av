@@ -683,28 +683,29 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
         if (genderFilter === 'straight') {
-          // ♂♀: LGBT以外
-          let query = supabase
+          // ♂♀: LGBT以外（多めに取得してフィルタリング）
+          const { data: result, error } = await supabase
             .from('videos')
             .select('*')
             .eq('is_active', true)
             .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null);
-
-          if (lgbtGenreIds.length > 0) {
-            query = query.not('genre_ids', 'ov', lgbtGenreIds);
-          }
-
-          const { data: result, error } = await query
+            .not('sample_video_url', 'is', null)
             .order('rank_position', { ascending: true })
-            .range(searchOffset, searchOffset + 199);
+            .range(searchOffset, searchOffset + 299);
 
           if (error) {
             console.error('追加読み込みエラー:', error);
             setIsLoadingMore(false);
             return;
           }
-          data = result || [];
+
+          // LGBT動画を除外してクライアント側でフィルタリング
+          data = (result || [])
+            .filter(video => {
+              const genreIds = video.genre_ids || [];
+              return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
+            })
+            .slice(0, 200);
         } else if (genderFilter === 'lesbian') {
           // ♀♀: レズビアンまたはレズキス
           const lesbianGenreIds = lgbtGenres

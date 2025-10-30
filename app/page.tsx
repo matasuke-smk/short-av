@@ -20,19 +20,13 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   ) || [];
   const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
-  // ♂♀の総件数（レズビアン・ゲイを含まない動画）
-  let straightCountQuery = supabase
+  // ♂♀の総件数は全体から♀♀と♂♂を引いた数（後で計算）
+  const { count: allCount } = await supabase
     .from('videos')
     .select('*', { count: 'exact', head: true })
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null);
-
-  if (lgbtGenreIds.length > 0) {
-    straightCountQuery = straightCountQuery.not('genre_ids', 'ov', lgbtGenreIds);
-  }
-
-  const { count: straightCount } = await straightCountQuery;
 
   // ♀♀の総件数（レズビアンまたはレズキスを含み、ゲイを含まない）
   const lesbianGenreIds = lgbtGenres
@@ -61,28 +55,31 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .overlaps('genre_ids', gayGenreIds);
 
   // 性別フィルタ別の総件数
+  const straightCount = (allCount || 0) - (lesbianCount || 0) - (gayCount || 0);
   const genderCounts = {
-    straight: straightCount || 0,
+    straight: straightCount,
     lesbian: lesbianCount || 0,
     gay: gayCount || 0,
   };
 
   // 各フィルタから20件ずつ取得
-  // ♂♀の動画を20件取得
-  let straightQuery = supabase
+  // ♂♀の動画を20件取得（LGBT動画を除外するため、多めに取得してフィルタリング）
+  const { data: allVideosForStraight, error: straightError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null);
-
-  if (lgbtGenreIds.length > 0) {
-    straightQuery = straightQuery.not('genre_ids', 'ov', lgbtGenreIds);
-  }
-
-  const { data: straightVideos, error: straightError } = await straightQuery
+    .not('sample_video_url', 'is', null)
     .order('rank_position', { ascending: true })
-    .limit(20);
+    .limit(100);
+
+  // LGBT動画を除外してクライアント側でフィルタリング
+  const straightVideos = (allVideosForStraight || [])
+    .filter(video => {
+      const genreIds = video.genre_ids || [];
+      return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
+    })
+    .slice(0, 20);
 
   // ♀♀の動画を20件取得
   const { data: lesbianVideos, error: lesbianError } = await supabase
