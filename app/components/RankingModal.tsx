@@ -47,7 +47,7 @@ export default function RankingModal({
 
     for (const [key, rankingList] of Object.entries(rankingVideos)) {
       if (rankingList.length >= checkLength) {
-        const rankingIds = rankingList.slice(0, checkLength).map(v => v.id);
+        const rankingIds = rankingList.slice(0, checkLength).map((v: Video) => v.id);
         if (videoIds.every((id, i) => id === rankingIds[i])) {
           return key as RankingPeriod;
         }
