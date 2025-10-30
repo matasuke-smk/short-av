@@ -586,6 +586,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         ? prev.filter(id => id !== genreId)
         : [...prev, genreId]
     );
+    // 選択時に検索ボックスをクリア
+    setGenreSearchKeyword('');
   };
 
   const toggleActressSelection = (actressId: string) => {
@@ -594,6 +596,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         ? prev.filter(id => id !== actressId)
         : [...prev, actressId]
     );
+    // 選択時に検索ボックスをクリア
+    setActressSearchKeyword('');
   };
 
   const filteredActresses = actressSearchKeyword
@@ -881,8 +885,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
       {/* ジャンル選択モーダル */}
       {showGenreModal && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
+          <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
               <div className="flex items-center gap-3">
@@ -956,8 +960,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
       {/* 女優選択モーダル */}
       {showActressModal && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-          <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
+          <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
               <div className="flex items-center gap-3">
