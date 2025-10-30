@@ -520,33 +520,39 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           </div>
 
           {/* 価格表示と詳細ページボタン */}
-          <div
-            className="w-full px-4 mt-4 relative"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-          >
-            {enableAffiliateLinks ? (
-              <a
-                href={currentVideo?.dmm_product_url}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
-              >
-                <div className="text-sm mb-1">フル動画はこちら</div>
-                <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
-              </a>
-            ) : (
-              <div className="block w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl py-3 text-center font-bold">
-                <div className="text-sm">サイト認証後に表示</div>
-              </div>
-            )}
+          <div className="w-full px-4 mt-4 relative">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              {enableAffiliateLinks ? (
+                <a
+                  href={currentVideo?.dmm_product_url}
+                  target="_blank"
+                  rel="noopener noreferrer sponsored"
+                  className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
+                >
+                  <div className="text-sm mb-1">フル動画はこちら</div>
+                  <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
+                </a>
+              ) : (
+                <div className="block w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl py-3 text-center font-bold">
+                  <div className="text-sm">サイト認証後に表示</div>
+                </div>
+              )}
+            </div>
 
-            {/* いいねボタン - モーダル内左下 */}
+            {/* いいねボタン - 詳細リンクボタンの外側、左下に配置 */}
             {currentVideo && (
               <button
-                onClick={(e) => toggleLike(currentVideo.id, e)}
-                className="absolute bottom-0 left-7 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleLike(currentVideo.id, e);
+                }}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                className="absolute bottom-0 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                 aria-label="いいね"
               >
                 {likedVideos.has(currentVideo.id) ? (
