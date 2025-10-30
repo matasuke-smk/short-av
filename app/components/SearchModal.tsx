@@ -583,6 +583,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     }
   };
 
+  // シャッフル関数
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // 検索結果の追加読み込み
   const loadMoreSearchResults = async () => {
     if (isLoadingMore || !hasMoreSearch || searchResults === null) return;
@@ -683,15 +693,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
         if (genderFilter === 'straight') {
-          // ♂♀: LGBT以外（多めに取得してフィルタリング）
+          // ♂♀: LGBT以外（多めに取得してフィルタリング、ランダム）
           const { data: result, error } = await supabase
             .from('videos')
             .select('*')
             .eq('is_active', true)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('rank_position', { ascending: true })
-            .range(searchOffset, searchOffset + 299);
+            .limit(500);
 
           if (error) {
             console.error('追加読み込みエラー:', error);
@@ -699,15 +708,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             return;
           }
 
-          // LGBT動画を除外してクライアント側でフィルタリング
-          data = (result || [])
-            .filter(video => {
+          // LGBT動画を除外してシャッフル、200件取得
+          data = shuffleArray(
+            (result || []).filter(video => {
               const genreIds = video.genre_ids || [];
               return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
             })
-            .slice(0, 200);
+          ).slice(0, 200);
         } else if (genderFilter === 'lesbian') {
-          // ♀♀: レズビアンまたはレズキス
+          // ♀♀: レズビアンまたはレズキス（ランダム）
           const lesbianGenreIds = lgbtGenres
             .filter(g => g.slug === '4013' || g.slug === '5062')
             .map(g => g.id);
@@ -719,17 +728,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .overlaps('genre_ids', lesbianGenreIds)
-            .order('rank_position', { ascending: true })
-            .range(searchOffset, searchOffset + 199);
+            .limit(500);
 
           if (error) {
             console.error('追加読み込みエラー:', error);
             setIsLoadingMore(false);
             return;
           }
-          data = result || [];
+          data = shuffleArray(result || []).slice(0, 200);
         } else if (genderFilter === 'gay') {
-          // ♂♂: ゲイ
+          // ♂♂: ゲイ（ランダム）
           const gayGenreIds = lgbtGenres
             .filter(g => g.slug === '4060')
             .map(g => g.id);
@@ -741,15 +749,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .overlaps('genre_ids', gayGenreIds)
-            .order('rank_position', { ascending: true })
-            .range(searchOffset, searchOffset + 199);
+            .limit(500);
 
           if (error) {
             console.error('追加読み込みエラー:', error);
             setIsLoadingMore(false);
             return;
           }
-          data = result || [];
+          data = shuffleArray(result || []).slice(0, 200);
         }
       }
 
@@ -776,8 +783,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
       if (filteredData.length > 0) {
         setSearchResults([...searchResults, ...filteredData]);
-        setSearchOffset(searchOffset + 200);
-        setHasMoreSearch(filteredData.length >= 200);
+        // ランダム表示のためoffsetは更新しない（毎回ランダムに取得）
+        setHasMoreSearch(true); // 常に追加読み込み可能
       } else {
         setHasMoreSearch(false);
       }

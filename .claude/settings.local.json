@@ -4,12 +4,7 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(npm run dev:*)",
-      "Bash(npm run build:*)",
-      "Bash(nslookup:*)",
-      "Bash(psql:*)",
-      "Bash(npx tsx:*)",
-      "Bash(npx -y tsx -e \"import { config } from ''dotenv''; import { resolve } from ''path''; config({ path: resolve(process.cwd(), ''.env.local'') }); import { createClient } from ''@supabase/supabase-js''; const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY); const { data } = await supabase.from(''genres'').select(''id, name, slug'').ilike(''name'', ''%ゲイ%''); console.log(''ゲイ関連ジャンル:'', JSON.stringify(data, null, 2)); for (const g of data || []) { const { count } = await supabase.from(''videos'').select(''*'', { count: ''exact'', head: true }).contains(''genre_ids'', [g.id]); console.log(g.name + '':'', count + ''件''); }\")"
+      "Bash(node delete-incomplete.mjs:*)"
     ],
     "deny": [],
     "ask": []

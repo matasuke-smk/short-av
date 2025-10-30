@@ -62,7 +62,17 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     gay: gayCount || 0,
   };
 
-  // 各フィルタから20件ずつ取得
+  // シャッフル関数
+  function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  // 各フィルタから20件ずつ取得（ランダム）
   // ♂♀の動画を20件取得（LGBT動画を除外するため、多めに取得してフィルタリング）
   const { data: allVideosForStraight, error: straightError } = await supabase
     .from('videos')
@@ -70,38 +80,39 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
-    .order('rank_position', { ascending: true })
-    .limit(100);
+    .limit(200);
 
-  // LGBT動画を除外してクライアント側でフィルタリング
-  const straightVideos = (allVideosForStraight || [])
-    .filter(video => {
+  // LGBT動画を除外してクライアント側でフィルタリング、シャッフルして20件
+  const straightVideos = shuffleArray(
+    (allVideosForStraight || []).filter(video => {
       const genreIds = video.genre_ids || [];
       return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
     })
-    .slice(0, 20);
+  ).slice(0, 20);
 
-  // ♀♀の動画を20件取得
-  const { data: lesbianVideos, error: lesbianError } = await supabase
+  // ♀♀の動画を20件取得（ランダム）
+  const { data: allLesbianVideos, error: lesbianError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', lesbianGenreIds)
-    .order('rank_position', { ascending: true })
-    .limit(20);
+    .limit(200);
 
-  // ♂♂の動画を20件取得
-  const { data: gayVideos, error: gayError } = await supabase
+  const lesbianVideos = shuffleArray(allLesbianVideos || []).slice(0, 20);
+
+  // ♂♂の動画を20件取得（ランダム）
+  const { data: allGayVideos, error: gayError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', gayGenreIds)
-    .order('rank_position', { ascending: true })
-    .limit(20);
+    .limit(200);
+
+  const gayVideos = shuffleArray(allGayVideos || []).slice(0, 20);
 
   const fetchError = straightError || lesbianError || gayError;
 
