@@ -244,12 +244,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
-      {/* FANZAクレジット（画面上部固定） - アフィリエイトリンク有効時のみ表示 */}
-      {enableAffiliateLinks && (
-        <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
+      {/* FANZAクレジット（画面上部固定） */}
+      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
+        {enableAffiliateLinks ? (
           <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
-        </div>
-      )}
+        ) : (
+          <span className="text-gray-400">サイト認証後に表示</span>
+        )}
+      </div>
 
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
@@ -313,9 +315,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </div>
                   </div>
 
-                  {/* 広告バナー領域 (640×200) - アフィリエイトリンク有効時のみ表示 */}
-                  {enableAffiliateLinks && (
-                    <div className="w-full">
+                  {/* 広告バナー領域 (640×200) */}
+                  <div className="w-full">
+                    {enableAffiliateLinks ? (
                       <a
                         href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
                         target="_blank"
@@ -330,8 +332,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                           className="w-full h-auto"
                         />
                       </a>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">サイト認証後に表示</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -482,9 +488,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           </div>
 
-          {/* 価格表示と詳細ページボタン - アフィリエイトリンク有効時のみ表示 */}
-          {enableAffiliateLinks && (
-            <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
+          {/* 価格表示と詳細ページボタン */}
+          <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
+            {enableAffiliateLinks ? (
               <a
                 href={currentVideo?.dmm_product_url}
                 target="_blank"
@@ -494,8 +500,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <div className="text-sm mb-1">フル動画はこちら</div>
                 <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
               </a>
-            </div>
-          )}
+            ) : (
+              <div className="block w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl py-3 text-center font-bold">
+                <div className="text-sm">サイト認証後に表示</div>
+              </div>
+            )}
+          </div>
 
           {/* 閉じるヒント */}
           <p className="text-white/60 text-sm mt-3">画面をタップで閉じる</p>
