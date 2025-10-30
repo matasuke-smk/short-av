@@ -11,7 +11,6 @@ import SearchModal from './SearchModal';
 import RankingModal from './RankingModal';
 import LikedModal from './LikedModal';
 import HistoryModal from './HistoryModal';
-import ArticleModal from './ArticleModal';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -69,7 +68,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showArticleModal, setShowArticleModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
@@ -270,15 +268,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       {video.title}
                     </h2>
                     {/* 記事メニューアイコン */}
-                    <button
-                      onClick={() => setShowArticleModal(true)}
+                    <Link
+                      href="/articles"
                       className="text-white/70 hover:text-white transition-colors flex-shrink-0"
                       aria-label="記事を読む"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                       </svg>
-                    </button>
+                    </Link>
                   </div>
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
@@ -634,12 +632,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             window.location.href = `/?v=${dmmContentId}`;
           }
         }}
-      />
-
-      {/* 記事モーダル */}
-      <ArticleModal
-        isOpen={showArticleModal}
-        onClose={() => setShowArticleModal(false)}
       />
     </div>
   );
