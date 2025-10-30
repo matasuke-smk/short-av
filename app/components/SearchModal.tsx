@@ -842,25 +842,33 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => {
-                setGenderFilter('straight');
-                setSearchMode('keyword');
-                setSelectedGenreIds([]);
-                setSelectedActressIds([]);
-                setKeyword('');
-
-                // ♂♀の場合は保存しておいた初期のvideosを表示
-                if (initialVideosRef.current.length > 0) {
-                  setSearchResults(initialVideosRef.current);
-                } else {
-                  setSearchResults(null);
+                // スクロール位置をリセット
+                if (videoListRef.current) {
+                  videoListRef.current.scrollTop = 0;
                 }
 
-                // 先頭にスクロール
-                setTimeout(() => {
-                  if (videoListRef.current) {
-                    videoListRef.current.scrollTop = 0;
+                if (genderFilter === 'straight') {
+                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
+                  if (genderVideos && genderVideos.straight) {
+                    setSearchResults(genderVideos.straight);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true);
                   }
-                }, 0);
+                } else {
+                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
+                  setGenderFilter('straight');
+                  setSearchMode('keyword');
+                  setSelectedGenreIds([]);
+                  setSelectedActressIds([]);
+                  if (genderVideos && genderVideos.straight) {
+                    setSearchResults(genderVideos.straight);
+                    setSearchOffset(20);
+                    setHasMoreSearch(true);
+                  } else {
+                    setSearchResults(null);
+                  }
+                  setKeyword('');
+                }
               }}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'straight'
