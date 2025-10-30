@@ -190,11 +190,15 @@ export default async function ArticlePage({ params }: Props) {
                     }
                     // リスト
                     if (para.startsWith('- ')) {
-                      const items = para.split('\n').map(line =>
-                        line.startsWith('- ')
-                          ? `<li class="ml-4">${line.substring(2)}</li>`
-                          : line
-                      ).join('');
+                      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+                      const items = para.split('\n').map(line => {
+                        if (line.startsWith('- ')) {
+                          const content = line.substring(2);
+                          const withLinks = content.replace(linkRegex, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
+                          return `<li class="ml-4">${withLinks}</li>`;
+                        }
+                        return line;
+                      }).join('');
                       return `<ul class="list-disc ml-6 space-y-2">${items}</ul>`;
                     }
                     // リンク
