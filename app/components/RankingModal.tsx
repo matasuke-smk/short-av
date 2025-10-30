@@ -1,60 +1,50 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
-type RankingType = 'overall' | 'recent' | 'likes';
+type RankingPeriod = 'weekly' | 'monthly' | 'all';
 
 interface RankingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectVideo: (dmmContentId: string) => void;
+  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function RankingModal({ isOpen, onClose, onSelectVideo }: RankingModalProps) {
-  const [rankingType, setRankingType] = useState<RankingType>('overall');
-  const [videos, setVideos] = useState<Video[]>([]);
+export default function RankingModal({ isOpen, onClose, onReplaceVideos }: RankingModalProps) {
+  const [period, setPeriod] = useState<RankingPeriod>('weekly');
+  const [weeklyVideos, setWeeklyVideos] = useState<Video[]>([]);
+  const [monthlyVideos, setMonthlyVideos] = useState<Video[]>([]);
+  const [allTimeVideos, setAllTimeVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // モーダルを開いた時に全ランキングを読み込み
   useEffect(() => {
     if (isOpen) {
-      loadRanking();
+      loadAllRankings();
     }
-  }, [isOpen, rankingType]);
+  }, [isOpen]);
 
-  const loadRanking = async () => {
+  const loadAllRankings = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('videos')
-        .select('*')
-        .eq('is_active', true)
-        .not('thumbnail_url', 'is', null);
+      // 3つのランキングを並列で取得
+      const [weeklyRes, monthlyRes, allTimeRes] = await Promise.all([
+        fetch('/api/ranking?period=weekly&limit=20'),
+        fetch('/api/ranking?period=monthly&limit=20'),
+        fetch('/api/ranking?period=all&limit=20'),
+      ]);
 
-      switch (rankingType) {
-        case 'overall':
-          query = query.order('rank_position', { ascending: true });
-          break;
-        case 'recent':
-          query = query
-            .not('release_date', 'is', null)
-            .order('release_date', { ascending: false });
-          break;
-        case 'likes':
-          query = query.order('rank_position', { ascending: true });
-          break;
-      }
+      const [weeklyData, monthlyData, allTimeData] = await Promise.all([
+        weeklyRes.json(),
+        monthlyRes.json(),
+        allTimeRes.json(),
+      ]);
 
-      const { data, error } = await query.limit(100);
-
-      if (error) {
-        console.error('ランキング取得エラー:', error);
-        return;
-      }
-
-      setVideos(data || []);
+      if (weeklyData.success) setWeeklyVideos(weeklyData.data);
+      if (monthlyData.success) setMonthlyVideos(monthlyData.data);
+      if (allTimeData.success) setAllTimeVideos(allTimeData.data);
     } catch (error) {
       console.error('ランキング読み込みエラー:', error);
     } finally {
@@ -63,11 +53,25 @@ export default function RankingModal({ isOpen, onClose, onSelectVideo }: Ranking
   };
 
   const handleSelectVideo = (dmmContentId: string) => {
-    onSelectVideo(dmmContentId);
+    // 現在選択されている期間のランキングリストで置き換え
+    let videos: Video[] = [];
+    if (period === 'weekly') videos = weeklyVideos;
+    else if (period === 'monthly') videos = monthlyVideos;
+    else videos = allTimeVideos;
+
     onClose();
+    onReplaceVideos(videos, dmmContentId);
   };
 
   if (!isOpen) return null;
+
+  // 表示する動画リストを決定
+  const displayVideos =
+    period === 'weekly'
+      ? weeklyVideos
+      : period === 'monthly'
+      ? monthlyVideos
+      : allTimeVideos;
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
@@ -87,37 +91,37 @@ export default function RankingModal({ isOpen, onClose, onSelectVideo }: Ranking
               </button>
             </div>
 
-            {/* ランキングタイプ切り替え */}
+            {/* 期間切り替え */}
             <div className="flex gap-2">
               <button
-                onClick={() => setRankingType('overall')}
-                className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                  rankingType === 'overall'
+                onClick={() => setPeriod('weekly')}
+                className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
+                  period === 'weekly'
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                総合
+                週間
               </button>
               <button
-                onClick={() => setRankingType('recent')}
-                className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                  rankingType === 'recent'
+                onClick={() => setPeriod('monthly')}
+                className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
+                  period === 'monthly'
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                新着
+                月間
               </button>
               <button
-                onClick={() => setRankingType('likes')}
-                className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                  rankingType === 'likes'
+                onClick={() => setPeriod('all')}
+                className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
+                  period === 'all'
                     ? 'bg-blue-500 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
-                いいね
+                全期間
               </button>
             </div>
           </div>
@@ -131,76 +135,60 @@ export default function RankingModal({ isOpen, onClose, onSelectVideo }: Ranking
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                 <p className="text-gray-400">読み込み中...</p>
               </div>
-            ) : videos.length === 0 ? (
+            ) : displayVideos.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-400 text-lg">ランキングデータがありません</p>
               </div>
             ) : (
               <>
                 <div className="mb-4">
-                  <p className="text-gray-400">
-                    {rankingType === 'overall' && '総合ランキング'}
-                    {rankingType === 'recent' && '新着ランキング'}
-                    {rankingType === 'likes' && 'いいねランキング'}
-                    {' '}TOP {videos.length}
+                  <p className="text-gray-400 text-sm">
+                    {period === 'weekly' && '週間ランキング'}
+                    {period === 'monthly' && '月間ランキング'}
+                    {period === 'all' && '全期間ランキング'}
+                    {' '}TOP {displayVideos.length}
                   </p>
                 </div>
-                <div className="space-y-4">
-                  {videos.map((video, index) => (
+                {/* 2列グリッド表示 */}
+                <div className="grid grid-cols-2 gap-3">
+                  {displayVideos.map((video, index) => (
                     <button
                       key={video.id}
                       onClick={() => handleSelectVideo(video.dmm_content_id)}
-                      className="w-full flex gap-4 bg-gray-700/50 rounded-lg overflow-hidden hover:bg-gray-700 transition-colors group text-left"
+                      className="group text-left relative"
                     >
-                      {/* ランキング番号 */}
-                      <div className="flex items-center justify-center w-16 bg-gray-800 shrink-0">
-                        <span className={`text-2xl font-bold ${
-                          index === 0 ? 'text-yellow-400' :
-                          index === 1 ? 'text-gray-300' :
-                          index === 2 ? 'text-orange-400' :
-                          'text-gray-400'
-                        }`}>
+                      {/* ランキング番号バッジ */}
+                      <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
+                        <span
+                          className={`text-sm font-bold ${
+                            index === 0
+                              ? 'text-yellow-400'
+                              : index === 1
+                              ? 'text-gray-300'
+                              : index === 2
+                              ? 'text-orange-400'
+                              : 'text-gray-400'
+                          }`}
+                        >
                           {index + 1}
                         </span>
                       </div>
 
-                      {/* サムネイル */}
-                      <div className="relative w-32 sm:w-40 aspect-[4/3] bg-gray-900 shrink-0">
+                      <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden mb-2">
                         <img
                           src={video.thumbnail_url || ''}
                           alt={video.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         />
                         {/* PRバッジ */}
-                        <div className="absolute top-1 right-1 bg-yellow-400 text-black px-1.5 py-0.5 rounded text-xs font-bold">
+                        <div className="absolute top-1 right-1 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
                           PR
                         </div>
                       </div>
-
-                      {/* 情報 */}
-                      <div className="flex-1 py-3 pr-4 min-w-0">
-                        <h3 className="text-sm sm:text-base font-medium line-clamp-2 mb-2 group-hover:text-blue-400 transition-colors text-white">
-                          {video.title}
-                        </h3>
-                        <div className="space-y-1 text-xs text-gray-400">
-                          {video.maker && (
-                            <p className="truncate">
-                              <span className="text-gray-500">メーカー:</span> {video.maker}
-                            </p>
-                          )}
-                          {video.release_date && (
-                            <p>
-                              <span className="text-gray-500">リリース:</span>{' '}
-                              {new Date(video.release_date).toLocaleDateString('ja-JP')}
-                            </p>
-                          )}
-                          {video.price && (
-                            <p className="text-blue-400 font-medium">
-                              ¥{video.price}〜
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      <h3 className="text-xs font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors text-white">
+                        {video.title}
+                      </h3>
+                      {video.maker && <p className="text-xs text-gray-400 truncate">{video.maker}</p>}
                     </button>
                   ))}
                 </div>

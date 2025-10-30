@@ -520,17 +520,28 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       <RankingModal
         isOpen={showRankingModal}
         onClose={() => setShowRankingModal(false)}
-        onSelectVideo={(dmmContentId) => {
-          // 選択された動画のindexを見つけてスクロール
-          const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
-          if (targetIndex !== -1 && emblaApi) {
-            emblaApi.scrollTo(targetIndex, false);
-            const url = new URL(window.location.href);
-            url.searchParams.set('v', dmmContentId);
-            window.history.pushState({}, '', url.toString());
-          } else {
-            // 動画が現在のリストにない場合、ページ遷移
-            window.location.href = `/?v=${dmmContentId}`;
+        onReplaceVideos={(newVideos, selectedVideoId) => {
+          console.log('VideoSwiper: ランキングから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
+          // 選択された動画のindexを見つける
+          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
+          console.log('VideoSwiper: targetIndex =', targetIndex);
+          if (targetIndex !== -1) {
+            // 動画リストを置き換え
+            setVideos(newVideos);
+            // 有限リストとしてマーク（ランキングは有限）
+            setIsFiniteList(true);
+            // 次のフレームで即座にスクロール
+            requestAnimationFrame(() => {
+              if (emblaApi) {
+                emblaApi.reInit();
+                emblaApi.scrollTo(targetIndex, false);
+                setCurrentIndex(targetIndex);
+                // URLを更新
+                const url = new URL(window.location.href);
+                url.searchParams.set('v', selectedVideoId);
+                window.history.pushState({}, '', url.toString());
+              }
+            });
           }
         }}
       />
