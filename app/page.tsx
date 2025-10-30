@@ -18,33 +18,84 @@ function shuffleArray<T>(array: T[]): T[] {
 async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   const params = await searchParams;
 
-  // レズビアン・ゲイジャンルのIDを取得
-  const { data: lgbtGenres } = await supabase
+  // ジャンルデータを取得してMapに格納
+  const { data: genresData } = await supabase
     .from('genres')
-    .select('id')
-    .or('slug.eq.4013,slug.eq.4060,slug.eq.5062'); // レズビアン、ゲイ、レズキス
+    .select('id, name, slug')
+    .eq('is_active', true);
 
-  const lgbtGenreIds = lgbtGenres?.map(g => g.id) || [];
+  const genreMap = new Map((genresData || []).map(g => [g.id, g.name]));
+  const lgbtGenres = genresData?.filter(g =>
+    g.slug === '4013' || g.slug === '4060' || g.slug === '5062' // レズビアン、ゲイ、レズキス
+  ) || [];
+  const lgbtGenreIds = lgbtGenres.map(g => g.id);
 
-  // 全動画を取得してフィルタリング（同性愛作品を除外）
-  const { data: allVideos, error: fetchError } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .order('rank_position', { ascending: true })
-    .limit(1000);
+  // 全動画を取得（バッチ処理で全件取得）
+  const allVideos: any[] = [];
+  let offset = 0;
+  const batchSize = 1000;
 
-  if (fetchError) {
-    console.error('動画取得エラー:', fetchError);
+  while (true) {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('is_active', true)
+      .not('thumbnail_url', 'is', null)
+      .not('sample_video_url', 'is', null)
+      .order('rank_position', { ascending: true })
+      .range(offset, offset + batchSize - 1);
+
+    if (error) {
+      console.error('動画取得エラー:', error);
+      break;
+    }
+
+    if (!data || data.length === 0) break;
+    allVideos.push(...data);
+    if (data.length < batchSize) break;
+    offset += batchSize;
   }
 
-  // 同性愛ジャンルを含む動画を除外
-  const filteredVideos = allVideos?.filter(video => {
-    if (!video.genre_ids || video.genre_ids.length === 0) return true;
-    return !lgbtGenreIds.some(lgbtId => (video.genre_ids as string[]).includes(lgbtId));
-  }) || [];
+  const fetchError = allVideos.length === 0 ? new Error('動画データがありません') : null;
+
+  // 性別フィルタ別に動画をカウント
+  const straightVideos: any[] = [];
+  const lesbianVideos: any[] = [];
+  const gayVideos: any[] = [];
+
+  allVideos.forEach(video => {
+    const videoGenreNames = (video.genre_ids || [])
+      .map((id: string) => genreMap.get(id) || '')
+      .join(',');
+
+    const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+    const hasGay = videoGenreNames.includes('ゲイ');
+
+    if (!hasLesbian && !hasGay) {
+      straightVideos.push(video);
+    } else if (hasLesbian && !hasGay) {
+      lesbianVideos.push(video);
+    } else if (hasGay && !hasLesbian) {
+      gayVideos.push(video);
+    }
+  });
+
+  // 性別フィルタ別の総件数
+  const genderCounts = {
+    straight: straightVideos.length,
+    lesbian: lesbianVideos.length,
+    gay: gayVideos.length,
+  };
+
+  // 性別フィルタ別の動画リスト（各600件）
+  const genderVideos = {
+    straight: straightVideos.slice(0, 600),
+    lesbian: lesbianVideos.slice(0, 600),
+    gay: gayVideos.slice(0, 600),
+  };
+
+  // 同性愛ジャンルを含む動画を除外（デフォルトは♂♀）
+  const filteredVideos = straightVideos;
 
   // 全動画件数（フィルタリング後）
   const totalVideos = filteredVideos.length;
@@ -107,7 +158,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     }
   }
 
-  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} startIndex={startIndex} />;
+  return <VideoSwiper videos={shuffledVideos} initialOffset={randomOffset} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} />;
 }
 
 export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {

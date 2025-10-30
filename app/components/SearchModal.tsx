@@ -9,6 +9,18 @@ type Genre = Database['public']['Tables']['genres']['Row'];
 type Actress = Database['public']['Tables']['actresses']['Row'];
 type GenderFilter = 'straight' | 'lesbian' | 'gay';
 
+interface GenderCounts {
+  straight: number;
+  lesbian: number;
+  gay: number;
+}
+
+interface GenderVideos {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
+
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,9 +32,11 @@ interface SearchModalProps {
   onLoadMore: () => Promise<void>; // ブラウズモード用の追加読み込み
   isLoadingMoreVideos: boolean; // VideoSwiperの読み込み状態
   hasMoreVideos: boolean; // まだ読み込めるデータがあるか
+  genderCounts?: GenderCounts; // 性別フィルタ別の総件数
+  genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceVideos, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos }: SearchModalProps) {
+export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceVideos, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos, genderCounts, genderVideos }: SearchModalProps) {
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -150,19 +164,31 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     loadActresses();
   }, [isOpen]);
 
-  // モーダルを開いたときに初回の総件数を取得
+  // モーダルを開いたときに性別フィルタの総件数を設定
   useEffect(() => {
-    if (isOpen && genres.length > 0 && totalSearchCount === 0) {
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
-      getFilteredCount(genreMap);
+    if (isOpen && genderCounts) {
+      setIsCountLoading(false);
+      setTotalSearchCount(genderCounts[genderFilter]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, genres.length]);
+  }, [isOpen, genderCounts, genderFilter]);
 
-  // 性別フィルタが変更されたら自動的に検索を実行
+  // 性別フィルタが変更されたら、事前読み込みされたデータを使用
   useEffect(() => {
     if (!isInitialMount.current && isOpen && genres.length > 0) {
-      handleSearch();
+      // 検索条件がない場合は、事前読み込みされたデータを使用
+      if (searchMode === 'keyword' && !keyword.trim() &&
+          selectedGenreIds.length === 0 &&
+          selectedActressIds.length === 0) {
+        // 事前読み込みされたデータがある場合はそれを使用
+        if (genderVideos && genderVideos[genderFilter]) {
+          setSearchResults(genderVideos[genderFilter]);
+          setSearchOffset(600);
+          setHasMoreSearch(false); // 事前読み込みは600件まで
+        }
+      } else {
+        // 検索条件がある場合は再検索
+        handleSearch();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genderFilter]);
@@ -312,100 +338,20 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     };
   }, [isOpen, searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
 
-  // フィルタ適用後の総件数を取得する関数
-  const getFilteredCount = async (genreMap: Map<string, string>) => {
-    setIsCountLoading(true);
-    try {
-      // まず全データを取得（性別フィルタ適用前）
-      let query = supabase
-        .from('videos')
-        .select('id, genre_ids, actress_ids')
-        .eq('is_active', true)
-        .not('thumbnail_url', 'is', null)
-        .not('sample_video_url', 'is', null)
-        .order('release_date', { ascending: false });
-
-      // キーワード検索の場合
-      if (searchMode === 'keyword' && keyword.trim()) {
-        query = query.ilike('title', `%${keyword}%`);
+  // 検索結果の総件数を計算する関数（検索時のみ使用）
+  const calculateSearchResultCount = (filteredData: Video[]) => {
+    // 性別フィルタのみの場合は、propsで渡された件数を使用
+    if (searchMode === 'keyword' && !keyword.trim() &&
+        searchMode === 'genre' && selectedGenreIds.length === 0 &&
+        searchMode === 'actress' && selectedActressIds.length === 0) {
+      if (genderCounts) {
+        setTotalSearchCount(genderCounts[genderFilter]);
       }
-      // ジャンル検索の場合
-      else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        query = query.overlaps('genre_ids', selectedGenreIds);
-      }
-      // 女優検索の場合
-      else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-        query = query.overlaps('actress_ids', selectedActressIds);
-      }
-
-      // 全データを取得（limitなし = Supabaseの最大制限まで取得）
-      const allData: any[] = [];
-      let offset = 0;
-      const batchSize = 1000;
-
-      while (true) {
-        const { data, error } = await query.range(offset, offset + batchSize - 1);
-
-        if (error) {
-          console.error('カウント取得エラー:', error);
-          break;
-        }
-
-        if (!data || data.length === 0) break;
-
-        allData.push(...data);
-
-        if (data.length < batchSize) break;
-        offset += batchSize;
-      }
-
-      const data = allData;
-
-      // データを取得して性別フィルターを適用
-      if (data && data.length > 0) {
-        let filteredCount = 0;
-
-        // ジャンル検索の場合はAND条件を適用
-        let filteredVideos = data;
-        if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-          filteredVideos = data.filter(video =>
-            selectedGenreIds.every(genreId =>
-              (video.genre_ids || []).includes(genreId)
-            )
-          );
-        }
-        // 女優検索の場合もAND条件を適用
-        else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-          filteredVideos = data.filter(video =>
-            selectedActressIds.every(actressId =>
-              (video.actress_ids || []).includes(actressId)
-            )
-          );
-        }
-
-        // 性別フィルターを適用
-        filteredCount = filteredVideos.filter(video => {
-          const videoGenreNames = (video.genre_ids || [])
-            .map((id: string) => genreMap.get(id) || '')
-            .join(',');
-
-          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-          const hasGay = videoGenreNames.includes('ゲイ');
-
-          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-          if (genderFilter === 'gay') return hasGay && !hasLesbian;
-          return false;
-        }).length;
-
-        setTotalSearchCount(filteredCount);
-      }
-    } catch (error) {
-      console.error('総件数取得エラー:', error);
-      setTotalSearchCount(0);
-    } finally {
-      setIsCountLoading(false);
+      return;
     }
+
+    // 検索条件がある場合は、フィルタリング後のデータ数を使用
+    setTotalSearchCount(filteredData.length);
   };
 
   const handleSearch = async () => {
@@ -563,8 +509,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         return false;
       });
 
-      // 総件数を取得するために、カウントクエリを実行
-      await getFilteredCount(genreMap);
+      // 総件数を計算
+      calculateSearchResultCount(filteredData);
 
       // 初回は600件まで表示
       const displayData = filteredData.slice(0, 600);
@@ -757,15 +703,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <button
               onClick={() => {
                 if (genderFilter === 'straight') {
-                  // 同じフィルタをクリックした場合は直接検索
-                  handleSearch();
+                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
+                  if (genderVideos && genderVideos.straight) {
+                    setSearchResults(genderVideos.straight);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  }
                 } else {
-                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
+                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
                   setGenderFilter('straight');
                   setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
-                  setSearchResults(null);
+                  if (genderVideos && genderVideos.straight) {
+                    setSearchResults(genderVideos.straight);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  } else {
+                    setSearchResults(null);
+                  }
                   setKeyword('');
                 }
               }}
@@ -780,15 +736,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <button
               onClick={() => {
                 if (genderFilter === 'lesbian') {
-                  // 同じフィルタをクリックした場合は直接検索
-                  handleSearch();
+                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
+                  if (genderVideos && genderVideos.lesbian) {
+                    setSearchResults(genderVideos.lesbian);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  }
                 } else {
-                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
+                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
                   setGenderFilter('lesbian');
                   setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
-                  setSearchResults(null);
+                  if (genderVideos && genderVideos.lesbian) {
+                    setSearchResults(genderVideos.lesbian);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  } else {
+                    setSearchResults(null);
+                  }
                   setKeyword('');
                 }
               }}
@@ -803,15 +769,25 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <button
               onClick={() => {
                 if (genderFilter === 'gay') {
-                  // 同じフィルタをクリックした場合は直接検索
-                  handleSearch();
+                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
+                  if (genderVideos && genderVideos.gay) {
+                    setSearchResults(genderVideos.gay);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  }
                 } else {
-                  // 性別フィルタを変更した場合、選択をクリアして未検索状態に
+                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
                   setGenderFilter('gay');
                   setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
-                  setSearchResults(null);
+                  if (genderVideos && genderVideos.gay) {
+                    setSearchResults(genderVideos.gay);
+                    setSearchOffset(600);
+                    setHasMoreSearch(false);
+                  } else {
+                    setSearchResults(null);
+                  }
                   setKeyword('');
                 }
               }}
@@ -934,11 +910,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
           ) : (
             <>
-              <div className="mb-3">
-                <p className="text-gray-400 text-sm">
-                  {isCountLoading ? '計算中...' : `${totalSearchCount > 0 ? totalSearchCount : displayVideos.length}件の動画が見つかりました`}
-                </p>
-              </div>
+              {(totalSearchCount > 0 || isCountLoading) && (
+                <div className="mb-3">
+                  <p className="text-gray-400 text-sm">
+                    {isCountLoading ? '計算中...' : `${totalSearchCount}件の動画が見つかりました`}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 pb-20">
                 {displayVideos.map((video, index) => {
                   const isCurrentVideo = video.dmm_content_id === currentVideoId;

@@ -14,15 +14,29 @@ import HistoryModal from './HistoryModal';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
+interface GenderCounts {
+  straight: number;
+  lesbian: number;
+  gay: number;
+}
+
+interface GenderVideos {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
+
 interface VideoSwiperProps {
   videos: Video[];
   initialOffset: number;
   totalVideos: number;
   startIndex?: number; // 配列内の開始位置（デフォルト0）
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
+  genderCounts?: GenderCounts; // 性別フィルタ別の総件数
+  genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
   const router = useRouter();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -487,6 +501,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         onLoadMore={loadMoreVideos}
         isLoadingMoreVideos={isLoadingMore}
         hasMoreVideos={!isFiniteList}
+        genderCounts={genderCounts}
+        genderVideos={genderVideos}
       />
 
       {/* ランキングモーダル */}
