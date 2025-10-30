@@ -247,17 +247,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     calculateAvailable();
   }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
 
-  // モーダルを開いたとき、初期表示の場合のみ現在の動画位置までスクロール
+  // モーダルを開いたとき、スクロール位置をトップにリセット
   useLayoutEffect(() => {
-    if (isOpen && !hasScrolledRef.current && !isSearchResult.current && videos.length > 0 && currentVideoRef.current) {
-      // 初期表示（ホーム画面の動画一覧）の場合のみスクロール
-      currentVideoRef.current.scrollIntoView({
-        behavior: 'auto',  // 瞬時にスクロール
-        block: 'start',    // 画面の上部に配置
-      });
+    if (isOpen && videoListRef.current) {
+      videoListRef.current.scrollTop = 0;
       hasScrolledRef.current = true;
     }
-  }, [isOpen, videos]);
+  }, [isOpen]);
 
   // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
