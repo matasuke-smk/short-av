@@ -906,6 +906,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 </button>
               </div>
             </div>
+            {/* 選択中のジャンル表示 */}
+            {selectedGenreIds.length > 0 && (
+              <div className="p-4 border-b border-gray-700">
+                <p className="text-xs text-gray-400 mb-2">選択中:</p>
+                <div className="flex flex-wrap gap-2">
+                  {genres
+                    .filter((g: Genre) => selectedGenreIds.includes(g.id))
+                    .map((g: Genre) => (
+                      <span key={g.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+                        {g.name}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
             <div className="p-4 border-b border-gray-700">
               <input
                 type="text"
@@ -929,11 +944,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                     <button
                       key={genre.id}
                       onClick={() => toggleGenreSelection(genre.id)}
+                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
                           : isUnavailable
-                          ? 'bg-gray-800 text-gray-500'
+                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
@@ -981,6 +997,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 </button>
               </div>
             </div>
+            {/* 選択中の女優表示 */}
+            {selectedActressIds.length > 0 && (
+              <div className="p-4 border-b border-gray-700">
+                <p className="text-xs text-gray-400 mb-2">選択中:</p>
+                <div className="flex flex-wrap gap-2">
+                  {actresses
+                    .filter((a: Actress) => selectedActressIds.includes(a.id))
+                    .map((a: Actress) => (
+                      <span key={a.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+                        {a.name}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
             <div className="p-4 border-b border-gray-700">
               <input
                 type="text"
@@ -1004,11 +1035,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                     <button
                       key={actress.id}
                       onClick={() => toggleActressSelection(actress.id)}
+                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
                           : isUnavailable
-                          ? 'bg-gray-800 text-gray-500'
+                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
