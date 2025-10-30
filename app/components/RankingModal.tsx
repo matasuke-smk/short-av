@@ -45,7 +45,7 @@ export default function RankingModal({
     all: false
   });
 
-  // モーダルを開いた時の初期化
+  // モーダルを開いた時の初期化と全ランキング読み込み
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -53,18 +53,15 @@ export default function RankingModal({
 
     // lastSelectedRankingからperiodを設定
     setPeriod(lastSelectedRanking);
-  }, [isOpen, lastSelectedRanking]);
 
-  // 期間が変更されたら、必要に応じて読み込み
-  useEffect(() => {
-    if (!isOpen) return;
+    // まだ読み込まれていないランキングを全て並列で読み込む
+    const periods: RankingPeriod[] = ['weekly', 'monthly', 'all'];
+    const periodsToLoad = periods.filter(p => rankingVideos[p].length === 0);
 
-    const currentRanking = rankingVideos[period];
-    if (currentRanking.length === 0) {
-      // まだ読み込んでいない期間なら読み込み
-      loadRanking(period);
+    if (periodsToLoad.length > 0) {
+      periodsToLoad.forEach(p => loadRanking(p));
     }
-  }, [isOpen, period]);
+  }, [isOpen, lastSelectedRanking]);
 
   // モーダルを開いたとき、現在の動画の位置にスクロール
   useLayoutEffect(() => {
@@ -113,7 +110,9 @@ export default function RankingModal({
   const displayVideos = rankingVideos[period];
 
   // 現在のvideosが表示中のランキングと一致するかチェック
-  const isCurrentRanking = videos.length > 0 &&
+  // 表示中のタブがlastSelectedRankingと一致し、かつvideosがdisplayVideosと完全一致する場合のみtrue
+  const isCurrentRanking = period === lastSelectedRanking &&
+    videos.length > 0 &&
     displayVideos.length > 0 &&
     videos.length === displayVideos.length &&
     videos.every((v: Video, i: number) => v.id === displayVideos[i].id);
