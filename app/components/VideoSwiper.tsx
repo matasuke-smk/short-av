@@ -11,6 +11,7 @@ import SearchModal from './SearchModal';
 import RankingModal from './RankingModal';
 import LikedModal from './LikedModal';
 import HistoryModal from './HistoryModal';
+import ArticleModal from './ArticleModal';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -38,6 +39,10 @@ interface VideoSwiperProps {
 
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
   const router = useRouter();
+
+  // アフィリエイトリンク表示制御（環境変数で管理）
+  const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
     loop: false,
@@ -57,6 +62,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showArticleModal, setShowArticleModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
@@ -230,10 +236,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
-      {/* FANZAクレジット（画面上部固定） */}
-      <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
-        <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
-      </div>
+      {/* FANZAクレジット（画面上部固定） - アフィリエイトリンク有効時のみ表示 */}
+      {enableAffiliateLinks && (
+        <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
+          <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
+        </div>
+      )}
 
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
@@ -247,10 +255,20 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 {/* メインコンテンツエリア */}
                 <div className="flex flex-col items-center">
                   {/* タイトル */}
-                  <div className="h-10 w-full px-4 flex items-center justify-center">
-                    <h2 className="text-white text-sm font-bold text-center line-clamp-2 overflow-hidden">
+                  <div className="h-10 w-full px-4 flex items-center justify-between gap-2">
+                    <h2 className="text-white text-sm font-bold text-center line-clamp-2 overflow-hidden flex-1">
                       {video.title}
                     </h2>
+                    {/* 記事メニューアイコン */}
+                    <button
+                      onClick={() => setShowArticleModal(true)}
+                      className="text-white/70 hover:text-white transition-colors flex-shrink-0"
+                      aria-label="記事を読む"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* サムネイル（タップで動画再生） - 4:3固定コンテナ */}
@@ -287,23 +305,25 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </div>
                   </div>
 
-                  {/* 広告バナー領域 (640×200) - 固定位置 */}
-                  <div className="w-full">
-                    <a
-                      href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
-                      target="_blank"
-                      rel="sponsored"
-                      className="block w-full"
-                    >
-                      <img
-                        src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-                        alt="初回購入限定！500円OFF！"
-                        width="640"
-                        height="200"
-                        className="w-full h-auto"
-                      />
-                    </a>
-                  </div>
+                  {/* 広告バナー領域 (640×200) - アフィリエイトリンク有効時のみ表示 */}
+                  {enableAffiliateLinks && (
+                    <div className="w-full">
+                      <a
+                        href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
+                        target="_blank"
+                        rel="sponsored"
+                        className="block w-full"
+                      >
+                        <img
+                          src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
+                          alt="初回購入限定！500円OFF！"
+                          width="640"
+                          height="200"
+                          className="w-full h-auto"
+                        />
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -454,18 +474,20 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           </div>
 
-          {/* 価格表示と詳細ページボタン - クリックしても閉じない */}
-          <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
-            <a
-              href={currentVideo?.dmm_product_url}
-              target="_blank"
-              rel="noopener noreferrer sponsored"
-              className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
-            >
-              <div className="text-sm mb-1">フル動画はこちら</div>
-              <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
-            </a>
-          </div>
+          {/* 価格表示と詳細ページボタン - アフィリエイトリンク有効時のみ表示 */}
+          {enableAffiliateLinks && (
+            <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
+              <a
+                href={currentVideo?.dmm_product_url}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
+              >
+                <div className="text-sm mb-1">フル動画はこちら</div>
+                <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
+              </a>
+            </div>
+          )}
 
           {/* 閉じるヒント */}
           <p className="text-white/60 text-sm mt-3">画面をタップで閉じる</p>
@@ -594,6 +616,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             window.location.href = `/?v=${dmmContentId}`;
           }
         }}
+      />
+
+      {/* 記事モーダル */}
+      <ArticleModal
+        isOpen={showArticleModal}
+        onClose={() => setShowArticleModal(false)}
       />
     </div>
   );
