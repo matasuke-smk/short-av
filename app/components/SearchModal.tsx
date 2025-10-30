@@ -96,9 +96,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         }
       } else {
         setGenderFilter('straight');
-        if (genderVideos?.straight) {
-          setSearchResults(genderVideos.straight);
-        }
+        // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
+        setSearchResults(null);
       }
     }
 
@@ -207,11 +206,16 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     if (!isInitialMount.current && isOpen && genres.length > 0) {
       // 検索条件がない場合
       if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
-        // すべてのフィルタで事前読み込みデータを使用
-        if (genderVideos && genderVideos[genderFilter]) {
-          setSearchResults(genderVideos[genderFilter]);
-          setSearchOffset(600);
-          setHasMoreSearch(false); // 事前読み込みは600件まで
+        if (genderFilter === 'straight') {
+          // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
+          setSearchResults(null);
+        } else {
+          // ♀♀と♂♂の場合は事前読み込みデータを使用
+          if (genderVideos && genderVideos[genderFilter]) {
+            setSearchResults(genderVideos[genderFilter]);
+            setSearchOffset(600);
+            setHasMoreSearch(false); // 事前読み込みは600件まで
+          }
         }
       } else {
         // 検索条件がある場合は再検索
@@ -741,17 +745,13 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 setSelectedActressIds([]);
                 setKeyword('');
 
-                // ♂♀の事前読み込みデータを表示
-                if (genderVideos?.straight) {
-                  setSearchResults(genderVideos.straight);
-                  setSearchOffset(600);
-                  setHasMoreSearch(false);
-                }
+                // ♂♀の場合はVideoSwiperから渡されたvideosをそのまま使う
+                setSearchResults(null);
 
-                // 現在の動画の位置にスクロール
+                // 先頭にスクロール
                 setTimeout(() => {
-                  if (currentVideoRef.current) {
-                    currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+                  if (videoListRef.current) {
+                    videoListRef.current.scrollTop = 0;
                   }
                 }, 0);
               }}

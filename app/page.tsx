@@ -87,9 +87,9 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     gay: gayVideos.length,
   };
 
-  // 性別フィルタ別の動画リスト（各600件）
+  // 性別フィルタ別の動画リスト（♀♀と♂♂のみ、♂♀はVideoSwiperのvideosを使用）
   const genderVideos = {
-    straight: straightVideos.slice(0, 600),
+    straight: [], // 使用しない
     lesbian: lesbianVideos.slice(0, 600),
     gay: gayVideos.slice(0, 600),
   };
