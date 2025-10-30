@@ -909,12 +909,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             {/* 選択中のジャンル表示 */}
             {selectedGenreIds.length > 0 && (
               <div className="p-4 border-b border-gray-700">
-                <p className="text-xs text-gray-400 mb-2">選択中:</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs text-gray-400">選択中:</p>
                   {genres
                     .filter((g: Genre) => selectedGenreIds.includes(g.id))
                     .map((g: Genre) => (
-                      <span key={g.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+                      <span key={g.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
                         {g.name}
                       </span>
                     ))}
@@ -1000,12 +1000,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             {/* 選択中の女優表示 */}
             {selectedActressIds.length > 0 && (
               <div className="p-4 border-b border-gray-700">
-                <p className="text-xs text-gray-400 mb-2">選択中:</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs text-gray-400">選択中:</p>
                   {actresses
                     .filter((a: Actress) => selectedActressIds.includes(a.id))
                     .map((a: Actress) => (
-                      <span key={a.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
+                      <span key={a.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
                         {a.name}
                       </span>
                     ))}
