@@ -308,12 +308,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   // フィルタ適用後の総件数を取得する関数
   const getFilteredCount = async (genreMap: Map<string, string>) => {
     try {
+      // まず全データを取得（性別フィルタ適用前）
       let query = supabase
         .from('videos')
-        .select('*')
+        .select('id, genre_ids, actress_ids')
         .eq('is_active', true)
         .not('thumbnail_url', 'is', null)
-        .not('sample_video_url', 'is', null);
+        .not('sample_video_url', 'is', null)
+        .order('release_date', { ascending: false });
 
       // キーワード検索の場合
       if (searchMode === 'keyword' && keyword.trim()) {
@@ -328,16 +330,31 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         query = query.overlaps('actress_ids', selectedActressIds);
       }
 
-      const { data, error } = await query;
+      // 全データを取得（limitなし = Supabaseの最大制限まで取得）
+      const allData: any[] = [];
+      let offset = 0;
+      const batchSize = 1000;
 
-      if (error) {
-        console.error('カウント取得エラー:', error);
-        setTotalSearchCount(0);
-        return;
+      while (true) {
+        const { data, error } = await query.range(offset, offset + batchSize - 1);
+
+        if (error) {
+          console.error('カウント取得エラー:', error);
+          break;
+        }
+
+        if (!data || data.length === 0) break;
+
+        allData.push(...data);
+
+        if (data.length < batchSize) break;
+        offset += batchSize;
       }
 
+      const data = allData;
+
       // データを取得して性別フィルターを適用
-      if (data) {
+      if (data && data.length > 0) {
         let filteredCount = 0;
 
         // ジャンル検索の場合はAND条件を適用
@@ -488,21 +505,35 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           return dateB - dateA;
         }).slice(0, 600);
       } else {
-        // 性別フィルタのみの場合、全動画を取得（limitを大幅に増やして将来のデータ増加に対応）
-        const { data: result, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .limit(10000);
+        // 性別フィルタのみの場合、全動画を取得
+        const allData: Video[] = [];
+        let offset = 0;
+        const batchSize = 1000;
 
-        if (error) {
-          console.error('検索エラー:', error);
-          return;
+        while (true) {
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .range(offset, offset + batchSize - 1);
+
+          if (error) {
+            console.error('検索エラー:', error);
+            break;
+          }
+
+          if (!result || result.length === 0) break;
+
+          allData.push(...result);
+
+          if (result.length < batchSize) break;
+          offset += batchSize;
         }
-        data = result || [];
+
+        data = allData;
       }
 
       // 性別フィルターを適用
@@ -525,9 +556,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       // 総件数を取得するために、カウントクエリを実行
       await getFilteredCount(genreMap);
 
-      setSearchResults(filteredData);
+      // 初回は600件まで表示
+      const displayData = filteredData.slice(0, 600);
+      setSearchResults(displayData);
       setSearchOffset(600); // 初回検索は600件まで取得
-      setHasMoreSearch(filteredData.length >= 600); // 600件未満なら追加読み込み不要
+      setHasMoreSearch(filteredData.length > 600); // 600件より多い場合は追加読み込み可能
     } catch (error) {
       console.error('検索実行エラー:', error);
     } finally {
