@@ -395,43 +395,36 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* サンプル動画モーダル - 改良版 */}
       {showVideoModal && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center"
           onClick={closeModal}
         >
-          <div className="flex flex-col items-center gap-4 w-full max-w-[560px]">
-            {/* 動画エリア - クリックしても閉じない */}
-            <div onClick={(e) => e.stopPropagation()}>
-              <iframe
-                src={modalVideoUrl}
-                className="w-full"
-                style={{
-                  overflow: 'hidden',
-                  height: 'auto',
-                  aspectRatio: '560 / 420'
-                }}
-                allowFullScreen
-                allow="autoplay; fullscreen"
-                frameBorder="0"
-                scrolling="no"
-              />
-            </div>
-
-            {/* 価格表示と詳細ページボタン - クリックしても閉じない */}
-            <div className="w-full" onClick={(e) => e.stopPropagation()}>
-              <a
-                href={currentVideo?.dmm_product_url}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-4 text-center transition-all font-bold shadow-lg active:scale-95"
-              >
-                <div className="text-sm mb-1">フル動画はこちら</div>
-                <div className="text-2xl">¥{currentVideo?.price || 0}〜</div>
-              </a>
-            </div>
-
-            {/* 閉じるヒント */}
-            <p className="text-white/60 text-sm">画面をタップで閉じる</p>
+          {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
+          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+            <iframe
+              src={modalVideoUrl}
+              className="w-full aspect-[560/420]"
+              allowFullScreen
+              allow="autoplay; fullscreen"
+              frameBorder="0"
+              scrolling="no"
+            />
           </div>
+
+          {/* 価格表示と詳細ページボタン - クリックしても閉じない */}
+          <div className="w-full px-4 mt-4" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={currentVideo?.dmm_product_url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
+            >
+              <div className="text-sm mb-1">フル動画はこちら</div>
+              <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
+            </a>
+          </div>
+
+          {/* 閉じるヒント */}
+          <p className="text-white/60 text-sm mt-3">画面をタップで閉じる</p>
         </div>
       )}
 
