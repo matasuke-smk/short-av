@@ -149,6 +149,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     loadActresses();
   }, [isOpen]);
 
+  // モーダルを開いたときに初回の総件数を取得
+  useEffect(() => {
+    if (isOpen && genres.length > 0 && totalSearchCount === 0) {
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+      getFilteredCount(genreMap);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, genres.length]);
+
   // 性別フィルタが変更されたら自動的に検索を実行
   useEffect(() => {
     if (!isInitialMount.current && isOpen && genres.length > 0) {
