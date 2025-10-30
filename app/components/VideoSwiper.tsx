@@ -433,7 +433,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">ホーム</span>
             </button>
 
-            {/* お気に入りボタン */}
+            {/* いいねボタン */}
             <button
               onClick={() => setShowLikedModal(true)}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -441,7 +441,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              <span className="text-xs">お気に入り</span>
+              <span className="text-xs">いいね</span>
             </button>
 
             {/* 履歴ボタン */}
@@ -599,7 +599,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }}
       />
 
-      {/* お気に入りモーダル */}
+      {/* いいねモーダル */}
       <LikedModal
         isOpen={showLikedModal}
         onClose={() => setShowLikedModal(false)}

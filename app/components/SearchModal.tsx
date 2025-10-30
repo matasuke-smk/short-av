@@ -1151,14 +1151,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
-              <button
-                onClick={() => setShowGenreModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
             {/* 選択中のジャンル表示 */}
             {selectedGenreIds.length > 0 && (
@@ -1242,14 +1234,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
-              <button
-                onClick={() => setShowActressModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
             {/* 選択中の女優表示 */}
             {selectedActressIds.length > 0 && (

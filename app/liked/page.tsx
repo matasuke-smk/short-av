@@ -31,7 +31,7 @@ export default function LikedPage() {
       try {
         setLoading(true);
 
-        // いいね済み動画IDを取得
+        // いいね済み動画IDといいね日時を取得
         const likesResponse = await fetch(`/api/likes/my-likes?userId=${userId}`);
         const likesData = await likesResponse.json();
 
@@ -52,13 +52,18 @@ export default function LikedPage() {
           .from('videos')
           .select('id, title, thumbnail_url, dmm_content_id, likes_count, maker, release_date')
           .in('id', likesData.videoIds)
-          .eq('is_active', true)
-          .order('likes_count', { ascending: false });
+          .eq('is_active', true);
 
         if (error) {
           console.error('Failed to fetch videos:', error);
         } else {
-          setLikedVideos(videos || []);
+          // いいねした日時順に並び替え（新しい順）
+          const sortedVideos = (videos || []).sort((a, b) => {
+            const timeA = likesData.likedAtMap[a.id];
+            const timeB = likesData.likedAtMap[b.id];
+            return new Date(timeB).getTime() - new Date(timeA).getTime();
+          });
+          setLikedVideos(sortedVideos);
         }
       } catch (error) {
         console.error('Failed to fetch liked videos:', error);
