@@ -285,12 +285,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     }
   }, [isOpen]);
 
-  // 性別フィルタを切り替えたとき、スクロール位置をトップにリセット
-  useLayoutEffect(() => {
-    if (isOpen && videoListRef.current) {
-      videoListRef.current.scrollTop = 0;
-    }
-  }, [genderFilter, isOpen]);
 
   // 無限スクロール（検索モード・ブラウズモード共通）
   useEffect(() => {
@@ -710,6 +704,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="flex gap-2 mb-3">
             <button
               onClick={() => {
+                // スクロール位置をリセット
+                if (videoListRef.current) {
+                  videoListRef.current.scrollTop = 0;
+                }
+
                 if (genderFilter === 'straight') {
                   // 同じフィルタをクリックした場合は初期表示に戻す
                   setSearchResults(null);
@@ -737,6 +736,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </button>
             <button
               onClick={() => {
+                // スクロール位置をリセット
+                if (videoListRef.current) {
+                  videoListRef.current.scrollTop = 0;
+                }
+
                 if (genderFilter === 'lesbian') {
                   // 同じフィルタをクリックした場合は事前読み込みデータを使用
                   if (genderVideos && genderVideos.lesbian) {
@@ -770,6 +774,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </button>
             <button
               onClick={() => {
+                // スクロール位置をリセット
+                if (videoListRef.current) {
+                  videoListRef.current.scrollTop = 0;
+                }
+
                 if (genderFilter === 'gay') {
                   // 同じフィルタをクリックした場合は事前読み込みデータを使用
                   if (genderVideos && genderVideos.gay) {
