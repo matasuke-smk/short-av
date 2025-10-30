@@ -8,6 +8,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import InitialTutorial from './InitialTutorial';
 import SearchModal from './SearchModal';
+import RankingModal from './RankingModal';
+import LikedModal from './LikedModal';
+import HistoryModal from './HistoryModal';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -37,6 +40,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showTutorial, setShowTutorial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showRankingModal, setShowRankingModal] = useState(false);
+  const [showLikedModal, setShowLikedModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -343,12 +349,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </button>
 
             {/* 人気（ランキング）ボタン */}
-            <Link href="/ranking" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            <button
+              onClick={() => setShowRankingModal(true)}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               <span className="text-xs">人気</span>
-            </Link>
+            </button>
 
             {/* ホームボタン（中央） - 毎回ランダムな動画を表示 */}
             <button
@@ -363,21 +372,27 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">ホーム</span>
             </button>
 
-            {/* お気に入り一覧ページへのリンク */}
-            <Link href="/liked" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            {/* お気に入りボタン */}
+            <button
+              onClick={() => setShowLikedModal(true)}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
               <span className="text-xs">お気に入り</span>
-            </Link>
+            </button>
 
             {/* 履歴ボタン */}
-            <Link href="/history" className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95">
+            <button
+              onClick={() => setShowHistoryModal(true)}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span className="text-xs">履歴</span>
-            </Link>
+            </button>
           </div>
 
           {/* ポリシーリンク */}
@@ -472,6 +487,63 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         onLoadMore={loadMoreVideos}
         isLoadingMoreVideos={isLoadingMore}
         hasMoreVideos={!isFiniteList}
+      />
+
+      {/* ランキングモーダル */}
+      <RankingModal
+        isOpen={showRankingModal}
+        onClose={() => setShowRankingModal(false)}
+        onSelectVideo={(dmmContentId) => {
+          // 選択された動画のindexを見つけてスクロール
+          const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
+          if (targetIndex !== -1 && emblaApi) {
+            emblaApi.scrollTo(targetIndex, false);
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', dmmContentId);
+            window.history.pushState({}, '', url.toString());
+          } else {
+            // 動画が現在のリストにない場合、ページ遷移
+            window.location.href = `/?v=${dmmContentId}`;
+          }
+        }}
+      />
+
+      {/* お気に入りモーダル */}
+      <LikedModal
+        isOpen={showLikedModal}
+        onClose={() => setShowLikedModal(false)}
+        onSelectVideo={(dmmContentId) => {
+          // 選択された動画のindexを見つけてスクロール
+          const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
+          if (targetIndex !== -1 && emblaApi) {
+            emblaApi.scrollTo(targetIndex, false);
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', dmmContentId);
+            window.history.pushState({}, '', url.toString());
+          } else {
+            // 動画が現在のリストにない場合、ページ遷移
+            window.location.href = `/?v=${dmmContentId}`;
+          }
+        }}
+      />
+
+      {/* 履歴モーダル */}
+      <HistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onSelectVideo={(dmmContentId) => {
+          // 選択された動画のindexを見つけてスクロール
+          const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
+          if (targetIndex !== -1 && emblaApi) {
+            emblaApi.scrollTo(targetIndex, false);
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', dmmContentId);
+            window.history.pushState({}, '', url.toString());
+          } else {
+            // 動画が現在のリストにない場合、ページ遷移
+            window.location.href = `/?v=${dmmContentId}`;
+          }
+        }}
       />
     </div>
   );
