@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
@@ -148,13 +148,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     loadGenres();
     loadActresses();
   }, [isOpen]);
-
-  // 性別フィルタが変更されたら自動的に検索を実行
-  useEffect(() => {
-    if (!isInitialMount.current && isOpen && genres.length > 0) {
-      handleSearch();
-    }
-  }, [genderFilter]);
 
   // 利用可能なジャンル/女優を計算
   useEffect(() => {
@@ -731,19 +724,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
   // 表示する動画リストを決定: 検索結果がある場合はそれを、なければVideoSwiperから渡された動画を使用
   const displayVideos = searchResults !== null ? searchResults : videos;
-
-  // デバッグ用：初期表示時の状態をログ出力
-  useEffect(() => {
-    if (isOpen && !loading) {
-      const currentDisplayLength = searchResults !== null ? searchResults.length : videos.length;
-      console.log('SearchModal 表示状態:', {
-        displayVideosLength: currentDisplayLength,
-        searchResults: searchResults !== null,
-        totalSearchCount,
-        videosLength: videos.length,
-      });
-    }
-  }, [isOpen, searchResults, totalSearchCount, videos.length, loading]);
 
   return (
     <>
