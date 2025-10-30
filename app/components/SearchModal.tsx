@@ -699,25 +699,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <button
               onClick={() => {
                 if (genderFilter === 'straight') {
-                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
-                  if (genderVideos && genderVideos.straight) {
-                    setSearchResults(genderVideos.straight);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
-                  }
+                  // 同じフィルタをクリックした場合は初期表示に戻す
+                  setSearchResults(null);
+                  setSearchMode('keyword');
+                  setSelectedGenreIds([]);
+                  setSelectedActressIds([]);
+                  setKeyword('');
                 } else {
-                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
+                  // 性別フィルタを変更した場合、選択をクリアして初期表示に戻す
                   setGenderFilter('straight');
                   setSearchMode('keyword');
                   setSelectedGenreIds([]);
                   setSelectedActressIds([]);
-                  if (genderVideos && genderVideos.straight) {
-                    setSearchResults(genderVideos.straight);
-                    setSearchOffset(600);
-                    setHasMoreSearch(false);
-                  } else {
-                    setSearchResults(null);
-                  }
+                  setSearchResults(null);
                   setKeyword('');
                 }
               }}
