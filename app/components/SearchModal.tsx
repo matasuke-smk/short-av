@@ -1173,7 +1173,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
+                {(totalSearchCount > 0 || genderCounts) && (
+                  <span className="text-gray-400 text-sm">
+                    {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setShowGenreModal(false)}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -1264,7 +1271,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-start">
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
-              <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
+                {(totalSearchCount > 0 || genderCounts) && (
+                  <span className="text-gray-400 text-sm">
+                    {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => setShowActressModal(false)}
                 className="text-gray-400 hover:text-white transition-colors"
