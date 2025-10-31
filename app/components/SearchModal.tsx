@@ -74,6 +74,11 @@ export default function SearchModal({
   const [lesbianPool, setLesbianPool] = useState<Video[]>([]);
   const [gayPool, setGayPool] = useState<Video[]>([]);
 
+  // 各フィルタの元のプール（page.tsxから渡された全動画、上書きしない）
+  const [originalStraightPool, setOriginalStraightPool] = useState<Video[]>([]);
+  const [originalLesbianPool, setOriginalLesbianPool] = useState<Video[]>([]);
+  const [originalGayPool, setOriginalGayPool] = useState<Video[]>([]);
+
   // 各フィルタのプールインデックス
   const [straightPoolIndex, setStraightPoolIndex] = useState(20);
   const [lesbianPoolIndex, setLesbianPoolIndex] = useState(20);
@@ -120,20 +125,30 @@ export default function SearchModal({
     gay: gayPoolIndex
   }[genderFilter];
 
+  // 元のプール（検索に関係なく常に全動画）
+  const originalPool = {
+    straight: originalStraightPool,
+    lesbian: originalLesbianPool,
+    gay: originalGayPool
+  }[genderFilter];
+
   // 初期化: propsから初期動画リストとプールを設定（初回のみ）
   const initializedRef = useRef(false);
   useEffect(() => {
     if (isOpen && genderVideos && genderPools && !initializedRef.current) {
       setStraightVideos(genderVideos.straight || []);
       setStraightPool(genderPools.straight || []);
+      setOriginalStraightPool(genderPools.straight || []); // 元のプールを保存
       setStraightMeta({ hasMore: true, totalCount: genderCounts?.straight || 0, isSearchResult: false });
 
       setLesbianVideos(genderVideos.lesbian || []);
       setLesbianPool(genderPools.lesbian || []);
+      setOriginalLesbianPool(genderPools.lesbian || []); // 元のプールを保存
       setLesbianMeta({ hasMore: true, totalCount: genderCounts?.lesbian || 0, isSearchResult: false });
 
       setGayVideos(genderVideos.gay || []);
       setGayPool(genderPools.gay || []);
+      setOriginalGayPool(genderPools.gay || []); // 元のプールを保存
       setGayMeta({ hasMore: true, totalCount: genderCounts?.gay || 0, isSearchResult: false });
 
       initializedRef.current = true;
@@ -202,12 +217,12 @@ export default function SearchModal({
     loadActresses();
   }, [isOpen]);
 
-  // 利用可能なジャンル/女優を計算（プールから）
+  // 利用可能なジャンル/女優を計算（元のプールから）
   useEffect(() => {
     if (!isOpen || genres.length === 0) return;
 
-    // 現在のフィルタのプール全体から計算
-    const genderFilteredVideos = currentPool;
+    // 元のプール（全動画）から計算
+    const genderFilteredVideos = originalPool;
 
     // 既に選択されている条件で動画をフィルタリング
     let filteredVideos = genderFilteredVideos;
@@ -255,7 +270,7 @@ export default function SearchModal({
 
     // 選択条件での件数を設定
     setCurrentFilterCount(filteredVideos.length);
-  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, actresses, searchMode, currentPool]);
+  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, actresses, searchMode, originalPool]);
 
   // 検索実行
   const handleSearch = async () => {

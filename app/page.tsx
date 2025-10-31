@@ -75,13 +75,33 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   // プール方式：初期読み込みで全動画を取得し、性別フィルタ別に分類してプール化
   // TODO: 将来的にはいいね数上位から選択する実装に変更予定
 
-  // 全動画を取得
-  const { data: allVideos, error: fetchError } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null);
+  // 全動画を取得（バッチ処理で1000件ずつ取得）
+  const allVideos = [];
+  let offset = 0;
+  const batchSize = 1000;
+  let fetchError = null;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('is_active', true)
+      .not('thumbnail_url', 'is', null)
+      .not('sample_video_url', 'is', null)
+      .range(offset, offset + batchSize - 1);
+
+    if (error) {
+      fetchError = error;
+      break;
+    }
+
+    if (!data || data.length === 0) break;
+
+    allVideos.push(...data);
+
+    if (data.length < batchSize) break;
+    offset += batchSize;
+  }
 
   // 性別フィルタ別に分類
   const straightVideosAll: typeof allVideos = [];
