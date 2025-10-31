@@ -76,6 +76,12 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     isInitialMount.current = true;
 
     const initialize = async () => {
+      // 検索結果が既にある場合は再初期化をスキップ（前回の検索結果を保持）
+      if (searchResults !== null && searchResults.length > 0) {
+        isInitialMount.current = false;
+        return;
+      }
+
       // 現在の動画の性別フィルタを判定して設定
       const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
       let detectedGenderFilter: GenderFilter = 'straight';
