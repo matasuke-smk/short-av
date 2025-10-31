@@ -812,19 +812,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     ? actresses.filter(a => a.name.includes(actressSearchKeyword))
     : actresses;
 
-  // 動画が0件の女優を非表示にする
-  const displayActresses = availableActresses.size > 0
-    ? filteredActresses.filter(a => availableActresses.has(a.id))
-    : filteredActresses;
-
   const filteredGenres = genreSearchKeyword
     ? genres.filter(g => g.name.includes(genreSearchKeyword))
     : genres;
 
-  // 動画が0件のジャンルを非表示にする
-  const displayGenres = availableGenres.size > 0
-    ? filteredGenres.filter(g => availableGenres.has(g.id))
-    : filteredGenres;
+  // 性別フィルタのみの場合は0件項目を非表示、選択中の場合はすべて表示（グレーアウトで表示）
+  const hasGenreSelection = selectedGenreIds.length > 0;
+  const hasActressSelection = selectedActressIds.length > 0;
+
+  const displayActresses = hasActressSelection
+    ? filteredActresses
+    : (availableActresses.size > 0 ? filteredActresses.filter(a => availableActresses.has(a.id)) : filteredActresses);
+
+  const displayGenres = hasGenreSelection
+    ? filteredGenres
+    : (availableGenres.size > 0 ? filteredGenres.filter(g => availableGenres.has(g.id)) : filteredGenres);
 
   if (!isOpen) return null;
 
@@ -1196,13 +1198,17 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               <div className="grid grid-cols-2 gap-2">
                 {displayGenres.map((genre) => {
                   const isSelected = selectedGenreIds.includes(genre.id);
+                  const isUnavailable = hasGenreSelection && availableGenres.size > 0 && !availableGenres.has(genre.id);
                   return (
                     <button
                       key={genre.id}
                       onClick={() => toggleGenreSelection(genre.id)}
+                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
+                          : isUnavailable
+                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
@@ -1283,13 +1289,17 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               <div className="grid grid-cols-2 gap-2">
                 {displayActresses.map((actress) => {
                   const isSelected = selectedActressIds.includes(actress.id);
+                  const isUnavailable = hasActressSelection && availableActresses.size > 0 && !availableActresses.has(actress.id);
                   return (
                     <button
                       key={actress.id}
                       onClick={() => toggleActressSelection(actress.id)}
+                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
+                          : isUnavailable
+                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
