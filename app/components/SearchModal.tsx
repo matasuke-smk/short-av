@@ -62,6 +62,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
   const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
+  const [currentFilterCount, setCurrentFilterCount] = useState<number>(0); // 現在の選択条件での動画数
   const hasScrolledRef = useRef(false); // スクロール済みかどうかのフラグ
   const initialVideosRef = useRef<Video[]>([]); // 初期のvideos（リスト1）を保存
 
@@ -305,6 +306,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
         });
         setAvailableActresses(actressIds);
+
+        // 現在の選択条件での動画数を保存
+        setCurrentFilterCount(finalVideos.length);
       } catch (error) {
         console.error('利用可能な選択肢計算エラー:', error);
       }
@@ -1011,9 +1015,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                           .join(', ')
                       : 'ジャンルを選択'}
                   </span>
-                  {(totalSearchCount > 0 || genderCounts) && (
+                  {(currentFilterCount > 0 || genderCounts) && (
                     <span className="text-gray-400 text-xs ml-2">
-                      {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                      {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
+                        ? currentFilterCount.toLocaleString()
+                        : genderCounts?.[genderFilter]?.toLocaleString()}件
                     </span>
                   )}
                 </div>
@@ -1034,9 +1040,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                           .join(', ')
                       : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
                   </span>
-                  {(totalSearchCount > 0 || genderCounts) && (
+                  {(currentFilterCount > 0 || genderCounts) && (
                     <span className="text-gray-400 text-xs ml-2">
-                      {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                      {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
+                        ? currentFilterCount.toLocaleString()
+                        : genderCounts?.[genderFilter]?.toLocaleString()}件
                     </span>
                   )}
                 </div>
@@ -1175,9 +1183,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
-                {(totalSearchCount > 0 || genderCounts) && (
+                {(currentFilterCount > 0 || genderCounts) && (
                   <span className="text-gray-400 text-sm">
-                    {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
+                      ? currentFilterCount.toLocaleString()
+                      : genderCounts?.[genderFilter]?.toLocaleString()}件
                   </span>
                 )}
               </div>
@@ -1273,9 +1283,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
-                {(totalSearchCount > 0 || genderCounts) && (
+                {(currentFilterCount > 0 || genderCounts) && (
                   <span className="text-gray-400 text-sm">
-                    {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
+                      ? currentFilterCount.toLocaleString()
+                      : genderCounts?.[genderFilter]?.toLocaleString()}件
                   </span>
                 )}
               </div>
