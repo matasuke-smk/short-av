@@ -267,7 +267,15 @@ export default function RankingModal({
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setTimeout(() => onClose(), 100);
+              // pointer-eventsを一時的に無効化してハイライト問題を防止
+              document.body.style.pointerEvents = 'none';
+              setTimeout(() => {
+                onClose();
+                // モーダルが完全に閉じた後にpointer-eventsを復元
+                setTimeout(() => {
+                  document.body.style.pointerEvents = 'auto';
+                }, 300);
+              }, 50);
             }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >

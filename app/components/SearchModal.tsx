@@ -75,132 +75,168 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     // モーダルを開くたびに初回マウントフラグをリセット
     isInitialMount.current = true;
 
-    // 現在の動画の性別フィルタを判定して設定
-    const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
-    if (currentVideo && genres.length > 0) {
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
-      const videoGenreNames = (currentVideo.genre_ids || [])
-        .map((id: string) => genreMap.get(id) || '')
-        .join(',');
+    const initialize = async () => {
+      // 現在の動画の性別フィルタを判定して設定
+      const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
+      let detectedGenderFilter: GenderFilter = 'straight';
 
-      const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-      const hasGay = videoGenreNames.includes('ゲイ');
+      if (currentVideo && genres.length > 0) {
+        const genreMap = new Map(genres.map(g => [g.id, g.name]));
+        const videoGenreNames = (currentVideo.genre_ids || [])
+          .map((id: string) => genreMap.get(id) || '')
+          .join(',');
 
-      // 初期のvideosを保存（♂♀の動画を見ているとき）
-      if (!hasLesbian && !hasGay) {
-        initialVideosRef.current = videos;
-      }
+        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+        const hasGay = videoGenreNames.includes('ゲイ');
 
-      if (hasLesbian && !hasGay) {
-        setGenderFilter('lesbian');
-        if (genderVideos?.lesbian) {
-          setSearchResults(genderVideos.lesbian);
+        // 初期のvideosを保存（♂♀の動画を見ているとき）
+        if (!hasLesbian && !hasGay) {
+          initialVideosRef.current = videos;
         }
-      } else if (hasGay && !hasLesbian) {
-        setGenderFilter('gay');
-        if (genderVideos?.gay) {
-          setSearchResults(genderVideos.gay);
-        }
-      } else {
-        setGenderFilter('straight');
-        // ♂♀の場合は保存しておいた初期のvideosを表示（既に保存済み）
-        if (initialVideosRef.current.length > 0) {
-          setSearchResults(initialVideosRef.current);
+
+        // 性別フィルタを判定（searchResultsは後で設定）
+        if (hasLesbian && !hasGay) {
+          detectedGenderFilter = 'lesbian';
+          setGenderFilter('lesbian');
+        } else if (hasGay && !hasLesbian) {
+          detectedGenderFilter = 'gay';
+          setGenderFilter('gay');
         } else {
-          setSearchResults(null);
+          detectedGenderFilter = 'straight';
+          setGenderFilter('straight');
+          // ♂♀の場合のみ、ここでsearchResultsを設定
+          if (initialVideosRef.current.length > 0) {
+            setSearchResults(initialVideosRef.current);
+          } else {
+            setSearchResults(null);
+          }
         }
       }
-    }
 
-    // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
-    const params = new URLSearchParams(window.location.search);
-    const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
-    const savedKeyword = params.get('q') || params.get('keyword');
-    const savedFilter = params.get('f') || params.get('filters');
+      // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
+      const params = new URLSearchParams(window.location.search);
+      const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
+      const savedKeyword = params.get('q') || params.get('keyword');
+      const savedFilter = params.get('f') || params.get('filters');
 
-    // URLパラメータに検索条件がある場合は検索結果として扱う
-    const hasSearchParams = savedSearchMode || savedKeyword || params.get('g') || params.get('a');
-    isSearchResult.current = !!hasSearchParams;
+      // URLパラメータに検索条件がある場合は検索結果として扱う
+      const hasSearchParams = savedSearchMode || savedKeyword || params.get('g') || params.get('a');
+      isSearchResult.current = !!hasSearchParams;
 
-    if (savedSearchMode) setSearchMode(savedSearchMode);
-    if (savedKeyword) setKeyword(savedKeyword);
-    if (savedFilter) setGenderFilter(savedFilter as GenderFilter);
-
-    // ジャンルと女優は非同期で復元
-    const restoreSearchConditions = async () => {
-      // ジャンルIDを復元（slugから変換）
-      const genreSlugs = params.get('g');
-      const oldGenreIds = params.get('genreIds');
-
-      if (genreSlugs) {
-        const slugArray = genreSlugs.split(',');
-        const { data: genresData } = await supabase
-          .from('genres')
-          .select('id, slug')
-          .in('slug', slugArray);
-        if (genresData) setSelectedGenreIds(genresData.map(g => g.id));
-      } else if (oldGenreIds) {
-        setSelectedGenreIds(JSON.parse(oldGenreIds));
+      if (savedSearchMode) setSearchMode(savedSearchMode);
+      if (savedKeyword) setKeyword(savedKeyword);
+      if (savedFilter) {
+        detectedGenderFilter = savedFilter as GenderFilter;
+        setGenderFilter(savedFilter as GenderFilter);
       }
 
-      // 女優IDを復元（名前から変換）
-      const actressNames = params.get('a');
-      const oldActressIds = params.get('actressIds');
+      // ジャンルと女優を復元（復元したIDを返す）
+      const restoreSearchConditions = async (): Promise<{ genreIds: string[], actressIds: string[] }> => {
+        let restoredGenreIds: string[] = [];
+        let restoredActressIds: string[] = [];
 
-      if (actressNames) {
-        const nameArray = actressNames.split(',');
-        const { data: actressesData } = await supabase
-          .from('actresses')
-          .select('id, name')
-          .in('name', nameArray);
-        if (actressesData) setSelectedActressIds(actressesData.map(a => a.id));
-      } else if (oldActressIds) {
-        setSelectedActressIds(JSON.parse(oldActressIds));
+        // ジャンルIDを復元（slugから変換）
+        const genreSlugs = params.get('g');
+        const oldGenreIds = params.get('genreIds');
+
+        if (genreSlugs) {
+          const slugArray = genreSlugs.split(',');
+          const { data: genresData } = await supabase
+            .from('genres')
+            .select('id, slug')
+            .in('slug', slugArray);
+          if (genresData) {
+            restoredGenreIds = genresData.map(g => g.id);
+            setSelectedGenreIds(restoredGenreIds);
+          }
+        } else if (oldGenreIds) {
+          restoredGenreIds = JSON.parse(oldGenreIds);
+          setSelectedGenreIds(restoredGenreIds);
+        }
+
+        // 女優IDを復元（名前から変換）
+        const actressNames = params.get('a');
+        const oldActressIds = params.get('actressIds');
+
+        if (actressNames) {
+          const nameArray = actressNames.split(',');
+          const { data: actressesData } = await supabase
+            .from('actresses')
+            .select('id, name')
+            .in('name', nameArray);
+          if (actressesData) {
+            restoredActressIds = actressesData.map(a => a.id);
+            setSelectedActressIds(restoredActressIds);
+          }
+        } else if (oldActressIds) {
+          restoredActressIds = JSON.parse(oldActressIds);
+          setSelectedActressIds(restoredActressIds);
+        }
+
+        return { genreIds: restoredGenreIds, actressIds: restoredActressIds };
+      };
+
+      const loadGenres = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('genres')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order', { ascending: true });
+
+          if (error) {
+            console.error('ジャンル取得エラー:', error);
+            return;
+          }
+          setGenres(data || []);
+        } catch (error) {
+          console.error('ジャンル読み込みエラー:', error);
+        }
+      };
+
+      const loadActresses = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('actresses')
+            .select('*')
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+
+          if (error) {
+            console.error('女優取得エラー:', error);
+            return;
+          }
+          setActresses(data || []);
+        } catch (error) {
+          console.error('女優読み込みエラー:', error);
+        }
+      };
+
+      // 並列で復元とロードを実行
+      const { genreIds, actressIds } = await restoreSearchConditions();
+      await Promise.all([loadGenres(), loadActresses()]);
+
+      // ロード完了後、初回マウントフラグをfalseに設定
+      isInitialMount.current = false;
+
+      // 検索条件がある場合は検索を実行、ない場合は♀♀/♂♂のgenderVideosを設定
+      const hasConditions = genreIds.length > 0 || actressIds.length > 0 ||
+                            selectedGenreIds.length > 0 || selectedActressIds.length > 0 ||
+                            keyword.trim() || savedKeyword;
+
+      if (hasConditions) {
+        // 検索条件がある場合は検索を実行
+        await handleSearch();
+      } else if (detectedGenderFilter === 'lesbian' && genderVideos?.lesbian) {
+        // ♀♀で検索条件がない場合はgenderVideosを使用
+        setSearchResults(genderVideos.lesbian);
+      } else if (detectedGenderFilter === 'gay' && genderVideos?.gay) {
+        // ♂♂で検索条件がない場合はgenderVideosを使用
+        setSearchResults(genderVideos.gay);
       }
     };
 
-    restoreSearchConditions();
-
-    const loadGenres = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('genres')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true });
-
-        if (error) {
-          console.error('ジャンル取得エラー:', error);
-          return;
-        }
-        setGenres(data || []);
-        // ジャンル読み込み完了後、次回から性別フィルタ変更で検索が実行されるようにする
-        isInitialMount.current = false;
-      } catch (error) {
-        console.error('ジャンル読み込みエラー:', error);
-      }
-    };
-
-    const loadActresses = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('actresses')
-          .select('*')
-          .eq('is_active', true)
-          .order('name', { ascending: true });
-
-        if (error) {
-          console.error('女優取得エラー:', error);
-          return;
-        }
-        setActresses(data || []);
-      } catch (error) {
-        console.error('女優読み込みエラー:', error);
-      }
-    };
-
-    loadGenres();
-    loadActresses();
+    initialize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -1199,7 +1235,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              setTimeout(() => onClose(), 100);
+              // pointer-eventsを一時的に無効化してハイライト問題を防止
+              document.body.style.pointerEvents = 'none';
+              setTimeout(() => {
+                onClose();
+                // モーダルが完全に閉じた後にpointer-eventsを復元
+                setTimeout(() => {
+                  document.body.style.pointerEvents = 'auto';
+                }, 300);
+              }, 50);
             }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >
