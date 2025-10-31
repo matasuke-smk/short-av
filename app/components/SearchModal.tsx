@@ -428,7 +428,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .ilike('title', `%${keyword}%`)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('release_date', { ascending: false })
+            .order('likes_count', { ascending: false })
             .range(offset, offset + batchSize - 1);
 
           if (error) {
@@ -458,7 +458,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .overlaps('genre_ids', selectedGenreIds)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('release_date', { ascending: false })
+            .order('likes_count', { ascending: false })
             .range(offset, offset + batchSize - 1);
 
           if (error) {
@@ -491,6 +491,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           .overlaps('actress_ids', selectedActressIds)
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
+          .order('likes_count', { ascending: false })
           .order('release_date', { ascending: false });
 
         if (idError) {
@@ -507,7 +508,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .ilike('title', `%${actress.name}%`)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('release_date', { ascending: false });
+            .order('likes_count', { ascending: false });
 
           if (nameError) {
             console.error(`女優名検索エラー (${actress.name}):`, nameError);
@@ -529,11 +530,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           )
         );
 
-        // リリース日順にソート
+        // いいね数順、次にランダムにソート
         data = filteredResults.sort((a, b) => {
-          const dateA = new Date(a.release_date || 0).getTime();
-          const dateB = new Date(b.release_date || 0).getTime();
-          return dateB - dateA;
+          // まずいいね数で比較
+          if (b.likes_count !== a.likes_count) {
+            return b.likes_count - a.likes_count;
+          }
+          // いいね数が同じ場合はランダム
+          return Math.random() - 0.5;
         });
       } else {
         // 性別フィルタのみの場合、全動画を取得
@@ -548,7 +552,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .eq('is_active', true)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('release_date', { ascending: false })
+            .order('likes_count', { ascending: false })
             .range(offset, offset + batchSize - 1);
 
           if (error) {
