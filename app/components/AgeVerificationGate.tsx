@@ -9,6 +9,9 @@ interface AgeVerificationGateProps {
 export default function AgeVerificationGate({ onAccept }: AgeVerificationGateProps) {
   const [showGate, setShowGate] = useState(false);
 
+  // アフィリエイトリンク表示制御（環境変数で管理）
+  const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
+
   useEffect(() => {
     // URLパラメータで強制表示（デバッグ用）
     const params = new URLSearchParams(window.location.search);
@@ -73,18 +76,24 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
 
       {/* DMMバナー広告 */}
       <div className="w-full max-w-xs aspect-[6/5] rounded-lg overflow-hidden shadow-xl">
-        <a
-          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250"
-          target="_blank"
-          rel="sponsored"
-        >
-          <img
-            src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg"
-            alt="初回購入限定！500円OFF！"
-            height="250"
-            className="w-full h-auto"
-          />
-        </a>
+        {enableAffiliateLinks ? (
+          <a
+            href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250"
+            target="_blank"
+            rel="sponsored"
+          >
+            <img
+              src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg"
+              alt="初回購入限定！500円OFF！"
+              height="250"
+              className="w-full h-auto"
+            />
+          </a>
+        ) : (
+          <div className="w-full aspect-[6/5] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+            <span className="text-gray-400 text-sm">サイト認証後に表示</span>
+          </div>
+        )}
       </div>
 
       {/* ボタン */}
@@ -105,9 +114,11 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
       </div>
 
       {/* 注意 */}
-      <p className="text-xs text-white/70 text-center">
-        ※ アフィリエイト広告を掲載しています
-      </p>
+      {enableAffiliateLinks && (
+        <p className="text-xs text-white/70 text-center">
+          ※ アフィリエイト広告を掲載しています
+        </p>
+      )}
     </div>
   );
 }

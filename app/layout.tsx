@@ -3,15 +3,15 @@ import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 
 export const metadata: Metadata = {
-  title: 'Short AV - DMMの人気動画をスワイプで楽しむ次世代レビューサイト',
-  description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。会員登録不要で今すぐ無料で使えます。',
+  title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
+  description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。会員登録不要で今すぐ使えます。',
   metadataBase: new URL('https://short-av.com'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Short AV - DMMの人気動画をスワイプで楽しむ',
-    description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
+    title: 'Short AV - DMM動画レビュー＆紹介サイト',
+    description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
     url: 'https://short-av.com',
     siteName: 'Short AV',
     images: [
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Short AV - DMMの人気動画をスワイプで楽しむ',
-    description: 'DMMの人気動画を縦スワイプで快適に閲覧！TikTok感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
+    title: 'Short AV - DMM動画レビュー＆紹介サイト',
+    description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
     images: ['/og-image.jpg'],
   },
 };
@@ -51,7 +51,7 @@ export default function RootLayout({
     name: 'Short AV',
     url: 'https://short-av.com',
     logo: 'https://short-av.com/logo.png',
-    description: 'DMMの人気動画をスワイプ操作で楽しめる次世代レビューサイト',
+    description: 'DMM動画を紹介するレビューサイト。スワイプ操作で快適に閲覧できる次世代UI',
     sameAs: [
       // SNSアカウントがあれば追加
     ],
