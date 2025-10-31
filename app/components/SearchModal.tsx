@@ -627,6 +627,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       // 総件数を計算
       calculateSearchResultCount(filteredData);
 
+      // 選択画面の件数も更新（検索結果と一致させる）
+      setCurrentFilterCount(filteredData.length);
+
       // 初回は600件まで表示
       const displayData = filteredData.slice(0, 600);
       setSearchResults(displayData);
