@@ -72,26 +72,30 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     return shuffled;
   }
 
-  // 各フィルタから20件ずつ取得（完全ランダム）
-  // TODO: 将来的にはいいね数上位1000件から選択する実装に変更予定
-  // ♂♀の動画を取得（できるだけ多く取得してクライアント側でシャッフル）
+  // プール方式：初期読み込みで多めのデータを取得し、シャッフルしてプールとして保持
+  // TODO: 将来的にはいいね数上位から選択する実装に変更予定
+
+  // ♂♀の動画を10000件取得してプール化
   const { data: allVideosForStraight, error: straightError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
-    .limit(10000); // 多めに取得してランダム性を高める
+    .limit(10000);
 
-  // LGBT動画を除外してクライアント側でフィルタリング、シャッフルして20件
-  const straightVideos = shuffleArray(
+  // LGBT動画を除外してシャッフル（プール全体）
+  const straightPool = shuffleArray(
     (allVideosForStraight || []).filter(video => {
       const genreIds = video.genre_ids || [];
       return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
     })
-  ).slice(0, 20);
+  );
 
-  // ♀♀の動画を20件取得（完全ランダム）
+  // プールから最初の20件を表示用として取り出す
+  const straightVideos = straightPool.slice(0, 20);
+
+  // ♀♀の動画を300件取得してプール化
   const { data: allLesbianVideos, error: lesbianError } = await supabase
     .from('videos')
     .select('*')
@@ -99,11 +103,13 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', lesbianGenreIds)
-    .limit(10000); // 多めに取得してランダム性を高める
+    .limit(300);
 
-  const lesbianVideos = shuffleArray(allLesbianVideos || []).slice(0, 20);
+  // シャッフル（プール全体）
+  const lesbianPool = shuffleArray(allLesbianVideos || []);
+  const lesbianVideos = lesbianPool.slice(0, 20);
 
-  // ♂♂の動画を20件取得（完全ランダム）
+  // ♂♂の動画を300件取得してプール化
   const { data: allGayVideos, error: gayError } = await supabase
     .from('videos')
     .select('*')
@@ -111,17 +117,26 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', gayGenreIds)
-    .limit(10000); // 多めに取得してランダム性を高める
+    .limit(300);
 
-  const gayVideos = shuffleArray(allGayVideos || []).slice(0, 20);
+  // シャッフル（プール全体）
+  const gayPool = shuffleArray(allGayVideos || []);
+  const gayVideos = gayPool.slice(0, 20);
 
   const fetchError = straightError || lesbianError || gayError;
 
-  // 性別フィルタ別の動画リスト
+  // 性別フィルタ別の動画リスト（初期表示用20件）
   const genderVideos = {
-    straight: straightVideos || [], // ♂♀の動画も保存
+    straight: straightVideos || [],
     lesbian: lesbianVideos || [],
     gay: gayVideos || [],
+  };
+
+  // 性別フィルタ別のプール（全データ）
+  const genderPools = {
+    straight: straightPool || [],
+    lesbian: lesbianPool || [],
+    gay: gayPool || [],
   };
 
   // デフォルトは♂♀
@@ -196,7 +211,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     }
   }
 
-  return <VideoSwiper videos={displayVideos} initialOffset={0} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} />;
+  return <VideoSwiper videos={displayVideos} initialOffset={0} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} genderPools={genderPools} />;
 }
 
 export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {

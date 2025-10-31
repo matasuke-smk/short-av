@@ -45,10 +45,10 @@ export async function GET(request: NextRequest) {
       return !lgbtGenreIds.some(lgbtId => (video.genre_ids as string[]).includes(lgbtId));
     }) || [];
 
-    // シャッフルして指定件数を返す
-    const videos = shuffleArray(filteredVideos).slice(0, limit);
+    // シャッフルしてプール全体を返す
+    const pool = shuffleArray(filteredVideos);
 
-    return NextResponse.json({ videos: videos || [] });
+    return NextResponse.json({ pool: pool || [] });
   } catch (error) {
     console.error('予期しないエラー:', error);
     return NextResponse.json(

@@ -34,6 +34,7 @@ interface VideoSwiperProps {
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
   genderCounts?: GenderCounts; // 性別フィルタ別の総件数
   genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
+  genderPools?: GenderVideos; // 性別フィルタ別のプール（全データ）
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -43,7 +44,7 @@ function removeAffiliateIdFromUrl(url: string | null): string {
   return url.replace(/\/affi_id=[^/]+\//g, '/');
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos, genderPools }: VideoSwiperProps) {
   const router = useRouter();
 
   // アフィリエイトリンク表示制御（環境変数で管理）
@@ -69,6 +70,18 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
+
+  // プール管理（性別フィルタごと）
+  const [videoPools, setVideoPools] = useState<GenderVideos>(genderPools || {
+    straight: [],
+    lesbian: [],
+    gay: []
+  });
+  const [poolIndexes, setPoolIndexes] = useState<{ straight: number, lesbian: number, gay: number }>({
+    straight: 20, // 初期表示で20件消費済み
+    lesbian: 20,
+    gay: 20
+  });
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
     monthly: [],
@@ -115,26 +128,51 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     localStorage.setItem(historyKey, JSON.stringify(newHistory));
   }, []);
 
-  // 追加の動画を読み込む関数（循環式）
+  // 追加の動画を読み込む関数（プール方式）
   const loadMoreVideos = useCallback(async () => {
     if (isLoadingMore) return;
 
     setIsLoadingMore(true);
     try {
-      const currentOffset = (initialOffset + videos.length) % totalVideos;
+      const currentGender: 'straight' | 'lesbian' | 'gay' = 'straight'; // TODO: 性別フィルタ状態を管理
+      const currentPool = videoPools[currentGender];
+      const currentIndex = poolIndexes[currentGender];
 
-      const response = await fetch(`/api/videos?offset=${currentOffset}&limit=20`);
-      const data = await response.json();
+      // プールに残りがある場合
+      if (currentIndex < currentPool.length) {
+        const nextVideos = currentPool.slice(currentIndex, currentIndex + 20);
+        setVideos(prev => [...prev, ...nextVideos]);
+        setPoolIndexes(prev => ({
+          ...prev,
+          [currentGender]: prev[currentGender] + 20
+        }));
+      } else {
+        // プールが尽きた場合、新規取得
+        console.log('プール尽きた：新規取得を実行');
+        const response = await fetch(`/api/videos?limit=10000`);
+        const data = await response.json();
 
-      if (data.videos && data.videos.length > 0) {
-        setVideos(prev => [...prev, ...data.videos]);
+        if (data.pool && data.pool.length > 0) {
+          // 新しいプールを設定
+          setVideoPools(prev => ({
+            ...prev,
+            [currentGender]: data.pool
+          }));
+          setPoolIndexes(prev => ({
+            ...prev,
+            [currentGender]: 20
+          }));
+          // 最初の20件を追加
+          const nextVideos = data.pool.slice(0, 20);
+          setVideos(prev => [...prev, ...nextVideos]);
+        }
       }
     } catch (error) {
       console.error('追加動画の読み込みエラー:', error);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos.length, isLoadingMore, initialOffset, totalVideos]);
+  }, [videos.length, isLoadingMore, videoPools, poolIndexes]);
 
   // いいねを切り替える関数
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
