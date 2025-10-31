@@ -5,8 +5,12 @@ import Script from 'next/script';
 export default function GoogleAnalytics() {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
+  // デバッグ用ログ
+  console.log('🔍 GA Measurement ID:', measurementId);
+
   // 測定IDが設定されていない場合は何も表示しない
   if (!measurementId) {
+    console.error('⚠️ NEXT_PUBLIC_GA_MEASUREMENT_ID is not set');
     return null;
   }
 
