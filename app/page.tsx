@@ -88,6 +88,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
       .eq('is_active', true)
       .not('thumbnail_url', 'is', null)
       .not('sample_video_url', 'is', null)
+      .order('id', { ascending: true })
       .range(offset, offset + batchSize - 1);
 
     if (error) {
@@ -103,12 +104,17 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     offset += batchSize;
   }
 
-  // 性別フィルタ別に分類
-  const straightVideosAll: typeof allVideos = [];
-  const lesbianVideosAll: typeof allVideos = [];
-  const gayVideosAll: typeof allVideos = [];
+  // 重複除去（念のため）
+  const uniqueVideos = Array.from(
+    new Map(allVideos.map(v => [v.id, v])).values()
+  );
 
-  (allVideos || []).forEach(video => {
+  // 性別フィルタ別に分類
+  const straightVideosAll: typeof uniqueVideos = [];
+  const lesbianVideosAll: typeof uniqueVideos = [];
+  const gayVideosAll: typeof uniqueVideos = [];
+
+  (uniqueVideos || []).forEach(video => {
     const genreIds = video.genre_ids || [];
     const videoGenreNames = genreIds
       .map((id: string) => genreMap.get(id) || '')
