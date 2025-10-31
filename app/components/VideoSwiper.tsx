@@ -426,7 +426,32 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       別の条件で検索
                     </button>
                     <button
-                      onClick={() => window.location.href = '/'}
+                      onClick={() => {
+                        // 状態を初期値に戻す
+                        if (genderVideos?.straight) {
+                          setVideos(genderVideos.straight);
+                          setCurrentIndex(0);
+                          setIsFiniteList(false);
+
+                          // プールも初期値に戻す
+                          if (genderPools) {
+                            setVideoPools(genderPools);
+                            setPoolIndexes({
+                              straight: 20,
+                              lesbian: 20,
+                              gay: 20
+                            });
+                          }
+
+                          // スクロール位置を最初に戻す
+                          if (emblaApi) {
+                            emblaApi.scrollTo(0, false);
+                          }
+
+                          // URLパラメータをクリア
+                          window.history.pushState({}, '', '/');
+                        }
+                      }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
                       ホームに戻る
@@ -481,10 +506,33 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">人気</span>
             </button>
 
-            {/* ホームボタン（中央） - 毎回ランダムな動画を表示 */}
+            {/* ホームボタン（中央） - 初期状態に戻す */}
             <button
               onClick={() => {
-                window.location.href = '/';
+                // 状態を初期値に戻す
+                if (genderVideos?.straight) {
+                  setVideos(genderVideos.straight);
+                  setCurrentIndex(0);
+                  setIsFiniteList(false);
+
+                  // プールも初期値に戻す
+                  if (genderPools) {
+                    setVideoPools(genderPools);
+                    setPoolIndexes({
+                      straight: 20,
+                      lesbian: 20,
+                      gay: 20
+                    });
+                  }
+
+                  // スクロール位置を最初に戻す
+                  if (emblaApi) {
+                    emblaApi.scrollTo(0, false);
+                  }
+
+                  // URLパラメータをクリア
+                  window.history.pushState({}, '', '/');
+                }
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
