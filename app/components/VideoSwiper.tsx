@@ -427,21 +427,25 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </button>
                     <button
                       onClick={() => {
-                        // 状態を初期値に戻す
-                        if (genderVideos?.straight) {
-                          setVideos(genderVideos.straight);
+                        // プールからランダムに20件を取得
+                        if (videoPools.straight && videoPools.straight.length > 0) {
+                          // シャッフル関数
+                          const shuffleArray = <T,>(array: T[]): T[] => {
+                            const shuffled = [...array];
+                            for (let i = shuffled.length - 1; i > 0; i--) {
+                              const j = Math.floor(Math.random() * (i + 1));
+                              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                            }
+                            return shuffled;
+                          };
+
+                          // ♂♀のプールをシャッフルして先頭20件を取得
+                          const shuffledPool = shuffleArray(videoPools.straight);
+                          const randomVideos = shuffledPool.slice(0, 20);
+
+                          setVideos(randomVideos);
                           setCurrentIndex(0);
                           setIsFiniteList(false);
-
-                          // プールも初期値に戻す
-                          if (genderPools) {
-                            setVideoPools(genderPools);
-                            setPoolIndexes({
-                              straight: 20,
-                              lesbian: 20,
-                              gay: 20
-                            });
-                          }
 
                           // スクロール位置を最初に戻す
                           if (emblaApi) {
@@ -506,24 +510,28 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">人気</span>
             </button>
 
-            {/* ホームボタン（中央） - 初期状態に戻す */}
+            {/* ホームボタン（中央） - プールからランダムに20件取得 */}
             <button
               onClick={() => {
-                // 状態を初期値に戻す
-                if (genderVideos?.straight) {
-                  setVideos(genderVideos.straight);
+                // プールからランダムに20件を取得
+                if (videoPools.straight && videoPools.straight.length > 0) {
+                  // シャッフル関数
+                  const shuffleArray = <T,>(array: T[]): T[] => {
+                    const shuffled = [...array];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                      const j = Math.floor(Math.random() * (i + 1));
+                      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    return shuffled;
+                  };
+
+                  // ♂♀のプールをシャッフルして先頭20件を取得
+                  const shuffledPool = shuffleArray(videoPools.straight);
+                  const randomVideos = shuffledPool.slice(0, 20);
+
+                  setVideos(randomVideos);
                   setCurrentIndex(0);
                   setIsFiniteList(false);
-
-                  // プールも初期値に戻す
-                  if (genderPools) {
-                    setVideoPools(genderPools);
-                    setPoolIndexes({
-                      straight: 20,
-                      lesbian: 20,
-                      gay: 20
-                    });
-                  }
 
                   // スクロール位置を最初に戻す
                   if (emblaApi) {
