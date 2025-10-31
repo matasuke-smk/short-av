@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
+import GoogleAnalytics from './components/GoogleAnalytics';
 
 export const metadata: Metadata = {
   title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
@@ -66,6 +67,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        <GoogleAnalytics />
         <AgeVerificationGate />
         {children}
       </body>
