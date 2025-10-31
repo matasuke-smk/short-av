@@ -285,7 +285,7 @@ export default function RankingModal({
         </div>
 
         {/* 閉じるボタン - 最下部固定 */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4">
+        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4 z-20">
           <button
             onPointerDown={(e) => {
               e.preventDefault();
