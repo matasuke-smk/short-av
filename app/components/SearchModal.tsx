@@ -208,8 +208,7 @@ export default function SearchModal({
       const { data } = await supabase
         .from('actresses')
         .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+        .eq('is_active', true);
       setActresses(data || []);
     };
 
@@ -571,11 +570,24 @@ export default function SearchModal({
     : genres;
 
   // 名前検索をした場合は、availableのフィルタリングをスキップ
-  const displayActresses = actressSearchKeyword
+  const baseDisplayActresses = actressSearchKeyword
     ? filteredActresses
     : (availableActresses.size > 0
         ? filteredActresses.filter(a => availableActresses.has(a.id))
         : filteredActresses);
+
+  // 女優を動画件数でソート（多い順）
+  const displayActresses = originalPool.length > 0
+    ? [...baseDisplayActresses].sort((a, b) => {
+        const countA = originalPool.filter(v =>
+          (v.actress_ids || []).includes(a.id) || v.title.includes(a.name)
+        ).length;
+        const countB = originalPool.filter(v =>
+          (v.actress_ids || []).includes(b.id) || v.title.includes(b.name)
+        ).length;
+        return countB - countA;
+      })
+    : baseDisplayActresses;
 
   // ジャンル検索をした場合は、availableのフィルタリングをスキップ
   const displayGenres = genreSearchKeyword
