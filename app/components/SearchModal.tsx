@@ -1002,12 +1002,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 onClick={() => setShowGenreModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
-                {selectedGenreIds.length > 0
-                  ? genres
-                      .filter((g: Genre) => selectedGenreIds.includes(g.id))
-                      .map((g: Genre) => g.name)
-                      .join(', ')
-                  : 'ジャンルを選択'}
+                <div className="flex justify-between items-center">
+                  <span>
+                    {selectedGenreIds.length > 0
+                      ? genres
+                          .filter((g: Genre) => selectedGenreIds.includes(g.id))
+                          .map((g: Genre) => g.name)
+                          .join(', ')
+                      : 'ジャンルを選択'}
+                  </span>
+                  {(totalSearchCount > 0 || genderCounts) && (
+                    <span className="text-gray-400 text-xs ml-2">
+                      {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    </span>
+                  )}
+                </div>
               </button>
             </div>
           ) : searchMode === 'actress' ? (
@@ -1016,12 +1025,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 onClick={() => setShowActressModal(true)}
                 className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white"
               >
-                {selectedActressIds.length > 0
-                  ? actresses
-                      .filter((a: Actress) => selectedActressIds.includes(a.id))
-                      .map((a: Actress) => a.name)
-                      .join(', ')
-                  : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
+                <div className="flex justify-between items-center">
+                  <span>
+                    {selectedActressIds.length > 0
+                      ? actresses
+                          .filter((a: Actress) => selectedActressIds.includes(a.id))
+                          .map((a: Actress) => a.name)
+                          .join(', ')
+                      : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
+                  </span>
+                  {(totalSearchCount > 0 || genderCounts) && (
+                    <span className="text-gray-400 text-xs ml-2">
+                      {totalSearchCount > 0 ? totalSearchCount.toLocaleString() : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    </span>
+                  )}
+                </div>
               </button>
             </div>
           ) : (
