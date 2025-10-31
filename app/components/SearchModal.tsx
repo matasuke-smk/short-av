@@ -245,13 +245,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
 
     const calculateAvailable = async () => {
       try {
-        // 初期状態（何も選択していない）場合は、全て選択可能にする
-        if (selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
-          setAvailableGenres(new Set());
-          setAvailableActresses(new Set());
-          return;
-        }
-
         // 全動画を取得（limit を削除して全件取得）
         const { data: allVideos, error } = await supabase
           .from('videos')
