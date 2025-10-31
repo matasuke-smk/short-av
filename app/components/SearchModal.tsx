@@ -1196,10 +1196,10 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         {/* 閉じるボタン - 最下部 */}
         <div className="border-t border-gray-800 p-4">
           <button
-            onClick={(e) => {
+            onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onClose();
+              setTimeout(() => onClose(), 100);
             }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >

@@ -178,10 +178,10 @@ export default function LikedModal({ isOpen, onClose, onSelectVideo }: LikedModa
         {/* 閉じるボタン - 最下部固定 */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4">
           <button
-            onClick={(e) => {
+            onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onClose();
+              setTimeout(() => onClose(), 100);
             }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >
