@@ -14,12 +14,13 @@ interface GenderVideos {
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectVideo: (dmmContentId: string) => void;
   videoPools: GenderVideos;
+  videos: Video[];
+  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPools }: HistoryModalProps) {
-  const [videos, setVideos] = useState<Video[]>([]);
+export default function HistoryModal({ isOpen, onClose, videoPools, videos, onReplaceVideos }: HistoryModalProps) {
+  const [historyVideos, setHistoryVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
       const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
 
       if (history.length === 0) {
-        setVideos([]);
+        setHistoryVideos([]);
         setLoading(false);
         return;
       }
@@ -52,7 +53,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
         .map((id: string) => allVideos.find(v => v.id === id))
         .filter((v: Video | undefined): v is Video => v !== undefined);
 
-      setVideos(sortedVideos);
+      setHistoryVideos(sortedVideos);
     } catch (error) {
       console.error('履歴読み込みエラー:', error);
     } finally {
@@ -63,13 +64,13 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
   const clearHistory = () => {
     if (confirm('履歴をすべて削除しますか？')) {
       localStorage.removeItem('video_history');
-      setVideos([]);
+      setHistoryVideos([]);
     }
   };
 
   const handleSelectVideo = (dmmContentId: string) => {
-    onSelectVideo(dmmContentId);
     onClose();
+    onReplaceVideos(historyVideos, dmmContentId);
   };
 
   if (!isOpen) return null;
@@ -82,7 +83,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
           <div className="px-4 py-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">視聴履歴</h2>
             <div className="flex items-center gap-4">
-              {videos.length > 0 && (
+              {historyVideos.length > 0 && (
                 <button
                   onClick={clearHistory}
                   className="text-sm text-red-400 hover:text-red-300 transition-colors"
@@ -114,7 +115,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                 <p className="text-gray-400">読み込み中...</p>
               </div>
-            ) : videos.length === 0 ? (
+            ) : historyVideos.length === 0 ? (
               <div className="text-center py-12">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -123,7 +124,7 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPool
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {videos.map((video) => (
+                {historyVideos.map((video) => (
                   <button
                     key={video.id}
                     onClick={() => handleSelectVideo(video.dmm_content_id)}

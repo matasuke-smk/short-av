@@ -15,11 +15,12 @@ interface GenderVideos {
 interface LikedModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectVideo: (dmmContentId: string) => void;
   videoPools: GenderVideos;
+  videos: Video[];
+  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function LikedModal({ isOpen, onClose, onSelectVideo, videoPools }: LikedModalProps) {
+export default function LikedModal({ isOpen, onClose, videoPools, videos, onReplaceVideos }: LikedModalProps) {
   const [likedVideos, setLikedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
@@ -74,8 +75,8 @@ export default function LikedModal({ isOpen, onClose, onSelectVideo, videoPools 
   }, [isOpen, userId]);
 
   const handleSelectVideo = (dmmContentId: string) => {
-    onSelectVideo(dmmContentId);
     onClose();
+    onReplaceVideos(likedVideos, dmmContentId);
   };
 
   if (!isOpen) return null;
