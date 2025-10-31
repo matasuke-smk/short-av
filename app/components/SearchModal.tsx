@@ -196,21 +196,53 @@ export default function SearchModal({
     if (!isOpen) return;
 
     const loadGenres = async () => {
-      const { data } = await supabase
-        .from('genres')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-      setGenres(data || []);
+      // バッチ処理で全ジャンルを取得
+      const allGenres = [];
+      let offset = 0;
+      const batchSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('genres')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+          .range(offset, offset + batchSize - 1);
+
+        if (error || !data || data.length === 0) break;
+
+        allGenres.push(...data);
+
+        if (data.length < batchSize) break;
+        offset += batchSize;
+      }
+
+      setGenres(allGenres);
     };
 
     const loadActresses = async () => {
-      const { data } = await supabase
-        .from('actresses')
-        .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
-      setActresses(data || []);
+      // バッチ処理で全女優を取得
+      const allActresses = [];
+      let offset = 0;
+      const batchSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('actresses')
+          .select('*')
+          .eq('is_active', true)
+          .order('name', { ascending: true })
+          .range(offset, offset + batchSize - 1);
+
+        if (error || !data || data.length === 0) break;
+
+        allActresses.push(...data);
+
+        if (data.length < batchSize) break;
+        offset += batchSize;
+      }
+
+      setActresses(allActresses);
     };
 
     loadGenres();
