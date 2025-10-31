@@ -76,13 +76,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     isInitialMount.current = true;
 
     const initialize = async () => {
-      // 検索結果が既にある場合は再初期化をスキップ（前回の検索結果を保持）
-      if (searchResults !== null && searchResults.length > 0) {
-        isInitialMount.current = false;
-        return;
-      }
-
-      // 現在の動画の性別フィルタを判定して設定
+      // 現在の動画の性別フィルタを判定して設定（常に実行）
       const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
       let detectedGenderFilter: GenderFilter = 'straight';
 
@@ -100,7 +94,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           initialVideosRef.current = videos;
         }
 
-        // 性別フィルタを判定（searchResultsは後で設定）
+        // 性別フィルタを判定
         if (hasLesbian && !hasGay) {
           detectedGenderFilter = 'lesbian';
           setGenderFilter('lesbian');
@@ -110,12 +104,21 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         } else {
           detectedGenderFilter = 'straight';
           setGenderFilter('straight');
-          // ♂♀の場合のみ、ここでsearchResultsを設定
-          if (initialVideosRef.current.length > 0) {
-            setSearchResults(initialVideosRef.current);
-          } else {
-            setSearchResults(null);
-          }
+        }
+      }
+
+      // 検索結果が既にある場合は再初期化をスキップ（前回の検索結果を保持）
+      if (searchResults !== null && searchResults.length > 0) {
+        isInitialMount.current = false;
+        return;
+      }
+
+      // ♂♀の場合、初期のvideosをsearchResultsに設定
+      if (detectedGenderFilter === 'straight') {
+        if (initialVideosRef.current.length > 0) {
+          setSearchResults(initialVideosRef.current);
+        } else {
+          setSearchResults(null);
         }
       }
 
@@ -935,6 +938,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                     setSearchResults(genderVideos.straight);
                     setSearchOffset(20);
                     setHasMoreSearch(true);
+                  } else if (initialVideosRef.current.length > 0) {
+                    setSearchResults(initialVideosRef.current);
                   }
                 } else {
                   // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
@@ -946,6 +951,8 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                     setSearchResults(genderVideos.straight);
                     setSearchOffset(20);
                     setHasMoreSearch(true);
+                  } else if (initialVideosRef.current.length > 0) {
+                    setSearchResults(initialVideosRef.current);
                   } else {
                     setSearchResults(null);
                   }
