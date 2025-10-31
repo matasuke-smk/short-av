@@ -6,8 +6,7 @@ import VideoSwiper from './components/VideoSwiper';
 // これにより、記事ページから戻ってきた時に即座に表示される
 export const revalidate = 300; // 5分
 
-async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
-  const params = await searchParams;
+async function VideoList() {
 
   // ジャンルデータを取得してMapに格納
   const { data: genresData } = await supabase
@@ -197,45 +196,14 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     );
   }
 
-  // URLパラメータで指定された動画があれば、それを先頭に配置
-  const targetContentId = params?.v;
-  let startIndex = 0;
-  let displayVideos = [...videos];
-
-  if (targetContentId) {
-    const targetIndex = displayVideos.findIndex(v => v.dmm_content_id === targetContentId);
-    if (targetIndex !== -1) {
-      // リスト内に見つかった場合は先頭に移動
-      const targetVideo = displayVideos[targetIndex];
-      displayVideos = [
-        targetVideo,
-        ...displayVideos.slice(0, targetIndex),
-        ...displayVideos.slice(targetIndex + 1)
-      ];
-      startIndex = 0;
-    } else {
-      // リスト内に見つからない場合はDBから取得して先頭に追加
-      const { data: targetVideo } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('dmm_content_id', targetContentId)
-        .eq('is_active', true)
-        .single();
-
-      if (targetVideo) {
-        displayVideos = [targetVideo, ...displayVideos];
-        startIndex = 0;
-      }
-    }
-  }
-
-  return <VideoSwiper videos={displayVideos} initialOffset={0} totalVideos={totalVideos} startIndex={startIndex} genderCounts={genderCounts} genderVideos={genderVideos} genderPools={genderPools} />;
+  // URLパラメータの処理はクライアント側（VideoSwiper）で行う
+  return <VideoSwiper videos={videos} initialOffset={0} totalVideos={totalVideos} startIndex={0} genderCounts={genderCounts} genderVideos={genderVideos} genderPools={genderPools} />;
 }
 
-export default function Home({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
+export default function Home() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <VideoList searchParams={searchParams} />
+      <VideoList />
     </Suspense>
   );
 }

@@ -5,7 +5,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import type { Database } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import InitialTutorial from './InitialTutorial';
 import SearchModal from './SearchModal';
 import RankingModal from './RankingModal';
@@ -55,6 +55,7 @@ function removeAffiliateIdFromUrl(url: string | null): string {
 
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos, genderPools }: VideoSwiperProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // アフィリエイトリンク表示制御（環境変数で管理）
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
@@ -122,6 +123,43 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     fetchLikes();
   }, [userId]);
+
+  // URLパラメータ（?v=xxx）を処理して該当動画にスクロール
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const videoParam = searchParams.get('v');
+    if (videoParam) {
+      // 現在表示中の動画リストから該当動画を探す
+      const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
+
+      if (targetIndex !== -1) {
+        // 動画が見つかった場合、そこにスクロール
+        emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
+      } else {
+        // 見つからない場合、プールから探す
+        const currentGender: 'straight' | 'lesbian' | 'gay' = 'straight';
+        const pool = videoPools[currentGender];
+        const poolIndex = pool.findIndex(v => v.dmm_content_id === videoParam);
+
+        if (poolIndex !== -1) {
+          // プールから見つかった場合、そこまでの動画を表示リストに追加
+          const videosToAdd = pool.slice(poolIndexes[currentGender], poolIndex + 1);
+          setVideos(prev => [...prev, ...videosToAdd]);
+          setPoolIndexes(prev => ({
+            ...prev,
+            [currentGender]: poolIndex + 1
+          }));
+
+          // 次のレンダリング後にスクロール
+          setTimeout(() => {
+            const newIndex = videos.length + videosToAdd.length - 1;
+            emblaApi.scrollTo(newIndex, false);
+          }, 100);
+        }
+      }
+    }
+  }, [emblaApi, searchParams, videos, videoPools, poolIndexes]);
 
   // 履歴に追加する関数
   const addToHistory = useCallback((videoId: string) => {
