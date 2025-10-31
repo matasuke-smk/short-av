@@ -1192,7 +1192,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         {/* 閉じるボタン - 最下部 */}
         <div className="border-t border-gray-800 p-4">
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >
             閉じる
@@ -1216,7 +1220,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 )}
               </div>
               <button
-                onClick={() => setShowGenreModal(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowGenreModal(false);
+                }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1312,7 +1320,11 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                 )}
               </div>
               <button
-                onClick={() => setShowActressModal(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowActressModal(false);
+                }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

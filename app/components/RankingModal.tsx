@@ -138,7 +138,11 @@ export default function RankingModal({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">人気ランキング</h2>
               <button
-                onClick={onClose}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
+                }}
                 className="text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,7 +264,11 @@ export default function RankingModal({
         {/* 閉じるボタン - 最下部固定 */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4">
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
           >
             閉じる
