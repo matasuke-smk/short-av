@@ -812,9 +812,19 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     ? actresses.filter(a => a.name.includes(actressSearchKeyword))
     : actresses;
 
+  // 動画が0件の女優を非表示にする
+  const displayActresses = availableActresses.size > 0
+    ? filteredActresses.filter(a => availableActresses.has(a.id))
+    : filteredActresses;
+
   const filteredGenres = genreSearchKeyword
     ? genres.filter(g => g.name.includes(genreSearchKeyword))
     : genres;
+
+  // 動画が0件のジャンルを非表示にする
+  const displayGenres = availableGenres.size > 0
+    ? filteredGenres.filter(g => availableGenres.has(g.id))
+    : filteredGenres;
 
   if (!isOpen) return null;
 
@@ -1144,6 +1154,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
+              <button
+                onClick={() => setShowGenreModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             {/* 選択中のジャンル表示 */}
             {selectedGenreIds.length > 0 && (
@@ -1176,19 +1194,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2">
-                {filteredGenres.map((genre) => {
+                {displayGenres.map((genre) => {
                   const isSelected = selectedGenreIds.includes(genre.id);
-                  const isUnavailable = availableGenres.size > 0 && !availableGenres.has(genre.id);
                   return (
                     <button
                       key={genre.id}
                       onClick={() => toggleGenreSelection(genre.id)}
-                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
-                          : isUnavailable
-                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
@@ -1227,6 +1241,14 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           <div className="bg-gray-800 w-full h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
+              <button
+                onClick={() => setShowActressModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             {/* 選択中の女優表示 */}
             {selectedActressIds.length > 0 && (
@@ -1259,19 +1281,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2">
-                {filteredActresses.map((actress) => {
+                {displayActresses.map((actress) => {
                   const isSelected = selectedActressIds.includes(actress.id);
-                  const isUnavailable = availableActresses.size > 0 && !availableActresses.has(actress.id);
                   return (
                     <button
                       key={actress.id}
                       onClick={() => toggleActressSelection(actress.id)}
-                      disabled={isUnavailable}
                       className={`px-3 py-2 rounded-lg text-sm transition-colors ${
                         isSelected
                           ? 'bg-blue-500 text-white'
-                          : isUnavailable
-                          ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                           : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
