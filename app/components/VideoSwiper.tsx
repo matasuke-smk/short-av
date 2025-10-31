@@ -20,7 +20,6 @@ import {
   trackDMMClick,
   trackTutorialView,
 } from '@/lib/gtag';
-import { generateVideoSchema } from '@/lib/video-schema';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -310,9 +309,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   const currentVideo = videos[currentIndex];
 
-  // VideoObject構造化データを生成（SEO対策）
-  const videoSchema = currentVideo ? generateVideoSchema(currentVideo) : null;
-
   const handleThumbnailClick = useCallback(() => {
     if (currentVideo?.sample_video_url) {
       // アフィリエイトIDを削除してからモーダルに設定
@@ -368,14 +364,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
-      {/* VideoObject構造化データ（SEO対策） */}
-      {videoSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }}
-        />
-      )}
-
       {/* FANZAクレジット（画面上部固定） */}
       <div className="fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
         {enableAffiliateLinks ? (

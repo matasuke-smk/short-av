@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
+import Script from 'next/script';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
+import { generateVideoSchema } from '@/lib/video-schema';
 
 // ISR（Incremental Static Regeneration）で5分ごとに再生成
 // これにより、記事ページから戻ってきた時に即座に表示される
@@ -196,8 +198,32 @@ async function VideoList() {
     );
   }
 
+  // 最初の動画の構造化データを生成（SEO対策）
+  const firstVideoSchema = videos[0] ? generateVideoSchema(videos[0]) : null;
+
   // URLパラメータの処理はクライアント側（VideoSwiper）で行う
-  return <VideoSwiper videos={videos} initialOffset={0} totalVideos={totalVideos} startIndex={0} genderCounts={genderCounts} genderVideos={genderVideos} genderPools={genderPools} />;
+  return (
+    <>
+      {/* VideoObject構造化データ（サーバー側レンダリング） */}
+      {firstVideoSchema && (
+        <Script
+          id="video-schema"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
+          strategy="beforeInteractive"
+        />
+      )}
+      <VideoSwiper
+        videos={videos}
+        initialOffset={0}
+        totalVideos={totalVideos}
+        startIndex={0}
+        genderCounts={genderCounts}
+        genderVideos={genderVideos}
+        genderPools={genderPools}
+      />
+    </>
+  );
 }
 
 export default function Home() {
