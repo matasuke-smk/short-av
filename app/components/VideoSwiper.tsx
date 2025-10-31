@@ -11,6 +11,15 @@ import SearchModal from './SearchModal';
 import RankingModal from './RankingModal';
 import LikedModal from './LikedModal';
 import HistoryModal from './HistoryModal';
+import {
+  trackVideoView,
+  trackLike,
+  trackGenderFilter,
+  trackModalOpen,
+  trackModalClose,
+  trackDMMClick,
+  trackTutorialView,
+} from '@/lib/gtag';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -191,6 +200,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       return newSet;
     });
 
+    // Google Analytics: いいねイベント
+    trackLike(videoId, wasLiked ? 'unlike' : 'like');
+
     try {
       const response = await fetch('/api/likes/toggle', {
         method: 'POST',
@@ -266,12 +278,23 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       setShowVideoModal(true);
       // 履歴に追加
       addToHistory(currentVideo.id);
+
+      // Google Analytics: 動画視聴イベント
+      trackVideoView(
+        currentVideo.id,
+        currentVideo.dmm_content_id || '',
+        currentVideo.title || ''
+      );
+      trackModalOpen('video_detail');
     }
   }, [currentVideo, addToHistory]);
 
   const closeModal = useCallback(() => {
     setShowVideoModal(false);
     setModalVideoUrl('');
+
+    // Google Analytics: モーダル閉じるイベント
+    trackModalClose('video_detail');
   }, []);
 
   // スワイプ検知用の状態
@@ -420,7 +443,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   <p className="text-gray-400 mb-8">検索結果は全て表示されました</p>
                   <div className="flex flex-col gap-4">
                     <button
-                      onClick={() => setShowSearchModal(true)}
+                      onClick={() => {
+                        setShowSearchModal(true);
+                        trackModalOpen('search');
+                      }}
                       className="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
                       別の条件で検索
@@ -490,7 +516,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           <div className="grid grid-cols-5 gap-3">
             {/* 検索ボタン */}
             <button
-              onClick={() => setShowSearchModal(true)}
+              onClick={() => {
+                setShowSearchModal(true);
+                trackModalOpen('search');
+              }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -501,7 +530,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
             {/* 人気（ランキング）ボタン */}
             <button
-              onClick={() => setShowRankingModal(true)}
+              onClick={() => {
+                setShowRankingModal(true);
+                trackModalOpen('ranking');
+              }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -552,7 +584,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
             {/* いいねボタン */}
             <button
-              onClick={() => setShowLikedModal(true)}
+              onClick={() => {
+                setShowLikedModal(true);
+                trackModalOpen('liked');
+              }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -563,7 +598,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
             {/* 履歴ボタン */}
             <button
-              onClick={() => setShowHistoryModal(true)}
+              onClick={() => {
+                setShowHistoryModal(true);
+                trackModalOpen('history');
+              }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -626,6 +664,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   target="_blank"
                   rel="noopener noreferrer sponsored"
                   className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
+                  onClick={() => {
+                    if (currentVideo) {
+                      trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail');
+                    }
+                  }}
                 >
                   <div className="text-sm mb-1">フル動画はこちら</div>
                   <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
@@ -669,13 +712,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       {/* 初回チュートリアル */}
       {showTutorial && (
-        <InitialTutorial onDismiss={() => setShowTutorial(false)} />
+        <InitialTutorial
+          onDismiss={() => setShowTutorial(false)}
+          onShow={() => trackTutorialView()}
+        />
       )}
 
       {/* 検索モーダル */}
       <SearchModal
         isOpen={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
+        onClose={() => {
+          setShowSearchModal(false);
+          trackModalClose('search');
+        }}
         onVideoSelect={(videoId) => {
           // 選択された動画のindexを見つけてスクロール（ページリロードなし）
           const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
@@ -716,7 +765,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* ランキングモーダル */}
       <RankingModal
         isOpen={showRankingModal}
-        onClose={() => setShowRankingModal(false)}
+        onClose={() => {
+          setShowRankingModal(false);
+          trackModalClose('ranking');
+        }}
         videos={videos}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
         rankingVideos={rankingVideos}
@@ -753,7 +805,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* いいねモーダル */}
       <LikedModal
         isOpen={showLikedModal}
-        onClose={() => setShowLikedModal(false)}
+        onClose={() => {
+          setShowLikedModal(false);
+          trackModalClose('liked');
+        }}
         videoPools={videoPools}
         videos={videos}
         onReplaceVideos={(newVideos, selectedVideoId) => {
@@ -785,7 +840,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* 履歴モーダル */}
       <HistoryModal
         isOpen={showHistoryModal}
-        onClose={() => setShowHistoryModal(false)}
+        onClose={() => {
+          setShowHistoryModal(false);
+          trackModalClose('history');
+        }}
         videoPools={videoPools}
         videos={videos}
         onReplaceVideos={(newVideos, selectedVideoId) => {

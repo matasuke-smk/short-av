@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { trackAgeVerification } from '@/lib/gtag';
 
 interface AgeVerificationGateProps {
   onAccept?: () => void;
@@ -40,6 +41,9 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
     localStorage.setItem('age_verification_date', today);
     setShowGate(false);
 
+    // Google Analytics: 年齢確認承諾イベント
+    trackAgeVerification(true);
+
     // カスタムイベントを発火してチュートリアルを表示
     setTimeout(() => {
       const event = new CustomEvent('age-verified');
@@ -53,6 +57,9 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
   };
 
   const handleReject = () => {
+    // Google Analytics: 年齢確認拒否イベント
+    trackAgeVerification(false);
+
     // 18歳未満の場合、別のページにリダイレクト
     window.location.href = 'https://www.google.com';
   };

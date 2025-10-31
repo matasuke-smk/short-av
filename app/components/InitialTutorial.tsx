@@ -6,9 +6,10 @@ const TUTORIAL_KEY = 'short-av-tutorial-shown';
 
 interface InitialTutorialProps {
   onDismiss: () => void;
+  onShow?: () => void;
 }
 
-export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
+export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialProps) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -19,6 +20,11 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
       // 年齢確認完了イベントをリスン
       const handleAgeVerified = () => {
         setShow(true);
+
+        // Google Analytics: チュートリアル表示イベント
+        if (onShow) {
+          onShow();
+        }
 
         // 3秒後に自動で消える
         setTimeout(() => {
@@ -32,7 +38,7 @@ export default function InitialTutorial({ onDismiss }: InitialTutorialProps) {
         window.removeEventListener('age-verified', handleAgeVerified);
       };
     }
-  }, []);
+  }, [onShow]);
 
   const handleDismiss = () => {
     localStorage.setItem(TUTORIAL_KEY, 'true');
