@@ -499,15 +499,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">検索</span>
             </button>
 
-            {/* いいねボタン */}
+            {/* 人気（ランキング）ボタン */}
             <button
-              onClick={() => setShowLikedModal(true)}
+              onClick={() => setShowRankingModal(true)}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <span className="text-xs">いいね</span>
+              <span className="text-xs">人気</span>
             </button>
 
             {/* ホームボタン（中央） - プールからランダムに20件取得 */}
@@ -550,6 +550,17 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs">ホーム</span>
             </button>
 
+            {/* いいねボタン */}
+            <button
+              onClick={() => setShowLikedModal(true)}
+              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            >
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <span className="text-xs">いいね</span>
+            </button>
+
             {/* 履歴ボタン */}
             <button
               onClick={() => setShowHistoryModal(true)}
@@ -559,17 +570,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span className="text-xs">履歴</span>
-            </button>
-
-            {/* 人気（ランキング）ボタン */}
-            <button
-              onClick={() => setShowRankingModal(true)}
-              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
-            >
-              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-              <span className="text-xs">人気</span>
             </button>
           </div>
 
