@@ -1,18 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
+
+interface GenderVideos {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
 
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectVideo: (dmmContentId: string) => void;
+  videoPools: GenderVideos;
 }
 
-export default function HistoryModal({ isOpen, onClose, onSelectVideo }: HistoryModalProps) {
+export default function HistoryModal({ isOpen, onClose, onSelectVideo, videoPools }: HistoryModalProps) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,24 +40,19 @@ export default function HistoryModal({ isOpen, onClose, onSelectVideo }: History
         return;
       }
 
-      const { data, error } = await supabase
-        .from('videos')
-        .select('*')
-        .in('id', history)
-        .eq('is_active', true);
+      // 全プールを結合
+      const allVideos = [
+        ...videoPools.straight,
+        ...videoPools.lesbian,
+        ...videoPools.gay
+      ];
 
-      if (error) {
-        console.error('履歴取得エラー:', error);
-        return;
-      }
+      // 履歴の順番でソート
+      const sortedVideos = history
+        .map((id: string) => allVideos.find(v => v.id === id))
+        .filter((v: Video | undefined): v is Video => v !== undefined);
 
-      if (data) {
-        const sortedVideos = history
-          .map((id: string) => data.find(v => v.id === id))
-          .filter((v: Video | undefined): v is Video => v !== undefined);
-
-        setVideos(sortedVideos);
-      }
+      setVideos(sortedVideos);
     } catch (error) {
       console.error('履歴読み込みエラー:', error);
     } finally {

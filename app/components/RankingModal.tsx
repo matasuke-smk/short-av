@@ -12,6 +12,12 @@ interface RankingVideos {
   all: Video[];
 }
 
+interface GenderVideos {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
+
 interface RankingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -21,6 +27,7 @@ interface RankingModalProps {
   setRankingVideos: React.Dispatch<React.SetStateAction<RankingVideos>>;
   lastSelectedRanking: RankingPeriod;
   setLastSelectedRanking: React.Dispatch<React.SetStateAction<RankingPeriod>>;
+  videoPools: GenderVideos;
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
@@ -33,6 +40,7 @@ export default function RankingModal({
   setRankingVideos,
   lastSelectedRanking,
   setLastSelectedRanking,
+  videoPools,
   onReplaceVideos
 }: RankingModalProps) {
   const [period, setPeriod] = useState<RankingPeriod>(lastSelectedRanking);
@@ -93,15 +101,30 @@ export default function RankingModal({
   const loadRanking = async (targetPeriod: RankingPeriod) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/ranking?period=${targetPeriod}&limit=20`);
-      const data = await response.json();
+      // 全プールを結合
+      const allVideos = [
+        ...videoPools.straight,
+        ...videoPools.lesbian,
+        ...videoPools.gay
+      ];
 
-      if (data.success) {
-        setRankingVideos(prev => ({
-          ...prev,
-          [targetPeriod]: data.data
-        }));
-      }
+      // likes_countでソート（降順）、idで安定ソート
+      const sortedVideos = [...allVideos].sort((a, b) => {
+        const likesA = a.likes_count || 0;
+        const likesB = b.likes_count || 0;
+        if (likesB !== likesA) {
+          return likesB - likesA;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      // 上位20件を取得
+      const topVideos = sortedVideos.slice(0, 20);
+
+      setRankingVideos(prev => ({
+        ...prev,
+        [targetPeriod]: topVideos
+      }));
     } catch (error) {
       console.error('ランキング読み込みエラー:', error);
     } finally {

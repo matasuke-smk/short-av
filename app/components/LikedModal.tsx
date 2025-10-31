@@ -2,25 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { getUserId } from '@/lib/user-id';
+import type { Database } from '@/lib/supabase';
 
-type LikedVideo = {
-  id: string;
-  title: string;
-  thumbnail_url: string;
-  dmm_content_id: string;
-  likes_count: number;
-  maker: string | null;
-  release_date: string | null;
-};
+type Video = Database['public']['Tables']['videos']['Row'];
+
+interface GenderVideos {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
 
 interface LikedModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectVideo: (dmmContentId: string) => void;
+  videoPools: GenderVideos;
 }
 
-export default function LikedModal({ isOpen, onClose, onSelectVideo }: LikedModalProps) {
-  const [likedVideos, setLikedVideos] = useState<LikedVideo[]>([]);
+export default function LikedModal({ isOpen, onClose, onSelectVideo, videoPools }: LikedModalProps) {
+  const [likedVideos, setLikedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
 
@@ -45,30 +45,24 @@ export default function LikedModal({ isOpen, onClose, onSelectVideo }: LikedModa
           return;
         }
 
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        );
+        // 全プールを結合
+        const allVideos = [
+          ...videoPools.straight,
+          ...videoPools.lesbian,
+          ...videoPools.gay
+        ];
 
-        const { data: videos, error } = await supabase
-          .from('videos')
-          .select('id, title, thumbnail_url, dmm_content_id, likes_count, maker, release_date')
-          .in('id', likesData.videoIds)
-          .eq('is_active', true);
+        // いいねした動画IDでフィルタリング
+        const videos = allVideos.filter(v => likesData.videoIds.includes(v.id));
 
-        if (error) {
-          console.error('Failed to fetch videos:', error);
-        } else {
-          // いいねした日時順に並び替え（新しい順）
-          const sortedVideos = (videos || []).sort((a, b) => {
-            const timeA = likesData.likedAtMap?.[a.id];
-            const timeB = likesData.likedAtMap?.[b.id];
-            if (!timeA || !timeB) return 0;
-            return new Date(timeB).getTime() - new Date(timeA).getTime();
-          });
-          setLikedVideos(sortedVideos);
-        }
+        // いいねした日時順に並び替え（新しい順）
+        const sortedVideos = videos.sort((a, b) => {
+          const timeA = likesData.likedAtMap?.[a.id];
+          const timeB = likesData.likedAtMap?.[b.id];
+          if (!timeA || !timeB) return 0;
+          return new Date(timeB).getTime() - new Date(timeA).getTime();
+        });
+        setLikedVideos(sortedVideos);
       } catch (error) {
         console.error('Failed to fetch liked videos:', error);
       } finally {

@@ -723,6 +723,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         setRankingVideos={setRankingVideos}
         lastSelectedRanking={lastSelectedRanking}
         setLastSelectedRanking={setLastSelectedRanking}
+        videoPools={videoPools}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: ランキングから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
           // 選択された動画のindexを見つける
@@ -753,6 +754,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       <LikedModal
         isOpen={showLikedModal}
         onClose={() => setShowLikedModal(false)}
+        videoPools={videoPools}
         onSelectVideo={(dmmContentId) => {
           // 選択された動画のindexを見つけてスクロール
           const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
@@ -772,6 +774,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       <HistoryModal
         isOpen={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
+        videoPools={videoPools}
         onSelectVideo={(dmmContentId) => {
           // 選択された動画のindexを見つけてスクロール
           const targetIndex = videos.findIndex(v => v.dmm_content_id === dmmContentId);
