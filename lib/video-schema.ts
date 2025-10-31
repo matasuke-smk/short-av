@@ -47,20 +47,20 @@ export function generateVideoSchema(video: Video) {
   };
 
   // いいね数がある場合
-  if (video.like_count && video.like_count > 0) {
+  if (video.likes_count && video.likes_count > 0) {
     schema.interactionStatistic = {
       '@type': 'InteractionCounter',
       interactionType: 'https://schema.org/LikeAction',
-      userInteractionCount: video.like_count,
+      userInteractionCount: video.likes_count,
     };
 
     // いいね数が10以上の場合、評価を追加
-    if (video.like_count >= 10) {
+    if (video.likes_count >= 10) {
       schema.aggregateRating = {
         '@type': 'AggregateRating',
         ratingValue: '4.5',
         bestRating: '5',
-        ratingCount: video.like_count,
+        ratingCount: video.likes_count,
       };
     }
   }
