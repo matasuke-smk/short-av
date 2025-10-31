@@ -25,13 +25,14 @@ export async function GET(request: NextRequest) {
     const lgbtGenreIds = lgbtGenres?.map(g => g.id) || [];
 
     // 多めに動画を取得してシャッフル（完全ランダム化）
+    // TODO: 将来的にはいいね数上位から選択する実装に変更予定
     const { data: allVideos, error } = await supabase
       .from('videos')
       .select('*')
       .eq('is_active', true)
       .not('thumbnail_url', 'is', null)
       .not('sample_video_url', 'is', null)
-      .limit(1000);
+      .limit(10000); // 多めに取得してランダム性を高める
 
     if (error) {
       console.error('動画取得エラー:', error);

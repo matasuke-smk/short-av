@@ -73,15 +73,15 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   }
 
   // 各フィルタから20件ずつ取得（完全ランダム）
-  // ♂♀の動画を20件取得（LGBT動画を除外するため、多めに取得してフィルタリング）
-  // より多くのデータを取得してシャッフルすることで、ランダム性を高める
+  // TODO: 将来的にはいいね数上位1000件から選択する実装に変更予定
+  // ♂♀の動画を取得（できるだけ多く取得してクライアント側でシャッフル）
   const { data: allVideosForStraight, error: straightError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
-    .limit(1000);
+    .limit(10000); // 多めに取得してランダム性を高める
 
   // LGBT動画を除外してクライアント側でフィルタリング、シャッフルして20件
   const straightVideos = shuffleArray(
@@ -99,7 +99,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', lesbianGenreIds)
-    .limit(1000);
+    .limit(10000); // 多めに取得してランダム性を高める
 
   const lesbianVideos = shuffleArray(allLesbianVideos || []).slice(0, 20);
 
@@ -111,7 +111,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     .not('thumbnail_url', 'is', null)
     .not('sample_video_url', 'is', null)
     .overlaps('genre_ids', gayGenreIds)
-    .limit(1000);
+    .limit(10000); // 多めに取得してランダム性を高める
 
   const gayVideos = shuffleArray(allGayVideos || []).slice(0, 20);
 
