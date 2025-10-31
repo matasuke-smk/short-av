@@ -91,7 +91,7 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
   (allVideos || []).forEach(video => {
     const genreIds = video.genre_ids || [];
     const videoGenreNames = genreIds
-      .map(id => genreMap.get(id) || '')
+      .map((id: string) => genreMap.get(id) || '')
       .join(',');
 
     const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
