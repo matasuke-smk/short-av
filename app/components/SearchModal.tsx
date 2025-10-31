@@ -298,6 +298,7 @@ export default function SearchModal({
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('likes_count', { ascending: false })
+            .order('id', { ascending: true })
             .range(offset, offset + batchSize - 1);
 
           if (error || !result || result.length === 0) break;
@@ -306,7 +307,8 @@ export default function SearchModal({
           offset += batchSize;
         }
 
-        data = allData;
+        // 重複除去
+        data = Array.from(new Map(allData.map(v => [v.id, v])).values());
       } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
         // ジャンル検索
         const allData: Video[] = [];
@@ -322,6 +324,7 @@ export default function SearchModal({
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .order('likes_count', { ascending: false })
+            .order('id', { ascending: true })
             .range(offset, offset + batchSize - 1);
 
           if (error || !result || result.length === 0) break;
@@ -331,11 +334,14 @@ export default function SearchModal({
         }
 
         // AND条件でフィルタリング
-        data = allData.filter(video =>
+        const filteredData = allData.filter(video =>
           selectedGenreIds.every(genreId =>
             (video.genre_ids || []).includes(genreId)
           )
         );
+
+        // 重複除去
+        data = Array.from(new Map(filteredData.map(v => [v.id, v])).values());
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
         // 女優検索
         const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
@@ -348,7 +354,8 @@ export default function SearchModal({
           .overlaps('actress_ids', selectedActressIds)
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
-          .order('likes_count', { ascending: false });
+          .order('likes_count', { ascending: false })
+          .order('id', { ascending: true });
 
         // 女優名での検索
         const nameResults: Video[] = [];
@@ -360,7 +367,8 @@ export default function SearchModal({
             .ilike('title', `%${actress.name}%`)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('likes_count', { ascending: false });
+            .order('likes_count', { ascending: false })
+            .order('id', { ascending: true });
 
           if (nameResult) {
             nameResults.push(...nameResult);
