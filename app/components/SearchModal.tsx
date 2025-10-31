@@ -202,87 +202,60 @@ export default function SearchModal({
     loadActresses();
   }, [isOpen]);
 
-  // 利用可能なジャンル/女優を計算（全動画から）
+  // 利用可能なジャンル/女優を計算（プールから）
   useEffect(() => {
     if (!isOpen || genres.length === 0) return;
 
-    const calculateAvailable = async () => {
-      // 全動画を取得（性別フィルタを適用）
-      const { data: allVideos } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('is_active', true)
-        .not('thumbnail_url', 'is', null)
-        .not('sample_video_url', 'is', null);
+    // 現在のフィルタのプール全体から計算
+    const genderFilteredVideos = currentPool;
 
-      if (!allVideos) return;
+    // 既に選択されている条件で動画をフィルタリング
+    let filteredVideos = genderFilteredVideos;
 
-      // 性別フィルタを適用
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
-      const genderFilteredVideos = allVideos.filter(video => {
-        const videoGenreNames = (video.genre_ids || [])
-          .map((id: string) => genreMap.get(id) || '')
-          .join(',');
+    if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+      // 選択済みジャンルで絞り込み（AND条件）
+      filteredVideos = genderFilteredVideos.filter(video =>
+        selectedGenreIds.every(genreId =>
+          (video.genre_ids || []).includes(genreId)
+        )
+      );
+    } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
+      // 選択済み女優で絞り込み（AND条件）
+      const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
+      filteredVideos = genderFilteredVideos.filter(video => {
+        // actress_idsでマッチ
+        const hasAllSelectedActresses = selectedActressIds.every(actressId =>
+          (video.actress_ids || []).includes(actressId)
+        );
+        if (hasAllSelectedActresses) return true;
 
-        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-        const hasGay = videoGenreNames.includes('ゲイ');
+        // タイトルに全ての女優名が含まれるかチェック
+        if (selectedActressList.length > 0) {
+          const allNamesInTitle = selectedActressList.every(actress =>
+            video.title.includes(actress.name)
+          );
+          return allNamesInTitle;
+        }
 
-        if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-        if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-        if (genderFilter === 'gay') return hasGay && !hasLesbian;
         return false;
       });
+    }
 
-      // 既に選択されている条件で動画をフィルタリング
-      let filteredVideos = genderFilteredVideos;
+    // フィルタリング後の動画から利用可能なジャンル/女優を収集
+    const genreIds = new Set<string>();
+    const actressIds = new Set<string>();
 
-      if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        // 選択済みジャンルで絞り込み（AND条件）
-        filteredVideos = genderFilteredVideos.filter(video =>
-          selectedGenreIds.every(genreId =>
-            (video.genre_ids || []).includes(genreId)
-          )
-        );
-      } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-        // 選択済み女優で絞り込み（AND条件）
-        const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
-        filteredVideos = genderFilteredVideos.filter(video => {
-          // actress_idsでマッチ
-          const hasAllSelectedActresses = selectedActressIds.every(actressId =>
-            (video.actress_ids || []).includes(actressId)
-          );
-          if (hasAllSelectedActresses) return true;
+    filteredVideos.forEach(video => {
+      (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
+      (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
+    });
 
-          // タイトルに全ての女優名が含まれるかチェック
-          if (selectedActressList.length > 0) {
-            const allNamesInTitle = selectedActressList.every(actress =>
-              video.title.includes(actress.name)
-            );
-            return allNamesInTitle;
-          }
+    setAvailableGenres(genreIds);
+    setAvailableActresses(actressIds);
 
-          return false;
-        });
-      }
-
-      // フィルタリング後の動画から利用可能なジャンル/女優を収集
-      const genreIds = new Set<string>();
-      const actressIds = new Set<string>();
-
-      filteredVideos.forEach(video => {
-        (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
-        (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
-      });
-
-      setAvailableGenres(genreIds);
-      setAvailableActresses(actressIds);
-
-      // 選択条件での件数を設定
-      setCurrentFilterCount(filteredVideos.length);
-    };
-
-    calculateAvailable();
-  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, actresses, searchMode]);
+    // 選択条件での件数を設定
+    setCurrentFilterCount(filteredVideos.length);
+  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, actresses, searchMode, currentPool]);
 
   // 検索実行
   const handleSearch = async () => {

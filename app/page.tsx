@@ -72,58 +72,49 @@ async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string 
     return shuffled;
   }
 
-  // プール方式：初期読み込みで多めのデータを取得し、シャッフルしてプールとして保持
+  // プール方式：初期読み込みで全動画を取得し、性別フィルタ別に分類してプール化
   // TODO: 将来的にはいいね数上位から選択する実装に変更予定
 
-  // ♂♀の動画を10000件取得してプール化
-  const { data: allVideosForStraight, error: straightError } = await supabase
+  // 全動画を取得
+  const { data: allVideos, error: fetchError } = await supabase
     .from('videos')
     .select('*')
     .eq('is_active', true)
     .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .limit(10000);
+    .not('sample_video_url', 'is', null);
 
-  // LGBT動画を除外してシャッフル（プール全体）
-  const straightPool = shuffleArray(
-    (allVideosForStraight || []).filter(video => {
-      const genreIds = video.genre_ids || [];
-      return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
-    })
-  );
+  // 性別フィルタ別に分類
+  const straightVideosAll: typeof allVideos = [];
+  const lesbianVideosAll: typeof allVideos = [];
+  const gayVideosAll: typeof allVideos = [];
+
+  (allVideos || []).forEach(video => {
+    const genreIds = video.genre_ids || [];
+    const videoGenreNames = genreIds
+      .map(id => genreMap.get(id) || '')
+      .join(',');
+
+    const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+    const hasGay = videoGenreNames.includes('ゲイ');
+
+    if (hasLesbian && !hasGay) {
+      lesbianVideosAll.push(video);
+    } else if (hasGay && !hasLesbian) {
+      gayVideosAll.push(video);
+    } else if (!hasLesbian && !hasGay) {
+      straightVideosAll.push(video);
+    }
+  });
+
+  // それぞれをシャッフルしてプール化
+  const straightPool = shuffleArray(straightVideosAll);
+  const lesbianPool = shuffleArray(lesbianVideosAll);
+  const gayPool = shuffleArray(gayVideosAll);
 
   // プールから最初の20件を表示用として取り出す
   const straightVideos = straightPool.slice(0, 20);
-
-  // ♀♀の動画を300件取得してプール化
-  const { data: allLesbianVideos, error: lesbianError } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .overlaps('genre_ids', lesbianGenreIds)
-    .limit(300);
-
-  // シャッフル（プール全体）
-  const lesbianPool = shuffleArray(allLesbianVideos || []);
   const lesbianVideos = lesbianPool.slice(0, 20);
-
-  // ♂♂の動画を300件取得してプール化
-  const { data: allGayVideos, error: gayError } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .overlaps('genre_ids', gayGenreIds)
-    .limit(300);
-
-  // シャッフル（プール全体）
-  const gayPool = shuffleArray(allGayVideos || []);
   const gayVideos = gayPool.slice(0, 20);
-
-  const fetchError = straightError || lesbianError || gayError;
 
   // 性別フィルタ別の動画リスト（初期表示用20件）
   const genderVideos = {
