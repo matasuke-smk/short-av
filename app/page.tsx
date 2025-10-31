@@ -2,8 +2,9 @@ import { Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 
-// 動的レンダリングを強制
-export const dynamic = 'force-dynamic';
+// ISR（Incremental Static Regeneration）で5分ごとに再生成
+// これにより、記事ページから戻ってきた時に即座に表示される
+export const revalidate = 300; // 5分
 
 async function VideoList({ searchParams }: { searchParams: Promise<{ v?: string }> }) {
   const params = await searchParams;
