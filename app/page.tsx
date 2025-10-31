@@ -197,36 +197,45 @@ async function VideoList() {
     );
   }
 
-  // 最初の動画の構造化データを生成（SEO対策）
-  const firstVideoSchema = videos[0] ? generateVideoSchema(videos[0]) : null;
-
   // URLパラメータの処理はクライアント側（VideoSwiper）で行う
   return (
+    <VideoSwiper
+      videos={videos}
+      initialOffset={0}
+      totalVideos={totalVideos}
+      startIndex={0}
+      genderCounts={genderCounts}
+      genderVideos={genderVideos}
+      genderPools={genderPools}
+    />
+  );
+}
+
+export default async function Home() {
+  // 最初の動画を取得して構造化データを生成（Suspense外で実行）
+  const { data: videos } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_active', true)
+    .not('thumbnail_url', 'is', null)
+    .not('sample_video_url', 'is', null)
+    .order('id', { ascending: true })
+    .limit(1);
+
+  const firstVideoSchema = videos && videos[0] ? generateVideoSchema(videos[0]) : null;
+
+  return (
     <>
-      {/* VideoObject構造化データ（サーバー側レンダリング） */}
+      {/* VideoObject構造化データ（Suspense外で確実に初期HTMLに含める） */}
       {firstVideoSchema && (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
         />
       )}
-      <VideoSwiper
-        videos={videos}
-        initialOffset={0}
-        totalVideos={totalVideos}
-        startIndex={0}
-        genderCounts={genderCounts}
-        genderVideos={genderVideos}
-        genderPools={genderPools}
-      />
+      <Suspense fallback={<div className="min-h-screen bg-black" />}>
+        <VideoList />
+      </Suspense>
     </>
-  );
-}
-
-export default function Home() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <VideoList />
-    </Suspense>
   );
 }
