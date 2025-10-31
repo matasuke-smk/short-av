@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
@@ -21,436 +21,228 @@ interface GenderVideos {
   gay: Video[];
 }
 
+interface GenderPools {
+  straight: Video[];
+  lesbian: Video[];
+  gay: Video[];
+}
+
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onVideoSelect: (videoId: string) => void;
-  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void; // フィルタ検索結果で動画リストを置き換え
+  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
   currentVideoId?: string;
-  videos: Video[]; // VideoSwiperから直接渡される
-  currentIndex: number;
-  onLoadMore: () => Promise<void>; // ブラウズモード用の追加読み込み
-  isLoadingMoreVideos: boolean; // VideoSwiperの読み込み状態
-  hasMoreVideos: boolean; // まだ読み込めるデータがあるか
-  genderCounts?: GenderCounts; // 性別フィルタ別の総件数
-  genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
+  genderCounts?: GenderCounts;
+  genderVideos?: GenderVideos; // 各フィルタの初期20件
+  genderPools?: GenderPools; // 各フィルタのプール全件
 }
 
-export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceVideos, currentVideoId, videos, currentIndex, onLoadMore, isLoadingMoreVideos, hasMoreVideos, genderCounts, genderVideos }: SearchModalProps) {
+export default function SearchModal({
+  isOpen,
+  onClose,
+  onVideoSelect,
+  onReplaceVideos,
+  currentVideoId,
+  genderCounts,
+  genderVideos,
+  genderPools
+}: SearchModalProps) {
+  // 検索UI状態
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<Video[] | null>(null); // 検索結果用の状態
-  const [searchOffset, setSearchOffset] = useState(600); // 検索結果の読み込み位置
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMoreSearch, setHasMoreSearch] = useState(true);
-  const [totalSearchCount, setTotalSearchCount] = useState<number>(0); // 検索結果の総件数
-  const [isCountLoading, setIsCountLoading] = useState(false); // 総件数の計算中フラグ
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
   const [showGenreModal, setShowGenreModal] = useState(false);
-  const [actresses, setActresses] = useState<Actress[]>([]);
-  const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
   const [showActressModal, setShowActressModal] = useState(false);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const isInitialMount = useRef(true);
-  const videoListRef = useRef<HTMLDivElement>(null);
-  const currentVideoRef = useRef<HTMLButtonElement>(null);
-  const isSearchResult = useRef(false); // 検索結果かどうかのフラグ
+
+  // マスターデータ
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [actresses, setActresses] = useState<Actress[]>([]);
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+  const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
+
+  // 各フィルタの動画リスト（初期値はpropsから）
+  const [straightVideos, setStraightVideos] = useState<Video[]>([]);
+  const [lesbianVideos, setLesbianVideos] = useState<Video[]>([]);
+  const [gayVideos, setGayVideos] = useState<Video[]>([]);
+
+  // 各フィルタのプール（検索結果の全件）
+  const [straightPool, setStraightPool] = useState<Video[]>([]);
+  const [lesbianPool, setLesbianPool] = useState<Video[]>([]);
+  const [gayPool, setGayPool] = useState<Video[]>([]);
+
+  // 各フィルタのプールインデックス
+  const [straightPoolIndex, setStraightPoolIndex] = useState(20);
+  const [lesbianPoolIndex, setLesbianPoolIndex] = useState(20);
+  const [gayPoolIndex, setGayPoolIndex] = useState(20);
+
+  // 各フィルタのメタ情報
+  const [straightMeta, setStraightMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
+  const [lesbianMeta, setLesbianMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
+  const [gayMeta, setGayMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
+
+  // 利用可能なジャンル/女優
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
   const [availableActresses, setAvailableActresses] = useState<Set<string>>(new Set());
-  const [currentFilterCount, setCurrentFilterCount] = useState<number>(0); // 現在の選択条件での動画数
-  const hasScrolledRef = useRef(false); // スクロール済みかどうかのフラグ
-  const initialVideosRef = useRef<Video[]>([]); // 初期のvideos（リスト1）を保存
+  const [currentFilterCount, setCurrentFilterCount] = useState<number>(0);
 
+  // refs
+  const inputRef = useRef<HTMLInputElement>(null);
+  const videoListRef = useRef<HTMLDivElement>(null);
+  const currentVideoRef = useRef<HTMLButtonElement>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // 現在のフィルタの動画リストとメタ情報を取得
+  const displayVideos = {
+    straight: straightVideos,
+    lesbian: lesbianVideos,
+    gay: gayVideos
+  }[genderFilter];
+
+  const currentMeta = {
+    straight: straightMeta,
+    lesbian: lesbianMeta,
+    gay: gayMeta
+  }[genderFilter];
+
+  const currentPool = {
+    straight: straightPool,
+    lesbian: lesbianPool,
+    gay: gayPool
+  }[genderFilter];
+
+  const currentPoolIndex = {
+    straight: straightPoolIndex,
+    lesbian: lesbianPoolIndex,
+    gay: gayPoolIndex
+  }[genderFilter];
+
+  // 初期化: propsから初期動画リストとプールを設定
   useEffect(() => {
-    if (!isOpen) {
-      hasScrolledRef.current = false;
-      return;
-    }
-
-    // モーダルを開くたびに初回マウントフラグをリセット
-    isInitialMount.current = true;
-
-    const initialize = async () => {
-      // 現在の動画の性別フィルタを判定して設定（常に実行）
-      const currentVideo = videos.find(v => v.dmm_content_id === currentVideoId);
-      let detectedGenderFilter: GenderFilter = 'straight';
-
-      if (currentVideo && genres.length > 0) {
-        const genreMap = new Map(genres.map(g => [g.id, g.name]));
-        const videoGenreNames = (currentVideo.genre_ids || [])
-          .map((id: string) => genreMap.get(id) || '')
-          .join(',');
-
-        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-        const hasGay = videoGenreNames.includes('ゲイ');
-
-        // 初期のvideosを保存（♂♀の動画を見ているとき）
-        if (!hasLesbian && !hasGay) {
-          initialVideosRef.current = videos;
-        }
-
-        // 性別フィルタを判定
-        if (hasLesbian && !hasGay) {
-          detectedGenderFilter = 'lesbian';
-          setGenderFilter('lesbian');
-        } else if (hasGay && !hasLesbian) {
-          detectedGenderFilter = 'gay';
-          setGenderFilter('gay');
-        } else {
-          detectedGenderFilter = 'straight';
-          setGenderFilter('straight');
-        }
+    if (isOpen && genderVideos && genderPools) {
+      // 初期動画リストが空の場合のみ設定（再表示時は保持）
+      if (straightVideos.length === 0) {
+        setStraightVideos(genderVideos.straight || []);
+        setStraightPool(genderPools.straight || []);
+        setStraightMeta({ hasMore: true, totalCount: genderCounts?.straight || 0, isSearchResult: false });
       }
-
-      // 検索結果が既にある場合は再初期化をスキップ（前回の検索結果を保持）
-      if (searchResults !== null && searchResults.length > 0) {
-        isInitialMount.current = false;
-        return;
+      if (lesbianVideos.length === 0) {
+        setLesbianVideos(genderVideos.lesbian || []);
+        setLesbianPool(genderPools.lesbian || []);
+        setLesbianMeta({ hasMore: true, totalCount: genderCounts?.lesbian || 0, isSearchResult: false });
       }
-
-      // ♂♀の場合、初期のvideosをsearchResultsに設定
-      if (detectedGenderFilter === 'straight') {
-        if (initialVideosRef.current.length > 0) {
-          setSearchResults(initialVideosRef.current);
-        } else {
-          setSearchResults(null);
-        }
-      }
-
-      // URLパラメータから検索条件を復元（短縮版と長縮版の両方に対応）
-      const params = new URLSearchParams(window.location.search);
-      const savedSearchMode = (params.get('m') || params.get('searchMode')) as 'keyword' | 'genre' | 'actress' | null;
-      const savedKeyword = params.get('q') || params.get('keyword');
-      const savedFilter = params.get('f') || params.get('filters');
-
-      // URLパラメータに検索条件がある場合は検索結果として扱う
-      const hasSearchParams = savedSearchMode || savedKeyword || params.get('g') || params.get('a');
-      isSearchResult.current = !!hasSearchParams;
-
-      if (savedSearchMode) setSearchMode(savedSearchMode);
-      if (savedKeyword) setKeyword(savedKeyword);
-      if (savedFilter) {
-        detectedGenderFilter = savedFilter as GenderFilter;
-        setGenderFilter(savedFilter as GenderFilter);
-      }
-
-      // ジャンルと女優を復元（復元したIDを返す）
-      const restoreSearchConditions = async (): Promise<{ genreIds: string[], actressIds: string[] }> => {
-        let restoredGenreIds: string[] = [];
-        let restoredActressIds: string[] = [];
-
-        // ジャンルIDを復元（slugから変換）
-        const genreSlugs = params.get('g');
-        const oldGenreIds = params.get('genreIds');
-
-        if (genreSlugs) {
-          const slugArray = genreSlugs.split(',');
-          const { data: genresData } = await supabase
-            .from('genres')
-            .select('id, slug')
-            .in('slug', slugArray);
-          if (genresData) {
-            restoredGenreIds = genresData.map(g => g.id);
-            setSelectedGenreIds(restoredGenreIds);
-          }
-        } else if (oldGenreIds) {
-          restoredGenreIds = JSON.parse(oldGenreIds);
-          setSelectedGenreIds(restoredGenreIds);
-        }
-
-        // 女優IDを復元（名前から変換）
-        const actressNames = params.get('a');
-        const oldActressIds = params.get('actressIds');
-
-        if (actressNames) {
-          const nameArray = actressNames.split(',');
-          const { data: actressesData } = await supabase
-            .from('actresses')
-            .select('id, name')
-            .in('name', nameArray);
-          if (actressesData) {
-            restoredActressIds = actressesData.map(a => a.id);
-            setSelectedActressIds(restoredActressIds);
-          }
-        } else if (oldActressIds) {
-          restoredActressIds = JSON.parse(oldActressIds);
-          setSelectedActressIds(restoredActressIds);
-        }
-
-        return { genreIds: restoredGenreIds, actressIds: restoredActressIds };
-      };
-
-      const loadGenres = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('genres')
-            .select('*')
-            .eq('is_active', true)
-            .order('sort_order', { ascending: true });
-
-          if (error) {
-            console.error('ジャンル取得エラー:', error);
-            return;
-          }
-          setGenres(data || []);
-        } catch (error) {
-          console.error('ジャンル読み込みエラー:', error);
-        }
-      };
-
-      const loadActresses = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('actresses')
-            .select('*')
-            .eq('is_active', true)
-            .order('name', { ascending: true });
-
-          if (error) {
-            console.error('女優取得エラー:', error);
-            return;
-          }
-          setActresses(data || []);
-        } catch (error) {
-          console.error('女優読み込みエラー:', error);
-        }
-      };
-
-      // 並列で復元とロードを実行
-      const { genreIds, actressIds } = await restoreSearchConditions();
-      await Promise.all([loadGenres(), loadActresses()]);
-
-      // ロード完了後、初回マウントフラグをfalseに設定
-      isInitialMount.current = false;
-
-      // 検索条件がある場合は検索を実行、ない場合は♀♀/♂♂のgenderVideosを設定
-      const hasConditions = genreIds.length > 0 || actressIds.length > 0 ||
-                            selectedGenreIds.length > 0 || selectedActressIds.length > 0 ||
-                            keyword.trim() || savedKeyword;
-
-      if (hasConditions) {
-        // 検索条件がある場合は検索を実行
-        await handleSearch();
-      } else if (detectedGenderFilter === 'lesbian' && genderVideos?.lesbian) {
-        // ♀♀で検索条件がない場合はgenderVideosを使用
-        setSearchResults(genderVideos.lesbian);
-      } else if (detectedGenderFilter === 'gay' && genderVideos?.gay) {
-        // ♂♂で検索条件がない場合はgenderVideosを使用
-        setSearchResults(genderVideos.gay);
-      }
-    };
-
-    initialize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  // モーダルを開いたときに性別フィルタの総件数を設定
-  useEffect(() => {
-    if (isOpen && genderCounts) {
-      setIsCountLoading(false);
-      setTotalSearchCount(genderCounts[genderFilter]);
-    }
-  }, [isOpen, genderCounts, genderFilter]);
-
-  // 性別フィルタが変更されたら、事前読み込みされたデータを使用
-  useEffect(() => {
-    if (!isInitialMount.current && isOpen && genres.length > 0) {
-      // 検索条件がない場合
-      if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
-        if (genderFilter === 'straight') {
-          // ♂♀の場合は保存しておいた初期のvideosを表示
-          if (initialVideosRef.current.length > 0) {
-            setSearchResults(initialVideosRef.current);
-          } else {
-            setSearchResults(null);
-          }
-        } else {
-          // ♀♀と♂♂の場合は事前読み込みデータを使用
-          if (genderVideos && genderVideos[genderFilter]) {
-            setSearchResults(genderVideos[genderFilter]);
-            setSearchOffset(20);
-            setHasMoreSearch(true); // 追加読み込みを有効化
-          }
-        }
-      } else {
-        // 検索条件がある場合は再検索
-        handleSearch();
+      if (gayVideos.length === 0) {
+        setGayVideos(genderVideos.gay || []);
+        setGayPool(genderPools.gay || []);
+        setGayMeta({ hasMore: true, totalCount: genderCounts?.gay || 0, isSearchResult: false });
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [genderFilter]);
+  }, [isOpen, genderVideos, genderPools, genderCounts, straightVideos, lesbianVideos, gayVideos]);
 
-  // 利用可能なジャンル/女優を計算
+  // 現在の動画から性別フィルタを判定
   useEffect(() => {
     if (!isOpen || genres.length === 0) return;
 
-    const calculateAvailable = async () => {
-      try {
-        // 全動画を取得（limit を削除して全件取得）
-        const { data: allVideos, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null);
+    // VideoSwiperから現在表示中の動画を特定
+    // ※ここでは、props経由で現在のフィルタを受け取る方が良いかもしれませんが、
+    // 今回は現在のcurrentVideoIdから判定する方式を維持します
+    const currentVideo = [...straightVideos, ...lesbianVideos, ...gayVideos].find(
+      v => v.dmm_content_id === currentVideoId
+    );
 
-        if (error || !allVideos) return;
+    if (currentVideo) {
+      const genreMap = new Map(genres.map(g => [g.id, g.name]));
+      const videoGenreNames = (currentVideo.genre_ids || [])
+        .map((id: string) => genreMap.get(id) || '')
+        .join(',');
 
-        // 性別フィルタを適用
-        const genreMap = new Map(genres.map(g => [g.id, g.name]));
-        const filteredVideos = allVideos.filter(video => {
-          const videoGenreNames = (video.genre_ids || [])
-            .map((id: string) => genreMap.get(id) || '')
-            .join(',');
+      const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
+      const hasGay = videoGenreNames.includes('ゲイ');
 
-          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-          const hasGay = videoGenreNames.includes('ゲイ');
-
-          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-          if (genderFilter === 'gay') return hasGay && !hasLesbian;
-          return false;
-        });
-
-        // さらに選択済みジャンル/女優でフィルタ（AND条件：すべて含む必要がある）
-        const finalVideos = filteredVideos.filter(video => {
-          // 選択済みジャンルがある場合、すべてのジャンルが含まれている必要がある
-          if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-            const hasAllSelectedGenres = selectedGenreIds.every(genreId =>
-              (video.genre_ids || []).includes(genreId)
-            );
-            if (!hasAllSelectedGenres) return false;
-          }
-
-          // 選択済み女優がある場合、すべての女優が含まれている必要がある
-          if (searchMode === 'actress' && selectedActressIds.length > 0) {
-            const hasAllSelectedActresses = selectedActressIds.every(actressId =>
-              (video.actress_ids || []).includes(actressId)
-            );
-            if (!hasAllSelectedActresses) return false;
-          }
-
-          return true;
-        });
-
-        // 利用可能なジャンルIDを収集
-        const genreIds = new Set<string>();
-        finalVideos.forEach(video => {
-          (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
-        });
-        setAvailableGenres(genreIds);
-
-        // 利用可能な女優IDを収集
-        const actressIds = new Set<string>();
-        finalVideos.forEach(video => {
-          (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
-        });
-        setAvailableActresses(actressIds);
-
-        // 現在の選択条件での動画数を保存
-        setCurrentFilterCount(finalVideos.length);
-      } catch (error) {
-        console.error('利用可能な選択肢計算エラー:', error);
+      if (hasLesbian && !hasGay) {
+        setGenderFilter('lesbian');
+      } else if (hasGay && !hasLesbian) {
+        setGenderFilter('gay');
+      } else {
+        setGenderFilter('straight');
       }
+    }
+  }, [isOpen, currentVideoId, genres, straightVideos, lesbianVideos, gayVideos]);
+
+  // ジャンル・女優データのロード
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadGenres = async () => {
+      const { data } = await supabase
+        .from('genres')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      setGenres(data || []);
     };
 
-    calculateAvailable();
-  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode]);
+    const loadActresses = async () => {
+      const { data } = await supabase
+        .from('actresses')
+        .select('*')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      setActresses(data || []);
+    };
 
-  // モーダルを開いたとき、現在の動画の位置にスクロール
-  useLayoutEffect(() => {
-    if (isOpen && videoListRef.current) {
-      if (currentVideoRef.current) {
-        // 現在の動画がリストに含まれている場合、その位置にスクロール
-        currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
-      } else {
-        // 現在の動画がリストに含まれていない場合、先頭にスクロール
-        videoListRef.current.scrollTop = 0;
-      }
-      hasScrolledRef.current = true;
-    }
+    loadGenres();
+    loadActresses();
   }, [isOpen]);
 
-
-  // 無限スクロール（検索モード・ブラウズモード共通）
+  // 利用可能なジャンル/女優を計算（現在のフィルタの動画リストから）
   useEffect(() => {
-    // モーダルが開いていない場合は何もしない
-    if (!isOpen) {
-      console.log('SearchModal: モーダルが閉じているのでスクロールイベント未設定');
-      return;
-    }
+    if (!isOpen || genres.length === 0) return;
 
-    const videoList = videoListRef.current;
-    if (!videoList) {
-      console.log('SearchModal: videoListRef is null (isOpen=true)');
-      return;
-    }
+    // 現在のフィルタの全動画（プール）から利用可能な選択肢を計算
+    const videos = currentPool.length > 0 ? currentPool : displayVideos;
 
-    console.log('SearchModal: スクロールイベントリスナーを設定', { searchResults: searchResults !== null, hasMoreVideos, isLoadingMoreVideos });
+    const genreIds = new Set<string>();
+    const actressIds = new Set<string>();
 
-    const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = videoList;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    videos.forEach(video => {
+      (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
+      (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
+    });
 
-      console.log('SearchModal scroll:', {
-        scrollTop,
-        scrollHeight,
-        clientHeight,
-        distanceFromBottom,
-        searchResults: searchResults !== null ? 'フィルタ検索結果' : 'ブラウズモード',
-        hasMoreVideos,
-        isLoadingMoreVideos
-      });
+    setAvailableGenres(genreIds);
+    setAvailableActresses(actressIds);
 
-      // 下から200px以内に達したら追加読み込み
-      if (distanceFromBottom < 200) {
-        if (searchResults !== null) {
-          // フィルタ検索モード: SearchModal内で管理
-          console.log('SearchModal: フィルタ検索の追加読み込み開始');
-          loadMoreSearchResults();
-        } else {
-          // ブラウズモード: VideoSwiperに委譲
-          console.log('SearchModal: ブラウズモードの追加読み込み', { hasMoreVideos, isLoadingMoreVideos });
-          if (hasMoreVideos && !isLoadingMoreVideos) {
-            console.log('SearchModal: onLoadMore()を呼び出し');
-            onLoadMore();
-          } else {
-            console.log('SearchModal: 追加読み込みスキップ', { hasMoreVideos, isLoadingMoreVideos });
-          }
+    // 選択条件で絞り込んだ件数を計算
+    if (selectedGenreIds.length > 0 || selectedActressIds.length > 0) {
+      const filtered = videos.filter(video => {
+        if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+          const hasAllSelectedGenres = selectedGenreIds.every(genreId =>
+            (video.genre_ids || []).includes(genreId)
+          );
+          if (!hasAllSelectedGenres) return false;
         }
-      }
-    };
 
-    videoList.addEventListener('scroll', handleScroll);
-    return () => {
-      console.log('SearchModal: スクロールイベントリスナーを削除');
-      videoList.removeEventListener('scroll', handleScroll);
-    };
-  }, [isOpen, searchResults, isLoadingMore, hasMoreSearch, searchOffset, hasMoreVideos, isLoadingMoreVideos, onLoadMore]);
+        if (searchMode === 'actress' && selectedActressIds.length > 0) {
+          const hasAllSelectedActresses = selectedActressIds.every(actressId =>
+            (video.actress_ids || []).includes(actressId)
+          );
+          if (!hasAllSelectedActresses) return false;
+        }
 
-  // 検索結果の総件数を計算する関数（検索時のみ使用）
-  const calculateSearchResultCount = (filteredData: Video[]) => {
-    // 性別フィルタのみの場合は、propsで渡された件数を使用
-    if (!keyword.trim() && selectedGenreIds.length === 0 && selectedActressIds.length === 0) {
-      if (genderCounts) {
-        setTotalSearchCount(genderCounts[genderFilter]);
-      }
-      return;
+        return true;
+      });
+      setCurrentFilterCount(filtered.length);
+    } else {
+      setCurrentFilterCount(currentMeta.totalCount);
     }
+  }, [isOpen, genderFilter, selectedGenreIds, selectedActressIds, genres, searchMode, currentPool, displayVideos, currentMeta.totalCount]);
 
-    // 検索条件がある場合は、フィルタリング後のデータ数を使用
-    setTotalSearchCount(filteredData.length);
-  };
-
-  const handleSearch = async (): Promise<Video[]> => {
-    // 性別フィルタのみでも検索可能
-    isSearchResult.current = true; // 検索結果フラグをオン
-
+  // 検索実行
+  const handleSearch = async () => {
     if (inputRef.current) {
       inputRef.current.blur();
     }
@@ -459,8 +251,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     try {
       let data: Video[] = [];
 
+      // 検索条件に応じてデータ取得
       if (searchMode === 'keyword' && keyword.trim()) {
-        // 全件取得
+        // キーワード検索
         const allData: Video[] = [];
         let offset = 0;
         const batchSize = 1000;
@@ -476,21 +269,15 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .order('likes_count', { ascending: false })
             .range(offset, offset + batchSize - 1);
 
-          if (error) {
-            console.error('検索エラー:', error);
-            break;
-          }
-
-          if (!result || result.length === 0) break;
+          if (error || !result || result.length === 0) break;
           allData.push(...result);
-
           if (result.length < batchSize) break;
           offset += batchSize;
         }
 
         data = allData;
       } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        // 全件取得
+        // ジャンル検索
         const allData: Video[] = [];
         let offset = 0;
         const batchSize = 1000;
@@ -506,47 +293,36 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .order('likes_count', { ascending: false })
             .range(offset, offset + batchSize - 1);
 
-          if (error) {
-            console.error('検索エラー:', error);
-            break;
-          }
-
-          if (!result || result.length === 0) break;
+          if (error || !result || result.length === 0) break;
           allData.push(...result);
-
           if (result.length < batchSize) break;
           offset += batchSize;
         }
 
-        // AND条件でフィルタリング（すべてのジャンルが含まれている動画のみ）
+        // AND条件でフィルタリング
         data = allData.filter(video =>
           selectedGenreIds.every(genreId =>
             (video.genre_ids || []).includes(genreId)
           )
         );
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-        // 女優ID検索と女優名検索の両方を実行して結果を合算
-        const selectedActresses = actresses.filter(a => selectedActressIds.includes(a.id));
+        // 女優検索
+        const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
 
-        // 1. actress_idsでの検索
-        const { data: idResults, error: idError } = await supabase
+        // actress_idsでの検索
+        const { data: idResults } = await supabase
           .from('videos')
           .select('*')
           .eq('is_active', true)
           .overlaps('actress_ids', selectedActressIds)
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
-          .order('likes_count', { ascending: false })
-          .order('release_date', { ascending: false });
+          .order('likes_count', { ascending: false });
 
-        if (idError) {
-          console.error('女優ID検索エラー:', idError);
-        }
-
-        // 2. 女優名でのキーワード検索
+        // 女優名での検索
         const nameResults: Video[] = [];
-        for (const actress of selectedActresses) {
-          const { data: nameResult, error: nameError } = await supabase
+        for (const actress of selectedActressList) {
+          const { data: nameResult } = await supabase
             .from('videos')
             .select('*')
             .eq('is_active', true)
@@ -555,70 +331,39 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             .not('sample_video_url', 'is', null)
             .order('likes_count', { ascending: false });
 
-          if (nameError) {
-            console.error(`女優名検索エラー (${actress.name}):`, nameError);
-          } else if (nameResult) {
+          if (nameResult) {
             nameResults.push(...nameResult);
           }
         }
 
-        // 3. 結果を合算（重複を除去）
+        // 結果を合算して重複除去
         const combinedResults = [...(idResults || []), ...nameResults];
         const uniqueResults = Array.from(
           new Map(combinedResults.map(v => [v.id, v])).values()
         );
 
-        // AND条件でフィルタリング（すべての女優が含まれている動画のみ）
-        const filteredResults = uniqueResults.filter(video =>
+        // AND条件でフィルタリング
+        data = uniqueResults.filter(video =>
           selectedActressIds.every(actressId =>
             (video.actress_ids || []).includes(actressId)
           )
         );
 
-        // いいね数順、次にランダムにソート
-        data = filteredResults.sort((a, b) => {
-          // まずいいね数で比較
+        // ソート
+        data.sort((a, b) => {
           if (b.likes_count !== a.likes_count) {
             return b.likes_count - a.likes_count;
           }
-          // いいね数が同じ場合はランダム
           return Math.random() - 0.5;
         });
       } else {
-        // 性別フィルタのみの場合、全動画を取得
-        const allData: Video[] = [];
-        let offset = 0;
-        const batchSize = 1000;
-
-        while (true) {
-          const { data: result, error } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .order('likes_count', { ascending: false })
-            .range(offset, offset + batchSize - 1);
-
-          if (error) {
-            console.error('検索エラー:', error);
-            break;
-          }
-
-          if (!result || result.length === 0) break;
-
-          allData.push(...result);
-
-          if (result.length < batchSize) break;
-          offset += batchSize;
-        }
-
-        data = allData;
+        // 検索条件なし（性別フィルタのみ）
+        setLoading(false);
+        return;
       }
 
-      // 性別フィルターを適用
+      // 性別フィルタを適用
       const genreMap = new Map(genres.map(g => [g.id, g.name]));
-
       const filteredData = data.filter(video => {
         const videoGenreNames = (video.genre_ids || [])
           .map((id: string) => genreMap.get(id) || '')
@@ -633,236 +378,89 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
         return false;
       });
 
-      // 総件数を計算
-      calculateSearchResultCount(filteredData);
+      // 現在のフィルタの状態を更新
+      const displayData = filteredData.slice(0, 20);
+      const meta = {
+        hasMore: filteredData.length > 20,
+        totalCount: filteredData.length,
+        isSearchResult: true
+      };
 
-      // 選択画面の件数も更新（検索結果と一致させる）
-      setCurrentFilterCount(filteredData.length);
+      if (genderFilter === 'straight') {
+        setStraightVideos(displayData);
+        setStraightPool(filteredData);
+        setStraightPoolIndex(20);
+        setStraightMeta(meta);
+      } else if (genderFilter === 'lesbian') {
+        setLesbianVideos(displayData);
+        setLesbianPool(filteredData);
+        setLesbianPoolIndex(20);
+        setLesbianMeta(meta);
+      } else if (genderFilter === 'gay') {
+        setGayVideos(displayData);
+        setGayPool(filteredData);
+        setGayPoolIndex(20);
+        setGayMeta(meta);
+      }
 
-      // 初回は600件まで表示
-      const displayData = filteredData.slice(0, 600);
-      setSearchResults(displayData);
-      setSearchOffset(600); // 初回検索は600件まで取得
-      setHasMoreSearch(filteredData.length > 600); // 600件より多い場合は追加読み込み可能
-      return displayData;
+      // スクロール位置をリセット
+      if (videoListRef.current) {
+        videoListRef.current.scrollTop = 0;
+      }
     } catch (error) {
       console.error('検索実行エラー:', error);
-      return [];
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyPress = async (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      await handleSearch();
+      handleSearch();
     }
   };
 
-  // シャッフル関数
-  const shuffleArray = <T,>(array: T[]): T[] => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
-
-  // 検索結果の追加読み込み
-  const loadMoreSearchResults = async () => {
-    if (isLoadingMore || !hasMoreSearch || searchResults === null) return;
+  // 追加読み込み
+  const loadMoreVideos = async () => {
+    if (isLoadingMore || !currentMeta.hasMore) return;
 
     setIsLoadingMore(true);
     try {
-      let data: Video[] = [];
+      // プールから次の20件を取得
+      const nextVideos = currentPool.slice(currentPoolIndex, currentPoolIndex + 20);
 
-      if (searchMode === 'keyword' && keyword.trim()) {
-        const { data: result, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .ilike('title', `%${keyword}%`)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 199);
-
-        if (error) {
-          console.error('追加検索エラー:', error);
-          return;
-        }
-        data = result || [];
-      } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        const { data: result, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .contains('genre_ids', selectedGenreIds)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 199);
-
-        if (error) {
-          console.error('追加検索エラー:', error);
-          return;
-        }
-        data = result || [];
-      } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
-        // 女優検索の追加読み込み
-        const { data: idResults, error: idError } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .contains('actress_ids', selectedActressIds)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .range(searchOffset, searchOffset + 199);
-
-        if (idError) {
-          console.error('女優ID検索エラー:', idError);
-        }
-
-        const nameResults: Video[] = [];
-        const selectedActressList = actresses.filter(a => selectedActressIds.includes(a.id));
-        for (const actress of selectedActressList) {
-          const { data: nameResult, error: nameError } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .ilike('title', `%${actress.name}%`)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .order('release_date', { ascending: false })
-            .range(searchOffset, searchOffset + 199);
-
-          if (nameError) {
-            console.error(`女優名検索エラー (${actress.name}):`, nameError);
-          } else if (nameResult) {
-            nameResults.push(...nameResult);
-          }
-        }
-
-        const combinedResults = [...(idResults || []), ...nameResults];
-        const uniqueResults = Array.from(
-          new Map(combinedResults.map(v => [v.id, v])).values()
-        );
-
-        const filteredResults = uniqueResults.filter(video =>
-          selectedActressIds.every(actressId =>
-            (video.actress_ids || []).includes(actressId)
-          )
-        );
-
-        data = filteredResults.sort((a, b) => {
-          const dateA = new Date(a.release_date || 0).getTime();
-          const dateB = new Date(b.release_date || 0).getTime();
-          return dateB - dateA;
-        });
-      } else {
-        // 性別フィルタのみの場合
-        const lgbtGenres = genres.filter(g =>
-          g.slug === '4013' || g.slug === '4060' || g.slug === '5062'
-        );
-        const lgbtGenreIds = lgbtGenres.map(g => g.id);
-
+      if (nextVideos.length > 0) {
         if (genderFilter === 'straight') {
-          // ♂♀: LGBT以外（多めに取得してフィルタリング、ランダム）
-          const { data: result, error } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .limit(500);
-
-          if (error) {
-            console.error('追加読み込みエラー:', error);
-            setIsLoadingMore(false);
-            return;
-          }
-
-          // LGBT動画を除外してシャッフル、200件取得
-          data = shuffleArray(
-            (result || []).filter(video => {
-              const genreIds = video.genre_ids || [];
-              return !lgbtGenreIds.some(lgbtId => genreIds.includes(lgbtId));
-            })
-          ).slice(0, 200);
+          setStraightVideos([...straightVideos, ...nextVideos]);
+          setStraightPoolIndex(currentPoolIndex + 20);
+          setStraightMeta({
+            ...straightMeta,
+            hasMore: currentPoolIndex + 20 < currentPool.length
+          });
         } else if (genderFilter === 'lesbian') {
-          // ♀♀: レズビアンまたはレズキス（ランダム）
-          const lesbianGenreIds = lgbtGenres
-            .filter(g => g.slug === '4013' || g.slug === '5062')
-            .map(g => g.id);
-
-          const { data: result, error } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .overlaps('genre_ids', lesbianGenreIds)
-            .limit(500);
-
-          if (error) {
-            console.error('追加読み込みエラー:', error);
-            setIsLoadingMore(false);
-            return;
-          }
-          data = shuffleArray(result || []).slice(0, 200);
+          setLesbianVideos([...lesbianVideos, ...nextVideos]);
+          setLesbianPoolIndex(currentPoolIndex + 20);
+          setLesbianMeta({
+            ...lesbianMeta,
+            hasMore: currentPoolIndex + 20 < currentPool.length
+          });
         } else if (genderFilter === 'gay') {
-          // ♂♂: ゲイ（ランダム）
-          const gayGenreIds = lgbtGenres
-            .filter(g => g.slug === '4060')
-            .map(g => g.id);
-
-          const { data: result, error } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .overlaps('genre_ids', gayGenreIds)
-            .limit(500);
-
-          if (error) {
-            console.error('追加読み込みエラー:', error);
-            setIsLoadingMore(false);
-            return;
-          }
-          data = shuffleArray(result || []).slice(0, 200);
+          setGayVideos([...gayVideos, ...nextVideos]);
+          setGayPoolIndex(currentPoolIndex + 20);
+          setGayMeta({
+            ...gayMeta,
+            hasMore: currentPoolIndex + 20 < currentPool.length
+          });
         }
-      }
-
-      // 性別フィルターを適用（検索条件がある場合のみ）
-      let filteredData = data;
-
-      if (searchMode === 'keyword' && keyword.trim() || searchMode === 'genre' && selectedGenreIds.length > 0 || searchMode === 'actress' && selectedActressIds.length > 0) {
-        const genreMap = new Map(genres.map(g => [g.id, g.name]));
-
-        filteredData = data.filter(video => {
-          const videoGenreNames = (video.genre_ids || [])
-            .map((id: string) => genreMap.get(id) || '')
-            .join(',');
-
-          const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-          const hasGay = videoGenreNames.includes('ゲイ');
-
-          if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-          if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-          if (genderFilter === 'gay') return hasGay && !hasLesbian;
-          return false;
-        });
-      }
-
-      if (filteredData.length > 0) {
-        setSearchResults([...searchResults, ...filteredData]);
-        // ランダム表示のためoffsetは更新しない（毎回ランダムに取得）
-        setHasMoreSearch(true); // 常に追加読み込み可能
       } else {
-        setHasMoreSearch(false);
+        // プールが枯渇したらhasMoreをfalseに
+        if (genderFilter === 'straight') {
+          setStraightMeta({ ...straightMeta, hasMore: false });
+        } else if (genderFilter === 'lesbian') {
+          setLesbianMeta({ ...lesbianMeta, hasMore: false });
+        } else if (genderFilter === 'gay') {
+          setGayMeta({ ...gayMeta, hasMore: false });
+        }
       }
     } catch (error) {
       console.error('追加読み込みエラー:', error);
@@ -871,23 +469,50 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     }
   };
 
+  // 無限スクロール
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const videoList = videoListRef.current;
+    if (!videoList) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = videoList;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+      if (distanceFromBottom < 200 && !isLoadingMore && currentMeta.hasMore) {
+        loadMoreVideos();
+      }
+    };
+
+    videoList.addEventListener('scroll', handleScroll);
+    return () => {
+      videoList.removeEventListener('scroll', handleScroll);
+    };
+  }, [isOpen, isLoadingMore, currentMeta.hasMore, currentPool, currentPoolIndex, genderFilter, displayVideos]);
+
+  // モーダルを開いた時、現在の動画の位置にスクロール
+  useLayoutEffect(() => {
+    if (isOpen && videoListRef.current) {
+      if (currentVideoRef.current) {
+        currentVideoRef.current.scrollIntoView({ block: 'center', behavior: 'auto' });
+      } else {
+        videoListRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen]);
+
   const toggleGenreSelection = (genreId: string) => {
     setSelectedGenreIds(prev =>
-      prev.includes(genreId)
-        ? prev.filter(id => id !== genreId)
-        : [...prev, genreId]
+      prev.includes(genreId) ? prev.filter(id => id !== genreId) : [...prev, genreId]
     );
-    // 選択時に検索ボックスをクリア
     setGenreSearchKeyword('');
   };
 
   const toggleActressSelection = (actressId: string) => {
     setSelectedActressIds(prev =>
-      prev.includes(actressId)
-        ? prev.filter(id => id !== actressId)
-        : [...prev, actressId]
+      prev.includes(actressId) ? prev.filter(id => id !== actressId) : [...prev, actressId]
     );
-    // 選択時に検索ボックスをクリア
     setActressSearchKeyword('');
   };
 
@@ -899,7 +524,6 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     ? genres.filter(g => g.name.includes(genreSearchKeyword))
     : genres;
 
-  // 常に0件の項目は非表示
   const displayActresses = availableActresses.size > 0
     ? filteredActresses.filter(a => availableActresses.has(a.id))
     : filteredActresses;
@@ -908,10 +532,22 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
     ? filteredGenres.filter(g => availableGenres.has(g.id))
     : filteredGenres;
 
-  if (!isOpen) return null;
+  // 性別フィルタ変更ハンドラー
+  const handleGenderFilterChange = (newFilter: GenderFilter) => {
+    if (videoListRef.current) {
+      videoListRef.current.scrollTop = 0;
+    }
 
-  // 表示する動画リストを決定: 検索結果がある場合はそれを、なければVideoSwiperから渡された動画を使用
-  const displayVideos = searchResults !== null ? searchResults : videos;
+    if (newFilter !== genderFilter) {
+      setGenderFilter(newFilter);
+      setSearchMode('keyword');
+      setSelectedGenreIds([]);
+      setSelectedActressIds([]);
+      setKeyword('');
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -926,39 +562,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           {/* 性別フィルター */}
           <div className="flex gap-2 mb-3">
             <button
-              onClick={() => {
-                // スクロール位置をリセット
-                if (videoListRef.current) {
-                  videoListRef.current.scrollTop = 0;
-                }
-
-                if (genderFilter === 'straight') {
-                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
-                  if (genderVideos && genderVideos.straight) {
-                    setSearchResults(genderVideos.straight);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true);
-                  } else if (initialVideosRef.current.length > 0) {
-                    setSearchResults(initialVideosRef.current);
-                  }
-                } else {
-                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
-                  setGenderFilter('straight');
-                  setSearchMode('keyword');
-                  setSelectedGenreIds([]);
-                  setSelectedActressIds([]);
-                  if (genderVideos && genderVideos.straight) {
-                    setSearchResults(genderVideos.straight);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true);
-                  } else if (initialVideosRef.current.length > 0) {
-                    setSearchResults(initialVideosRef.current);
-                  } else {
-                    setSearchResults(null);
-                  }
-                  setKeyword('');
-                }
-              }}
+              onClick={() => handleGenderFilterChange('straight')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'straight'
                   ? 'bg-pink-500 text-white'
@@ -968,35 +572,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               ♂♀
             </button>
             <button
-              onClick={() => {
-                // スクロール位置をリセット
-                if (videoListRef.current) {
-                  videoListRef.current.scrollTop = 0;
-                }
-
-                if (genderFilter === 'lesbian') {
-                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
-                  if (genderVideos && genderVideos.lesbian) {
-                    setSearchResults(genderVideos.lesbian);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true); // 追加読み込みを有効化
-                  }
-                } else {
-                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
-                  setGenderFilter('lesbian');
-                  setSearchMode('keyword');
-                  setSelectedGenreIds([]);
-                  setSelectedActressIds([]);
-                  if (genderVideos && genderVideos.lesbian) {
-                    setSearchResults(genderVideos.lesbian);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true); // 追加読み込みを有効化
-                  } else {
-                    setSearchResults(null);
-                  }
-                  setKeyword('');
-                }
-              }}
+              onClick={() => handleGenderFilterChange('lesbian')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'lesbian'
                   ? 'bg-pink-500 text-white'
@@ -1006,35 +582,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
               ♀♀
             </button>
             <button
-              onClick={() => {
-                // スクロール位置をリセット
-                if (videoListRef.current) {
-                  videoListRef.current.scrollTop = 0;
-                }
-
-                if (genderFilter === 'gay') {
-                  // 同じフィルタをクリックした場合は事前読み込みデータを使用
-                  if (genderVideos && genderVideos.gay) {
-                    setSearchResults(genderVideos.gay);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true); // 追加読み込みを有効化
-                  }
-                } else {
-                  // 性別フィルタを変更した場合、選択をクリアして事前読み込みデータを表示
-                  setGenderFilter('gay');
-                  setSearchMode('keyword');
-                  setSelectedGenreIds([]);
-                  setSelectedActressIds([]);
-                  if (genderVideos && genderVideos.gay) {
-                    setSearchResults(genderVideos.gay);
-                    setSearchOffset(20);
-                    setHasMoreSearch(true); // 追加読み込みを有効化
-                  } else {
-                    setSearchResults(null);
-                  }
-                  setKeyword('');
-                }
-              }}
+              onClick={() => handleGenderFilterChange('gay')}
               className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
                 genderFilter === 'gay'
                   ? 'bg-pink-500 text-white'
@@ -1095,11 +643,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                           .join(', ')
                       : 'ジャンルを選択'}
                   </span>
-                  {(currentFilterCount > 0 || genderCounts) && (
+                  {currentFilterCount > 0 && (
                     <span className="text-gray-400 text-xs ml-2">
-                      {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
-                        ? currentFilterCount.toLocaleString()
-                        : genderCounts?.[genderFilter]?.toLocaleString()}件
+                      {currentFilterCount.toLocaleString()}件
                     </span>
                   )}
                 </div>
@@ -1120,11 +666,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
                           .join(', ')
                       : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
                   </span>
-                  {(currentFilterCount > 0 || genderCounts) && (
+                  {currentFilterCount > 0 && (
                     <span className="text-gray-400 text-xs ml-2">
-                      {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
-                        ? currentFilterCount.toLocaleString()
-                        : genderCounts?.[genderFilter]?.toLocaleString()}件
+                      {currentFilterCount.toLocaleString()}件
                     </span>
                   )}
                 </div>
@@ -1176,67 +720,59 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             </div>
           ) : (
             <>
-              {(totalSearchCount > 0 || isCountLoading) && (
+              {currentMeta.totalCount > 0 && (
                 <div className="mb-3">
                   <p className="text-gray-400 text-sm">
-                    {isCountLoading ? '計算中...' : `${totalSearchCount}件の動画が見つかりました`}
+                    {currentMeta.totalCount.toLocaleString()}件の動画が見つかりました
                   </p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3 pb-20">
-                {displayVideos.map((video, index) => {
+                {displayVideos.map((video) => {
                   const isCurrentVideo = video.dmm_content_id === currentVideoId;
                   return (
                     <button
                       key={video.id}
                       ref={isCurrentVideo ? currentVideoRef : null}
                       onClick={() => {
-                        console.log('SearchModal: 動画選択', { videoId: video.dmm_content_id, searchResults: searchResults !== null });
-                        // フィルタ検索結果の場合
-                        if (searchResults !== null) {
-                          console.log('SearchModal: フィルタ検索結果 → onReplaceVideos呼び出し');
-                          // モーダルを先に閉じる（スクロールを見せないため）
+                        if (currentMeta.isSearchResult) {
                           onClose();
-                          // VideoSwiperの動画リストを検索結果で置き換え（ページリロードなし）
-                          onReplaceVideos(searchResults, video.dmm_content_id);
+                          onReplaceVideos(displayVideos, video.dmm_content_id);
                         } else {
-                          // ブラウズモード（ホーム画面の動画リスト）の場合
-                          console.log('SearchModal: ブラウズモード → onVideoSelect呼び出し');
-                          // VideoSwiper内で動画を切り替え（ページリロードなし）
                           onVideoSelect(video.dmm_content_id);
                           onClose();
                         }
                       }}
                       className={`group text-left ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
                     >
-                    <div className="relative aspect-[4/3] bg-gray-800 rounded-lg overflow-hidden mb-1.5">
-                      <img
-                        src={video.thumbnail_url || ''}
-                        alt={video.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                      <div className="absolute top-1.5 right-1.5 bg-yellow-400 text-black px-1.5 py-0.5 rounded text-xs font-bold">
-                        PR
+                      <div className="relative aspect-[4/3] bg-gray-800 rounded-lg overflow-hidden mb-1.5">
+                        <img
+                          src={video.thumbnail_url || ''}
+                          alt={video.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                        <div className="absolute top-1.5 right-1.5 bg-yellow-400 text-black px-1.5 py-0.5 rounded text-xs font-bold">
+                          PR
+                        </div>
                       </div>
-                    </div>
-                    <h3 className="text-xs font-medium line-clamp-2 mb-0.5 group-hover:text-blue-400 transition-colors text-white">
-                      {video.title}
-                    </h3>
-                    {video.maker && (
-                      <p className="text-xs text-gray-400">{video.maker}</p>
-                    )}
-                  </button>
+                      <h3 className="text-xs font-medium line-clamp-2 mb-0.5 group-hover:text-blue-400 transition-colors text-white">
+                        {video.title}
+                      </h3>
+                      {video.maker && (
+                        <p className="text-xs text-gray-400">{video.maker}</p>
+                      )}
+                    </button>
                   );
                 })}
               </div>
               {/* 追加読み込み中インジケーター */}
-              {(searchResults !== null ? isLoadingMore : isLoadingMoreVideos) && (
+              {isLoadingMore && (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
                 </div>
               )}
               {/* すべて表示済みメッセージ */}
-              {searchResults !== null && !hasMoreSearch && searchResults.length > 0 && (
+              {!currentMeta.hasMore && displayVideos.length > 0 && (
                 <div className="text-center py-8">
                   <p className="text-gray-400 text-sm">すべての動画を表示しました</p>
                 </div>
@@ -1251,11 +787,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              // pointer-eventsを一時的に無効化してハイライト問題を防止
               document.body.style.pointerEvents = 'none';
               setTimeout(() => {
                 onClose();
-                // モーダルが完全に閉じた後にpointer-eventsを復元
                 setTimeout(() => {
                   document.body.style.pointerEvents = 'auto';
                 }, 300);
@@ -1275,11 +809,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
-                {(currentFilterCount > 0 || genderCounts) && (
+                {currentFilterCount > 0 && (
                   <span className="text-gray-400 text-sm">
-                    {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
-                      ? currentFilterCount.toLocaleString()
-                      : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    {currentFilterCount.toLocaleString()}件
                   </span>
                 )}
               </div>
@@ -1375,11 +907,9 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
             <div className="flex items-center justify-between p-4 border-b border-gray-700">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
-                {(currentFilterCount > 0 || genderCounts) && (
+                {currentFilterCount > 0 && (
                   <span className="text-gray-400 text-sm">
-                    {selectedGenreIds.length > 0 || selectedActressIds.length > 0 || keyword.trim()
-                      ? currentFilterCount.toLocaleString()
-                      : genderCounts?.[genderFilter]?.toLocaleString()}件
+                    {currentFilterCount.toLocaleString()}件
                   </span>
                 )}
               </div>

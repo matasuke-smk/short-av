@@ -652,13 +652,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
-        videos={videos}
-        currentIndex={currentIndex}
-        onLoadMore={loadMoreVideos}
-        isLoadingMoreVideos={isLoadingMore}
-        hasMoreVideos={!isFiniteList}
         genderCounts={genderCounts}
         genderVideos={genderVideos}
+        genderPools={videoPools}
       />
 
       {/* ランキングモーダル */}
