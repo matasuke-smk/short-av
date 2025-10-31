@@ -263,6 +263,13 @@ export default function SearchModal({
     filteredVideos.forEach(video => {
       (video.genre_ids || []).forEach((id: string) => genreIds.add(id));
       (video.actress_ids || []).forEach((id: string) => actressIds.add(id));
+
+      // タイトルに名前が含まれる女優も追加
+      actresses.forEach(actress => {
+        if (video.title.includes(actress.name)) {
+          actressIds.add(actress.id);
+        }
+      });
     });
 
     setAvailableGenres(genreIds);
