@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/supabase';
 
@@ -569,6 +569,32 @@ export default function SearchModal({
     ? genres.filter(g => g.name.includes(genreSearchKeyword))
     : genres;
 
+  // 女優ごとの動画件数を事前計算（useMemoでキャッシュ）
+  const actressVideoCountMap = useMemo(() => {
+    if (originalPool.length === 0) return new Map<string, number>();
+
+    const countMap = new Map<string, number>();
+
+    // 全動画を1回だけ走査
+    originalPool.forEach(video => {
+      const actressIdsInVideo = video.actress_ids || [];
+
+      // actress_idsでマッチ
+      actressIdsInVideo.forEach((actressId: string) => {
+        countMap.set(actressId, (countMap.get(actressId) || 0) + 1);
+      });
+
+      // タイトルに名前が含まれる女優もカウント
+      actresses.forEach(actress => {
+        if (video.title.includes(actress.name) && !actressIdsInVideo.includes(actress.id)) {
+          countMap.set(actress.id, (countMap.get(actress.id) || 0) + 1);
+        }
+      });
+    });
+
+    return countMap;
+  }, [originalPool, actresses]);
+
   // 名前検索をした場合は、availableのフィルタリングをスキップ
   const baseDisplayActresses = actressSearchKeyword
     ? filteredActresses
@@ -577,17 +603,11 @@ export default function SearchModal({
         : filteredActresses);
 
   // 女優を動画件数でソート（多い順）
-  const displayActresses = originalPool.length > 0
-    ? [...baseDisplayActresses].sort((a, b) => {
-        const countA = originalPool.filter(v =>
-          (v.actress_ids || []).includes(a.id) || v.title.includes(a.name)
-        ).length;
-        const countB = originalPool.filter(v =>
-          (v.actress_ids || []).includes(b.id) || v.title.includes(b.name)
-        ).length;
-        return countB - countA;
-      })
-    : baseDisplayActresses;
+  const displayActresses = [...baseDisplayActresses].sort((a, b) => {
+    const countA = actressVideoCountMap.get(a.id) || 0;
+    const countB = actressVideoCountMap.get(b.id) || 0;
+    return countB - countA;
+  });
 
   // ジャンル検索をした場合は、availableのフィルタリングをスキップ
   const displayGenres = genreSearchKeyword
