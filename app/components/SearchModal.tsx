@@ -570,13 +570,19 @@ export default function SearchModal({
     ? genres.filter(g => g.name.includes(genreSearchKeyword))
     : genres;
 
-  const displayActresses = availableActresses.size > 0
-    ? filteredActresses.filter(a => availableActresses.has(a.id))
-    : filteredActresses;
+  // 名前検索をした場合は、availableのフィルタリングをスキップ
+  const displayActresses = actressSearchKeyword
+    ? filteredActresses
+    : (availableActresses.size > 0
+        ? filteredActresses.filter(a => availableActresses.has(a.id))
+        : filteredActresses);
 
-  const displayGenres = availableGenres.size > 0
-    ? filteredGenres.filter(g => availableGenres.has(g.id))
-    : filteredGenres;
+  // ジャンル検索をした場合は、availableのフィルタリングをスキップ
+  const displayGenres = genreSearchKeyword
+    ? filteredGenres
+    : (availableGenres.size > 0
+        ? filteredGenres.filter(g => availableGenres.has(g.id))
+        : filteredGenres);
 
   // 性別フィルタ変更ハンドラー
   const handleGenderFilterChange = (newFilter: GenderFilter) => {
