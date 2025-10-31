@@ -1,5 +1,4 @@
 import { Suspense } from 'react';
-import Script from 'next/script';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
@@ -206,11 +205,9 @@ async function VideoList() {
     <>
       {/* VideoObject構造化データ（サーバー側レンダリング） */}
       {firstVideoSchema && (
-        <Script
-          id="video-schema"
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
-          strategy="beforeInteractive"
         />
       )}
       <VideoSwiper
