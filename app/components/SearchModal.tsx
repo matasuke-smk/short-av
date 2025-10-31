@@ -415,43 +415,70 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
       let data: Video[] = [];
 
       if (searchMode === 'keyword' && keyword.trim()) {
-        const { data: result, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .ilike('title', `%${keyword}%`)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .limit(600);
+        // 全件取得
+        const allData: Video[] = [];
+        let offset = 0;
+        const batchSize = 1000;
 
-        if (error) {
-          console.error('検索エラー:', error);
-          return [];
+        while (true) {
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .ilike('title', `%${keyword}%`)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .range(offset, offset + batchSize - 1);
+
+          if (error) {
+            console.error('検索エラー:', error);
+            break;
+          }
+
+          if (!result || result.length === 0) break;
+          allData.push(...result);
+
+          if (result.length < batchSize) break;
+          offset += batchSize;
         }
-        data = result || [];
-      } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
-        const { data: result, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('is_active', true)
-          .overlaps('genre_ids', selectedGenreIds)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .order('release_date', { ascending: false })
-          .limit(1000);
 
-        if (error) {
-          console.error('検索エラー:', error);
-          return [];
+        data = allData;
+      } else if (searchMode === 'genre' && selectedGenreIds.length > 0) {
+        // 全件取得
+        const allData: Video[] = [];
+        let offset = 0;
+        const batchSize = 1000;
+
+        while (true) {
+          const { data: result, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .overlaps('genre_ids', selectedGenreIds)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .order('release_date', { ascending: false })
+            .range(offset, offset + batchSize - 1);
+
+          if (error) {
+            console.error('検索エラー:', error);
+            break;
+          }
+
+          if (!result || result.length === 0) break;
+          allData.push(...result);
+
+          if (result.length < batchSize) break;
+          offset += batchSize;
         }
 
         // AND条件でフィルタリング（すべてのジャンルが含まれている動画のみ）
-        data = (result || []).filter(video =>
+        data = allData.filter(video =>
           selectedGenreIds.every(genreId =>
             (video.genre_ids || []).includes(genreId)
           )
-        ).slice(0, 600);
+        );
       } else if (searchMode === 'actress' && selectedActressIds.length > 0) {
         // 女優ID検索と女優名検索の両方を実行して結果を合算
         const selectedActresses = actresses.filter(a => selectedActressIds.includes(a.id));
@@ -507,7 +534,7 @@ export default function SearchModal({ isOpen, onClose, onVideoSelect, onReplaceV
           const dateA = new Date(a.release_date || 0).getTime();
           const dateB = new Date(b.release_date || 0).getTime();
           return dateB - dateA;
-        }).slice(0, 600);
+        });
       } else {
         // 性別フィルタのみの場合、全動画を取得
         const allData: Video[] = [];
