@@ -426,8 +426,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       fill
                       className="object-contain"
                       sizes="(max-width: 768px) 100vw, 640px"
-                      priority={index === currentIndex}
-                      quality={85}
+                      priority={index === currentIndex || index === 0}
+                      quality={index === 0 ? 90 : 85}
+                      {...(index === 0 && { fetchPriority: 'high' } as any)}
                     />
 
                     {/* いいねボタン - サムネイル左下 */}
@@ -469,8 +470,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                             fill
                             className="object-contain"
                             sizes="(max-width: 768px) 100vw, 640px"
-                            priority={false}
-                            quality={90}
+                            priority={index === 0}
+                            quality={index === 0 ? 95 : 85}
+                            loading={index === 0 ? 'eager' : 'lazy'}
                           />
                         </div>
                       </a>

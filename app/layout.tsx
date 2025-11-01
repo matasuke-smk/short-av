@@ -70,6 +70,11 @@ export default function RootLayout({
   return (
     <html lang="ja" className={notoSansJP.variable}>
       <head>
+        {/* DMM画像サーバーへの事前接続でLCP改善 */}
+        <link rel="dns-prefetch" href="https://pics.dmm.co.jp" />
+        <link rel="preconnect" href="https://pics.dmm.co.jp" />
+        <link rel="dns-prefetch" href="https://pics.dmm.com" />
+        <link rel="preconnect" href="https://pics.dmm.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
