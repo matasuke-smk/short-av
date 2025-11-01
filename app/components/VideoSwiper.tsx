@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -787,7 +788,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           setShowSearchModal(false);
           trackModalClose('search');
         }}
-        onVideoSelect={(videoId) => {
+        onVideoSelect={async (videoId) => {
           // 選択された動画のindexを見つけてスクロール（ページリロードなし）
           const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
           if (targetIndex !== -1 && emblaApi) {
@@ -798,42 +799,92 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
           } else {
-            // 現在のvideosに動画が存在しない場合（性別フィルタが異なる場合など）
-            // 全プールから動画を探す
-            const allPoolVideos = [
-              ...(videoPools.straight || []),
-              ...(videoPools.lesbian || []),
-              ...(videoPools.gay || [])
-            ];
-            const targetVideo = allPoolVideos.find(v => v.dmm_content_id === videoId);
+            // 現在のvideosに動画が存在しない場合
+            // まず現在の性別フィルタのプールから探す
+            const currentGenderFilter = (document.querySelector('[data-gender-filter].bg-white') as HTMLElement)?.dataset?.genderFilter || 'straight';
+            const currentPool = videoPools[currentGenderFilter as keyof typeof videoPools] || [];
 
-            if (targetVideo) {
-              // 動画が見つかった場合、その動画を含む適切なプールに切り替える
-              let newVideos: any[] = [];
-              if (videoPools.straight?.some(v => v.dmm_content_id === videoId)) {
-                newVideos = videoPools.straight;
-              } else if (videoPools.lesbian?.some(v => v.dmm_content_id === videoId)) {
-                newVideos = videoPools.lesbian;
-              } else if (videoPools.gay?.some(v => v.dmm_content_id === videoId)) {
-                newVideos = videoPools.gay;
-              }
+            // 現在のプールで動画を探す
+            let poolTargetIndex = currentPool.findIndex(v => v.dmm_content_id === videoId);
 
-              if (newVideos.length > 0) {
-                // 新しい動画リストに切り替えて、選択した動画に移動
-                const newTargetIndex = newVideos.findIndex(v => v.dmm_content_id === videoId);
-                setVideos(newVideos);
-                setIsFiniteList(true);
-                requestAnimationFrame(() => {
-                  if (emblaApi) {
-                    emblaApi.reInit();
-                    emblaApi.scrollTo(newTargetIndex, false);
-                    setCurrentIndex(newTargetIndex);
-                    // URLを更新
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('v', videoId);
-                    window.history.pushState({}, '', url.toString());
-                  }
-                });
+            if (poolTargetIndex !== -1) {
+              // 現在のプールに存在する場合、プール全体を表示用に設定
+              console.log(`動画が現在のプール(${currentGenderFilter})の${poolTargetIndex}番目に見つかりました`);
+              setVideos(currentPool);
+              setIsFiniteList(true);
+              requestAnimationFrame(() => {
+                if (emblaApi) {
+                  emblaApi.reInit();
+                  emblaApi.scrollTo(poolTargetIndex, false);
+                  setCurrentIndex(poolTargetIndex);
+                  // URLを更新
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('v', videoId);
+                  window.history.pushState({}, '', url.toString());
+                }
+              });
+            } else {
+              // 他のプールも探す
+              const allPoolVideos = [
+                ...(videoPools.straight || []),
+                ...(videoPools.lesbian || []),
+                ...(videoPools.gay || [])
+              ];
+              const targetVideo = allPoolVideos.find(v => v.dmm_content_id === videoId);
+
+              if (targetVideo) {
+                // 動画が見つかった場合、その動画を含む適切なプールに切り替える
+                let newVideos: any[] = [];
+                if (videoPools.straight?.some(v => v.dmm_content_id === videoId)) {
+                  newVideos = videoPools.straight;
+                } else if (videoPools.lesbian?.some(v => v.dmm_content_id === videoId)) {
+                  newVideos = videoPools.lesbian;
+                } else if (videoPools.gay?.some(v => v.dmm_content_id === videoId)) {
+                  newVideos = videoPools.gay;
+                }
+
+                if (newVideos.length > 0) {
+                  // 新しい動画リストに切り替えて、選択した動画に移動
+                  const newTargetIndex = newVideos.findIndex(v => v.dmm_content_id === videoId);
+                  setVideos(newVideos);
+                  setIsFiniteList(true);
+                  requestAnimationFrame(() => {
+                    if (emblaApi) {
+                      emblaApi.reInit();
+                      emblaApi.scrollTo(newTargetIndex, false);
+                      setCurrentIndex(newTargetIndex);
+                      // URLを更新
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('v', videoId);
+                      window.history.pushState({}, '', url.toString());
+                    }
+                  });
+                }
+              } else {
+                // どのプールにも存在しない場合、データベースから直接取得
+                console.log('動画がプールに存在しないため、データベースから取得します');
+                const { data: targetVideo } = await supabase
+                  .from('videos')
+                  .select('*')
+                  .eq('dmm_content_id', videoId)
+                  .single();
+
+                if (targetVideo) {
+                  // 取得した動画を現在のプールの先頭に追加
+                  const updatedVideos = [targetVideo, ...videos];
+                  setVideos(updatedVideos);
+                  requestAnimationFrame(() => {
+                    if (emblaApi) {
+                      emblaApi.reInit();
+                      emblaApi.scrollTo(0, false); // 先頭（追加した動画）に移動
+                      setCurrentIndex(0);
+                      // URLを更新
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('v', videoId);
+                      window.history.pushState({}, '', url.toString());
+                    }
+                  });
+                }
               }
             }
           }
