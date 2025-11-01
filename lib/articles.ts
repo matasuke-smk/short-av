@@ -4662,5 +4662,8 @@ export function getArticleBySlug(slug: string): Article | undefined {
 }
 
 export function getAllArticles(): Article[] {
-  return articles;
+  // 新しい記事を上に表示するため、公開日の降順でソート
+  return [...articles].sort((a, b) => {
+    return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+  });
 }
