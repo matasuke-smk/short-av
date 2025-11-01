@@ -63,87 +63,150 @@ async function VideoList() {
     gay: gayCount || 0,
   };
 
-  // シャッフル関数
-  function shuffleArray<T>(array: T[]): T[] {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  }
+  // データベースから直接ランダムに取得（高速かつ全動画が対象）
+  // 各カテゴリごとに200件ずつランダム取得し、プール化
+  const poolSize = 200; // 各カテゴリのプールサイズ
+  const displaySize = 20; // 初期表示件数
 
-  // プール方式：初期読み込みで全動画を取得し、性別フィルタ別に分類してプール化
-  // TODO: 将来的にはいいね数上位から選択する実装に変更予定
-
-  // パフォーマンス最適化：初期ロード時は600件に制限（各カテゴリ約200件確保）
-  // 全動画を取得（バッチ処理で200件ずつ取得、最大600件まで）
-  const allVideos = [];
-  let offset = 0;
-  const batchSize = 200;
-  const maxVideos = 600; // 最大取得件数を制限
   let fetchError = null;
+  let straightVideosAll = null;
+  let lesbianVideosAll = null;
+  let gayVideosAll = null;
 
-  while (allVideos.length < maxVideos) {
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*')
-      .eq('is_active', true)
-      .not('thumbnail_url', 'is', null)
-      .not('sample_video_url', 'is', null)
-      .order('id', { ascending: true })
-      .range(offset, offset + batchSize - 1);
+  // ♀♀ (レズビアン)：レズビアン/レズキスジャンルを含む動画をランダムに取得
+  const lesbianGenreIds = lgbtGenres
+    .filter(g => g.slug === '4013' || g.slug === '5062')
+    .map(g => g.id);
 
-    if (error) {
-      fetchError = error;
-      break;
+  // ♂♂ (ゲイ)：ゲイジャンルを含む動画をランダムに取得
+  const gayGenreIds = lgbtGenres
+    .filter(g => g.slug === '4060')
+    .map(g => g.id);
+
+  // まずRPC関数を使用してランダム取得を試みる
+  try {
+    // ♂♀ (ストレート)：LGBTジャンルを除外した動画
+    const { data: straightData, error: straightError } = await supabase
+      .rpc('get_random_videos_exclude_genres', {
+        p_limit: poolSize,
+        p_exclude_genres: lgbtGenreIds
+      });
+
+    if (!straightError) {
+      straightVideosAll = straightData;
     }
 
-    if (!data || data.length === 0) break;
+    // ♀♀ (レズビアン)
+    const { data: lesbianData, error: lesbianError } = await supabase
+      .rpc('get_random_videos_include_genres', {
+        p_limit: poolSize,
+        p_include_genres: lesbianGenreIds
+      });
 
-    allVideos.push(...data);
+    if (!lesbianError) {
+      lesbianVideosAll = lesbianData;
+    }
 
-    if (data.length < batchSize) break;
-    offset += batchSize;
+    // ♂♂ (ゲイ)
+    const { data: gayData, error: gayError } = await supabase
+      .rpc('get_random_videos_include_genres', {
+        p_limit: poolSize,
+        p_include_genres: gayGenreIds
+      });
+
+    if (!gayError) {
+      gayVideosAll = gayData;
+    }
+  } catch (error) {
+    console.log('RPC関数が存在しない可能性があります。フォールバックを使用します。');
   }
 
-  // 重複除去（念のため）
-  const uniqueVideos = Array.from(
-    new Map(allVideos.map(v => [v.id, v])).values()
-  );
+  // RPC関数が存在しない場合のフォールバック
+  if (!straightVideosAll || !lesbianVideosAll || !gayVideosAll) {
+    // 通常のクエリで取得（ランダム性は制限される）
+    if (!lesbianVideosAll) {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('is_active', true)
+        .not('thumbnail_url', 'is', null)
+        .not('sample_video_url', 'is', null)
+        .overlaps('genre_ids', lesbianGenreIds)
+        .limit(poolSize);
 
-  // 性別フィルタ別に分類
-  const straightVideosAll: typeof uniqueVideos = [];
-  const lesbianVideosAll: typeof uniqueVideos = [];
-  const gayVideosAll: typeof uniqueVideos = [];
-
-  (uniqueVideos || []).forEach(video => {
-    const genreIds = video.genre_ids || [];
-    const videoGenreNames = genreIds
-      .map((id: string) => genreMap.get(id) || '')
-      .join(',');
-
-    const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-    const hasGay = videoGenreNames.includes('ゲイ');
-
-    if (hasLesbian && !hasGay) {
-      lesbianVideosAll.push(video);
-    } else if (hasGay && !hasLesbian) {
-      gayVideosAll.push(video);
-    } else if (!hasLesbian && !hasGay) {
-      straightVideosAll.push(video);
+      lesbianVideosAll = data;
+      if (error) fetchError = error;
     }
-  });
 
-  // それぞれをシャッフルしてプール化
-  const straightPool = shuffleArray(straightVideosAll);
-  const lesbianPool = shuffleArray(lesbianVideosAll);
-  const gayPool = shuffleArray(gayVideosAll);
+    if (!gayVideosAll) {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('is_active', true)
+        .not('thumbnail_url', 'is', null)
+        .not('sample_video_url', 'is', null)
+        .overlaps('genre_ids', gayGenreIds)
+        .limit(poolSize);
+
+      gayVideosAll = data;
+      if (error) fetchError = error;
+    }
+
+    if (!straightVideosAll) {
+      // ストレート動画：全動画から取得後、クライアント側でフィルタリング
+      const { data: allVideos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('is_active', true)
+        .not('thumbnail_url', 'is', null)
+        .not('sample_video_url', 'is', null)
+        .limit(poolSize * 3); // 多めに取得
+
+      if (error) {
+        fetchError = error;
+      } else {
+        // LGBT動画のIDセットを作成
+        const lgbtVideoIds = new Set([
+          ...(lesbianVideosAll || []).map(v => v.id),
+          ...(gayVideosAll || []).map(v => v.id)
+        ]);
+
+        // LGBT動画を除外
+        straightVideosAll = (allVideos || [])
+          .filter(video => {
+            if (lgbtVideoIds.has(video.id)) return false;
+            const genreIds = video.genre_ids || [];
+            const hasLGBT = genreIds.some((id: string) => lgbtGenreIds.includes(id));
+            return !hasLGBT;
+          })
+          .slice(0, poolSize);
+      }
+    }
+
+    // フォールバック時はJavaScriptでシャッフル
+    function shuffleArray<T>(array: T[]): T[] {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    straightVideosAll = shuffleArray(straightVideosAll || []);
+    lesbianVideosAll = shuffleArray(lesbianVideosAll || []);
+    gayVideosAll = shuffleArray(gayVideosAll || []);
+  }
+
+  // プールを作成（RPC関数使用時は既にランダム、フォールバック時はシャッフル済み）
+  const straightPool = straightVideosAll || [];
+  const lesbianPool = lesbianVideosAll || [];
+  const gayPool = gayVideosAll || [];
 
   // プールから最初の20件を表示用として取り出す
-  const straightVideos = straightPool.slice(0, 20);
-  const lesbianVideos = lesbianPool.slice(0, 20);
-  const gayVideos = gayPool.slice(0, 20);
+  const straightVideos = straightPool.slice(0, displaySize);
+  const lesbianVideos = lesbianPool.slice(0, displaySize);
+  const gayVideos = gayPool.slice(0, displaySize);
 
   // 性別フィルタ別の動画リスト（初期表示用20件）
   const genderVideos = {
