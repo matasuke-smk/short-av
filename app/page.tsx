@@ -76,13 +76,15 @@ async function VideoList() {
   // プール方式：初期読み込みで全動画を取得し、性別フィルタ別に分類してプール化
   // TODO: 将来的にはいいね数上位から選択する実装に変更予定
 
-  // 全動画を取得（バッチ処理で1000件ずつ取得）
+  // パフォーマンス最適化：初期ロード時は600件に制限（各カテゴリ約200件確保）
+  // 全動画を取得（バッチ処理で200件ずつ取得、最大600件まで）
   const allVideos = [];
   let offset = 0;
-  const batchSize = 1000;
+  const batchSize = 200;
+  const maxVideos = 600; // 最大取得件数を制限
   let fetchError = null;
 
-  while (true) {
+  while (allVideos.length < maxVideos) {
     const { data, error } = await supabase
       .from('videos')
       .select('*')
