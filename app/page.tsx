@@ -158,8 +158,8 @@ async function VideoList() {
       } else {
         // LGBT動画のIDセットを作成
         const lgbtVideoIds = new Set([
-          ...(lesbianVideosAll || []).map(v => v.id),
-          ...(gayVideosAll || []).map(v => v.id)
+          ...(lesbianVideosAll || []).map((v: any) => v.id),
+          ...(gayVideosAll || []).map((v: any) => v.id)
         ]);
 
         // LGBT動画を除外
