@@ -791,11 +791,51 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           // 選択された動画のindexを見つけてスクロール（ページリロードなし）
           const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
           if (targetIndex !== -1 && emblaApi) {
+            // 現在のvideosに動画が存在する場合
             emblaApi.scrollTo(targetIndex, false); // 即座にスクロール（アニメーションなし）
             // URLを更新（履歴に追加）
             const url = new URL(window.location.href);
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
+          } else {
+            // 現在のvideosに動画が存在しない場合（性別フィルタが異なる場合など）
+            // 全プールから動画を探す
+            const allPoolVideos = [
+              ...(videoPools.straight || []),
+              ...(videoPools.lesbian || []),
+              ...(videoPools.gay || [])
+            ];
+            const targetVideo = allPoolVideos.find(v => v.dmm_content_id === videoId);
+
+            if (targetVideo) {
+              // 動画が見つかった場合、その動画を含む適切なプールに切り替える
+              let newVideos: any[] = [];
+              if (videoPools.straight?.some(v => v.dmm_content_id === videoId)) {
+                newVideos = videoPools.straight;
+              } else if (videoPools.lesbian?.some(v => v.dmm_content_id === videoId)) {
+                newVideos = videoPools.lesbian;
+              } else if (videoPools.gay?.some(v => v.dmm_content_id === videoId)) {
+                newVideos = videoPools.gay;
+              }
+
+              if (newVideos.length > 0) {
+                // 新しい動画リストに切り替えて、選択した動画に移動
+                const newTargetIndex = newVideos.findIndex(v => v.dmm_content_id === videoId);
+                setVideos(newVideos);
+                setIsFiniteList(true);
+                requestAnimationFrame(() => {
+                  if (emblaApi) {
+                    emblaApi.reInit();
+                    emblaApi.scrollTo(newTargetIndex, false);
+                    setCurrentIndex(newTargetIndex);
+                    // URLを更新
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('v', videoId);
+                    window.history.pushState({}, '', url.toString());
+                  }
+                });
+              }
+            }
           }
         }}
         onReplaceVideos={(newVideos, selectedVideoId) => {
