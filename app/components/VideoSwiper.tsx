@@ -378,7 +378,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       <div className="flex-1 relative">
         <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide pt-6" ref={emblaRef}>
           <div className="flex flex-col">
-            {videos.map((video) => (
+            {videos.map((video, index) => (
               <div
                 key={video.id}
                 className="h-[100dvh] w-full snap-start snap-always relative"
@@ -413,7 +413,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       fill
                       className="object-contain"
                       sizes="(max-width: 768px) 100vw, 640px"
-                      priority={i === currentIndex}
+                      priority={index === currentIndex}
                       quality={85}
                     />
 
