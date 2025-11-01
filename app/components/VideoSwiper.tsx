@@ -2,16 +2,29 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
+import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import InitialTutorial from './InitialTutorial';
-import SearchModal from './SearchModal';
-import RankingModal from './RankingModal';
-import LikedModal from './LikedModal';
-import HistoryModal from './HistoryModal';
+
+// モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
+const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
+  ssr: false,
+});
+const SearchModal = dynamic(() => import('./SearchModal'), {
+  ssr: false,
+});
+const RankingModal = dynamic(() => import('./RankingModal'), {
+  ssr: false,
+});
+const LikedModal = dynamic(() => import('./LikedModal'), {
+  ssr: false,
+});
+const HistoryModal = dynamic(() => import('./HistoryModal'), {
+  ssr: false,
+});
 import {
   trackVideoView,
   trackLike,
