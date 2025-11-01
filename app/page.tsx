@@ -73,17 +73,8 @@ async function VideoList() {
   let lesbianVideosAll = null;
   let gayVideosAll = null;
 
-  // ♀♀ (レズビアン)：レズビアン/レズキスジャンルを含む動画をランダムに取得
-  const lesbianGenreIds = lgbtGenres
-    .filter(g => g.slug === '4013' || g.slug === '5062')
-    .map(g => g.id);
-
-  // ♂♂ (ゲイ)：ゲイジャンルを含む動画をランダムに取得
-  const gayGenreIds = lgbtGenres
-    .filter(g => g.slug === '4060')
-    .map(g => g.id);
-
   // まずRPC関数を使用してランダム取得を試みる
+  // lesbianGenreIdsとgayGenreIdsは既に上部で宣言済み
   try {
     // ♂♀ (ストレート)：LGBTジャンルを除外した動画
     const { data: straightData, error: straightError } = await supabase

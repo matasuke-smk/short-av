@@ -31,9 +31,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['embla-carousel-react', '@supabase/supabase-js'],
   },
 
-  // 本番ビルド最適化
-  swcMinify: true,
-
   // ヘッダーの最適化（キャッシュ制御）
   async headers() {
     return [
