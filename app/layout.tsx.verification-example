@@ -1,0 +1,29 @@
+// Google Search Console メタタグ確認方式の実装例
+//
+// このファイルは参考用です。実際の実装は app/layout.tsx に行ってください。
+//
+// 詳細は docs/Google-Search-Console-連携ガイド.md を参照してください。
+
+import type { Metadata, Viewport } from 'next';
+
+// 方法1: verification プロパティを使用（推奨）
+export const metadata: Metadata = {
+  // ... 既存のメタデータ
+
+  verification: {
+    google: 'あなたの確認コード', // GSCから取得したcontent値を入れる
+    // 例: google: 'abc123xyz789'
+  },
+};
+
+// 方法2: other プロパティを使用
+export const metadata: Metadata = {
+  // ... 既存のメタデータ
+
+  other: {
+    'google-site-verification': 'あなたの確認コード',
+  },
+};
+
+// いずれかの方法で実装すると、以下のメタタグが出力されます：
+// <meta name="google-site-verification" content="あなたの確認コード" />
