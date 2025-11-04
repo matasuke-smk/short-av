@@ -960,12 +960,12 @@ export default function SearchModal({
                           PR
                         </div>
                       </div>
-                      <h3 className="text-xs font-medium line-clamp-2 mb-0.5 group-hover:text-blue-400 transition-colors text-white">
+                      <h3 className="text-xs font-medium line-clamp-2 mb-0.5 group-hover:text-blue-400 transition-colors text-white h-8">
                         {video.title}
                       </h3>
-                      {video.maker && (
-                        <p className="text-xs text-gray-400">{video.maker}</p>
-                      )}
+                      <p className="text-xs text-gray-400 h-5">
+                        {video.maker || '\u00A0'}
+                      </p>
                     </button>
                   );
                 })}
