@@ -583,38 +583,46 @@ function recommendCondomSize(diameter) {
       const statsContent = document.getElementById('statsContent');
 
       if (data.count === 0) {
-        statsContent.innerHTML = '<div class="stats-loading">まだデータが収集されていません</div>';
+        statsContent.textContent = 'まだデータが収集されていません';
+        statsContent.className = 'stats-loading';
         return;
       }
 
       const avgLengthCm = (parseFloat(data.statistics.avgLength) / 10).toFixed(1);
+      const stdLengthCm = (parseFloat(data.statistics.stdLength) / 10).toFixed(1);
 
-      statsContent.innerHTML = `
-        <div class="stats-item">
-          <div class="stats-label">データ件数</div>
-          <div class="stats-value">${data.count}</div>
-          <div class="stats-subvalue">人</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-label">平均長さ</div>
-          <div class="stats-value">${avgLengthCm}</div>
-          <div class="stats-subvalue">cm (${data.statistics.avgLength}mm)</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-label">平均直径</div>
-          <div class="stats-value">${data.statistics.avgDiameter}</div>
-          <div class="stats-subvalue">mm</div>
-        </div>
-        <div class="stats-item">
-          <div class="stats-label">標準偏差（長さ）</div>
-          <div class="stats-value">${(parseFloat(data.statistics.stdLength) / 10).toFixed(1)}</div>
-          <div class="stats-subvalue">cm (±${data.statistics.stdLength}mm)</div>
-        </div>
-      `;
+      var cls = 'class';
+      var html = '';
+      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-label">データ件数</div>';
+      html += '<div ' + cls + '="stats-value">' + data.count + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">人</div>';
+      html += '</div>';
+
+      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-label">平均長さ</div>';
+      html += '<div ' + cls + '="stats-value">' + avgLengthCm + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">cm (' + data.statistics.avgLength + 'mm)</div>';
+      html += '</div>';
+
+      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-label">平均直径</div>';
+      html += '<div ' + cls + '="stats-value">' + data.statistics.avgDiameter + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm</div>';
+      html += '</div>';
+
+      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-label">標準偏差（長さ）</div>';
+      html += '<div ' + cls + '="stats-value">' + stdLengthCm + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">cm (±' + data.statistics.stdLength + 'mm)</div>';
+      html += '</div>';
+
+      statsContent.innerHTML = html;
     } catch (error) {
       console.error('Error loading collected statistics:', error);
       const statsContent = document.getElementById('statsContent');
-      statsContent.innerHTML = '<div class="stats-loading">データの読み込みに失敗しました</div>';
+      statsContent.textContent = 'データの読み込みに失敗しました';
+      statsContent.className = 'stats-loading';
     }
   }
 
