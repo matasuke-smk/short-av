@@ -163,20 +163,22 @@ export default async function ArticlePage({ params }: Props) {
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 leading-tight whitespace-pre-line">
               {article.title}
             </h1>
-            <div className="flex items-center gap-4 text-sm text-gray-400">
-              {article.category && (
-                <span className="bg-gray-800 px-3 py-1 rounded">
-                  {article.category}
-                </span>
-              )}
-              <time dateTime={article.publishedAt}>
-                {new Date(article.publishedAt).toLocaleDateString('ja-JP', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </time>
-            </div>
+            {article.slug !== 'size-comparison-tool' && (
+              <div className="flex items-center gap-4 text-sm text-gray-400">
+                {article.category && (
+                  <span className="bg-gray-800 px-3 py-1 rounded">
+                    {article.category}
+                  </span>
+                )}
+                <time dateTime={article.publishedAt}>
+                  {new Date(article.publishedAt).toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </time>
+              </div>
+            )}
           </header>
 
           {/* 本文 - レスポンシブ対応 */}

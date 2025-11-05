@@ -40,7 +40,13 @@ export default async function ArticlesPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const params = await searchParams;
-  const allArticles = getAllArticles();
+  const rawArticles = getAllArticles();
+
+  // size-comparison-toolを先頭に固定
+  const toolArticle = rawArticles.find(a => a.slug === 'size-comparison-tool');
+  const otherArticles = rawArticles.filter(a => a.slug !== 'size-comparison-tool');
+  const allArticles = toolArticle ? [toolArticle, ...otherArticles] : rawArticles;
+
   const currentPage = Number(params.page) || 1;
   const totalPages = Math.ceil(allArticles.length / ARTICLES_PER_PAGE);
 
@@ -90,16 +96,18 @@ export default async function ArticlesPage({
                   <p className="text-gray-400 mb-3 md:mb-4 text-sm md:text-base">
                     {article.description}
                   </p>
-                  <div className="flex items-center gap-4 text-sm md:text-base text-gray-500">
-                    {article.category && (
-                      <span className="bg-gray-700 px-2 md:px-3 py-1 rounded text-xs md:text-sm">
-                        {article.category}
-                      </span>
-                    )}
-                    <time dateTime={article.publishedAt}>
-                      {new Date(article.publishedAt).toLocaleDateString('ja-JP')}
-                    </time>
-                  </div>
+                  {article.slug !== 'size-comparison-tool' && (
+                    <div className="flex items-center gap-4 text-sm md:text-base text-gray-500">
+                      {article.category && (
+                        <span className="bg-gray-700 px-2 md:px-3 py-1 rounded text-xs md:text-sm">
+                          {article.category}
+                        </span>
+                      )}
+                      <time dateTime={article.publishedAt}>
+                        {new Date(article.publishedAt).toLocaleDateString('ja-JP')}
+                      </time>
+                    </div>
+                  )}
                 </div>
                 <svg className="w-6 h-6 md:w-7 md:h-7 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
