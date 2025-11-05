@@ -41,14 +41,14 @@ export const articles: Article[] = [
 .tool-card {
   background: #1f2937;
   border: 1px solid #374151;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
 .tool-card h3 {
   color: #fff;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   margin-bottom: 16px;
   font-weight: bold;
 }
@@ -129,16 +129,16 @@ export const articles: Article[] = [
 .result-card {
   background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
   border: 1px solid #3b82f6;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
 .result-title {
   color: #fff;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: bold;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   text-align: center;
 }
 
@@ -198,69 +198,80 @@ export const articles: Article[] = [
 
 .rank-badge {
   background: rgba(255, 255, 255, 0.15);
-  padding: 16px;
-  border-radius: 8px;
+  padding: 12px;
+  border-radius: 6px;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .rank-badge-large {
   color: #fbbf24;
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: bold;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .rank-description {
   color: #e5e7eb;
-  font-size: 0.95rem;
-}
-
-.regional-equivalent {
-  background: rgba(139, 92, 246, 0.2);
-  border: 1px solid #8b5cf6;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-.regional-equivalent-label {
-  color: #c4b5fd;
   font-size: 0.85rem;
-  margin-bottom: 4px;
 }
 
-.regional-equivalent-value {
+.regional-equivalent-compact {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid #8b5cf6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.regional-equiv-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.regional-equiv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.regional-equiv-label {
+  color: #c4b5fd;
+  font-size: 0.8rem;
+}
+
+.regional-equiv-value {
   color: #fff;
-  font-size: 1.3rem;
+  font-size: 0.95rem;
   font-weight: bold;
 }
 
 .regional-comparison {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .regional-title {
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: bold;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .regional-table {
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .regional-row {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -271,6 +282,7 @@ export const articles: Article[] = [
 .regional-header {
   background: rgba(255, 255, 255, 0.1);
   font-weight: bold;
+  padding: 8px 10px;
 }
 
 .regional-highlight {
@@ -280,13 +292,14 @@ export const articles: Article[] = [
 
 .regional-cell {
   color: #e5e7eb;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   text-align: left;
 }
 
 .regional-header .regional-cell {
   color: #fff;
   font-weight: bold;
+  font-size: 0.85rem;
 }
 
 .regional-highlight .regional-cell {
@@ -300,50 +313,50 @@ export const articles: Article[] = [
 
 .regional-note {
   color: #9ca3af;
-  font-size: 0.8rem;
-  margin-top: 8px;
+  font-size: 0.75rem;
+  margin-top: 6px;
   text-align: center;
 }
 
 .condom-recommendation {
   background: #065f46;
   border: 1px solid #059669;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 16px;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 12px;
 }
 
 .condom-title {
   color: #6ee7b7;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: bold;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .condom-size {
   color: #fff;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   font-weight: bold;
 }
 
 .chart-container {
   position: relative;
-  height: 300px;
-  margin-top: 20px;
+  height: 250px;
+  margin-top: 16px;
 }
 
 .disclaimer {
   background: #7c2d12;
   border: 1px solid #ea580c;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 20px;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 16px;
 }
 
 .disclaimer-text {
   color: #fed7aa;
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 .collected-stats-card {
@@ -492,9 +505,17 @@ export const articles: Article[] = [
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
 
-      <div class="regional-equivalent">
-        <div class="regional-equivalent-label">世界基準では</div>
-        <div class="regional-equivalent-value" id="regionalEquivalent">○○人相当</div>
+      <div class="regional-equivalent-compact">
+        <div class="regional-equiv-row">
+          <div class="regional-equiv-item">
+            <span class="regional-equiv-label">長さ:</span>
+            <span class="regional-equiv-value" id="lengthEquivalent">○○人相当</span>
+          </div>
+          <div class="regional-equiv-item">
+            <span class="regional-equiv-label">太さ:</span>
+            <span class="regional-equiv-value" id="girthEquivalent">○○人相当</span>
+          </div>
+        </div>
       </div>
 
       <div class="stat-grid">
@@ -682,26 +703,53 @@ function recommendCondomSize(diameter) {
   return 'XLサイズ（42mm以上）';
 }
 
-// 地域別の平均データから最も近い地域を計算
-function getRegionalEquivalent(lengthMm) {
+// 地域別の平均データから最も近い地域を計算（長さ）
+function getLengthRegionalEquivalent(lengthMm) {
   const regions = [
-    { name: 'コンゴ', avgLength: 170 },
-    { name: '中南米', avgLength: 145 },
-    { name: '中東', avgLength: 130 },
-    { name: '世界平均', avgLength: 131 },
-    { name: 'ヨーロッパ', avgLength: 126 },
-    { name: '日本', avgLength: 124 },
-    { name: '西太平洋', avgLength: 116 },
-    { name: '東南アジア', avgLength: 109 },
-    { name: '韓国', avgLength: 95 }
+    { name: 'コンゴ', avg: 170 },
+    { name: '中南米', avg: 145 },
+    { name: '中東', avg: 130 },
+    { name: '世界平均', avg: 131 },
+    { name: 'ヨーロッパ', avg: 126 },
+    { name: '日本', avg: 124 },
+    { name: '西太平洋', avg: 116 },
+    { name: '東南アジア', avg: 109 },
+    { name: '韓国', avg: 95 }
   ];
 
-  // 最も近い地域を探す
   let closestRegion = regions[0];
-  let minDiff = Math.abs(lengthMm - regions[0].avgLength);
+  let minDiff = Math.abs(lengthMm - regions[0].avg);
 
   for (let i = 1; i < regions.length; i++) {
-    const diff = Math.abs(lengthMm - regions[i].avgLength);
+    const diff = Math.abs(lengthMm - regions[i].avg);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestRegion = regions[i];
+    }
+  }
+
+  return closestRegion.name + '人相当';
+}
+
+// 地域別の平均データから最も近い地域を計算（直径）
+function getGirthRegionalEquivalent(diameterMm) {
+  const regions = [
+    { name: 'コンゴ', avg: 42 },
+    { name: '中南米', avg: 38 },
+    { name: '中東', avg: 37 },
+    { name: '世界平均', avg: 37 },
+    { name: 'ヨーロッパ', avg: 36 },
+    { name: '日本', avg: 36 },
+    { name: '西太平洋', avg: 34 },
+    { name: '東南アジア', avg: 33 },
+    { name: '韓国', avg: 31 }
+  ];
+
+  let closestRegion = regions[0];
+  let minDiff = Math.abs(diameterMm - regions[0].avg);
+
+  for (let i = 1; i < regions.length; i++) {
+    const diff = Math.abs(diameterMm - regions[i].avg);
     if (diff < minDiff) {
       minDiff = diff;
       closestRegion = regions[i];
@@ -773,7 +821,8 @@ function getRegionalEquivalent(lengthMm) {
   const condomSize = recommendCondomSize(diameter);
 
   // 地域別比較
-  const regionalEquivalent = getRegionalEquivalent(length);
+  const lengthEquivalent = getLengthRegionalEquivalent(length);
+  const girthEquivalent = getGirthRegionalEquivalent(diameter);
 
   // 結果を表示
   document.getElementById('lengthPercentile').textContent = lengthPercentile.toFixed(1) + '%';
@@ -782,7 +831,8 @@ function getRegionalEquivalent(lengthMm) {
   document.getElementById('girthRank').textContent = diameterRank + '位';
   document.getElementById('rankLevel').textContent = rankInfo.level;
   document.getElementById('rankDescription').textContent = rankInfo.description;
-  document.getElementById('regionalEquivalent').textContent = regionalEquivalent;
+  document.getElementById('lengthEquivalent').textContent = lengthEquivalent;
+  document.getElementById('girthEquivalent').textContent = girthEquivalent;
   document.getElementById('condomSize').textContent = condomSize;
 
   // 結果エリアを表示
