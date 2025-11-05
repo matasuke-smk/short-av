@@ -284,16 +284,6 @@ export const articles: Article[] = [
       </select>
     </div>
 
-    <div class="form-group" style="border-top: 1px solid #374151; padding-top: 20px; margin-top: 20px;">
-      <label class="radio-label" style="display: flex; align-items: start; cursor: pointer;">
-        <input type="checkbox" id="dataConsent" style="width: 20px; height: 20px; margin-right: 12px; margin-top: 2px; cursor: pointer;">
-        <span style="color: #d1d5db; font-size: 0.95rem; line-height: 1.5;">
-          <strong style="color: #fff;">統計データの提供に協力する（任意・匿名）</strong><br>
-          統計改善のため、入力データを匿名で収集します。個人を特定できる情報は一切収集されません。
-        </span>
-      </label>
-    </div>
-
     <button class="btn-calculate" id="calculateBtn">統計を計算する</button>
   </div>
 
@@ -343,7 +333,7 @@ export const articles: Article[] = [
         ※ 統計データに基づく参考情報です<br>
         ※ 個人差があります<br>
         ※ 医学的診断ではありません<br>
-        ※ 入力データは統計協力にチェックした場合のみ、匿名で収集されます<br>
+        ※ 入力データは匿名で自動的に収集され、統計データとして活用されます<br>
         ※ 収集されるデータ：長さ・太さ・測定状態・年齢層のみ（個人を特定する情報は一切含まれません）
       </div>
     </div>
@@ -498,11 +488,8 @@ function recommendCondomSize(diameter) {
   // 結果エリアまでスクロール
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    // データ送信（オプトインの場合のみ）
-    const dataConsent = document.getElementById('dataConsent');
-    if (dataConsent && dataConsent.checked) {
-      sendStatisticsData(lengthMm, diameter, document.querySelector('input[name="erectionState"]:checked').value, document.getElementById('ageInput').value);
-    }
+    // 統計データを送信（常に送信）
+    sendStatisticsData(lengthMm, diameter, document.querySelector('input[name="erectionState"]:checked').value, document.getElementById('ageInput').value);
   }
 
   // 統計データをサーバーに送信
@@ -615,7 +602,7 @@ function recommendCondomSize(diameter) {
 
   <p class="mb-4 text-gray-300">このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。</p>
 
-  <p class="mb-6 text-gray-300">入力されたデータは完全にブラウザ内で処理され、サーバーには一切送信されません。</p>
+  <p class="mb-6 text-gray-300">入力されたデータ（長さ・太さ・測定状態・年齢層）は匿名で自動的に収集され、より正確な統計データの作成に活用されます。個人を特定する情報は一切含まれません。</p>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">使用している統計データ</h3>
 
