@@ -269,7 +269,7 @@ export const articles: Article[] = [
       </select>
     </div>
 
-    <button class="btn-calculate" onclick="calculateStats()">統計を計算する</button>
+    <button class="btn-calculate" id="calculateBtn">統計を計算する</button>
   </div>
 
   <div id="resultContainer" class="result-hidden">
@@ -325,26 +325,38 @@ export const articles: Article[] = [
 </div>
 
 <script>
-// 測定方法の切り替え
-document.querySelectorAll('input[name="girthType"]').forEach(radio => {
-  radio.addEventListener('change', function() {
-    const label = document.getElementById('girthLabel');
-    const input = document.getElementById('girthInput');
+(function() {
+  'use strict';
 
-    if (this.value === 'diameter') {
-      label.textContent = '太さ - 直径（mm）';
-      input.min = 20;
-      input.max = 60;
-      input.placeholder = '例: 35';
-    } else {
-      label.textContent = '太さ - 外周（mm）';
-      input.min = 60;
-      input.max = 190;
-      input.placeholder = '例: 110';
+  // DOMが完全に読み込まれた後に実行
+  document.addEventListener('DOMContentLoaded', function() {
+    // 測定方法の切り替え
+    document.querySelectorAll('input[name="girthType"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const label = document.getElementById('girthLabel');
+        const input = document.getElementById('girthInput');
+
+        if (this.value === 'diameter') {
+          label.textContent = '太さ - 直径（mm）';
+          input.min = 20;
+          input.max = 60;
+          input.placeholder = '例: 35';
+        } else {
+          label.textContent = '太さ - 外周（mm）';
+          input.min = 60;
+          input.max = 190;
+          input.placeholder = '例: 110';
+        }
+        input.value = '';
+      });
+    });
+
+    // 計算ボタンのイベントリスナー
+    const calculateBtn = document.getElementById('calculateBtn');
+    if (calculateBtn) {
+      calculateBtn.addEventListener('click', calculateStats);
     }
-    input.value = '';
   });
-});
 
 // 正規分布のCDF（累積分布関数）
 function normalCDF(x, mean, stdDev) {
@@ -383,9 +395,9 @@ function recommendCondomSize(diameter) {
   return 'XLサイズ（42mm以上）';
 }
 
-let comparisonChart = null;
+  let comparisonChart = null;
 
-window.calculateStats = function() {
+  function calculateStats() {
   // 入力値を取得
   const lengthMm = parseFloat(document.getElementById('lengthInput').value);
   const girthInput = parseFloat(document.getElementById('girthInput').value);
@@ -458,18 +470,18 @@ window.calculateStats = function() {
   drawChart(length, diameter);
 
   // 結果エリアまでスクロール
-  document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function drawChart(userLength, userDiameter) {
-  const ctx = document.getElementById('comparisonChart');
-
-  // 既存のチャートを破棄
-  if (comparisonChart) {
-    comparisonChart.destroy();
+    document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  comparisonChart = new Chart(ctx, {
+  function drawChart(userLength, userDiameter) {
+    const ctx = document.getElementById('comparisonChart');
+
+    // 既存のチャートを破棄
+    if (comparisonChart) {
+      comparisonChart.destroy();
+    }
+
+    comparisonChart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: ['長さ（cm）', '太さ（mm）'],
@@ -538,7 +550,8 @@ function drawChart(userLength, userDiameter) {
       }
     }
   });
-}
+  }
+})();
 </script>
 
 <div class="tool-card" style="margin-top: 40px;">
