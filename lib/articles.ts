@@ -15568,7 +15568,7 @@ Sサイズを使っている人は、あなたが思っているよりずっと�
 - [自分のサイズを正しく測る方法](/articles/how-to-measure-penis-correctly) - 正確な測定方法
 - [コンドームの正しい選び方と使い方](/articles/condom-selection-guide) - サイズ選びのコツ
     `.trim(),
-    publishedAt: '2025-11-04',
+    publishedAt: '2025-11-05',
     category: '性の知識'
   },
 ];
