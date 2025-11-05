@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
@@ -114,11 +114,38 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   });
   const [lastSelectedRanking, setLastSelectedRanking] = useState<'weekly' | 'monthly' | 'all'>('weekly');
 
+  // DMMウィジェットバナー用のref
+  const landscapeBannerRef = useRef<HTMLDivElement>(null);
+
   // ユーザーIDを取得・設定
   useEffect(() => {
     const id = getUserId();
     setUserId(id);
   }, []);
+
+  // DMMウィジェットバナーのスクリプトを動的に読み込む
+  useEffect(() => {
+    if (showVideoModal && enableAffiliateLinks && landscapeBannerRef.current) {
+      // 既存のスクリプトをクリーンアップ
+      const existingScript = landscapeBannerRef.current.querySelector('.widget-banner-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // insタグを追加
+      const ins = document.createElement('ins');
+      ins.className = 'widget-banner';
+      landscapeBannerRef.current.innerHTML = '';
+      landscapeBannerRef.current.appendChild(ins);
+
+      // スクリプトタグを追加
+      const script = document.createElement('script');
+      script.className = 'widget-banner-script';
+      script.src = 'https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=1082_160_600';
+      script.async = true;
+      landscapeBannerRef.current.appendChild(script);
+    }
+  }, [showVideoModal, enableAffiliateLinks]);
 
   // サーバーからいいね状態を読み込み
   useEffect(() => {
@@ -864,10 +891,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               >
                 <div className="relative w-full aspect-[640/200]">
                   <Image
-                    src="https://pics.dmm.co.jp/digital/banner/banner_1082_640_200.jpg"
-                    alt="広告"
+                    src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
+                    alt="初回購入限定！500円OFF！"
                     fill
-                    className="object-cover"
+                    className="object-contain"
                     sizes="(max-width: 768px) 100vw, 640px"
                     quality={75}
                     unoptimized={true}
@@ -965,8 +992,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           </div>
 
-          {/* バナー領域 - 横画面時のみ表示（表示領域のみ明確化） */}
-          <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600] border-2 border-gray-700 border-dashed">
+          {/* バナー領域 - 横画面時のみ表示 */}
+          <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
+            {enableAffiliateLinks ? (
+              <div
+                ref={landscapeBannerRef}
+                className="w-full h-full"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div className="w-full h-full border-2 border-gray-700 border-dashed flex items-center justify-center">
+                <p className="text-gray-500 text-sm">サイト認証後に表示</p>
+              </div>
+            )}
           </div>
 
           {/* 縦画面時のみ表示 */}
