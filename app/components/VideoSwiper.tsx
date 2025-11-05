@@ -471,7 +471,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
                       {enableAffiliateLinks ? (
                         <a
-                          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
+                          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
                           target="_blank"
                           rel="sponsored"
                           className="block w-full"
@@ -586,7 +586,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         <div className="w-full flex-shrink-0">
           {enableAffiliateLinks ? (
             <a
-              href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
+              href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
               target="_blank"
               rel="sponsored"
               className="block w-full"
@@ -856,7 +856,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           <div className="landscape:hidden w-full mb-4">
             {enableAffiliateLinks ? (
               <a
-                href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200"
+                href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
                 target="_blank"
                 rel="sponsored"
                 className="block w-full"
