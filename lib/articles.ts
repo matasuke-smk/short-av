@@ -216,6 +216,95 @@ export const articles: Article[] = [
   font-size: 0.95rem;
 }
 
+.regional-equivalent {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid #8b5cf6;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.regional-equivalent-label {
+  color: #c4b5fd;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.regional-equivalent-value {
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.regional-comparison {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.regional-title {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.regional-table {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.regional-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.regional-row:last-child {
+  border-bottom: none;
+}
+
+.regional-header {
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+}
+
+.regional-highlight {
+  background: rgba(59, 130, 246, 0.15);
+  font-weight: bold;
+}
+
+.regional-cell {
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.regional-header .regional-cell {
+  color: #fff;
+  font-weight: bold;
+}
+
+.regional-highlight .regional-cell {
+  color: #fff;
+}
+
+.regional-cell:nth-child(2),
+.regional-cell:nth-child(3) {
+  text-align: center;
+}
+
+.regional-note {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin-top: 8px;
+  text-align: center;
+}
+
 .condom-recommendation {
   background: #065f46;
   border: 1px solid #059669;
@@ -376,6 +465,11 @@ export const articles: Article[] = [
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
 
+      <div class="regional-equivalent">
+        <div class="regional-equivalent-label">世界基準では</div>
+        <div class="regional-equivalent-value" id="regionalEquivalent">○○人相当</div>
+      </div>
+
       <div class="stat-grid">
         <div class="stat-item-double">
           <div class="stat-label">長さ</div>
@@ -408,6 +502,63 @@ export const articles: Article[] = [
       <div class="condom-recommendation">
         <div class="condom-title">推奨コンドームサイズ</div>
         <div class="condom-size" id="condomSize">Mサイズ（32-36mm）</div>
+      </div>
+
+      <div class="regional-comparison">
+        <h4 class="regional-title">世界各地域の平均サイズ</h4>
+        <div class="regional-table">
+          <div class="regional-row regional-header">
+            <div class="regional-cell">地域</div>
+            <div class="regional-cell">平均長さ</div>
+            <div class="regional-cell">平均直径</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">コンゴ</div>
+            <div class="regional-cell">170mm</div>
+            <div class="regional-cell">42mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">中南米</div>
+            <div class="regional-cell">145mm</div>
+            <div class="regional-cell">38mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">中東</div>
+            <div class="regional-cell">130mm</div>
+            <div class="regional-cell">37mm</div>
+          </div>
+          <div class="regional-row regional-highlight">
+            <div class="regional-cell">世界平均</div>
+            <div class="regional-cell">131mm</div>
+            <div class="regional-cell">37mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">ヨーロッパ</div>
+            <div class="regional-cell">126mm</div>
+            <div class="regional-cell">36mm</div>
+          </div>
+          <div class="regional-row regional-highlight">
+            <div class="regional-cell">日本</div>
+            <div class="regional-cell">124mm</div>
+            <div class="regional-cell">36mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">西太平洋</div>
+            <div class="regional-cell">116mm</div>
+            <div class="regional-cell">34mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">東南アジア</div>
+            <div class="regional-cell">109mm</div>
+            <div class="regional-cell">33mm</div>
+          </div>
+          <div class="regional-row">
+            <div class="regional-cell">韓国</div>
+            <div class="regional-cell">95mm</div>
+            <div class="regional-cell">31mm</div>
+          </div>
+        </div>
+        <div class="regional-note">※ 複数の研究データに基づく推定値です</div>
       </div>
     </div>
 
@@ -504,6 +655,35 @@ function recommendCondomSize(diameter) {
   return 'XLサイズ（42mm以上）';
 }
 
+// 地域別の平均データから最も近い地域を計算
+function getRegionalEquivalent(lengthMm) {
+  const regions = [
+    { name: 'コンゴ', avgLength: 170 },
+    { name: '中南米', avgLength: 145 },
+    { name: '中東', avgLength: 130 },
+    { name: '世界平均', avgLength: 131 },
+    { name: 'ヨーロッパ', avgLength: 126 },
+    { name: '日本', avgLength: 124 },
+    { name: '西太平洋', avgLength: 116 },
+    { name: '東南アジア', avgLength: 109 },
+    { name: '韓国', avgLength: 95 }
+  ];
+
+  // 最も近い地域を探す
+  let closestRegion = regions[0];
+  let minDiff = Math.abs(lengthMm - regions[0].avgLength);
+
+  for (let i = 1; i < regions.length; i++) {
+    const diff = Math.abs(lengthMm - regions[i].avgLength);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestRegion = regions[i];
+    }
+  }
+
+  return closestRegion.name + '人相当';
+}
+
   let comparisonChart = null;
 
   function calculateStats() {
@@ -565,6 +745,9 @@ function recommendCondomSize(diameter) {
   // コンドームサイズ
   const condomSize = recommendCondomSize(diameter);
 
+  // 地域別比較
+  const regionalEquivalent = getRegionalEquivalent(length);
+
   // 結果を表示
   document.getElementById('lengthPercentile').textContent = lengthPercentile.toFixed(1) + '%';
   document.getElementById('girthPercentile').textContent = diameterPercentile.toFixed(1) + '%';
@@ -572,6 +755,7 @@ function recommendCondomSize(diameter) {
   document.getElementById('girthRank').textContent = diameterRank + '位';
   document.getElementById('rankLevel').textContent = rankInfo.level;
   document.getElementById('rankDescription').textContent = rankInfo.description;
+  document.getElementById('regionalEquivalent').textContent = regionalEquivalent;
   document.getElementById('condomSize').textContent = condomSize;
 
   // 結果エリアを表示
