@@ -9,6 +9,606 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    slug: 'size-comparison-tool',
+    title: 'ペニスサイズ統計比較ツール - あなたのサイズは平均と比べてどう？',
+    description: '自分のサイズを入力するだけで、日本人平均や世界平均と比較できる統計ツール。パーセンタイル、100人中の順位、最適なコンドームサイズを科学的に表示。完全匿名で安全に利用できます。',
+    content: `
+# ペニスサイズ統計比較ツール
+
+自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。
+
+完全匿名で、入力データはサーバーに送信されません。安心してご利用ください。
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+.size-tool-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.tool-card {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.tool-card h3 {
+  color: #fff;
+  font-size: 1.25rem;
+  margin-bottom: 16px;
+  font-weight: bold;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  color: #d1d5db;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  color: #d1d5db;
+  cursor: pointer;
+}
+
+.radio-label input {
+  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.btn-calculate {
+  width: 100%;
+  padding: 14px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-calculate:hover {
+  background: #2563eb;
+}
+
+.btn-calculate:active {
+  transform: scale(0.98);
+}
+
+.result-hidden {
+  display: none;
+}
+
+.result-card {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  border: 1px solid #3b82f6;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.result-title {
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-label {
+  color: #93c5fd;
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.rank-badge {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.rank-badge-large {
+  color: #fbbf24;
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.rank-description {
+  color: #e5e7eb;
+  font-size: 0.95rem;
+}
+
+.condom-recommendation {
+  background: #065f46;
+  border: 1px solid #059669;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.condom-title {
+  color: #6ee7b7;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.condom-size {
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+  margin-top: 20px;
+}
+
+.disclaimer {
+  background: #7c2d12;
+  border: 1px solid #ea580c;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 20px;
+}
+
+.disclaimer-text {
+  color: #fed7aa;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-card {
+    padding: 16px;
+  }
+}
+</style>
+
+<div class="size-tool-container">
+  <div class="tool-card">
+    <h3>サイズを入力してください</h3>
+
+    <div class="form-group">
+      <label class="form-label">長さ（cm）</label>
+      <input type="number" id="lengthInput" class="form-input" min="5.0" max="25.0" step="0.1" placeholder="例: 12.6">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">太さの測定方法</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="girthType" value="diameter" checked>
+          直径（mm）
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="girthType" value="circumference">
+          外周（mm）
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" id="girthLabel">太さ - 直径（mm）</label>
+      <input type="number" id="girthInput" class="form-input" min="20" max="60" step="1" placeholder="例: 35">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">年齢層（任意）</label>
+      <select id="ageInput" class="form-input">
+        <option value="">選択しない</option>
+        <option value="20s">20代</option>
+        <option value="30s">30代</option>
+        <option value="40s">40代</option>
+        <option value="50s">50代以上</option>
+      </select>
+    </div>
+
+    <button class="btn-calculate" onclick="calculateStats()">統計を計算する</button>
+  </div>
+
+  <div id="resultContainer" class="result-hidden">
+    <div class="result-card">
+      <h3 class="result-title">あなたの統計結果</h3>
+
+      <div class="rank-badge">
+        <div class="rank-badge-large" id="rankLevel">平均的</div>
+        <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="stat-label">長さパーセンタイル</div>
+          <div class="stat-value" id="lengthPercentile">50%</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">太さパーセンタイル</div>
+          <div class="stat-value" id="girthPercentile">50%</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">100人中の順位（長さ）</div>
+          <div class="stat-value" id="lengthRank">50位</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">100人中の順位（太さ）</div>
+          <div class="stat-value" id="girthRank">50位</div>
+        </div>
+      </div>
+
+      <div class="condom-recommendation">
+        <div class="condom-title">推奨コンドームサイズ</div>
+        <div class="condom-size" id="condomSize">Mサイズ（32-36mm）</div>
+      </div>
+    </div>
+
+    <div class="tool-card">
+      <h3>日本人平均との比較</h3>
+      <div class="chart-container">
+        <canvas id="comparisonChart"></canvas>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <div class="disclaimer-text">
+        ※ 統計データに基づく参考情報です<br>
+        ※ 個人差があります<br>
+        ※ 医学的診断ではありません<br>
+        ※ 入力データはサーバーに送信されず、ブラウザ内でのみ処理されます
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 測定方法の切り替え
+document.querySelectorAll('input[name="girthType"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    const label = document.getElementById('girthLabel');
+    const input = document.getElementById('girthInput');
+
+    if (this.value === 'diameter') {
+      label.textContent = '太さ - 直径（mm）';
+      input.min = 20;
+      input.max = 60;
+      input.placeholder = '例: 35';
+    } else {
+      label.textContent = '太さ - 外周（mm）';
+      input.min = 60;
+      input.max = 190;
+      input.placeholder = '例: 110';
+    }
+    input.value = '';
+  });
+});
+
+// 正規分布のCDF（累積分布関数）
+function normalCDF(x, mean, stdDev) {
+  const z = (x - mean) / stdDev;
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp(-z * z / 2);
+  let prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+
+  if (z > 0) {
+    prob = 1 - prob;
+  }
+
+  return prob;
+}
+
+// 外周から直径に変換
+function circumferenceToDiameter(circumference) {
+  return circumference / Math.PI;
+}
+
+// 5段階評価を取得
+function getRankLevel(percentile) {
+  if (percentile >= 90) return { level: '大きめ', description: '日本人男性の上位10%に入ります' };
+  if (percentile >= 70) return { level: 'やや大きめ', description: '日本人男性の平均よりやや大きめです' };
+  if (percentile >= 30) return { level: '平均的', description: '日本人男性の標準範囲内です' };
+  if (percentile >= 10) return { level: 'やや小さめ', description: '日本人男性の平均よりやや小さめです' };
+  return { level: '小さめ', description: '日本人男性の下位10%に入ります' };
+}
+
+// コンドームサイズ推奨
+function recommendCondomSize(diameter) {
+  if (diameter < 27) return 'SSサイズ（〜26mm）';
+  if (diameter < 32) return 'Sサイズ（27-31mm）';
+  if (diameter < 37) return 'Mサイズ（32-36mm）';
+  if (diameter < 42) return 'Lサイズ（37-41mm）';
+  return 'XLサイズ（42mm以上）';
+}
+
+let comparisonChart = null;
+
+function calculateStats() {
+  // 入力値を取得
+  const length = parseFloat(document.getElementById('lengthInput').value);
+  const girthInput = parseFloat(document.getElementById('girthInput').value);
+  const girthType = document.querySelector('input[name="girthType"]:checked').value;
+
+  // バリデーション
+  if (!length || !girthInput) {
+    alert('長さと太さを入力してください');
+    return;
+  }
+
+  if (length < 5.0 || length > 25.0) {
+    alert('長さは5.0〜25.0cmの範囲で入力してください');
+    return;
+  }
+
+  // 太さを直径に統一
+  let diameter;
+  if (girthType === 'diameter') {
+    diameter = girthInput;
+    if (diameter < 20 || diameter > 60) {
+      alert('直径は20〜60mmの範囲で入力してください');
+      return;
+    }
+  } else {
+    if (girthInput < 60 || girthInput > 190) {
+      alert('外周は60〜190mmの範囲で入力してください');
+      return;
+    }
+    diameter = circumferenceToDiameter(girthInput);
+  }
+
+  // 日本人統計データ
+  const jpLengthMean = 12.6;
+  const jpLengthStd = 1.8;
+  const jpDiameterMean = 35;
+  const jpDiameterStd = 3.5;
+
+  // パーセンタイル計算
+  const lengthPercentile = normalCDF(length, jpLengthMean, jpLengthStd) * 100;
+  const diameterPercentile = normalCDF(diameter, jpDiameterMean, jpDiameterStd) * 100;
+
+  // 100人中の順位
+  const lengthRank = Math.round(100 - lengthPercentile + 1);
+  const diameterRank = Math.round(100 - diameterPercentile + 1);
+
+  // 総合パーセンタイル（平均）
+  const avgPercentile = (lengthPercentile + diameterPercentile) / 2;
+  const rankInfo = getRankLevel(avgPercentile);
+
+  // コンドームサイズ
+  const condomSize = recommendCondomSize(diameter);
+
+  // 結果を表示
+  document.getElementById('lengthPercentile').textContent = lengthPercentile.toFixed(1) + '%';
+  document.getElementById('girthPercentile').textContent = diameterPercentile.toFixed(1) + '%';
+  document.getElementById('lengthRank').textContent = lengthRank + '位';
+  document.getElementById('girthRank').textContent = diameterRank + '位';
+  document.getElementById('rankLevel').textContent = rankInfo.level;
+  document.getElementById('rankDescription').textContent = rankInfo.description;
+  document.getElementById('condomSize').textContent = condomSize;
+
+  // 結果エリアを表示
+  document.getElementById('resultContainer').classList.remove('result-hidden');
+
+  // グラフを描画
+  drawChart(length, diameter);
+
+  // 結果エリアまでスクロール
+  document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function drawChart(userLength, userDiameter) {
+  const ctx = document.getElementById('comparisonChart');
+
+  // 既存のチャートを破棄
+  if (comparisonChart) {
+    comparisonChart.destroy();
+  }
+
+  comparisonChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['長さ（cm）', '太さ（mm）'],
+      datasets: [
+        {
+          label: 'あなた',
+          data: [userLength, userDiameter],
+          backgroundColor: 'rgba(59, 130, 246, 0.8)',
+          borderColor: 'rgba(59, 130, 246, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '日本人平均',
+          data: [12.6, 35],
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          borderColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 2
+        },
+        {
+          label: '世界平均',
+          data: [13.1, 37.3],
+          backgroundColor: 'rgba(251, 146, 60, 0.8)',
+          borderColor: 'rgba(251, 146, 60, 1)',
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#e5e7eb',
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+          titleColor: '#e5e7eb',
+          bodyColor: '#e5e7eb',
+          borderColor: '#374151',
+          borderWidth: 1
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: '#9ca3af'
+          },
+          grid: {
+            color: 'rgba(75, 85, 99, 0.3)'
+          }
+        },
+        x: {
+          ticks: {
+            color: '#9ca3af'
+          },
+          grid: {
+            color: 'rgba(75, 85, 99, 0.3)'
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+
+## このツールについて
+
+このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。
+
+入力されたデータは完全にブラウザ内で処理され、サーバーには一切送信されません。
+
+
+### 使用している統計データ
+
+■ 日本人データ
+
+- **長さ平均**
+  12.6cm（標準偏差1.8cm）
+
+- **直径平均**
+  35mm（標準偏差3.5mm）
+
+- **コンドーム使用率**
+  Mサイズ70%、Sサイズ20%、Lサイズ10%、XLサイズ1%未満
+
+
+■ 世界平均データ
+
+- **長さ平均**
+  13.1cm
+
+- **外周平均**
+  11.7cm（直径約37.3mm）
+
+
+### パーセンタイルとは
+
+パーセンタイルは、あなたが全体の中でどの位置にいるかを示す指標です。
+
+50パーセンタイルは平均を意味し、80パーセンタイルなら上位20%に入ることを意味します。
+
+
+### 測定のコツ
+
+正確な測定のために、以下のポイントを押さえましょう。
+
+■ 長さの測定
+
+- 完全に勃起した状態で測定
+- 恥骨の骨から先端まで
+- 定規を使って真っすぐ測る
+
+■ 太さの測定
+
+- メジャーで外周を測定
+- または直径をノギスで測定
+- 最も太い部分で測る
+
+
+### コンドームサイズの選び方
+
+コンドームは正しいサイズを選ぶことが重要です。
+
+きつすぎると痛みや破損のリスクがあり、緩すぎると外れる可能性があります。このツールの推奨サイズを参考にしてください。
+
+
+## 関連記事
+
+- [購買データで判明！日本人男性のリアルなサイズ分布](/articles/japanese-men-condom-size-data) - コンドーム購買データ分析
+- [ペニスサイズの真実：世界と日本のデータ比較](/articles/penis-size-global-comparison) - 国際比較
+- [自分のサイズを正しく測る方法](/articles/how-to-measure-penis-correctly) - 測定方法詳細
+    `.trim(),
+    publishedAt: '2099-12-31',
+    category: 'ツール'
+  },
+  {
     slug: 'getting-started',
     title: 'Short AVの使い方ガイド - 初心者でもすぐ使える完全マニュアル',
     description: 'Short AVの基本操作を初心者向けに徹底解説！スワイプ操作、いいね機能、検索のコツまで図解付きで分かりやすく説明。5分で使い方をマスターできます。',
