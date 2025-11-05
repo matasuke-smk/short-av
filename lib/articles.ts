@@ -413,7 +413,7 @@ function recommendCondomSize(diameter) {
   }
 
   if (lengthMm < 60 || lengthMm > 220) {
-    alert('長さは60〜220mm（6.0〜22.0cm）の範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.01%未満）');
+    alert('長さは60〜220mm（6.0〜22.0cm）の範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.01%未満）');
     return;
   }
 
@@ -425,12 +425,12 @@ function recommendCondomSize(diameter) {
   if (girthType === 'diameter') {
     diameter = girthInput;
     if (diameter < 22 || diameter > 55) {
-      alert('直径は22〜55mmの範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.1%未満）');
+      alert('直径は22〜55mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.1%未満）');
       return;
     }
   } else {
     if (girthInput < 70 || girthInput > 170) {
-      alert('外周は70〜170mmの範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.1%未満）');
+      alert('外周は70〜170mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.1%未満）');
       return;
     }
     diameter = circumferenceToDiameter(girthInput);
