@@ -401,7 +401,34 @@ export const articles: Article[] = [
   font-size: 0.9rem;
 }
 
+.stats-item-wide {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  grid-column: span 2;
+}
+
+.stats-double-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stats-half-item {
+  text-align: center;
+}
+
 @media (max-width: 640px) {
+  .stats-item-wide {
+    grid-column: span 1;
+  }
+
+  .stats-double-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
   .stat-grid {
     grid-template-columns: 1fr;
   }
@@ -820,22 +847,34 @@ function getRegionalEquivalent(lengthMm) {
       html += '<div ' + cls + '="stats-subvalue">人</div>';
       html += '</div>';
 
-      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-item-wide">';
+      html += '<div ' + cls + '="stats-double-container">';
+      html += '<div ' + cls + '="stats-half-item">';
       html += '<div ' + cls + '="stats-label">平均長さ</div>';
       html += '<div ' + cls + '="stats-value">' + data.statistics.avgLength + '</div>';
       html += '<div ' + cls + '="stats-subvalue">mm</div>';
       html += '</div>';
-
-      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-half-item">';
       html += '<div ' + cls + '="stats-label">平均直径</div>';
       html += '<div ' + cls + '="stats-value">' + data.statistics.avgDiameter + '</div>';
       html += '<div ' + cls + '="stats-subvalue">mm</div>';
       html += '</div>';
+      html += '</div>';
+      html += '</div>';
 
-      html += '<div ' + cls + '="stats-item">';
+      html += '<div ' + cls + '="stats-item-wide">';
+      html += '<div ' + cls + '="stats-double-container">';
+      html += '<div ' + cls + '="stats-half-item">';
       html += '<div ' + cls + '="stats-label">標準偏差（長さ）</div>';
       html += '<div ' + cls + '="stats-value">' + data.statistics.stdLength + '</div>';
       html += '<div ' + cls + '="stats-subvalue">mm</div>';
+      html += '</div>';
+      html += '<div ' + cls + '="stats-half-item">';
+      html += '<div ' + cls + '="stats-label">標準偏差（直径）</div>';
+      html += '<div ' + cls + '="stats-value">' + data.statistics.stdDiameter + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm</div>';
+      html += '</div>';
+      html += '</div>';
       html += '</div>';
 
       statsContent.innerHTML = html;
