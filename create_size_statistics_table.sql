@@ -1,8 +1,8 @@
--- Size statistics table for anonymous data collection
+-- Size statistics table for anonymous data collection (erect only)
 CREATE TABLE IF NOT EXISTS size_statistics (
   id BIGSERIAL PRIMARY KEY,
-  length_mm INTEGER NOT NULL CHECK (length_mm >= 50 AND length_mm <= 250),
-  diameter_mm INTEGER NOT NULL CHECK (diameter_mm >= 20 AND diameter_mm <= 60),
+  length_mm INTEGER NOT NULL CHECK (length_mm >= 60 AND length_mm <= 220),
+  diameter_mm INTEGER NOT NULL CHECK (diameter_mm >= 22 AND diameter_mm <= 55),
   erection_state VARCHAR(10) NOT NULL CHECK (erection_state IN ('erect', 'flaccid')),
   age_group VARCHAR(10) CHECK (age_group IN ('20s', '30s', '40s', '50s', '')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

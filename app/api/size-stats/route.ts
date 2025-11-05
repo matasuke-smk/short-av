@@ -14,17 +14,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 数値の範囲チェック
-    if (lengthMm < 50 || lengthMm > 250) {
+    // 数値の範囲チェック（現実的な範囲に制限）
+    if (lengthMm < 60 || lengthMm > 220) {
       return NextResponse.json(
-        { error: 'lengthMm must be between 50 and 250' },
+        { error: 'lengthMm must be between 60 and 220 (6.0-22.0cm)' },
         { status: 400 }
       );
     }
 
-    if (diameterMm < 20 || diameterMm > 60) {
+    if (diameterMm < 22 || diameterMm > 55) {
       return NextResponse.json(
-        { error: 'diameterMm must be between 20 and 60' },
+        { error: 'diameterMm must be between 22 and 55' },
         { status: 400 }
       );
     }

@@ -236,7 +236,8 @@ export const articles: Article[] = [
 
     <div class="form-group">
       <label class="form-label">長さ（mm）</label>
-      <input type="number" id="lengthInput" class="form-input" min="50" max="250" step="1" placeholder="例: 126">
+      <input type="number" id="lengthInput" class="form-input" min="60" max="220" step="1" placeholder="例: 126">
+      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください（6.0〜22.0cm）</p>
     </div>
 
     <div class="form-group">
@@ -255,22 +256,8 @@ export const articles: Article[] = [
 
     <div class="form-group">
       <label class="form-label" id="girthLabel">太さ - 直径（mm）</label>
-      <input type="number" id="girthInput" class="form-input" min="20" max="60" step="1" placeholder="例: 35">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">測定時の状態</label>
-      <div class="radio-group">
-        <label class="radio-label">
-          <input type="radio" name="erectionState" value="erect" checked>
-          勃起時
-        </label>
-        <label class="radio-label">
-          <input type="radio" name="erectionState" value="flaccid">
-          通常時（非勃起）
-        </label>
-      </div>
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ より正確な統計のため、勃起時のサイズを推奨します</p>
+      <input type="number" id="girthInput" class="form-input" min="22" max="55" step="1" placeholder="例: 35">
+      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
     </div>
 
     <div class="form-group">
@@ -333,8 +320,8 @@ export const articles: Article[] = [
         ※ 統計データに基づく参考情報です<br>
         ※ 個人差があります<br>
         ※ 医学的診断ではありません<br>
-        ※ 入力データは匿名で自動的に収集され、統計データとして活用されます<br>
-        ※ 収集されるデータ：長さ・太さ・測定状態・年齢層のみ（個人を特定する情報は一切含まれません）
+        ※ 入力データ（勃起時のサイズ）は匿名で自動的に収集され、統計データとして活用されます<br>
+        ※ 収集されるデータ：長さ・太さ・年齢層のみ（個人を特定する情報は一切含まれません）
       </div>
     </div>
   </div>
@@ -354,13 +341,13 @@ export const articles: Article[] = [
 
         if (this.value === 'diameter') {
           label.textContent = '太さ - 直径（mm）';
-          input.min = 20;
-          input.max = 60;
+          input.min = 22;
+          input.max = 55;
           input.placeholder = '例: 35';
         } else {
           label.textContent = '太さ - 外周（mm）';
-          input.min = 60;
-          input.max = 190;
+          input.min = 70;
+          input.max = 170;
           input.placeholder = '例: 110';
         }
         input.value = '';
@@ -425,8 +412,8 @@ function recommendCondomSize(diameter) {
     return;
   }
 
-  if (lengthMm < 50 || lengthMm > 250) {
-    alert('長さは50〜250mmの範囲で入力してください');
+  if (lengthMm < 60 || lengthMm > 220) {
+    alert('長さは60〜220mm（6.0〜22.0cm）の範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.01%未満）');
     return;
   }
 
@@ -437,13 +424,13 @@ function recommendCondomSize(diameter) {
   let diameter;
   if (girthType === 'diameter') {
     diameter = girthInput;
-    if (diameter < 20 || diameter > 60) {
-      alert('直径は20〜60mmの範囲で入力してください');
+    if (diameter < 22 || diameter > 55) {
+      alert('直径は22〜55mmの範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.1%未満）');
       return;
     }
   } else {
-    if (girthInput < 60 || girthInput > 190) {
-      alert('外周は60〜190mmの範囲で入力してください');
+    if (girthInput < 70 || girthInput > 170) {
+      alert('外周は70〜170mmの範囲で入力してください\n\n※ この範囲外の値は医学的に極めて稀です（0.1%未満）');
       return;
     }
     diameter = circumferenceToDiameter(girthInput);
@@ -488,8 +475,8 @@ function recommendCondomSize(diameter) {
   // 結果エリアまでスクロール
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    // 統計データを送信（常に送信）
-    sendStatisticsData(lengthMm, diameter, document.querySelector('input[name="erectionState"]:checked').value, document.getElementById('ageInput').value);
+    // 統計データを送信（常に送信、勃起時固定）
+    sendStatisticsData(lengthMm, diameter, 'erect', document.getElementById('ageInput').value);
   }
 
   // 統計データをサーバーに送信
@@ -600,9 +587,9 @@ function recommendCondomSize(diameter) {
 <div class="tool-card" style="margin-top: 40px;">
   <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">このツールについて</h2>
 
-  <p class="mb-4 text-gray-300">このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。</p>
+  <p class="mb-4 text-gray-300">このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。勃起時のサイズのみを対象としています。</p>
 
-  <p class="mb-6 text-gray-300">入力されたデータ（長さ・太さ・測定状態・年齢層）は匿名で自動的に収集され、より正確な統計データの作成に活用されます。個人を特定する情報は一切含まれません。</p>
+  <p class="mb-6 text-gray-300">入力されたデータ（勃起時の長さ・太さ・年齢層）は匿名で自動的に収集され、より正確な統計データの作成に活用されます。個人を特定する情報は一切含まれません。</p>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">使用している統計データ</h3>
 
