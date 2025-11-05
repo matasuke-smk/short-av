@@ -13,13 +13,13 @@ export const articles: Article[] = [
     title: 'ペニス比較ツール\nあなたのサイズは？',
     description: '自分のサイズを入力するだけで、日本人平均や世界平均と比較できる統計ツール。パーセンタイル、100人中の順位、最適なコンドームサイズを科学的に表示。完全匿名で安全に利用できます。',
     content: `
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: white; line-height: 1.3;">ペニス比較ツール<br>あなたのサイズは？</h1>
 
-自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。
+<p style="color: #d1d5db; margin-bottom: 1rem;">自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。</p>
 
-完全匿名で、入力データはサーバーに送信されません。安心してご利用ください。
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<p style="color: #d1d5db; margin-bottom: 1.5rem;">完全匿名で、入力データはサーバーに送信されません。安心してご利用ください。</p>
 
 <style>
 .size-tool-container {
@@ -385,7 +385,7 @@ function recommendCondomSize(diameter) {
 
 let comparisonChart = null;
 
-function calculateStats() {
+window.calculateStats = function() {
   // 入力値を取得
   const lengthMm = parseFloat(document.getElementById('lengthInput').value);
   const girthInput = parseFloat(document.getElementById('girthInput').value);
