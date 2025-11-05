@@ -10,12 +10,12 @@ export interface Article {
 export const articles: Article[] = [
   {
     slug: 'size-comparison-tool',
-    title: 'ペニス比較ツール\nあなたのサイズは？',
+    title: 'ペニスサイズ比較ツール - 日本人・世界平均との統計比較',
     description: '自分のサイズを入力するだけで、日本人平均や世界平均と比較できる統計ツール。パーセンタイル、100人中の順位、最適なコンドームサイズを科学的に表示。完全匿名で安全に利用できます。',
     content: `
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: white; line-height: 1.3;">ペニス比較ツール<br>あなたのサイズは？</h1>
+<h1 style="font-size: 1.8rem; font-weight: bold; margin-bottom: 1.5rem; color: white; line-height: 1.4;">ペニスサイズ比較ツール - 日本人・世界平均との統計比較</h1>
 
 <p style="color: #d1d5db; margin-bottom: 1rem;">自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。</p>
 
