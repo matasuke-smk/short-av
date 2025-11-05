@@ -543,10 +543,12 @@ function recommendCondomSize(diameter) {
   }
 
   // 日本人統計データ（mm単位）
-  const jpLengthMean = 126;
+  // 出典: 泌尿器科調査(2006,324人)117mm、国内研究(100例)127mm、TENGA調査(50万件)135.6mm
+  // 加重平均（医学的測定3：自己申告1）
+  const jpLengthMean = 124;
   const jpLengthStd = 18;
-  const jpDiameterMean = 35;
-  const jpDiameterStd = 3.5;
+  const jpDiameterMean = 36;
+  const jpDiameterStd = 3.6;
 
   // パーセンタイル計算
   const lengthPercentile = normalCDF(length, jpLengthMean, jpLengthStd) * 100;
@@ -683,7 +685,7 @@ function recommendCondomSize(diameter) {
         },
         {
           label: '日本人平均',
-          data: [126, 35],
+          data: [124, 36],
           backgroundColor: 'rgba(34, 197, 94, 0.8)',
           borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 2
@@ -754,9 +756,9 @@ function recommendCondomSize(diameter) {
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
     <div class="font-bold text-white mb-2">■ 日本人データ</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ平均</strong><br>126mm（標準偏差18mm）</li>
-      <li><strong class="text-white">直径平均</strong><br>35mm（標準偏差3.5mm）</li>
-      <li><strong class="text-white">コンドーム使用率</strong><br>Mサイズ70%、Sサイズ20%、Lサイズ10%、XLサイズ1%未満</li>
+      <li><strong class="text-white">長さ平均</strong><br>124mm（標準偏差18mm）</li>
+      <li><strong class="text-white">直径平均</strong><br>36mm（標準偏差3.6mm）</li>
+      <li><strong class="text-white">データソース</strong><br>泌尿器科調査(2006,324人)、国内研究(100例)、TENGA調査(50万件)の加重平均</li>
     </ul>
   </div>
 
@@ -765,6 +767,7 @@ function recommendCondomSize(diameter) {
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
       <li><strong class="text-white">長さ平均</strong><br>131mm</li>
       <li><strong class="text-white">外周平均</strong><br>117mm（直径約37.3mm）</li>
+      <li><strong class="text-white">データソース</strong><br>Veale et al. (2015) BJU International、15,521人のメタアナリシス</li>
     </ul>
   </div>
 
