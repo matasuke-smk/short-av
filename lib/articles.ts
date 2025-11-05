@@ -156,10 +156,38 @@ export const articles: Article[] = [
   text-align: center;
 }
 
+.stat-item-double {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.stat-double-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.stat-half {
+  text-align: center;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
 .stat-label {
   color: #93c5fd;
-  font-size: 0.85rem;
-  margin-bottom: 4px;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.stat-sublabel {
+  color: #93c5fd;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
 }
 
 .stat-value {
@@ -302,7 +330,7 @@ export const articles: Article[] = [
     <div class="form-group">
       <label class="form-label">長さ（mm）</label>
       <input type="number" id="lengthInput" class="form-input" min="60" max="220" step="1" placeholder="例: 126">
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください（6.0〜22.0cm）</p>
+      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
     </div>
 
     <div class="form-group">
@@ -349,21 +377,31 @@ export const articles: Article[] = [
       </div>
 
       <div class="stat-grid">
-        <div class="stat-item">
-          <div class="stat-label">長さパーセンタイル</div>
-          <div class="stat-value" id="lengthPercentile">50%</div>
+        <div class="stat-item-double">
+          <div class="stat-label">長さ</div>
+          <div class="stat-double-row">
+            <div class="stat-half">
+              <div class="stat-sublabel">パーセンタイル</div>
+              <div class="stat-value" id="lengthPercentile">50%</div>
+            </div>
+            <div class="stat-half">
+              <div class="stat-sublabel">100人中</div>
+              <div class="stat-value" id="lengthRank">50位</div>
+            </div>
+          </div>
         </div>
-        <div class="stat-item">
-          <div class="stat-label">太さパーセンタイル</div>
-          <div class="stat-value" id="girthPercentile">50%</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">100人中の順位（長さ）</div>
-          <div class="stat-value" id="lengthRank">50位</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-label">100人中の順位（太さ）</div>
-          <div class="stat-value" id="girthRank">50位</div>
+        <div class="stat-item-double">
+          <div class="stat-label">太さ</div>
+          <div class="stat-double-row">
+            <div class="stat-half">
+              <div class="stat-sublabel">パーセンタイル</div>
+              <div class="stat-value" id="girthPercentile">50%</div>
+            </div>
+            <div class="stat-half">
+              <div class="stat-sublabel">100人中</div>
+              <div class="stat-value" id="girthRank">50位</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -481,12 +519,12 @@ function recommendCondomSize(diameter) {
   }
 
   if (lengthMm < 60 || lengthMm > 220) {
-    alert('長さは60〜220mm（6.0〜22.0cm）の範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.01%未満）');
+    alert('長さは60〜220mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.01%未満）');
     return;
   }
 
-  // mmをcmに変換
-  const length = lengthMm / 10;
+  // 長さはmm単位のまま使用
+  const length = lengthMm;
 
   // 太さを直径に統一
   let diameter;
@@ -504,9 +542,9 @@ function recommendCondomSize(diameter) {
     diameter = circumferenceToDiameter(girthInput);
   }
 
-  // 日本人統計データ
-  const jpLengthMean = 12.6;
-  const jpLengthStd = 1.8;
+  // 日本人統計データ（mm単位）
+  const jpLengthMean = 126;
+  const jpLengthStd = 18;
   const jpDiameterMean = 35;
   const jpDiameterStd = 3.5;
 
@@ -588,9 +626,6 @@ function recommendCondomSize(diameter) {
         return;
       }
 
-      const avgLengthCm = (parseFloat(data.statistics.avgLength) / 10).toFixed(1);
-      const stdLengthCm = (parseFloat(data.statistics.stdLength) / 10).toFixed(1);
-
       var cls = 'class';
       var html = '';
       html += '<div ' + cls + '="stats-item">';
@@ -601,8 +636,8 @@ function recommendCondomSize(diameter) {
 
       html += '<div ' + cls + '="stats-item">';
       html += '<div ' + cls + '="stats-label">平均長さ</div>';
-      html += '<div ' + cls + '="stats-value">' + avgLengthCm + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">cm (' + data.statistics.avgLength + 'mm)</div>';
+      html += '<div ' + cls + '="stats-value">' + data.statistics.avgLength + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm</div>';
       html += '</div>';
 
       html += '<div ' + cls + '="stats-item">';
@@ -613,8 +648,8 @@ function recommendCondomSize(diameter) {
 
       html += '<div ' + cls + '="stats-item">';
       html += '<div ' + cls + '="stats-label">標準偏差（長さ）</div>';
-      html += '<div ' + cls + '="stats-value">' + stdLengthCm + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">cm (±' + data.statistics.stdLength + 'mm)</div>';
+      html += '<div ' + cls + '="stats-value">' + data.statistics.stdLength + '</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm</div>';
       html += '</div>';
 
       statsContent.innerHTML = html;
@@ -637,7 +672,7 @@ function recommendCondomSize(diameter) {
     comparisonChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['長さ（cm）', '太さ（mm）'],
+      labels: ['長さ（mm）', '太さ（mm）'],
       datasets: [
         {
           label: 'あなた',
@@ -648,14 +683,14 @@ function recommendCondomSize(diameter) {
         },
         {
           label: '日本人平均',
-          data: [12.6, 35],
+          data: [126, 35],
           backgroundColor: 'rgba(34, 197, 94, 0.8)',
           borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 2
         },
         {
           label: '世界平均',
-          data: [13.1, 37.3],
+          data: [131, 37.3],
           backgroundColor: 'rgba(251, 146, 60, 0.8)',
           borderColor: 'rgba(251, 146, 60, 1)',
           borderWidth: 2
@@ -719,7 +754,7 @@ function recommendCondomSize(diameter) {
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
     <div class="font-bold text-white mb-2">■ 日本人データ</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ平均</strong><br>12.6cm（標準偏差1.8cm）</li>
+      <li><strong class="text-white">長さ平均</strong><br>126mm（標準偏差18mm）</li>
       <li><strong class="text-white">直径平均</strong><br>35mm（標準偏差3.5mm）</li>
       <li><strong class="text-white">コンドーム使用率</strong><br>Mサイズ70%、Sサイズ20%、Lサイズ10%、XLサイズ1%未満</li>
     </ul>
@@ -728,8 +763,8 @@ function recommendCondomSize(diameter) {
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
     <div class="font-bold text-white mb-2">■ 世界平均データ</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ平均</strong><br>13.1cm</li>
-      <li><strong class="text-white">外周平均</strong><br>11.7cm（直径約37.3mm）</li>
+      <li><strong class="text-white">長さ平均</strong><br>131mm</li>
+      <li><strong class="text-white">外周平均</strong><br>117mm（直径約37.3mm）</li>
     </ul>
   </div>
 
