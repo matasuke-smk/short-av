@@ -21,6 +21,16 @@ export const articles: Article[] = [
 
 <p style="color: #d1d5db; margin-bottom: 1.5rem;">入力データは完全匿名でサーバーに送信され、統計データとして活用されます。個人を特定できる情報は一切含まれません。</p>
 
+<!-- 収集された統計データ表示 -->
+<div id="collectedStats" class="collected-stats-card">
+  <div class="stats-header">
+    <h3>📊 収集された統計データ（勃起時）</h3>
+  </div>
+  <div id="statsContent" class="stats-content">
+    <div class="stats-loading">データを読み込み中...</div>
+  </div>
+</div>
+
 <style>
 .size-tool-container {
   max-width: 800px;
@@ -219,6 +229,61 @@ export const articles: Article[] = [
   line-height: 1.6;
 }
 
+.collected-stats-card {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);
+}
+
+.stats-header h3 {
+  color: #fff;
+  font-size: 1.1rem;
+  margin: 0 0 16px 0;
+  font-weight: bold;
+}
+
+.stats-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stats-loading {
+  color: #93c5fd;
+  text-align: center;
+  padding: 20px;
+  font-size: 0.95rem;
+}
+
+.stats-item {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stats-label {
+  color: #93c5fd;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.stats-value {
+  color: #fff;
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.stats-subvalue {
+  color: #dbeafe;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 640px) {
   .stat-grid {
     grid-template-columns: 1fr;
@@ -333,6 +398,9 @@ export const articles: Article[] = [
 
   // DOMが完全に読み込まれた後に実行
   document.addEventListener('DOMContentLoaded', function() {
+    // 収集された統計データを読み込む
+    loadCollectedStats();
+
     // 測定方法の切り替え
     document.querySelectorAll('input[name="girthType"]').forEach(radio => {
       radio.addEventListener('change', function() {
@@ -500,6 +568,53 @@ function recommendCondomSize(diameter) {
       }
     } catch (error) {
       console.error('Error sending statistics data:', error);
+    }
+  }
+
+  // 収集された統計データを読み込んで表示
+  async function loadCollectedStats() {
+    try {
+      const response = await fetch('/api/size-stats?erectionState=erect');
+      if (!response.ok) {
+        throw new Error('Failed to fetch statistics');
+      }
+
+      const data = await response.json();
+      const statsContent = document.getElementById('statsContent');
+
+      if (data.count === 0) {
+        statsContent.innerHTML = '<div class="stats-loading">まだデータが収集されていません</div>';
+        return;
+      }
+
+      const avgLengthCm = (parseFloat(data.statistics.avgLength) / 10).toFixed(1);
+
+      statsContent.innerHTML = `
+        <div class="stats-item">
+          <div class="stats-label">データ件数</div>
+          <div class="stats-value">${data.count}</div>
+          <div class="stats-subvalue">人</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-label">平均長さ</div>
+          <div class="stats-value">${avgLengthCm}</div>
+          <div class="stats-subvalue">cm (${data.statistics.avgLength}mm)</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-label">平均直径</div>
+          <div class="stats-value">${data.statistics.avgDiameter}</div>
+          <div class="stats-subvalue">mm</div>
+        </div>
+        <div class="stats-item">
+          <div class="stats-label">標準偏差（長さ）</div>
+          <div class="stats-value">${(parseFloat(data.statistics.stdLength) / 10).toFixed(1)}</div>
+          <div class="stats-subvalue">cm (±${data.statistics.stdLength}mm)</div>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Error loading collected statistics:', error);
+      const statsContent = document.getElementById('statsContent');
+      statsContent.innerHTML = '<div class="stats-loading">データの読み込みに失敗しました</div>';
     }
   }
 
