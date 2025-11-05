@@ -259,6 +259,21 @@ export const articles: Article[] = [
     </div>
 
     <div class="form-group">
+      <label class="form-label">測定時の状態</label>
+      <div class="radio-group">
+        <label class="radio-label">
+          <input type="radio" name="erectionState" value="erect" checked>
+          勃起時
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="erectionState" value="flaccid">
+          通常時（非勃起）
+        </label>
+      </div>
+      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ より正確な統計のため、勃起時のサイズを推奨します</p>
+    </div>
+
+    <div class="form-group">
       <label class="form-label">年齢層（任意）</label>
       <select id="ageInput" class="form-input">
         <option value="">選択しない</option>
@@ -267,6 +282,16 @@ export const articles: Article[] = [
         <option value="40s">40代</option>
         <option value="50s">50代以上</option>
       </select>
+    </div>
+
+    <div class="form-group" style="border-top: 1px solid #374151; padding-top: 20px; margin-top: 20px;">
+      <label class="radio-label" style="display: flex; align-items: start; cursor: pointer;">
+        <input type="checkbox" id="dataConsent" style="width: 20px; height: 20px; margin-right: 12px; margin-top: 2px; cursor: pointer;">
+        <span style="color: #d1d5db; font-size: 0.95rem; line-height: 1.5;">
+          <strong style="color: #fff;">統計データの提供に協力する（任意・匿名）</strong><br>
+          統計改善のため、入力データを匿名で収集します。個人を特定できる情報は一切収集されません。
+        </span>
+      </label>
     </div>
 
     <button class="btn-calculate" id="calculateBtn">統計を計算する</button>
@@ -318,7 +343,8 @@ export const articles: Article[] = [
         ※ 統計データに基づく参考情報です<br>
         ※ 個人差があります<br>
         ※ 医学的診断ではありません<br>
-        ※ 入力データはサーバーに送信されず、ブラウザ内でのみ処理されます
+        ※ 入力データは統計協力にチェックした場合のみ、匿名で収集されます<br>
+        ※ 収集されるデータ：長さ・太さ・測定状態・年齢層のみ（個人を特定する情報は一切含まれません）
       </div>
     </div>
   </div>
@@ -471,6 +497,36 @@ function recommendCondomSize(diameter) {
 
   // 結果エリアまでスクロール
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // データ送信（オプトインの場合のみ）
+    const dataConsent = document.getElementById('dataConsent');
+    if (dataConsent && dataConsent.checked) {
+      sendStatisticsData(lengthMm, diameter, document.querySelector('input[name="erectionState"]:checked').value, document.getElementById('ageInput').value);
+    }
+  }
+
+  // 統計データをサーバーに送信
+  async function sendStatisticsData(lengthMm, diameterMm, erectionState, ageGroup) {
+    try {
+      const response = await fetch('/api/size-stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lengthMm,
+          diameterMm,
+          erectionState,
+          ageGroup: ageGroup || null,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to send statistics data');
+      }
+    } catch (error) {
+      console.error('Error sending statistics data:', error);
+    }
   }
 
   function drawChart(userLength, userDiameter) {
