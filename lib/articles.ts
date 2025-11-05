@@ -10,10 +10,10 @@ export interface Article {
 export const articles: Article[] = [
   {
     slug: 'size-comparison-tool',
-    title: 'ペニスサイズ統計比較ツール - あなたのサイズは平均と比べてどう？',
+    title: 'ペニス比較ツール\nあなたのサイズは？',
     description: '自分のサイズを入力するだけで、日本人平均や世界平均と比較できる統計ツール。パーセンタイル、100人中の順位、最適なコンドームサイズを科学的に表示。完全匿名で安全に利用できます。',
     content: `
-# ペニスサイズ統計比較ツール
+<h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 1.5rem; color: white; line-height: 1.3;">ペニス比較ツール<br>あなたのサイズは？</h1>
 
 自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。
 

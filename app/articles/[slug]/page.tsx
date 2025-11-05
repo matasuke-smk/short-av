@@ -160,7 +160,7 @@ export default async function ArticlePage({ params }: Props) {
         <article>
           {/* タイトル */}
           <header className="mb-8 md:mb-12">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 leading-tight">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 leading-tight whitespace-pre-line">
               {article.title}
             </h1>
             <div className="flex items-center gap-4 text-sm text-gray-400">
