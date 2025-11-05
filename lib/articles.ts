@@ -235,8 +235,8 @@ export const articles: Article[] = [
     <h3>サイズを入力してください</h3>
 
     <div class="form-group">
-      <label class="form-label">長さ（cm）</label>
-      <input type="number" id="lengthInput" class="form-input" min="5.0" max="25.0" step="0.1" placeholder="例: 12.6">
+      <label class="form-label">長さ（mm）</label>
+      <input type="number" id="lengthInput" class="form-input" min="50" max="250" step="1" placeholder="例: 126">
     </div>
 
     <div class="form-group">
@@ -387,20 +387,23 @@ let comparisonChart = null;
 
 function calculateStats() {
   // 入力値を取得
-  const length = parseFloat(document.getElementById('lengthInput').value);
+  const lengthMm = parseFloat(document.getElementById('lengthInput').value);
   const girthInput = parseFloat(document.getElementById('girthInput').value);
   const girthType = document.querySelector('input[name="girthType"]:checked').value;
 
   // バリデーション
-  if (!length || !girthInput) {
+  if (!lengthMm || !girthInput) {
     alert('長さと太さを入力してください');
     return;
   }
 
-  if (length < 5.0 || length > 25.0) {
-    alert('長さは5.0〜25.0cmの範囲で入力してください');
+  if (lengthMm < 50 || lengthMm > 250) {
+    alert('長さは50〜250mmの範囲で入力してください');
     return;
   }
+
+  // mmをcmに変換
+  const length = lengthMm / 10;
 
   // 太さを直径に統一
   let diameter;
@@ -538,72 +541,74 @@ function drawChart(userLength, userDiameter) {
 }
 </script>
 
-## このツールについて
+<div class="tool-card" style="margin-top: 40px;">
+  <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">このツールについて</h2>
 
-このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。
+  <p class="mb-4 text-gray-300">このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。</p>
 
-入力されたデータは完全にブラウザ内で処理され、サーバーには一切送信されません。
+  <p class="mb-6 text-gray-300">入力されたデータは完全にブラウザ内で処理され、サーバーには一切送信されません。</p>
 
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">使用している統計データ</h3>
 
-### 使用している統計データ
+  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+    <div class="font-bold text-white mb-2">■ 日本人データ</div>
+    <ul class="list-disc ml-6 space-y-2 text-gray-300">
+      <li><strong class="text-white">長さ平均</strong><br>12.6cm（標準偏差1.8cm）</li>
+      <li><strong class="text-white">直径平均</strong><br>35mm（標準偏差3.5mm）</li>
+      <li><strong class="text-white">コンドーム使用率</strong><br>Mサイズ70%、Sサイズ20%、Lサイズ10%、XLサイズ1%未満</li>
+    </ul>
+  </div>
 
-■ 日本人データ
+  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
+    <div class="font-bold text-white mb-2">■ 世界平均データ</div>
+    <ul class="list-disc ml-6 space-y-2 text-gray-300">
+      <li><strong class="text-white">長さ平均</strong><br>13.1cm</li>
+      <li><strong class="text-white">外周平均</strong><br>11.7cm（直径約37.3mm）</li>
+    </ul>
+  </div>
 
-- **長さ平均**
-  12.6cm（標準偏差1.8cm）
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">パーセンタイルとは</h3>
 
-- **直径平均**
-  35mm（標準偏差3.5mm）
+  <p class="mb-4 text-gray-300">パーセンタイルは、あなたが全体の中でどの位置にいるかを示す指標です。</p>
 
-- **コンドーム使用率**
-  Mサイズ70%、Sサイズ20%、Lサイズ10%、XLサイズ1%未満
+  <p class="mb-6 text-gray-300">50パーセンタイルは平均を意味し、80パーセンタイルなら上位20%に入ることを意味します。</p>
 
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">測定のコツ</h3>
 
-■ 世界平均データ
+  <p class="mb-4 text-gray-300">正確な測定のために、以下のポイントを押さえましょう。</p>
 
-- **長さ平均**
-  13.1cm
+  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
+    <div class="font-bold text-white mb-2">■ 長さの測定</div>
+    <ul class="list-disc ml-6 space-y-1 text-gray-300">
+      <li>完全に勃起した状態で測定</li>
+      <li>恥骨の骨から先端まで</li>
+      <li>定規を使って真っすぐ測る</li>
+    </ul>
+  </div>
 
-- **外周平均**
-  11.7cm（直径約37.3mm）
+  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
+    <div class="font-bold text-white mb-2">■ 太さの測定</div>
+    <ul class="list-disc ml-6 space-y-1 text-gray-300">
+      <li>メジャーで外周を測定</li>
+      <li>または直径をノギスで測定</li>
+      <li>最も太い部分で測る</li>
+    </ul>
+  </div>
 
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">コンドームサイズの選び方</h3>
 
-### パーセンタイルとは
+  <p class="mb-4 text-gray-300">コンドームは正しいサイズを選ぶことが重要です。</p>
 
-パーセンタイルは、あなたが全体の中でどの位置にいるかを示す指標です。
+  <p class="mb-6 text-gray-300">きつすぎると痛みや破損のリスクがあり、緩すぎると外れる可能性があります。このツールの推奨サイズを参考にしてください。</p>
 
-50パーセンタイルは平均を意味し、80パーセンタイルなら上位20%に入ることを意味します。
+  <h2 class="text-xl md:text-2xl font-bold mt-8 mb-4 text-white">関連記事</h2>
 
-
-### 測定のコツ
-
-正確な測定のために、以下のポイントを押さえましょう。
-
-■ 長さの測定
-
-- 完全に勃起した状態で測定
-- 恥骨の骨から先端まで
-- 定規を使って真っすぐ測る
-
-■ 太さの測定
-
-- メジャーで外周を測定
-- または直径をノギスで測定
-- 最も太い部分で測る
-
-
-### コンドームサイズの選び方
-
-コンドームは正しいサイズを選ぶことが重要です。
-
-きつすぎると痛みや破損のリスクがあり、緩すぎると外れる可能性があります。このツールの推奨サイズを参考にしてください。
-
-
-## 関連記事
-
-- [購買データで判明！日本人男性のリアルなサイズ分布](/articles/japanese-men-condom-size-data) - コンドーム購買データ分析
-- [ペニスサイズの真実：世界と日本のデータ比較](/articles/penis-size-global-comparison) - 国際比較
-- [自分のサイズを正しく測る方法](/articles/how-to-measure-penis-correctly) - 測定方法詳細
+  <ul class="list-disc ml-6 space-y-2">
+    <li><a href="/articles/japanese-men-condom-size-data" class="text-blue-400 hover:text-blue-300 underline">購買データで判明！日本人男性のリアルなサイズ分布</a> - コンドーム購買データ分析</li>
+    <li><a href="/articles/penis-size-global-comparison" class="text-blue-400 hover:text-blue-300 underline">ペニスサイズの真実：世界と日本のデータ比較</a> - 国際比較</li>
+    <li><a href="/articles/how-to-measure-penis-correctly" class="text-blue-400 hover:text-blue-300 underline">自分のサイズを正しく測る方法</a> - 測定方法詳細</li>
+  </ul>
+</div>
     `.trim(),
     publishedAt: '2099-12-31',
     category: 'ツール'
