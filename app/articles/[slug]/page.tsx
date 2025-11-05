@@ -72,6 +72,9 @@ export default async function ArticlePage({ params }: Props) {
   const nextArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
   const prevArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
 
+  // HTMLツール記事かどうかを判定（<script>や<style>が含まれている場合）
+  const isInteractiveTool = article.content.includes('<script') || article.content.includes('<style');
+
   // Article構造化データ
   const articleSchema = {
     '@context': 'https://schema.org',
@@ -178,22 +181,30 @@ export default async function ArticlePage({ params }: Props) {
 
           {/* 本文 - レスポンシブ対応 */}
           <div className="prose prose-invert prose-lg md:prose-xl max-w-none">
-            <div
-              className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
-              dangerouslySetInnerHTML={{
-                __html: article.content
-                  .split('\n\n')
-                  .map(para => {
-                    // 見出し
-                    if (para.startsWith('# ')) {
-                      return `<h1 class="text-2xl md:text-3xl font-bold mt-8 mb-4 text-white">${para.substring(2)}</h1>`;
-                    }
-                    if (para.startsWith('## ')) {
-                      return `<h2 class="text-xl md:text-2xl font-bold mt-6 mb-3 text-white">${para.substring(3)}</h2>`;
-                    }
-                    if (para.startsWith('### ')) {
-                      return `<h3 class="text-lg md:text-xl font-bold mt-4 mb-2 text-white">${para.substring(4)}</h3>`;
-                    }
+            {isInteractiveTool ? (
+              /* インタラクティブツールの場合はHTMLをそのまま表示 */
+              <div
+                className="text-gray-300 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: article.content }}
+              />
+            ) : (
+              /* 通常の記事の場合はMarkdown処理 */
+              <div
+                className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
+                dangerouslySetInnerHTML={{
+                  __html: article.content
+                    .split('\n\n')
+                    .map(para => {
+                      // 見出し
+                      if (para.startsWith('# ')) {
+                        return `<h1 class="text-2xl md:text-3xl font-bold mt-8 mb-4 text-white">${para.substring(2)}</h1>`;
+                      }
+                      if (para.startsWith('## ')) {
+                        return `<h2 class="text-xl md:text-2xl font-bold mt-6 mb-3 text-white">${para.substring(3)}</h2>`;
+                      }
+                      if (para.startsWith('### ')) {
+                        return `<h3 class="text-lg md:text-xl font-bold mt-4 mb-2 text-white">${para.substring(4)}</h3>`;
+                      }
 
                     // 表（Markdown table）をカード形式に変換
                     if (para.includes('|') && para.split('\n').length > 2) {
@@ -252,11 +263,12 @@ export default async function ArticlePage({ params }: Props) {
                     const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
                     processed = processed.replace(linkRegex, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
 
-                    return `<p class="mb-4">${processed}</p>`;
-                  })
-                  .join('')
-              }}
-            />
+                      return `<p class="mb-4">${processed}</p>`;
+                    })
+                    .join('')
+                }}
+              />
+            )}
           </div>
         </article>
 
