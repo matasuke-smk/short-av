@@ -9,8 +9,12 @@
 
 ## 現在のアフィリエイトID
 ```
+# バナー広告用
 af_id=matasuke-005
-api_id=matasuke-990
+
+# DMM API用
+api_id=mBPSyh262MZFhRYtqyGK
+affiliate_id=matasuke-990
 ```
 
 ## 過去のアフィリエイトID
