@@ -19,7 +19,7 @@ export const articles: Article[] = [
 
 <p style="color: #d1d5db; margin-bottom: 1rem;">自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。</p>
 
-<p style="color: #d1d5db; margin-bottom: 1.5rem;">完全匿名で、入力データはサーバーに送信されません。安心してご利用ください。</p>
+<p style="color: #d1d5db; margin-bottom: 1.5rem;">入力データは完全匿名でサーバーに送信され、統計データとして活用されます。個人を特定できる情報は一切含まれません。</p>
 
 <style>
 .size-tool-container {
