@@ -594,20 +594,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                         <span className="text-gray-400">サイト認証後に表示</span>
                       )}
                     </div>
-
-                    {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
-                    <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {enableAffiliateLinks ? (
-                        <div
-                          ref={portraitThumbnailBannerRef}
-                          className="w-full aspect-[640/200]"
-                        />
-                      ) : (
-                        <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-                          <span className="text-gray-400 text-sm">サイト認証後に表示</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -811,8 +797,22 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       </div>
 
       {/* 下部固定エリア - レスポンシブ対応（横画面時は非表示） */}
-      <div className="landscape:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
+      <div className="landscape:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
+          {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
+          <div className="w-full mb-3 md:mb-4">
+            {enableAffiliateLinks ? (
+              <div
+                ref={portraitThumbnailBannerRef}
+                className="w-full aspect-[640/200]"
+              />
+            ) : (
+              <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+                <span className="text-gray-400 text-sm">サイト認証後に表示</span>
+              </div>
+            )}
+          </div>
+
           {/* 動画情報 - 高さ固定（2行分） */}
           <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex flex-col justify-end">
             {currentVideo?.maker && (
