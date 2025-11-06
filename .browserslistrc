@@ -1,0 +1,19 @@
+# 現代のブラウザのみをターゲットにして、不要なポリフィルを削減
+# これにより、JavaScriptバンドルサイズが約11KB削減されます
+
+# モダンブラウザ（ES6+サポート）
+> 0.5%
+last 2 versions
+not dead
+not IE 11
+not op_mini all
+
+# Chrome, Firefox, Safari, Edge の最新2バージョン
+Chrome >= 88
+Firefox >= 85
+Safari >= 14
+Edge >= 88
+
+# モバイル
+iOS >= 13
+Android >= 88

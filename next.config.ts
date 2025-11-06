@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
+  // SWCトランスパイル設定（モダンブラウザ向け最適化）
+  swcMinify: true,
+
   // 実験的機能（パフォーマンス改善）
   experimental: {
     optimizePackageImports: ['embla-carousel-react', '@supabase/supabase-js'],

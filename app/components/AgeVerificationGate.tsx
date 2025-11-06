@@ -94,6 +94,7 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
               alt="初回購入限定！500円OFF！"
               height="250"
               className="w-full h-auto"
+              loading="lazy"
             />
           </a>
         ) : (

@@ -626,6 +626,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   className="object-contain"
                   sizes="(max-width: 768px) 45vw, 400px"
                   quality={85}
+                  loading="lazy"
                   unoptimized={true}
                 />
               </div>
@@ -897,6 +898,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     className="object-contain"
                     sizes="(max-width: 768px) 100vw, 640px"
                     quality={75}
+                    loading="lazy"
                     unoptimized={true}
                   />
                 </div>
