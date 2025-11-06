@@ -64,11 +64,16 @@ export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialPr
 
         {/* スワイプアップアイコン（下から上にモーション） */}
         <div className="animate-swipe-up">
-          <img
-            src="/swipe-up.png"
-            alt="Swipe up"
-            className="w-48 h-48 opacity-90"
-          />
+          <svg
+            className="w-48 h-48 opacity-90 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-label="Swipe up"
+          >
+            {/* 上向き矢印 */}
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+          </svg>
         </div>
       </div>
 
