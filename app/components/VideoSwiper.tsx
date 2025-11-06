@@ -122,9 +122,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const landscapeThumbnailBannerRef = useRef<HTMLDivElement>(null); // サムネイル横（横画面）
   const modalBannerRef = useRef<HTMLDivElement>(null); // モーダル内（縦画面）
 
-  // ランダムバナーID選択（ページ読み込み時に1つ選択）
-  const selectedLandscapeBannerId = useRandomBannerId(landscapeBannerIds);
-  const selectedPortraitBannerId = useRandomBannerId(portraitBannerIds);
+  // ランダムバナーID選択（動画が変わるたびに新しいバナーを選択）
+  const selectedLandscapeBannerId = useRandomBannerId(landscapeBannerIds, [currentIndex]);
+  const selectedPortraitBannerId = useRandomBannerId(portraitBannerIds, [currentIndex]);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
