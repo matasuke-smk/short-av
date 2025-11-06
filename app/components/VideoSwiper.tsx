@@ -9,8 +9,8 @@ import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBanners } from '@/config/banners';
-import { useRandomBanner } from '@/hooks/useRandomBanner';
+import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
+import { useRandomBannerId } from '@/hooks/useRandomBanner';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -118,9 +118,13 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // DMMウィジェットバナー用のref
   const landscapeBannerRef = useRef<HTMLDivElement>(null);
+  const portraitThumbnailBannerRef = useRef<HTMLDivElement>(null); // サムネイル下（縦画面）
+  const landscapeThumbnailBannerRef = useRef<HTMLDivElement>(null); // サムネイル横（横画面）
+  const modalBannerRef = useRef<HTMLDivElement>(null); // モーダル内（縦画面）
 
-  // ランダムバナー選択（ページ読み込み時に1つ選択）
-  const selectedBanner = useRandomBanner(landscapeBanners);
+  // ランダムバナーID選択（ページ読み込み時に1つ選択）
+  const selectedLandscapeBannerId = useRandomBannerId(landscapeBannerIds);
+  const selectedPortraitBannerId = useRandomBannerId(portraitBannerIds);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -128,9 +132,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     setUserId(id);
   }, []);
 
-  // DMMウィジェットバナーのスクリプトを動的に読み込む
+  // DMMウィジェットバナーのスクリプトを動的に読み込む（160x600 - モーダル横画面時）
   useEffect(() => {
-    if (showVideoModal && enableAffiliateLinks && landscapeBannerRef.current) {
+    if (showVideoModal && enableAffiliateLinks && selectedPortraitBannerId && landscapeBannerRef.current) {
       // 既存のスクリプトをクリーンアップ
       const existingScript = landscapeBannerRef.current.querySelector('.widget-banner-script');
       if (existingScript) {
@@ -146,11 +150,83 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
-      script.src = 'https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=1082_160_600';
+      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedPortraitBannerId}`;
       script.async = true;
       landscapeBannerRef.current.appendChild(script);
     }
-  }, [showVideoModal, enableAffiliateLinks]);
+  }, [showVideoModal, enableAffiliateLinks, selectedPortraitBannerId]);
+
+  // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル下・縦画面時）
+  useEffect(() => {
+    if (enableAffiliateLinks && selectedLandscapeBannerId && portraitThumbnailBannerRef.current) {
+      // 既存のスクリプトをクリーンアップ
+      const existingScript = portraitThumbnailBannerRef.current.querySelector('.widget-banner-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // insタグを追加
+      const ins = document.createElement('ins');
+      ins.className = 'widget-banner';
+      portraitThumbnailBannerRef.current.innerHTML = '';
+      portraitThumbnailBannerRef.current.appendChild(ins);
+
+      // スクリプトタグを追加
+      const script = document.createElement('script');
+      script.className = 'widget-banner-script';
+      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+      script.async = true;
+      portraitThumbnailBannerRef.current.appendChild(script);
+    }
+  }, [enableAffiliateLinks, selectedLandscapeBannerId]);
+
+  // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル横・横画面時）
+  useEffect(() => {
+    if (enableAffiliateLinks && selectedLandscapeBannerId && landscapeThumbnailBannerRef.current) {
+      // 既存のスクリプトをクリーンアップ
+      const existingScript = landscapeThumbnailBannerRef.current.querySelector('.widget-banner-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // insタグを追加
+      const ins = document.createElement('ins');
+      ins.className = 'widget-banner';
+      landscapeThumbnailBannerRef.current.innerHTML = '';
+      landscapeThumbnailBannerRef.current.appendChild(ins);
+
+      // スクリプトタグを追加
+      const script = document.createElement('script');
+      script.className = 'widget-banner-script';
+      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+      script.async = true;
+      landscapeThumbnailBannerRef.current.appendChild(script);
+    }
+  }, [enableAffiliateLinks, selectedLandscapeBannerId]);
+
+  // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - モーダル内・縦画面時）
+  useEffect(() => {
+    if (showVideoModal && enableAffiliateLinks && selectedLandscapeBannerId && modalBannerRef.current) {
+      // 既存のスクリプトをクリーンアップ
+      const existingScript = modalBannerRef.current.querySelector('.widget-banner-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      // insタグを追加
+      const ins = document.createElement('ins');
+      ins.className = 'widget-banner';
+      modalBannerRef.current.innerHTML = '';
+      modalBannerRef.current.appendChild(ins);
+
+      // スクリプトタグを追加
+      const script = document.createElement('script');
+      script.className = 'widget-banner-script';
+      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+      script.async = true;
+      modalBannerRef.current.appendChild(script);
+    }
+  }, [showVideoModal, enableAffiliateLinks, selectedLandscapeBannerId]);
 
   // サーバーからいいね状態を読み込み
   useEffect(() => {
@@ -501,27 +577,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {enableAffiliateLinks && selectedBanner ? (
-                        <a
-                          href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
-                          target="_blank"
-                          rel="sponsored"
-                          className="block w-full"
-                        >
-                          <div className="relative w-full aspect-[640/200]">
-                            <Image
-                              src={selectedBanner.url}
-                              alt={selectedBanner.alt}
-                              fill
-                              className="object-contain"
-                              sizes="(max-width: 768px) 100vw, 640px"
-                              priority={index === 0}
-                              quality={index === 0 ? 95 : 85}
-                              unoptimized={true}
-                              loading={index === 0 ? 'eager' : 'lazy'}
-                            />
-                          </div>
-                        </a>
+                      {enableAffiliateLinks ? (
+                        <div
+                          ref={portraitThumbnailBannerRef}
+                          className="w-full aspect-[640/200]"
+                        />
                       ) : (
                         <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
                           <span className="text-gray-400 text-sm">サイト認証後に表示</span>
@@ -616,26 +676,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
         <div className="w-full flex-shrink-0">
-          {enableAffiliateLinks && selectedBanner ? (
-            <a
-              href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
-              target="_blank"
-              rel="sponsored"
-              className="block w-full"
-            >
-              <div className="relative w-full aspect-[640/200]">
-                <Image
-                  src={selectedBanner.url}
-                  alt={selectedBanner.alt}
-                  fill
-                  className="object-contain"
-                  sizes="(max-width: 768px) 45vw, 400px"
-                  quality={85}
-                  loading="lazy"
-                  unoptimized={true}
-                />
-              </div>
-            </a>
+          {enableAffiliateLinks ? (
+            <div
+              ref={landscapeThumbnailBannerRef}
+              className="w-full aspect-[640/200]"
+            />
           ) : (
             <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
               <span className="text-gray-400 text-sm">サイト認証後に表示</span>
@@ -887,27 +932,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           <div className="landscape:hidden w-full mb-4">
-            {enableAffiliateLinks && selectedBanner ? (
-              <a
-                href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
-                target="_blank"
-                rel="sponsored"
-                className="block w-full"
+            {enableAffiliateLinks ? (
+              <div
+                ref={modalBannerRef}
+                className="w-full aspect-[640/200]"
                 onClick={(e) => e.stopPropagation()}
-              >
-                <div className="relative w-full aspect-[640/200]">
-                  <Image
-                    src={selectedBanner.url}
-                    alt={selectedBanner.alt}
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 100vw, 640px"
-                    quality={75}
-                    loading="lazy"
-                    unoptimized={true}
-                  />
-                </div>
-              </a>
+              />
             ) : (
               <div className="w-full aspect-[640/200] bg-gray-800 flex items-center justify-center border border-gray-700">
                 <p className="text-gray-500 text-sm">サイト認証後に広告表示</p>
