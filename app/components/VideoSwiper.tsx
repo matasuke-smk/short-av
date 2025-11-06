@@ -135,96 +135,116 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   // DMMウィジェットバナーのスクリプトを動的に読み込む（160x600 - モーダル横画面時）
   useEffect(() => {
     if (showVideoModal && enableAffiliateLinks && selectedPortraitBannerId && landscapeBannerRef.current) {
-      // 既存のスクリプトをクリーンアップ
-      const existingScript = landscapeBannerRef.current.querySelector('.widget-banner-script');
-      if (existingScript) {
-        existingScript.remove();
-      }
+      const container = landscapeBannerRef.current;
+
+      // 既存の内容を完全にクリア
+      container.innerHTML = '';
 
       // insタグを追加
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
-      landscapeBannerRef.current.innerHTML = '';
-      landscapeBannerRef.current.appendChild(ins);
+      container.appendChild(ins);
 
       // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedPortraitBannerId}`;
       script.async = true;
-      landscapeBannerRef.current.appendChild(script);
+      container.appendChild(script);
+
+      // クリーンアップ関数
+      return () => {
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
     }
   }, [showVideoModal, enableAffiliateLinks, selectedPortraitBannerId]);
 
   // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル下・縦画面時）
   useEffect(() => {
     if (enableAffiliateLinks && selectedLandscapeBannerId && portraitThumbnailBannerRef.current) {
-      // 既存のスクリプトをクリーンアップ
-      const existingScript = portraitThumbnailBannerRef.current.querySelector('.widget-banner-script');
-      if (existingScript) {
-        existingScript.remove();
-      }
+      const container = portraitThumbnailBannerRef.current;
+
+      // 既存の内容を完全にクリア
+      container.innerHTML = '';
 
       // insタグを追加
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
-      portraitThumbnailBannerRef.current.innerHTML = '';
-      portraitThumbnailBannerRef.current.appendChild(ins);
+      container.appendChild(ins);
 
       // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
       script.async = true;
-      portraitThumbnailBannerRef.current.appendChild(script);
+      container.appendChild(script);
+
+      // クリーンアップ関数
+      return () => {
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
     }
   }, [enableAffiliateLinks, selectedLandscapeBannerId]);
 
   // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル横・横画面時）
   useEffect(() => {
     if (enableAffiliateLinks && selectedLandscapeBannerId && landscapeThumbnailBannerRef.current) {
-      // 既存のスクリプトをクリーンアップ
-      const existingScript = landscapeThumbnailBannerRef.current.querySelector('.widget-banner-script');
-      if (existingScript) {
-        existingScript.remove();
-      }
+      const container = landscapeThumbnailBannerRef.current;
+
+      // 既存の内容を完全にクリア
+      container.innerHTML = '';
 
       // insタグを追加
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
-      landscapeThumbnailBannerRef.current.innerHTML = '';
-      landscapeThumbnailBannerRef.current.appendChild(ins);
+      container.appendChild(ins);
 
       // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
       script.async = true;
-      landscapeThumbnailBannerRef.current.appendChild(script);
+      container.appendChild(script);
+
+      // クリーンアップ関数
+      return () => {
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
     }
   }, [enableAffiliateLinks, selectedLandscapeBannerId]);
 
   // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - モーダル内・縦画面時）
   useEffect(() => {
     if (showVideoModal && enableAffiliateLinks && selectedLandscapeBannerId && modalBannerRef.current) {
-      // 既存のスクリプトをクリーンアップ
-      const existingScript = modalBannerRef.current.querySelector('.widget-banner-script');
-      if (existingScript) {
-        existingScript.remove();
-      }
+      const container = modalBannerRef.current;
+
+      // 既存の内容を完全にクリア
+      container.innerHTML = '';
 
       // insタグを追加
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
-      modalBannerRef.current.innerHTML = '';
-      modalBannerRef.current.appendChild(ins);
+      container.appendChild(ins);
 
       // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
       script.async = true;
-      modalBannerRef.current.appendChild(script);
+      container.appendChild(script);
+
+      // クリーンアップ関数
+      return () => {
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
     }
   }, [showVideoModal, enableAffiliateLinks, selectedLandscapeBannerId]);
 
