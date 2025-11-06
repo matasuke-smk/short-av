@@ -137,15 +137,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (showVideoModal && enableAffiliateLinks && selectedPortraitBannerId && landscapeBannerRef.current) {
       const container = landscapeBannerRef.current;
 
-      // 既存の内容を完全にクリア
-      container.innerHTML = '';
+      // クリーンアップ: すべての子要素を削除
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
 
-      // insタグを追加
+      // バナーの読み込み
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
       container.appendChild(ins);
 
-      // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedPortraitBannerId}`;
@@ -154,8 +155,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       // クリーンアップ関数
       return () => {
-        if (container) {
-          container.innerHTML = '';
+        // すべての子要素を削除
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
         }
       };
     }
@@ -166,15 +168,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (enableAffiliateLinks && selectedLandscapeBannerId && portraitThumbnailBannerRef.current) {
       const container = portraitThumbnailBannerRef.current;
 
-      // 既存の内容を完全にクリア
-      container.innerHTML = '';
+      // クリーンアップ: すべての子要素を削除
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
 
-      // insタグを追加
+      // バナーの読み込み
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
       container.appendChild(ins);
 
-      // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
@@ -183,8 +186,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       // クリーンアップ関数
       return () => {
-        if (container) {
-          container.innerHTML = '';
+        // すべての子要素を削除（スクリプトとinsタグ）
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
         }
       };
     }
@@ -195,15 +199,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (enableAffiliateLinks && selectedLandscapeBannerId && landscapeThumbnailBannerRef.current) {
       const container = landscapeThumbnailBannerRef.current;
 
-      // 既存の内容を完全にクリア
-      container.innerHTML = '';
+      // クリーンアップ: すべての子要素を削除
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
 
-      // insタグを追加
+      // バナーの読み込み
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
       container.appendChild(ins);
 
-      // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
@@ -212,8 +217,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       // クリーンアップ関数
       return () => {
-        if (container) {
-          container.innerHTML = '';
+        // すべての子要素を削除
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
         }
       };
     }
@@ -224,15 +230,16 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (showVideoModal && enableAffiliateLinks && selectedLandscapeBannerId && modalBannerRef.current) {
       const container = modalBannerRef.current;
 
-      // 既存の内容を完全にクリア
-      container.innerHTML = '';
+      // クリーンアップ: すべての子要素を削除
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
 
-      // insタグを追加
+      // バナーの読み込み
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
       container.appendChild(ins);
 
-      // スクリプトタグを追加
       const script = document.createElement('script');
       script.className = 'widget-banner-script';
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
@@ -241,8 +248,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       // クリーンアップ関数
       return () => {
-        if (container) {
-          container.innerHTML = '';
+        // すべての子要素を削除
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
         }
       };
     }
