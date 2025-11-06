@@ -9,6 +9,8 @@ import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { landscapeBanners } from '@/config/banners';
+import { useRandomBanner } from '@/hooks/useRandomBanner';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -116,6 +118,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // DMMウィジェットバナー用のref
   const landscapeBannerRef = useRef<HTMLDivElement>(null);
+
+  // ランダムバナー選択（ページ読み込み時に1つ選択）
+  const selectedBanner = useRandomBanner(landscapeBanners);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -496,7 +501,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {enableAffiliateLinks ? (
+                      {enableAffiliateLinks && selectedBanner ? (
                         <a
                           href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
                           target="_blank"
@@ -505,8 +510,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                         >
                           <div className="relative w-full aspect-[640/200]">
                             <Image
-                              src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-                              alt="初回購入限定！500円OFF！"
+                              src={selectedBanner.url}
+                              alt={selectedBanner.alt}
                               fill
                               className="object-contain"
                               sizes="(max-width: 768px) 100vw, 640px"
@@ -611,7 +616,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
         <div className="w-full flex-shrink-0">
-          {enableAffiliateLinks ? (
+          {enableAffiliateLinks && selectedBanner ? (
             <a
               href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
               target="_blank"
@@ -620,8 +625,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             >
               <div className="relative w-full aspect-[640/200]">
                 <Image
-                  src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-                  alt="初回購入限定！500円OFF！"
+                  src={selectedBanner.url}
+                  alt={selectedBanner.alt}
                   fill
                   className="object-contain"
                   sizes="(max-width: 768px) 45vw, 400px"
@@ -882,7 +887,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           <div className="landscape:hidden w-full mb-4">
-            {enableAffiliateLinks ? (
+            {enableAffiliateLinks && selectedBanner ? (
               <a
                 href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
                 target="_blank"
@@ -892,8 +897,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               >
                 <div className="relative w-full aspect-[640/200]">
                   <Image
-                    src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-                    alt="初回購入限定！500円OFF！"
+                    src={selectedBanner.url}
+                    alt={selectedBanner.alt}
                     fill
                     className="object-contain"
                     sizes="(max-width: 768px) 100vw, 640px"
