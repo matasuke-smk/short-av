@@ -56,6 +56,26 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // 静的アセット（JS、CSS）のキャッシュ
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // 画像のキャッシュ（Vercel経由の画像）
+      {
+        source: '/_next/image:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, must-revalidate', // 1日キャッシュ
+          },
+        ],
+      },
     ];
   },
 };
