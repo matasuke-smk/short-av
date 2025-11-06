@@ -3,6 +3,17 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'プライバシーポリシー - Short AV',
   description: 'Short AVのプライバシーポリシー。Cookie使用、個人情報の取り扱いについて記載しています。',
+  alternates: {
+    canonical: '/privacy',
+  },
+  openGraph: {
+    title: 'プライバシーポリシー - Short AV',
+    description: 'Short AVのプライバシーポリシー。Cookie使用、個人情報の取り扱いについて記載しています。',
+    url: 'https://short-av.com/privacy',
+    siteName: 'Short AV',
+    locale: 'ja_JP',
+    type: 'website',
+  },
 };
 
 export default function PrivacyPage() {

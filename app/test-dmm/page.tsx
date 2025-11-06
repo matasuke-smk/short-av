@@ -1,4 +1,13 @@
 import { fetchRankingVideos } from '@/lib/dmm-api';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'DMM APIテスト - Short AV',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function TestDMMPage() {
   try {

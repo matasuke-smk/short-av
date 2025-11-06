@@ -3,6 +3,17 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '利用規約 - Short AV',
   description: 'Short AVの利用規約。サイト利用時の注意事項、免責事項について記載しています。',
+  alternates: {
+    canonical: '/terms',
+  },
+  openGraph: {
+    title: '利用規約 - Short AV',
+    description: 'Short AVの利用規約。サイト利用時の注意事項、免責事項について記載しています。',
+    url: 'https://short-av.com/terms',
+    siteName: 'Short AV',
+    locale: 'ja_JP',
+    type: 'website',
+  },
 };
 
 export default function TermsPage() {
