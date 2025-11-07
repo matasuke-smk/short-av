@@ -572,16 +572,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                           const randomVideos = shuffledPool.slice(0, 20);
 
                           setVideos(randomVideos);
-                          setCurrentIndex(0);
                           setIsFiniteList(false);
-
-                          // スクロール位置を最初に戻す
-                          if (emblaApi) {
-                            emblaApi.scrollTo(0, false);
-                          }
 
                           // URLパラメータをクリア
                           window.history.pushState({}, '', '/');
+
+                          // 次のフレームでEmblaを再初期化してスクロール
+                          requestAnimationFrame(() => {
+                            if (emblaApi) {
+                              emblaApi.reInit();
+                              requestAnimationFrame(() => {
+                                emblaApi.scrollTo(0, false);
+                                setCurrentIndex(0);
+                              });
+                            }
+                          });
                         }
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
@@ -663,12 +668,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const shuffledPool = shuffleArray(videoPools.straight);
                 const randomVideos = shuffledPool.slice(0, 20);
                 setVideos(randomVideos);
-                setCurrentIndex(0);
                 setIsFiniteList(false);
-                if (emblaApi) {
-                  emblaApi.scrollTo(0, false);
-                }
+                // URLパラメータをクリア
                 window.history.pushState({}, '', '/');
+                // 次のフレームでEmblaを再初期化してスクロール
+                requestAnimationFrame(() => {
+                  if (emblaApi) {
+                    emblaApi.reInit();
+                    requestAnimationFrame(() => {
+                      emblaApi.scrollTo(0, false);
+                      setCurrentIndex(0);
+                    });
+                  }
+                });
               }
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -788,16 +800,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   const randomVideos = shuffledPool.slice(0, 20);
 
                   setVideos(randomVideos);
-                  setCurrentIndex(0);
                   setIsFiniteList(false);
-
-                  // スクロール位置を最初に戻す
-                  if (emblaApi) {
-                    emblaApi.scrollTo(0, false);
-                  }
 
                   // URLパラメータをクリア
                   window.history.pushState({}, '', '/');
+
+                  // 次のフレームでEmblaを再初期化してスクロール
+                  requestAnimationFrame(() => {
+                    if (emblaApi) {
+                      emblaApi.reInit();
+                      requestAnimationFrame(() => {
+                        emblaApi.scrollTo(0, false);
+                        setCurrentIndex(0);
+                      });
+                    }
+                  });
                 }
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
