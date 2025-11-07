@@ -9,8 +9,6 @@ import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
-import DMMBanner from './DMMBanner';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -116,47 +114,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   });
   const [lastSelectedRanking, setLastSelectedRanking] = useState<'weekly' | 'monthly' | 'all'>('weekly');
 
-  // DMMウィジェットバナー用のref
-  const landscapeBannerRef = useRef<HTMLDivElement>(null);
-
   // ユーザーIDを取得・設定
   useEffect(() => {
     const id = getUserId();
     setUserId(id);
   }, []);
-
-  // DMMウィジェットバナーのスクリプトを動的に読み込む（モーダル用 - 160x600）
-  useEffect(() => {
-    if (showVideoModal && enableAffiliateLinks && landscapeBannerRef.current) {
-      const container = landscapeBannerRef.current;
-
-      // 現在の動画インデックスに基づいてバナーIDを選択
-      const bannerId = portraitBannerIds[currentIndex % portraitBannerIds.length];
-
-      // 既存の内容をすべて削除
-      while (container.firstChild) {
-        container.removeChild(container.firstChild);
-      }
-
-      // insタグを追加
-      const ins = document.createElement('ins');
-      ins.className = 'widget-banner';
-      container.appendChild(ins);
-
-      // スクリプトタグを追加
-      const script = document.createElement('script');
-      script.className = 'widget-banner-script';
-      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${bannerId}`;
-      container.appendChild(script);
-
-      // クリーンアップ関数
-      return () => {
-        while (container.firstChild) {
-          container.removeChild(container.firstChild);
-        }
-      };
-    }
-  }, [showVideoModal, enableAffiliateLinks, currentIndex]);
 
   // サーバーからいいね状態を読み込み
   useEffect(() => {
@@ -507,18 +469,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {enableAffiliateLinks ? (
-                        index === currentIndex && (
-                          <DMMBanner
-                            bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
-                            className="w-full aspect-[640/200]"
-                          />
-                        )
-                      ) : (
-                        <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-                          <span className="text-gray-400 text-sm">サイト認証後に表示</span>
-                        </div>
-                      )}
+                      <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+                        <span className="text-gray-400 text-sm">サムネイル下バナー (縦画面)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -608,16 +561,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
         <div className="w-full flex-shrink-0">
-          {enableAffiliateLinks ? (
-            <DMMBanner
-              bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
-              className="w-full aspect-[640/200]"
-            />
-          ) : (
-            <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-              <span className="text-gray-400 text-sm">サイト認証後に表示</span>
-            </div>
-          )}
+          <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+            <span className="text-gray-400 text-sm">横画面バナー (640×200)</span>
+          </div>
         </div>
 
         {/* ボタンエリア - 3列グリッド */}
@@ -864,32 +810,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           <div className="landscape:hidden w-full mb-4">
-            {enableAffiliateLinks ? (
-              <a
-                href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_640_200&af_id=matasuke-005"
-                target="_blank"
-                rel="sponsored"
-                className="block w-full"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="relative w-full aspect-[640/200]">
-                  <Image
-                    src="https://pics.dmm.com/af/a_digital_500off01/640_200.jpg"
-                    alt="初回購入限定！500円OFF！"
-                    fill
-                    className="object-contain"
-                    sizes="(max-width: 768px) 100vw, 640px"
-                    quality={75}
-                    loading="lazy"
-                    unoptimized={true}
-                  />
-                </div>
-              </a>
-            ) : (
-              <div className="w-full aspect-[640/200] bg-gray-800 flex items-center justify-center border border-gray-700">
-                <p className="text-gray-500 text-sm">サイト認証後に広告表示</p>
-              </div>
-            )}
+            <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+              <span className="text-gray-400 text-sm">モーダルバナー 縦画面 (640×200)</span>
+            </div>
           </div>
 
           {/* 左側コントロールエリア - 横画面時のみ表示 */}
@@ -978,17 +901,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* バナー領域 - 横画面時のみ表示 */}
           <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
-            {enableAffiliateLinks ? (
-              <div
-                ref={landscapeBannerRef}
-                className="w-full h-full"
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : (
-              <div className="w-full h-full border-2 border-gray-700 border-dashed flex items-center justify-center">
-                <p className="text-gray-500 text-sm">サイト認証後に表示</p>
-              </div>
-            )}
+            <div className="w-full h-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+              <span className="text-gray-400 text-sm">モーダルバナー 横画面 (160×600)</span>
+            </div>
           </div>
 
           {/* 縦画面時のみ表示 */}
