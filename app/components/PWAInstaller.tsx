@@ -174,12 +174,12 @@ export default function PWAInstaller() {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-white font-semibold mb-1">
-            {isIOS ? 'ホーム画面に追加' : 'アプリをインストール'}
+            ホーム画面に追加
           </h3>
           <p className="text-gray-400 text-sm">
             {isIOS
-              ? 'Safariの共有ボタンから「ホーム画面に追加」を選択'
-              : 'ホーム画面に追加して、アプリのように使用できます'
+              ? 'Safariの共有ボタンから追加できます'
+              : 'アプリのように素早くアクセスできます'
             }
           </p>
         </div>
@@ -199,7 +199,7 @@ export default function PWAInstaller() {
           onClick={handleInstall}
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
         >
-          {isIOS ? '手順を表示' : 'インストール'}
+          ホームに追加
         </button>
         <button
           onClick={handleDismiss}
