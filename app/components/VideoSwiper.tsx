@@ -555,39 +555,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </button>
                     <button
                       onClick={() => {
-                        // プールからランダムに20件を取得
-                        if (videoPools.straight && videoPools.straight.length > 0) {
-                          // シャッフル関数
-                          const shuffleArray = <T,>(array: T[]): T[] => {
-                            const shuffled = [...array];
-                            for (let i = shuffled.length - 1; i > 0; i--) {
-                              const j = Math.floor(Math.random() * (i + 1));
-                              [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                            }
-                            return shuffled;
-                          };
-
-                          // ♂♀のプールをシャッフルして先頭20件を取得
-                          const shuffledPool = shuffleArray(videoPools.straight);
-                          const randomVideos = shuffledPool.slice(0, 20);
-
-                          setVideos(randomVideos);
-                          setCurrentIndex(0); // 先に状態を更新
-                          setIsFiniteList(false);
-
-                          // URLパラメータをクリア
-                          window.history.pushState({}, '', '/');
-
-                          // 次のフレームでEmblaを再初期化してスクロール
-                          requestAnimationFrame(() => {
-                            if (emblaApi) {
-                              emblaApi.reInit();
-                              requestAnimationFrame(() => {
-                                emblaApi.scrollTo(0, false);
-                              });
-                            }
-                          });
-                        }
+                        // ページを再読み込みしてホームに戻る
+                        window.location.href = '/';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
@@ -656,32 +625,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* ホームボタン */}
           <button
             onClick={() => {
-              if (videoPools.straight && videoPools.straight.length > 0) {
-                const shuffleArray = <T,>(array: T[]): T[] => {
-                  const shuffled = [...array];
-                  for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                  }
-                  return shuffled;
-                };
-                const shuffledPool = shuffleArray(videoPools.straight);
-                const randomVideos = shuffledPool.slice(0, 20);
-                setVideos(randomVideos);
-                setCurrentIndex(0); // 先に状態を更新
-                setIsFiniteList(false);
-                // URLパラメータをクリア
-                window.history.pushState({}, '', '/');
-                // 次のフレームでEmblaを再初期化してスクロール
-                requestAnimationFrame(() => {
-                  if (emblaApi) {
-                    emblaApi.reInit();
-                    requestAnimationFrame(() => {
-                      emblaApi.scrollTo(0, false);
-                    });
-                  }
-                });
-              }
+              // ページを再読み込みしてホームに戻る
+              window.location.href = '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -780,42 +725,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs md:text-sm">人気</span>
             </button>
 
-            {/* ホームボタン（中央） - プールからランダムに20件取得 */}
+            {/* ホームボタン（中央） - ページ再読み込み */}
             <button
               onClick={() => {
-                // プールからランダムに20件を取得
-                if (videoPools.straight && videoPools.straight.length > 0) {
-                  // シャッフル関数
-                  const shuffleArray = <T,>(array: T[]): T[] => {
-                    const shuffled = [...array];
-                    for (let i = shuffled.length - 1; i > 0; i--) {
-                      const j = Math.floor(Math.random() * (i + 1));
-                      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                    }
-                    return shuffled;
-                  };
-
-                  // ♂♀のプールをシャッフルして先頭20件を取得
-                  const shuffledPool = shuffleArray(videoPools.straight);
-                  const randomVideos = shuffledPool.slice(0, 20);
-
-                  setVideos(randomVideos);
-                  setCurrentIndex(0); // 先に状態を更新
-                  setIsFiniteList(false);
-
-                  // URLパラメータをクリア
-                  window.history.pushState({}, '', '/');
-
-                  // 次のフレームでEmblaを再初期化してスクロール
-                  requestAnimationFrame(() => {
-                    if (emblaApi) {
-                      emblaApi.reInit();
-                      requestAnimationFrame(() => {
-                        emblaApi.scrollTo(0, false);
-                      });
-                    }
-                  });
-                }
+                // ページを再読み込みしてホームに戻る
+                window.location.href = '/';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
