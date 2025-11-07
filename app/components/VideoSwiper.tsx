@@ -132,6 +132,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     // メディアクエリの変更をリスン
     const handleChange = (e: MediaQueryListEvent) => {
+      // 画面の向きが変わる前に、全てのDMMバナー要素を強制クリーンアップ
+      const allWidgetBanners = document.querySelectorAll('.widget-banner');
+      const allWidgetScripts = document.querySelectorAll('.widget-banner-script');
+
+      allWidgetBanners.forEach(banner => {
+        // バナー内の全ての子要素を削除
+        while (banner.firstChild) {
+          banner.removeChild(banner.firstChild);
+        }
+      });
+
+      allWidgetScripts.forEach(script => {
+        script.remove();
+      });
+
       setIsLandscape(e.matches);
     };
 
