@@ -840,7 +840,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           {!isLandscape && (
-            <div className="w-full mb-4 min-h-[100px]">
+            <div className="w-screen -mx-4 -mt-4">
               <DMMBanner
                 key={`modal-banner-${currentIndex}`}
                 bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
