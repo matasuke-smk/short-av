@@ -11,6 +11,7 @@ export default function DMMBanner({ bannerId, className = '' }: DMMBannerProps) 
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log('[DMMBanner] useEffect called with bannerId:', bannerId, 'containerRef:', containerRef.current);
     if (!bannerId || !containerRef.current) return;
 
     const container = containerRef.current;
