@@ -130,8 +130,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (showVideoModal && enableAffiliateLinks && landscapeBannerRef.current) {
       const container = landscapeBannerRef.current;
 
-      // 現在の動画インデックスに基づいてバナーIDを選択
-      const bannerId = portraitBannerIds[currentIndex % portraitBannerIds.length];
+      // 固定バナーID
+      const bannerId = '1082_160_600';
 
       // 既存の内容をすべて削除
       while (container.firstChild) {
@@ -156,7 +156,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }
       };
     }
-  }, [showVideoModal, enableAffiliateLinks, currentIndex]);
+  }, [showVideoModal, enableAffiliateLinks]);
 
   // サーバーからいいね状態を読み込み
   useEffect(() => {
@@ -509,7 +509,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
                       {enableAffiliateLinks ? (
                         <DMMBanner
-                          bannerId={landscapeBannerIds[index % landscapeBannerIds.length]}
+                          bannerId="1082_640_200"
                           className="w-full aspect-[640/200]"
                         />
                       ) : (
@@ -608,7 +608,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         <div className="w-full flex-shrink-0">
           {enableAffiliateLinks ? (
             <DMMBanner
-              bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
+              bannerId="1082_640_200"
               className="w-full aspect-[640/200]"
             />
           ) : (
