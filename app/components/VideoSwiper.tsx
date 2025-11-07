@@ -180,14 +180,27 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     const container = portraitThumbnailBannerRef.current;
 
+    console.log('[Portrait Banner] useEffect実行:', {
+      bannerId: selectedLandscapeBannerId,
+      childrenCount: container.children.length,
+      currentIndex
+    });
+
     // 既存の内容をすべて削除
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
 
+    console.log('[Portrait Banner] 削除後の子要素数:', container.children.length);
+
     // 少し遅延させてからバナーを読み込む（クリーンアップ完了を確実にする）
     const timeoutId = setTimeout(() => {
-      if (!container.parentNode) return; // コンテナがDOMから削除されている場合は何もしない
+      if (!container.parentNode) {
+        console.log('[Portrait Banner] コンテナが削除されているため、バナー読み込みをスキップ');
+        return;
+      }
+
+      console.log('[Portrait Banner] バナー読み込み開始:', selectedLandscapeBannerId);
 
       // バナーの読み込み
       const ins = document.createElement('ins');
@@ -200,10 +213,13 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
       script.async = true;
       container.appendChild(script);
+
+      console.log('[Portrait Banner] バナー要素追加完了。子要素数:', container.children.length);
     }, 100);
 
     // クリーンアップ関数
     return () => {
+      console.log('[Portrait Banner] クリーンアップ実行。子要素数:', container.children.length);
       clearTimeout(timeoutId);
       // すべての子要素を削除
       while (container.firstChild) {
