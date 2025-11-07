@@ -1,0 +1,50 @@
+{
+  "name": "Short AV - DMM動画レビューサイト",
+  "short_name": "ShortAV",
+  "description": "DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "orientation": "portrait",
+  "categories": ["entertainment", "video"],
+  "lang": "ja",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot1.png",
+      "sizes": "540x1140",
+      "type": "image/png",
+      "label": "ホーム画面"
+    },
+    {
+      "src": "/screenshot2.png",
+      "sizes": "540x1140",
+      "type": "image/png",
+      "label": "動画詳細"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
+}
