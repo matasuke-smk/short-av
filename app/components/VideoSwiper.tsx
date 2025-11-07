@@ -98,6 +98,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [modalKey, setModalKey] = useState(0);
 
   // プール管理（性別フィルタごと）
   const [videoPools, setVideoPools] = useState<GenderVideos>(genderPools || {
@@ -132,22 +133,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     // メディアクエリの変更をリスン
     const handleChange = (e: MediaQueryListEvent) => {
-      // 画面の向きが変わる前に、全てのDMMバナー要素を強制クリーンアップ
-      const allWidgetBanners = document.querySelectorAll('.widget-banner');
-      const allWidgetScripts = document.querySelectorAll('.widget-banner-script');
-
-      allWidgetBanners.forEach(banner => {
-        // バナー内の全ての子要素を削除
-        while (banner.firstChild) {
-          banner.removeChild(banner.firstChild);
-        }
-      });
-
-      allWidgetScripts.forEach(script => {
-        script.remove();
-      });
-
       setIsLandscape(e.matches);
+      // モーダルのkeyを変更して強制的に再マウント
+      setModalKey(prev => prev + 1);
     };
 
     mediaQuery.addEventListener('change', handleChange);
@@ -848,7 +836,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* サンプル動画モーダル - 改良版 */}
       {showVideoModal && (
         <div
-          key={`modal-${isLandscape ? 'landscape' : 'portrait'}`}
+          key={`modal-${isLandscape ? 'landscape' : 'portrait'}-${modalKey}`}
           className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-start landscape:flex-row landscape:items-stretch landscape:justify-start landscape:p-0 landscape:gap-0"
           onClick={closeModal}
           onTouchStart={handleModalTouchStart}
