@@ -555,8 +555,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </button>
                     <button
                       onClick={() => {
-                        // ページを再読み込みしてホームに戻る
-                        window.location.href = '/';
+                        // 完全なURLで読み込んで新しい動画セットを取得
+                        window.location.href = 'https://short-av.com';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
@@ -625,8 +625,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* ホームボタン */}
           <button
             onClick={() => {
-              // ページを再読み込みしてホームに戻る
-              window.location.href = '/';
+              // 完全なURLで読み込んで新しい動画セットを取得
+              window.location.href = 'https://short-av.com';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -725,11 +725,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               <span className="text-xs md:text-sm">人気</span>
             </button>
 
-            {/* ホームボタン（中央） - ページ再読み込み */}
+            {/* ホームボタン（中央） - 新しい動画セットを取得 */}
             <button
               onClick={() => {
-                // ページを再読み込みしてホームに戻る
-                window.location.href = '/';
+                // 完全なURLで読み込んで新しい動画セットを取得
+                window.location.href = 'https://short-av.com';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
