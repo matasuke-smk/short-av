@@ -566,10 +566,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
         <div className="w-full flex-shrink-0">
-          <DMMBanner
-            bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
-            className="w-full aspect-[640/200]"
-          />
+          <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
+            <span className="text-gray-400 text-sm">横画面バナー (640×200) - 実装保留中</span>
+          </div>
         </div>
 
         {/* ボタンエリア - 3列グリッド */}
