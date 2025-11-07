@@ -9,7 +9,7 @@ import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds } from '@/config/banners';
+import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
@@ -907,9 +907,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* バナー領域 - 横画面時のみ表示 */}
           <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
-            <div className="w-full h-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-              <span className="text-gray-400 text-sm">モーダルバナー 横画面 (160×600)</span>
-            </div>
+            <DMMBanner
+              bannerId={portraitBannerIds[0]}
+              className="w-full h-full"
+            />
           </div>
 
           {/* 縦画面時のみ表示 */}
