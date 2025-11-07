@@ -97,6 +97,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // プール管理（性別フィルタごと）
   const [videoPools, setVideoPools] = useState<GenderVideos>(genderPools || {
@@ -120,6 +121,25 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   useEffect(() => {
     const id = getUserId();
     setUserId(id);
+  }, []);
+
+  // 横画面かどうかを検出
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(orientation: landscape)');
+
+    // 初期状態を設定
+    setIsLandscape(mediaQuery.matches);
+
+    // メディアクエリの変更をリスン
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsLandscape(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
   }, []);
 
   // サーバーからいいね状態を読み込み
@@ -471,7 +491,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {index === currentIndex && (
+                      {index === currentIndex && !isLandscape && (
                         <DMMBanner
                           bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
                           className="w-full aspect-[640/200]"
@@ -566,9 +586,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
         <div className="w-full flex-shrink-0">
-          <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-            <span className="text-gray-400 text-sm">横画面バナー (640×200) - 実装保留中</span>
-          </div>
+          {isLandscape && (
+            <DMMBanner
+              bannerId={landscapeBannerIds[(currentIndex + 3) % landscapeBannerIds.length]}
+              className="w-full aspect-[640/200]"
+            />
+          )}
         </div>
 
         {/* ボタンエリア - 3列グリッド */}
