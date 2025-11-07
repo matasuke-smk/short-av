@@ -934,13 +934,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           </div>
 
           {/* バナー領域 - 横画面時のみ表示 */}
-          <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
-            <DMMBanner
-              key={`landscape-modal-banner-${currentIndex}`}
-              bannerId={portraitBannerIds[currentIndex % portraitBannerIds.length]}
-              className="w-full h-full"
-            />
-          </div>
+          {isLandscape && (
+            <div className="flex-shrink-0 h-[90vh] w-auto aspect-[160/600]">
+              <DMMBanner
+                key={`landscape-modal-banner-${currentIndex}`}
+                bannerId={portraitBannerIds[currentIndex % portraitBannerIds.length]}
+                className="w-full h-full"
+              />
+            </div>
+          )}
 
           {/* 縦画面時のみ表示 */}
           <div className="landscape:hidden w-full">
