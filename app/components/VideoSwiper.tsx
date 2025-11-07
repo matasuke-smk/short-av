@@ -838,10 +838,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           <div className="landscape:hidden w-full mb-4">
-            <DMMBanner
-              bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
-              className="w-full aspect-[640/200]"
-            />
+            {!isLandscape && (
+              <DMMBanner
+                bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
+                className="w-full aspect-[640/200]"
+              />
+            )}
           </div>
 
           {/* 左側コントロールエリア - 横画面時のみ表示 */}
