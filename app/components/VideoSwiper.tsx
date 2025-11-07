@@ -831,7 +831,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {/* サンプル動画モーダル - 改良版 */}
       {showVideoModal && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center landscape:flex-row landscape:items-stretch landscape:justify-start landscape:p-0 landscape:gap-0"
+          className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-start landscape:flex-row landscape:items-stretch landscape:justify-start landscape:p-0 landscape:gap-0"
           onClick={closeModal}
           onTouchStart={handleModalTouchStart}
           onTouchEnd={handleModalTouchEnd}
