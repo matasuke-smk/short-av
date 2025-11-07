@@ -122,10 +122,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const landscapeThumbnailBannerRef = useRef<HTMLDivElement>(null); // サムネイル横（横画面）
   const modalBannerRef = useRef<HTMLDivElement>(null); // モーダル内（縦画面）
 
-  // ランダムバナーID選択（5回スワイプするごとに新しいバナーを選択）
-  const bannerChangeKey = Math.floor(currentIndex / 5);
-  const selectedLandscapeBannerId = useRandomBannerId(landscapeBannerIds, [bannerChangeKey]);
-  const selectedPortraitBannerId = useRandomBannerId(portraitBannerIds, [bannerChangeKey]);
+  // ランダムバナーID選択（初回マウント時に一度だけ選択）
+  const selectedLandscapeBannerId = useRandomBannerId(landscapeBannerIds, []);
+  const selectedPortraitBannerId = useRandomBannerId(portraitBannerIds, []);
 
   // ユーザーIDを取得・設定
   useEffect(() => {
@@ -181,32 +180,18 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     const container = portraitThumbnailBannerRef.current;
 
-    console.log('[Portrait Banner] useEffect実行:', {
-      bannerId: selectedLandscapeBannerId,
-      childrenCount: container.children.length,
-      currentIndex
-    });
-
     // 既存の内容をすべて削除
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
 
-    console.log('[Portrait Banner] 削除後の子要素数:', container.children.length);
-
     // 少し遅延させてからバナーを読み込む（クリーンアップ完了を確実にする）
     const timeoutId = setTimeout(() => {
-      if (!container.parentNode) {
-        console.log('[Portrait Banner] コンテナが削除されているため、バナー読み込みをスキップ');
-        return;
-      }
-
-      console.log('[Portrait Banner] バナー読み込み開始:', selectedLandscapeBannerId);
+      if (!container.parentNode) return;
 
       // バナーの読み込み
       const ins = document.createElement('ins');
       ins.className = 'widget-banner';
-      ins.setAttribute('data-banner-id', selectedLandscapeBannerId); // デバッグ用
       container.appendChild(ins);
 
       const script = document.createElement('script');
@@ -214,13 +199,10 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
       script.async = true;
       container.appendChild(script);
-
-      console.log('[Portrait Banner] バナー要素追加完了。子要素数:', container.children.length);
     }, 100);
 
     // クリーンアップ関数
     return () => {
-      console.log('[Portrait Banner] クリーンアップ実行。子要素数:', container.children.length);
       clearTimeout(timeoutId);
       // すべての子要素を削除
       while (container.firstChild) {
