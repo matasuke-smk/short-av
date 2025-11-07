@@ -145,27 +145,30 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       container.removeChild(container.firstChild);
     }
 
-    // 少し遅延させてからバナーを読み込む
-    const timeoutId = setTimeout(() => {
-      if (!container.parentNode) return;
+    // バナーの読み込み
+    const ins = document.createElement('ins');
+    ins.className = 'widget-banner';
+    container.appendChild(ins);
 
-      // バナーの読み込み
-      const ins = document.createElement('ins');
-      ins.className = 'widget-banner';
-      ins.setAttribute('data-banner-id', selectedPortraitBannerId);
-      container.appendChild(ins);
+    const script = document.createElement('script');
+    script.className = 'widget-banner-script';
+    script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedPortraitBannerId}`;
+    script.async = true;
 
-      const script = document.createElement('script');
-      script.className = 'widget-banner-script';
-      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedPortraitBannerId}`;
-      script.async = true;
-      container.appendChild(script);
-    }, 100);
+    // スクリプト読み込み完了後、重複バナーを削除
+    script.onload = () => {
+      setTimeout(() => {
+        const links = ins.querySelectorAll('a');
+        for (let i = 1; i < links.length; i++) {
+          links[i].remove();
+        }
+      }, 500);
+    };
+
+    container.appendChild(script);
 
     // クリーンアップ関数
     return () => {
-      clearTimeout(timeoutId);
-      // すべての子要素を削除
       while (container.firstChild) {
         container.removeChild(container.firstChild);
       }
@@ -174,9 +177,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル下・縦画面時）
   useEffect(() => {
-    // 一時的に無効化
-    return;
-
     if (!enableAffiliateLinks || !selectedLandscapeBannerId || !portraitThumbnailBannerRef.current) {
       return;
     }
@@ -188,25 +188,31 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       container.removeChild(container.firstChild);
     }
 
-    // 少し遅延させてからバナーを読み込む（クリーンアップ完了を確実にする）
-    const timeoutId = setTimeout(() => {
-      if (!container.parentNode) return;
+    // バナーの読み込み
+    const ins = document.createElement('ins');
+    ins.className = 'widget-banner';
+    container.appendChild(ins);
 
-      // バナーの読み込み
-      const ins = document.createElement('ins');
-      ins.className = 'widget-banner';
-      container.appendChild(ins);
+    const script = document.createElement('script');
+    script.className = 'widget-banner-script';
+    script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+    script.async = true;
 
-      const script = document.createElement('script');
-      script.className = 'widget-banner-script';
-      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
-      script.async = true;
-      container.appendChild(script);
-    }, 100);
+    // スクリプト読み込み完了後、重複バナーを削除
+    script.onload = () => {
+      setTimeout(() => {
+        const links = ins.querySelectorAll('a');
+        // 2つ目以降のリンクを削除（1つ目だけ残す）
+        for (let i = 1; i < links.length; i++) {
+          links[i].remove();
+        }
+      }, 500); // DMMスクリプトがDOM生成を完了するまで待つ
+    };
+
+    container.appendChild(script);
 
     // クリーンアップ関数
     return () => {
-      clearTimeout(timeoutId);
       // すべての子要素を削除
       while (container.firstChild) {
         container.removeChild(container.firstChild);
@@ -227,27 +233,30 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       container.removeChild(container.firstChild);
     }
 
-    // 少し遅延させてからバナーを読み込む
-    const timeoutId = setTimeout(() => {
-      if (!container.parentNode) return;
+    // バナーの読み込み
+    const ins = document.createElement('ins');
+    ins.className = 'widget-banner';
+    container.appendChild(ins);
 
-      // バナーの読み込み
-      const ins = document.createElement('ins');
-      ins.className = 'widget-banner';
-      ins.setAttribute('data-banner-id', selectedLandscapeBannerId);
-      container.appendChild(ins);
+    const script = document.createElement('script');
+    script.className = 'widget-banner-script';
+    script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+    script.async = true;
 
-      const script = document.createElement('script');
-      script.className = 'widget-banner-script';
-      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
-      script.async = true;
-      container.appendChild(script);
-    }, 100);
+    // スクリプト読み込み完了後、重複バナーを削除
+    script.onload = () => {
+      setTimeout(() => {
+        const links = ins.querySelectorAll('a');
+        for (let i = 1; i < links.length; i++) {
+          links[i].remove();
+        }
+      }, 500);
+    };
+
+    container.appendChild(script);
 
     // クリーンアップ関数
     return () => {
-      clearTimeout(timeoutId);
-      // すべての子要素を削除
       while (container.firstChild) {
         container.removeChild(container.firstChild);
       }
@@ -267,27 +276,30 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       container.removeChild(container.firstChild);
     }
 
-    // 少し遅延させてからバナーを読み込む
-    const timeoutId = setTimeout(() => {
-      if (!container.parentNode) return;
+    // バナーの読み込み
+    const ins = document.createElement('ins');
+    ins.className = 'widget-banner';
+    container.appendChild(ins);
 
-      // バナーの読み込み
-      const ins = document.createElement('ins');
-      ins.className = 'widget-banner';
-      ins.setAttribute('data-banner-id', selectedLandscapeBannerId);
-      container.appendChild(ins);
+    const script = document.createElement('script');
+    script.className = 'widget-banner-script';
+    script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
+    script.async = true;
 
-      const script = document.createElement('script');
-      script.className = 'widget-banner-script';
-      script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${selectedLandscapeBannerId}`;
-      script.async = true;
-      container.appendChild(script);
-    }, 100);
+    // スクリプト読み込み完了後、重複バナーを削除
+    script.onload = () => {
+      setTimeout(() => {
+        const links = ins.querySelectorAll('a');
+        for (let i = 1; i < links.length; i++) {
+          links[i].remove();
+        }
+      }, 500);
+    };
+
+    container.appendChild(script);
 
     // クリーンアップ関数
     return () => {
-      clearTimeout(timeoutId);
-      // すべての子要素を削除
       while (container.firstChild) {
         container.removeChild(container.firstChild);
       }
