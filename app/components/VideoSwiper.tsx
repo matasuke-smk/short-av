@@ -174,6 +174,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   // DMMウィジェットバナーのスクリプトを動的に読み込む（640x200 - サムネイル下・縦画面時）
   useEffect(() => {
+    // 一時的に無効化
+    return;
+
     if (!enableAffiliateLinks || !selectedLandscapeBannerId || !portraitThumbnailBannerRef.current) {
       return;
     }
