@@ -3,6 +3,7 @@ import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 import GoogleAnalytics from './components/GoogleAnalytics';
+import PWAInstaller from './components/PWAInstaller';
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -73,6 +74,13 @@ export default function RootLayout({
   return (
     <html lang="ja" className={notoSansJP.variable}>
       <head>
+        {/* PWA設定 */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#000000" />
+
         {/* DMM画像サーバーへの事前接続でLCP改善 */}
         <link rel="dns-prefetch" href="https://pics.dmm.co.jp" />
         <link rel="preconnect" href="https://pics.dmm.co.jp" />
@@ -86,6 +94,7 @@ export default function RootLayout({
       <body className={`${notoSansJP.className} antialiased`}>
         <GoogleAnalytics />
         <AgeVerificationGate />
+        <PWAInstaller />
         {children}
       </body>
     </html>

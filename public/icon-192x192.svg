@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- 背景 -->
+  <rect width="192" height="192" fill="#000000"/>
+
+  <!-- 再生ボタンアイコン -->
+  <circle cx="96" cy="96" r="60" fill="none" stroke="#3b82f6" stroke-width="4"/>
+  <polygon points="80,70 80,122 120,96" fill="#3b82f6"/>
+
+  <!-- テキスト "SA" -->
+  <text x="96" y="165" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#3b82f6" text-anchor="middle">Short AV</text>
+</svg>
