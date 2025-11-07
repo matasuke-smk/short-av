@@ -89,6 +89,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
+  const showVideoModalRef = useRef(showVideoModal);
   const [userId, setUserId] = useState<string>('');
   const [showTutorial, setShowTutorial] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -124,6 +125,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     setUserId(id);
   }, []);
 
+  // showVideoModalの最新値をrefに保存
+  useEffect(() => {
+    showVideoModalRef.current = showVideoModal;
+  }, [showVideoModal]);
+
   // 横画面かどうかを検出
   useEffect(() => {
     const mediaQuery = window.matchMedia('(orientation: landscape)');
@@ -133,9 +139,22 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     // メディアクエリの変更をリスン
     const handleChange = (e: MediaQueryListEvent) => {
+      const wasModalOpen = showVideoModalRef.current;
+
+      // モーダルが開いている場合は一度閉じる
+      if (wasModalOpen) {
+        setShowVideoModal(false);
+      }
+
       setIsLandscape(e.matches);
-      // モーダルのkeyを変更して強制的に再マウント
-      setModalKey(prev => prev + 1);
+
+      // モーダルが開いていた場合は、少し待ってから再度開く
+      if (wasModalOpen) {
+        setTimeout(() => {
+          setShowVideoModal(true);
+          setModalKey(prev => prev + 1);
+        }, 50);
+      }
     };
 
     mediaQuery.addEventListener('change', handleChange);
