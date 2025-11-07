@@ -9,6 +9,8 @@ import { getUserId } from '@/lib/user-id';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { landscapeBannerIds } from '@/config/banners';
+import DMMBanner from './DMMBanner';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -469,9 +471,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      <div className="w-full aspect-[640/200] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-                        <span className="text-gray-400 text-sm">サムネイル下バナー (縦画面)</span>
-                      </div>
+                      {index === currentIndex && (
+                        <DMMBanner
+                          bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
+                          className="w-full aspect-[640/200]"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
