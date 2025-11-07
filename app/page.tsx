@@ -3,9 +3,9 @@ import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 
-// ISR（Incremental Static Regeneration）で5分ごとに再生成
-// これにより、記事ページから戻ってきた時に即座に表示される
-export const revalidate = 300; // 5分
+// 動的レンダリング：毎回新しいランダム動画を表示
+// revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
+export const revalidate = 0;
 
 async function VideoList() {
 
