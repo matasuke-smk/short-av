@@ -490,14 +490,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </div>
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
-                    <div className="w-full md:max-w-4xl md:mx-auto landscape:hidden">
-                      {index === currentIndex && !isLandscape && (
+                    {index === currentIndex && !isLandscape && (
+                      <div className="w-full md:max-w-4xl md:mx-auto">
                         <DMMBanner
                           bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
                           className="w-full aspect-[640/200]"
                         />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -837,14 +837,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           onTouchEnd={handleModalTouchEnd}
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
-          <div className="landscape:hidden w-full mb-4">
-            {!isLandscape && (
+          {!isLandscape && (
+            <div className="w-full mb-4">
               <DMMBanner
                 bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
                 className="w-full aspect-[640/200]"
               />
-            )}
-          </div>
+            </div>
+          )}
 
           {/* 左側コントロールエリア - 横画面時のみ表示 */}
           <div className="hidden landscape:flex landscape:flex-1 landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2">
