@@ -908,7 +908,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* バナー領域 - 横画面時のみ表示 */}
           <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
             <DMMBanner
-              bannerId={portraitBannerIds[0]}
+              bannerId={portraitBannerIds[currentIndex % portraitBannerIds.length]}
               className="w-full h-full"
             />
           </div>

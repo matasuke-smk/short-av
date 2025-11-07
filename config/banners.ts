@@ -31,5 +31,6 @@ export const landscapeBannerIds: string[] = [
  * 動画モーダル（横画面時）で使用
  */
 export const portraitBannerIds: string[] = [
+  '1082_160_600',
   '1083_160_600',
 ];
