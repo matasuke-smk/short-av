@@ -27,8 +27,8 @@ export default function DMMBanner({ bannerId, className = '' }: DMMBannerProps) 
 
     // スクリプトタグを追加
     const script = document.createElement('script');
+    script.className = 'widget-banner-script';
     script.src = `https://widget-view.dmm.co.jp/js/banner_placement.js?affiliate_id=matasuke-005&banner_id=${bannerId}`;
-    script.async = true;
     container.appendChild(script);
 
     // クリーンアップ
