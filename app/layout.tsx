@@ -94,7 +94,7 @@ export default function RootLayout({
       <body className={`${notoSansJP.className} antialiased`}>
         <GoogleAnalytics />
         <AgeVerificationGate />
-        <PWAInstaller />
+        {/* <PWAInstaller /> */}
         {children}
       </body>
     </html>
