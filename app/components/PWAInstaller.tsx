@@ -12,11 +12,9 @@ export default function PWAInstaller() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
   useEffect(() => {
-    // デバッグ情報を追加
-    const debug: string[] = [];
+    console.log('PWA: Component mounted');
 
     // スタンドアロンモードかチェック
     const standalone = window.matchMedia('(display-mode: standalone)').matches ||
@@ -25,29 +23,42 @@ export default function PWAInstaller() {
     setIsStandalone(standalone);
 
     if (standalone) {
-      debug.push('App is running in standalone mode');
-      console.log('PWA: Already running as installed app');
+      console.log('PWA: Already running in standalone mode');
       return;
     }
 
     // iOS検出
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
-    debug.push(`Device: ${isIOSDevice ? 'iOS' : 'Other'}`);
+    console.log('PWA: Device type:', isIOSDevice ? 'iOS' : 'Other');
 
     // Service Workerの登録
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/service-worker.js')
         .then((registration) => {
-          debug.push('Service Worker registered successfully');
-          console.log('Service Worker registered:', registration);
+          console.log('PWA: Service Worker registered successfully', registration);
         })
         .catch((error) => {
-          debug.push(`Service Worker registration failed: ${error.message}`);
-          console.error('Service Worker registration failed:', error);
+          console.error('PWA: Service Worker registration failed:', error);
         });
     } else {
-      debug.push('Service Worker not supported');
+      console.log('PWA: Service Worker not supported');
+    }
+
+    // localStorageをクリア（デバッグ用）
+    const clearStorage = () => {
+      localStorage.removeItem('pwa-installed');
+      localStorage.removeItem('pwa-install-dismissed');
+      console.log('PWA: LocalStorage cleared');
+    };
+
+    // URLパラメータでデバッグモード
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('pwa-debug') === 'true') {
+      clearStorage();
+      console.log('PWA: Debug mode enabled - showing banner immediately');
+      setShowInstallBanner(true);
+      return;
     }
 
     // ローカルストレージチェック
@@ -55,49 +66,34 @@ export default function PWAInstaller() {
     const isDismissed = localStorage.getItem('pwa-install-dismissed');
 
     if (isInstalled) {
-      debug.push('App marked as installed in localStorage');
+      console.log('PWA: App already installed (localStorage)');
+      return;
     }
 
     if (isDismissed) {
-      const dismissedTime = new Date(parseInt(isDismissed));
-      debug.push(`Banner dismissed at: ${dismissedTime.toLocaleString()}`);
+      const dismissedTime = parseInt(isDismissed);
+      const oneHourAgo = Date.now() - (60 * 60 * 1000); // 1時間後に再表示
 
-      // 1日後に再表示（テスト用に短縮）
-      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-      if (parseInt(isDismissed) < oneDayAgo) {
+      if (dismissedTime > oneHourAgo) {
+        console.log('PWA: Banner was dismissed recently');
+        return;
+      } else {
         localStorage.removeItem('pwa-install-dismissed');
-        debug.push('Dismissed timeout expired, showing banner again');
+        console.log('PWA: Dismissed timeout expired');
       }
-    }
-
-    setDebugInfo(debug);
-
-    // iOSの場合は手動インストール案内を表示
-    if (isIOSDevice) {
-      if (!isInstalled && !isDismissed) {
-        setTimeout(() => {
-          setShowInstallBanner(true);
-          console.log('PWA: Showing iOS install instructions');
-        }, 2000); // 2秒後に表示
-      }
-      return;
     }
 
     // インストールプロンプトイベントをキャッチ
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('PWA: beforeinstallprompt fired');
+      console.log('PWA: beforeinstallprompt event fired!');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-
-      if (!isInstalled && !isDismissed) {
-        setShowInstallBanner(true);
-        debug.push('Install prompt captured, showing banner');
-      }
+      setShowInstallBanner(true);
     };
 
     // アプリがインストールされたとき
     const handleAppInstalled = () => {
-      console.log('PWA: App installed');
+      console.log('PWA: App was installed');
       localStorage.setItem('pwa-installed', 'true');
       setShowInstallBanner(false);
     };
@@ -105,70 +101,78 @@ export default function PWAInstaller() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // 手動でバナーを表示（テスト用）- 5秒後に条件チェック
-    setTimeout(() => {
-      if (!deferredPrompt && !isInstalled && !isDismissed && !isIOSDevice) {
-        console.log('PWA: No install prompt detected, showing manual install option');
+    // 3秒後に強制表示（イベントが発火しない場合）
+    const timer = setTimeout(() => {
+      if (!showInstallBanner && !isInstalled && !isDismissed) {
+        console.log('PWA: Showing banner after 3 seconds (fallback)');
         setShowInstallBanner(true);
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
   const handleInstall = async () => {
+    console.log('PWA: Install button clicked');
+
     if (isIOS) {
       // iOSの場合は手順を表示
-      alert('iOSでのインストール方法:\n1. Safari下部の共有ボタンをタップ\n2. 「ホーム画面に追加」を選択\n3. 「追加」をタップ');
+      alert('ホーム画面への追加方法:\n\n1. Safari下部の共有ボタン（□↑）をタップ\n2. 「ホーム画面に追加」を選択\n3. 「追加」をタップ');
       return;
     }
 
     if (!deferredPrompt) {
       // プロンプトがない場合は手動インストール案内
-      alert('インストール方法:\n1. ブラウザのメニューを開く\n2. 「アプリをインストール」または「ホーム画面に追加」を選択');
+      alert('ホーム画面への追加方法:\n\n【Chrome】\n1. 右上の「⋮」メニューをタップ\n2. 「ホーム画面に追加」を選択\n\n【その他のブラウザ】\nブラウザのメニューから「ホーム画面に追加」を選択してください');
       return;
     }
 
-    // インストールプロンプトを表示
-    deferredPrompt.prompt();
+    try {
+      // インストールプロンプトを表示
+      await deferredPrompt.prompt();
 
-    // ユーザーの選択を待つ
-    const { outcome } = await deferredPrompt.userChoice;
+      // ユーザーの選択を待つ
+      const { outcome } = await deferredPrompt.userChoice;
 
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
+      if (outcome === 'accepted') {
+        console.log('PWA: User accepted the install prompt');
+        localStorage.setItem('pwa-installed', 'true');
+      } else {
+        console.log('PWA: User dismissed the install prompt');
+      }
+
       setShowInstallBanner(false);
-      localStorage.setItem('pwa-installed', 'true');
-    } else {
-      console.log('User dismissed the install prompt');
+      setDeferredPrompt(null);
+    } catch (error) {
+      console.error('PWA: Error showing install prompt:', error);
     }
-
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
+    console.log('PWA: User dismissed banner');
     setShowInstallBanner(false);
     localStorage.setItem('pwa-install-dismissed', Date.now().toString());
   };
 
-  // デバッグモード（開発環境のみ）
-  const showDebug = process.env.NODE_ENV === 'development';
-
+  // スタンドアロンモードの場合は非表示
   if (isStandalone) {
-    return null; // 既にアプリとして実行中
-  }
-
-  if (!showInstallBanner) {
-    // デバッグ用: コンソールに情報を出力
-    if (showDebug && debugInfo.length > 0) {
-      console.log('PWA Debug Info:', debugInfo);
-    }
     return null;
   }
 
+  // バナーを表示しない場合
+  if (!showInstallBanner) {
+    return (
+      <div style={{ position: 'fixed', bottom: 10, right: 10, fontSize: '10px', color: '#666', zIndex: 9999 }}>
+        PWA: Ready
+      </div>
+    );
+  }
+
+  // バナーを表示
   return (
     <div className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-gray-900 border border-gray-700 rounded-xl p-4 shadow-2xl z-50">
       <div className="flex items-start justify-between">
@@ -208,16 +212,6 @@ export default function PWAInstaller() {
           後で
         </button>
       </div>
-
-      {/* デバッグ情報（開発環境のみ） */}
-      {showDebug && debugInfo.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-700">
-          <p className="text-xs text-gray-500">Debug Info:</p>
-          {debugInfo.map((info, i) => (
-            <p key={i} className="text-xs text-gray-500">{info}</p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
