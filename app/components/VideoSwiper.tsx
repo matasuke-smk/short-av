@@ -493,6 +493,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     {index === currentIndex && !isLandscape && (
                       <div className="w-full md:max-w-4xl md:mx-auto">
                         <DMMBanner
+                          key={`thumbnail-banner-${currentIndex}`}
                           bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
                           className="w-full aspect-[640/200]"
                         />
@@ -588,6 +589,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         <div className="w-full flex-shrink-0">
           {isLandscape && (
             <DMMBanner
+              key={`landscape-banner-${currentIndex}`}
               bannerId={landscapeBannerIds[(currentIndex + 3) % landscapeBannerIds.length]}
               className="w-full aspect-[640/200]"
             />
@@ -838,8 +840,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         >
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           {!isLandscape && (
-            <div className="w-full mb-4">
+            <div className="w-full mb-4 min-h-[100px]">
               <DMMBanner
+                key={`modal-banner-${currentIndex}`}
                 bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
                 className="w-full aspect-[640/200]"
               />
@@ -933,6 +936,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* バナー領域 - 横画面時のみ表示 */}
           <div className="hidden landscape:block landscape:flex-shrink-0 landscape:h-[90vh] landscape:w-auto landscape:aspect-[160/600]">
             <DMMBanner
+              key={`landscape-modal-banner-${currentIndex}`}
               bannerId={portraitBannerIds[currentIndex % portraitBannerIds.length]}
               className="w-full h-full"
             />
