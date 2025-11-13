@@ -634,8 +634,7 @@ export const articles: Article[] = [
   'use strict';
 
   // DOMが完全に読み込まれた後に実行
-  // Next.jsなどのSPAでは既にDOMが読み込まれている場合があるため、readyStateもチェック
-  function initializeSizeTool() {
+  document.addEventListener('DOMContentLoaded', function() {
     // 収集された統計データを読み込む
     loadCollectedStats();
 
@@ -1001,14 +1000,14 @@ function getGirthRegionalEquivalent(diameterMm) {
   });
   }
 
-  // readyStateをチェックして、適切なタイミングで初期化
-  if (document.readyState === 'loading') {
-    // まだ読み込み中の場合はDOMContentLoadedを待つ
-    document.addEventListener('DOMContentLoaded', initializeSizeTool);
-  } else {
-    // 既に読み込み済み（interactive or complete）の場合はすぐ実行
-    // 少し遅延させて、要素が確実にレンダリングされるのを待つ
-    setTimeout(initializeSizeTool, 100);
+  // Next.jsなどのSPAでは既にDOMが読み込み済みの場合があるため、
+  // readyStateをチェックして即座にloadCollectedStats()を呼び出す
+  if (document.readyState !== 'loading') {
+    // DOMが既に読み込まれている場合は即座に実行
+    // わずかに遅延させて、要素のレンダリング完了を待つ
+    setTimeout(function() {
+      loadCollectedStats();
+    }, 50);
   }
 })();
 </script>
