@@ -1001,13 +1001,34 @@ function getGirthRegionalEquivalent(diameterMm) {
   }
 
   // Next.jsなどのSPAでは既にDOMが読み込み済みの場合があるため、
-  // readyStateをチェックして即座にloadCollectedStats()を呼び出す
-  if (document.readyState !== 'loading') {
-    // DOMが既に読み込まれている場合は即座に実行
-    // わずかに遅延させて、要素のレンダリング完了を待つ
-    setTimeout(function() {
+  // 要素が確実に存在するまで待ってからloadCollectedStats()を呼び出す
+  function tryLoadStats() {
+    const statsContent = document.getElementById('statsContent');
+    if (statsContent) {
       loadCollectedStats();
-    }, 50);
+    } else {
+      // 要素がまだ存在しない場合は少し待ってからリトライ
+      let retryCount = 0;
+      const maxRetries = 20; // 最大2秒待つ（100ms × 20）
+      const retryInterval = setInterval(function() {
+        const statsContent = document.getElementById('statsContent');
+        if (statsContent) {
+          clearInterval(retryInterval);
+          loadCollectedStats();
+        } else {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            clearInterval(retryInterval);
+            console.warn('statsContent element not found after retries');
+          }
+        }
+      }, 100);
+    }
+  }
+
+  if (document.readyState !== 'loading') {
+    // DOMが既に読み込まれている場合は少し待ってから実行
+    setTimeout(tryLoadStats, 100);
   }
 })();
 </script>
