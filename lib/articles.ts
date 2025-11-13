@@ -635,8 +635,8 @@ export const articles: Article[] = [
 
   // DOMが完全に読み込まれた後に実行
   document.addEventListener('DOMContentLoaded', function() {
-    // 収集された統計データを読み込む
-    loadCollectedStats();
+    // 統計データはサーバーサイドで埋め込まれているため、初回読み込みは不要
+    // loadCollectedStats();
 
     // 測定方法の切り替え
     document.querySelectorAll('input[name="girthType"]').forEach(radio => {
@@ -866,6 +866,9 @@ function getGirthRegionalEquivalent(diameterMm) {
 
       if (!response.ok) {
         console.error('Failed to send statistics data');
+      } else {
+        // データ送信成功後、統計データを更新
+        loadCollectedStats();
       }
     } catch (error) {
       console.error('Error sending statistics data:', error);
@@ -998,37 +1001,6 @@ function getGirthRegionalEquivalent(diameterMm) {
       }
     }
   });
-  }
-
-  // Next.jsなどのSPAでは既にDOMが読み込み済みの場合があるため、
-  // 要素が確実に存在するまで待ってからloadCollectedStats()を呼び出す
-  function tryLoadStats() {
-    const statsContent = document.getElementById('statsContent');
-    if (statsContent) {
-      loadCollectedStats();
-    } else {
-      // 要素がまだ存在しない場合は少し待ってからリトライ
-      let retryCount = 0;
-      const maxRetries = 20; // 最大2秒待つ（100ms × 20）
-      const retryInterval = setInterval(function() {
-        const statsContent = document.getElementById('statsContent');
-        if (statsContent) {
-          clearInterval(retryInterval);
-          loadCollectedStats();
-        } else {
-          retryCount++;
-          if (retryCount >= maxRetries) {
-            clearInterval(retryInterval);
-            console.warn('statsContent element not found after retries');
-          }
-        }
-      }, 100);
-    }
-  }
-
-  if (document.readyState !== 'loading') {
-    // DOMが既に読み込まれている場合は少し待ってから実行
-    setTimeout(tryLoadStats, 100);
   }
 })();
 </script>

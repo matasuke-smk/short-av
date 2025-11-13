@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getArticleBySlug, getAllArticles } from '@/lib/articles';
+import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
 
 type Props = {
@@ -66,6 +67,18 @@ export default async function ArticlePage({ params }: Props) {
     notFound();
   }
 
+  // size-comparison-toolの場合、サーバーサイドで統計データを取得してHTMLに埋め込む
+  let content = article.content;
+  if (slug === 'size-comparison-tool') {
+    const stats = await getSizeStatistics('erect');
+    const statsHTML = generateStatsHTML(stats);
+    // 「データを読み込み中...」のプレースホルダーを実際のデータに置き換える
+    content = content.replace(
+      '<div class="stats-loading">データを読み込み中...</div>',
+      statsHTML
+    );
+  }
+
   // 次の記事と前の記事を取得
   const allArticles = getAllArticles();
   const currentIndex = allArticles.findIndex(a => a.slug === slug);
@@ -73,7 +86,7 @@ export default async function ArticlePage({ params }: Props) {
   const prevArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
 
   // HTMLツール記事かどうかを判定（<script>や<style>が含まれている場合）
-  const isInteractiveTool = article.content.includes('<script') || article.content.includes('<style');
+  const isInteractiveTool = content.includes('<script') || content.includes('<style');
 
   // Article構造化データ
   const articleSchema = {
@@ -187,14 +200,14 @@ export default async function ArticlePage({ params }: Props) {
               /* インタラクティブツールの場合はHTMLをそのまま表示 */
               <div
                 className="text-gray-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: article.content }}
+                dangerouslySetInnerHTML={{ __html: content }}
               />
             ) : (
               /* 通常の記事の場合はMarkdown処理 */
               <div
                 className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
                 dangerouslySetInnerHTML={{
-                  __html: article.content
+                  __html: content
                     .split('\n\n')
                     .map(para => {
                       // 見出し
