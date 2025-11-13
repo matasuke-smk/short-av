@@ -706,15 +706,15 @@ function recommendCondomSize(diameter) {
 // 地域別の平均データから最も近い地域を計算（長さ）
 function getLengthRegionalEquivalent(lengthMm) {
   const regions = [
-    { name: 'コンゴ', avg: 170 },
-    { name: '中南米', avg: 145 },
-    { name: '中東', avg: 130 },
-    { name: '世界平均', avg: 131 },
-    { name: 'ヨーロッパ', avg: 126 },
-    { name: '日本', avg: 124 },
-    { name: '西太平洋', avg: 116 },
-    { name: '東南アジア', avg: 109 },
-    { name: '韓国', avg: 95 }
+    { name: 'コンゴ', avg: 170, std: 15 },
+    { name: '中南米', avg: 145, std: 12 },
+    { name: '中東', avg: 130, std: 11 },
+    { name: '世界平均', avg: 131, std: 11 },
+    { name: 'ヨーロッパ', avg: 126, std: 10 },
+    { name: '日本', avg: 124, std: 9 },
+    { name: '西太平洋', avg: 116, std: 9 },
+    { name: '東南アジア', avg: 109, std: 8 },
+    { name: '韓国', avg: 95, std: 8 }
   ];
 
   let closestRegion = regions[0];
@@ -728,21 +728,28 @@ function getLengthRegionalEquivalent(lengthMm) {
     }
   }
 
-  return closestRegion.name + '人相当';
+  const diff = lengthMm - closestRegion.avg;
+  const diffText = diff > 0 ? `+${diff.toFixed(0)}mm` : `${diff.toFixed(0)}mm`;
+
+  // その地域内でのパーセンタイル計算（正規分布を仮定）
+  const percentile = normalCDF(lengthMm, closestRegion.avg, closestRegion.std) * 100;
+  const percentileText = percentile >= 50 ? `上位${(100 - percentile).toFixed(0)}%` : `下位${percentile.toFixed(0)}%`;
+
+  return `${closestRegion.name}人相当（${percentileText}、${diffText}）`;
 }
 
 // 地域別の平均データから最も近い地域を計算（直径）
 function getGirthRegionalEquivalent(diameterMm) {
   const regions = [
-    { name: 'コンゴ', avg: 42 },
-    { name: '中南米', avg: 38 },
-    { name: '中東', avg: 37 },
-    { name: '世界平均', avg: 37 },
-    { name: 'ヨーロッパ', avg: 36 },
-    { name: '日本', avg: 36 },
-    { name: '西太平洋', avg: 34 },
-    { name: '東南アジア', avg: 33 },
-    { name: '韓国', avg: 31 }
+    { name: 'コンゴ', avg: 42, std: 3.5 },
+    { name: '中南米', avg: 38, std: 3 },
+    { name: '中東', avg: 37, std: 2.8 },
+    { name: '世界平均', avg: 37, std: 2.8 },
+    { name: 'ヨーロッパ', avg: 36, std: 2.5 },
+    { name: '日本', avg: 36, std: 2.5 },
+    { name: '西太平洋', avg: 34, std: 2.3 },
+    { name: '東南アジア', avg: 33, std: 2.2 },
+    { name: '韓国', avg: 31, std: 2 }
   ];
 
   let closestRegion = regions[0];
@@ -756,7 +763,14 @@ function getGirthRegionalEquivalent(diameterMm) {
     }
   }
 
-  return closestRegion.name + '人相当';
+  const diff = diameterMm - closestRegion.avg;
+  const diffText = diff > 0 ? `+${diff.toFixed(0)}mm` : `${diff.toFixed(0)}mm`;
+
+  // その地域内でのパーセンタイル計算（正規分布を仮定）
+  const percentile = normalCDF(diameterMm, closestRegion.avg, closestRegion.std) * 100;
+  const percentileText = percentile >= 50 ? `上位${(100 - percentile).toFixed(0)}%` : `下位${percentile.toFixed(0)}%`;
+
+  return `${closestRegion.name}人相当（${percentileText}、${diffText}）`;
 }
 
   let comparisonChart = null;
