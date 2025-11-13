@@ -729,13 +729,13 @@ function getLengthRegionalEquivalent(lengthMm) {
   }
 
   const diff = lengthMm - closestRegion.avg;
-  const diffText = diff > 0 ? `+${diff.toFixed(0)}mm` : `${diff.toFixed(0)}mm`;
+  const diffText = diff > 0 ? '+' + diff.toFixed(0) + 'mm' : diff.toFixed(0) + 'mm';
 
   // その地域内でのパーセンタイル計算（正規分布を仮定）
   const percentile = normalCDF(lengthMm, closestRegion.avg, closestRegion.std) * 100;
-  const percentileText = percentile >= 50 ? `上位${(100 - percentile).toFixed(0)}%` : `下位${percentile.toFixed(0)}%`;
+  const percentileText = percentile >= 50 ? '上位' + (100 - percentile).toFixed(0) + '%' : '下位' + percentile.toFixed(0) + '%';
 
-  return `${closestRegion.name}人相当（${percentileText}、${diffText}）`;
+  return closestRegion.name + '人相当（' + percentileText + '、' + diffText + '）';
 }
 
 // 地域別の平均データから最も近い地域を計算（直径）
@@ -764,13 +764,13 @@ function getGirthRegionalEquivalent(diameterMm) {
   }
 
   const diff = diameterMm - closestRegion.avg;
-  const diffText = diff > 0 ? `+${diff.toFixed(0)}mm` : `${diff.toFixed(0)}mm`;
+  const diffText = diff > 0 ? '+' + diff.toFixed(0) + 'mm' : diff.toFixed(0) + 'mm';
 
   // その地域内でのパーセンタイル計算（正規分布を仮定）
   const percentile = normalCDF(diameterMm, closestRegion.avg, closestRegion.std) * 100;
-  const percentileText = percentile >= 50 ? `上位${(100 - percentile).toFixed(0)}%` : `下位${percentile.toFixed(0)}%`;
+  const percentileText = percentile >= 50 ? '上位' + (100 - percentile).toFixed(0) + '%' : '下位' + percentile.toFixed(0) + '%';
 
-  return `${closestRegion.name}人相当（${percentileText}、${diffText}）`;
+  return closestRegion.name + '人相当（' + percentileText + '、' + diffText + '）';
 }
 
   let comparisonChart = null;
