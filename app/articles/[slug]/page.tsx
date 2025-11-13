@@ -8,6 +8,10 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
+// size-comparison-toolページは常に最新のデータを表示するため、キャッシュを無効化
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function generateStaticParams() {
   const articles = getAllArticles();
   return articles.map((article) => ({
