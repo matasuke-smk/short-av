@@ -373,6 +373,7 @@ export async function fetchGenres(): Promise<Array<{ id: string; name: string }>
  */
 export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
   return {
+    id: item.content_id, // idフィールドを追加（いいね機能のため）
     dmm_content_id: item.content_id,
     title: item.title,
     description: item.volume || null,

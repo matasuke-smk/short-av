@@ -13,11 +13,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // videoIdがDMM content_idの可能性があるため、データベースで実際のIDを取得
+    let actualVideoId = videoId;
+    const { data: videoData } = await supabase
+      .from('videos')
+      .select('id, dmm_content_id')
+      .or(`id.eq.${videoId},dmm_content_id.eq.${videoId}`)
+      .single();
+
+    if (videoData) {
+      actualVideoId = videoData.id; // 実際のUUID IDを使用
+    }
+
     // 既にいいね済みかチェック
     const { data: existingLike } = await supabase
       .from('likes')
       .select('id')
-      .eq('video_id', videoId)
+      .eq('video_id', actualVideoId)
       .eq('user_identifier', userId)
       .single();
 
@@ -26,7 +38,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase
         .from('likes')
         .delete()
-        .eq('video_id', videoId)
+        .eq('video_id', actualVideoId)
         .eq('user_identifier', userId);
 
       if (error) {
@@ -38,8 +50,8 @@ export async function POST(request: NextRequest) {
       const { data: video } = await supabase
         .from('videos')
         .select('likes_count')
-        .eq('id', videoId)
-        .single();
+        .eq('id', actualVideoId)
+        .maybeSingle(); // single()の代わりにmaybeSingle()を使用
 
       return NextResponse.json({
         liked: false,
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest) {
       const { error } = await supabase
         .from('likes')
         .insert({
-          video_id: videoId,
+          video_id: actualVideoId,
           user_identifier: userId
         });
 
@@ -63,8 +75,8 @@ export async function POST(request: NextRequest) {
       const { data: video } = await supabase
         .from('videos')
         .select('likes_count')
-        .eq('id', videoId)
-        .single();
+        .eq('id', actualVideoId)
+        .maybeSingle(); // single()の代わりにmaybeSingle()を使用
 
       return NextResponse.json({
         liked: true,
