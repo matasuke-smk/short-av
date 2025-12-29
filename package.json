@@ -13,7 +13,7 @@
     "@supabase/supabase-js": "^2.76.1",
     "dmm.js": "^0.1.0",
     "embla-carousel-react": "^8.6.0",
-    "next": "^16.1.1",
+    "next": "^15.4.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -24,7 +24,7 @@
     "autoprefixer": "^10.4.20",
     "dotenv": "^17.2.3",
     "eslint": "^9",
-    "eslint-config-next": "^16.1.1",
+    "eslint-config-next": "^15.4.10",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.6",
