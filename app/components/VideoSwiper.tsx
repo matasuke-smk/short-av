@@ -826,11 +826,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
           <div
-            className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center landscape:h-full lg:flex-1 lg:flex lg:items-center lg:justify-center lg:h-full"
+            className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center landscape:h-screen lg:flex-1 lg:flex lg:items-center lg:justify-center lg:h-screen"
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:aspect-auto landscape:w-full landscape:h-[90vh] lg:aspect-auto lg:w-full lg:h-[90vh]"
+              className="w-full aspect-[560/420] landscape:aspect-auto landscape:w-full landscape:h-full landscape:max-h-screen lg:aspect-auto lg:w-full lg:h-full lg:max-h-screen"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
