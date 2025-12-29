@@ -323,6 +323,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }
 
         window.history.pushState({}, '', url.toString());
+
+        // URLパラメータ処理の無限ループを防ぐため、このURLを処理済みとしてマーク
+        processedUrlParamRef.current = currentVideo.dmm_content_id;
       }
     };
 
@@ -953,6 +956,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             const url = new URL(window.location.href);
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
+            processedUrlParamRef.current = videoId;
           } else {
             // 現在のvideosに動画が存在しない場合、プールから探す
             const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoId);
@@ -971,6 +975,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   const url = new URL(window.location.href);
                   url.searchParams.set('v', videoId);
                   window.history.pushState({}, '', url.toString());
+                  processedUrlParamRef.current = videoId;
                 }
               });
             } else {
@@ -995,6 +1000,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     const url = new URL(window.location.href);
                     url.searchParams.set('v', videoId);
                     window.history.pushState({}, '', url.toString());
+                    processedUrlParamRef.current = videoId;
                   }
                 });
               }
@@ -1019,6 +1025,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               emblaApi.reInit();
               setTimeout(() => {
                 emblaApi.scrollTo(targetIndex, false);
+                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1062,6 +1069,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
+                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1098,6 +1106,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
+                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1134,6 +1143,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
+                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
