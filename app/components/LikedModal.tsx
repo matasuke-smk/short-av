@@ -42,18 +42,26 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         }
 
         // いいねした動画IDでフィルタリング（idまたはdmm_content_idでマッチング）
+        // videoPoolと現在のvideosの両方から検索
         console.log('[LikedModal] likesData.videoIds:', likesData.videoIds);
-        console.log('[LikedModal] videoPool sample:', videoPool.slice(0, 3).map(v => ({ id: v.id, dmm_content_id: v.dmm_content_id })));
+        console.log('[LikedModal] videoPool count:', videoPool.length);
+        console.log('[LikedModal] current videos count:', videos.length);
 
-        const videos = videoPool.filter(v =>
+        const allAvailableVideos = [...videoPool, ...videos];
+        const matchedVideos = allAvailableVideos.filter(v =>
           likesData.videoIds.includes(v.id) || likesData.videoIds.includes(v.dmm_content_id)
         );
 
-        console.log('[LikedModal] Matched videos from pool:', videos.length);
+        // 重複を削除（同じdmm_content_idの動画は1つだけ）
+        const uniqueVideos = Array.from(
+          new Map(matchedVideos.map(v => [v.dmm_content_id, v])).values()
+        );
+
+        console.log('[LikedModal] Matched videos:', uniqueVideos.length);
 
         // 見つからなかった動画をデータベースから取得
-        const foundVideoIds = new Set(videos.map((v: Video) => v.id));
-        const foundDmmContentIds = new Set(videos.map((v: Video) => v.dmm_content_id));
+        const foundVideoIds = new Set(uniqueVideos.map((v: Video) => v.id));
+        const foundDmmContentIds = new Set(uniqueVideos.map((v: Video) => v.dmm_content_id));
         const missingVideoIds = likesData.videoIds.filter((id: string) =>
           !foundVideoIds.has(id) && !foundDmmContentIds.has(id)
         );
@@ -85,8 +93,8 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
           console.log(`データベースから${missingVideos.length}件の動画を取得しました`);
         }
 
-        // プールの動画と、データベースから取得した動画をマージ
-        const allLikedVideos = [...videos, ...missingVideos];
+        // プール+現在のvideosと、データベースから取得した動画をマージ
+        const allLikedVideos = [...uniqueVideos, ...missingVideos];
 
         // いいねした日時順に並び替え（新しい順）
         const sortedVideos = allLikedVideos.sort((a, b) => {
