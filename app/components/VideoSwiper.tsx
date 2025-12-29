@@ -826,11 +826,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
           <div
-            className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center lg:flex-1 lg:flex lg:items-center lg:justify-center"
+            className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center landscape:h-full lg:flex-1 lg:flex lg:items-center lg:justify-center lg:h-full"
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:w-auto landscape:h-full landscape:max-h-[100vh] landscape:aspect-[560/420] lg:w-auto lg:h-full lg:max-h-[100vh] lg:aspect-[560/420]"
+              className="w-full aspect-[560/420] landscape:w-full landscape:h-auto landscape:max-h-[95vh] lg:w-full lg:h-auto lg:max-h-[95vh]"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
@@ -841,13 +841,13 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           </div>
 
-          {/* バナー領域 - 横画面時のみ表示 */}
+          {/* バナー領域 - 横画面時のみ表示（上下中央配置） */}
           {isLandscape && currentVideo && (
-            <div className="flex-shrink-0 h-full w-auto aspect-[160/600]">
+            <div className="flex-shrink-0 h-full w-auto flex items-center justify-center">
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
                 bannerId={portraitBannerIds[(currentIndex + 1) % 2]}
-                className="w-full h-full"
+                className="w-auto h-auto max-h-[90vh]"
               />
             </div>
           )}
