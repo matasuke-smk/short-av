@@ -102,32 +102,29 @@ export default function RankingModal({
   const loadRanking = async (targetPeriod: RankingPeriod) => {
     setLoading(true);
     try {
-      // 全プールを結合
-      const allVideos = [
-        ...videoPools.straight,
-        ...videoPools.lesbian,
-        ...videoPools.gay
-      ];
+      console.log(`[RankingModal] Loading ${targetPeriod} ranking from DMM API`);
 
-      // likes_countでソート（降順）、idで安定ソート
-      const sortedVideos = [...allVideos].sort((a, b) => {
-        const likesA = a.likes_count || 0;
-        const likesB = b.likes_count || 0;
-        if (likesB !== likesA) {
-          return likesB - likesA;
-        }
-        return a.id.localeCompare(b.id);
-      });
+      // DMM APIから期間別ランキングを取得
+      const response = await fetch(`/api/ranking?period=${targetPeriod}&limit=20`);
 
-      // 上位20件を取得
-      const topVideos = sortedVideos.slice(0, 20);
+      if (!response.ok) {
+        throw new Error(`Ranking API failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success || !result.data) {
+        throw new Error('Invalid ranking response');
+      }
+
+      console.log(`[RankingModal] Loaded ${result.data.length} videos for ${targetPeriod}`);
 
       setRankingVideos(prev => ({
         ...prev,
-        [targetPeriod]: topVideos
+        [targetPeriod]: result.data
       }));
     } catch (error) {
-      console.error('ランキング読み込みエラー:', error);
+      console.error('[RankingModal] ランキング読み込みエラー:', error);
     } finally {
       setLoading(false);
     }

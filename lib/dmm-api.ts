@@ -174,6 +174,86 @@ export async function fetchRankingVideos(limit: number = 20): Promise<DMMItem[]>
 }
 
 /**
+ * 週間ランキング（過去7日間の人気動画）
+ */
+export async function fetchWeeklyRanking(limit: number = 20): Promise<DMMItem[]> {
+  try {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const gteDate = sevenDaysAgo.toISOString().split('.')[0]; // ISO8601形式
+
+    const params = new URLSearchParams({
+      api_id: process.env.DMM_API_ID!,
+      affiliate_id: process.env.DMM_AFFILIATE_ID!,
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
+      hits: limit.toString(),
+      sort: 'rank',
+      gte_date: gteDate,
+      output: 'json',
+    });
+
+    const url = `${DMM_API_BASE_URL}?${params.toString()}`;
+    const response = await fetch(url, { next: { revalidate: 3600 } });
+
+    if (!response.ok) {
+      throw new Error(`DMM API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data as DMMApiResponse).result.items || [];
+  } catch (error) {
+    console.error('Failed to fetch weekly ranking:', error);
+    throw error;
+  }
+}
+
+/**
+ * 月間ランキング（過去30日間の人気動画）
+ */
+export async function fetchMonthlyRanking(limit: number = 20): Promise<DMMItem[]> {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const gteDate = thirtyDaysAgo.toISOString().split('.')[0]; // ISO8601形式
+
+    const params = new URLSearchParams({
+      api_id: process.env.DMM_API_ID!,
+      affiliate_id: process.env.DMM_AFFILIATE_ID!,
+      site: 'FANZA',
+      service: 'digital',
+      floor: 'videoa',
+      hits: limit.toString(),
+      sort: 'rank',
+      gte_date: gteDate,
+      output: 'json',
+    });
+
+    const url = `${DMM_API_BASE_URL}?${params.toString()}`;
+    const response = await fetch(url, { next: { revalidate: 3600 } });
+
+    if (!response.ok) {
+      throw new Error(`DMM API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return (data as DMMApiResponse).result.items || [];
+  } catch (error) {
+    console.error('Failed to fetch monthly ranking:', error);
+    throw error;
+  }
+}
+
+/**
+ * 全期間ランキング（全期間の人気動画）
+ */
+export async function fetchAllTimeRanking(limit: number = 20): Promise<DMMItem[]> {
+  // 全期間ランキングは fetchRankingVideos と同じ
+  return fetchRankingVideos(limit);
+}
+
+/**
  * 女優名で検索
  */
 export async function searchByActress(actressName: string, limit: number = 20): Promise<DMMItem[]> {
