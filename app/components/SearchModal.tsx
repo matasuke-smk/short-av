@@ -510,7 +510,7 @@ export default function SearchModal({
       // 検索結果が見つかった場合、すぐにスワイプ画面に遷移
       if (filteredData.length > 0) {
         onReplaceVideos(filteredData, filteredData[0].dmm_content_id);
-        setTimeout(() => onClose(), 100);
+        setTimeout(() => onClose(), 200);
       }
     } catch (error) {
       console.error('検索実行エラー:', error);

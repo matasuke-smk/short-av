@@ -1084,19 +1084,18 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           if (targetIndex !== -1) {
             // 動画リストを置き換え
             setVideos(newVideos);
+            // インデックスを即座にリセット
+            setCurrentIndex(targetIndex);
             // 有限リストとしてマーク（検索結果は有限）
             setIsFiniteList(true);
-            // 次のフレームで即座にスクロール（アニメーションなし）
-            requestAnimationFrame(() => {
-              if (emblaApi) {
-                emblaApi.reInit(); // 新しいスライド数を反映
-                // reInit完了後、次のフレームでスクロール
-                requestAnimationFrame(() => {
-                  emblaApi.scrollTo(targetIndex, false); // 即座に移動
-                  setCurrentIndex(targetIndex);
-                });
-              }
-            });
+            // スクロール位置をリセット
+            if (emblaApi) {
+              // reInitとscrollToを確実に実行
+              emblaApi.reInit();
+              setTimeout(() => {
+                emblaApi.scrollTo(targetIndex, false);
+              }, 150);
+            }
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
@@ -1127,23 +1126,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           if (targetIndex !== -1) {
             // 動画リストを置き換え
             setVideos(newVideos);
+            // インデックスを即座にリセット
+            setCurrentIndex(targetIndex);
             // 有限リストとしてマーク（ランキングは有限）
             setIsFiniteList(true);
-            // 次のフレームで即座にスクロール
-            requestAnimationFrame(() => {
-              if (emblaApi) {
-                emblaApi.reInit();
-                // reInit完了後、次のフレームでスクロール
-                requestAnimationFrame(() => {
-                  emblaApi.scrollTo(targetIndex, false);
-                  setCurrentIndex(targetIndex);
-                  // URLを更新
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('v', selectedVideoId);
-                  window.history.pushState({}, '', url.toString());
-                });
-              }
-            });
+            // スクロール位置をリセット
+            if (emblaApi) {
+              emblaApi.reInit();
+              setTimeout(() => {
+                emblaApi.scrollTo(targetIndex, false);
+                // URLを更新
+                const url = new URL(window.location.href);
+                url.searchParams.set('v', selectedVideoId);
+                window.history.pushState({}, '', url.toString());
+              }, 150);
+            }
           }
         }}
       />
@@ -1165,23 +1162,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           if (targetIndex !== -1) {
             // 動画リストを置き換え
             setVideos(newVideos);
+            // インデックスを即座にリセット
+            setCurrentIndex(targetIndex);
             // 有限リストとしてマーク
             setIsFiniteList(true);
-            // 次のフレームで即座にスクロール
-            requestAnimationFrame(() => {
-              if (emblaApi) {
-                emblaApi.reInit();
-                // reInit完了後、次のフレームでスクロール
-                requestAnimationFrame(() => {
-                  emblaApi.scrollTo(targetIndex, false);
-                  setCurrentIndex(targetIndex);
-                  // URLを更新
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('v', selectedVideoId);
-                  window.history.pushState({}, '', url.toString());
-                });
-              }
-            });
+            // スクロール位置をリセット
+            if (emblaApi) {
+              emblaApi.reInit();
+              setTimeout(() => {
+                emblaApi.scrollTo(targetIndex, false);
+                // URLを更新
+                const url = new URL(window.location.href);
+                url.searchParams.set('v', selectedVideoId);
+                window.history.pushState({}, '', url.toString());
+              }, 150);
+            }
           }
         }}
       />
@@ -1203,23 +1198,21 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           if (targetIndex !== -1) {
             // 動画リストを置き換え
             setVideos(newVideos);
+            // インデックスを即座にリセット
+            setCurrentIndex(targetIndex);
             // 有限リストとしてマーク
             setIsFiniteList(true);
-            // 次のフレームで即座にスクロール
-            requestAnimationFrame(() => {
-              if (emblaApi) {
-                emblaApi.reInit();
-                // reInit完了後、次のフレームでスクロール
-                requestAnimationFrame(() => {
-                  emblaApi.scrollTo(targetIndex, false);
-                  setCurrentIndex(targetIndex);
-                  // URLを更新
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('v', selectedVideoId);
-                  window.history.pushState({}, '', url.toString());
-                });
-              }
-            });
+            // スクロール位置をリセット
+            if (emblaApi) {
+              emblaApi.reInit();
+              setTimeout(() => {
+                emblaApi.scrollTo(targetIndex, false);
+                // URLを更新
+                const url = new URL(window.location.href);
+                url.searchParams.set('v', selectedVideoId);
+                window.history.pushState({}, '', url.toString());
+              }, 150);
+            }
           }
         }}
       />
