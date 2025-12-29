@@ -86,9 +86,9 @@ export default function SearchModal({
   const [gayPoolIndex, setGayPoolIndex] = useState(20);
 
   // 各フィルタのメタ情報
-  const [straightMeta, setStraightMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
-  const [lesbianMeta, setLesbianMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
-  const [gayMeta, setGayMeta] = useState({ hasMore: true, totalCount: 0, isSearchResult: false });
+  const [straightMeta, setStraightMeta] = useState({ hasMore: true, isSearchResult: false });
+  const [lesbianMeta, setLesbianMeta] = useState({ hasMore: true, isSearchResult: false });
+  const [gayMeta, setGayMeta] = useState({ hasMore: true, isSearchResult: false });
 
   // 利用可能なジャンル/女優
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
@@ -147,17 +147,17 @@ export default function SearchModal({
       setStraightVideos(genderVideos.straight || []);
       setStraightPool(genderPools.straight || []);
       setOriginalStraightPool(genderPools.straight || []); // 元のプールを保存
-      setStraightMeta({ hasMore: true, totalCount: genderCounts?.straight || 0, isSearchResult: false });
+      setStraightMeta({ hasMore: true, isSearchResult: false });
 
       setLesbianVideos(genderVideos.lesbian || []);
       setLesbianPool(genderPools.lesbian || []);
       setOriginalLesbianPool(genderPools.lesbian || []); // 元のプールを保存
-      setLesbianMeta({ hasMore: true, totalCount: genderCounts?.lesbian || 0, isSearchResult: false });
+      setLesbianMeta({ hasMore: true, isSearchResult: false });
 
       setGayVideos(genderVideos.gay || []);
       setGayPool(genderPools.gay || []);
       setOriginalGayPool(genderPools.gay || []); // 元のプールを保存
-      setGayMeta({ hasMore: true, totalCount: genderCounts?.gay || 0, isSearchResult: false });
+      setGayMeta({ hasMore: true, isSearchResult: false });
 
       initializedRef.current = true;
     }
@@ -432,7 +432,7 @@ export default function SearchModal({
             .ilike('title', `%${keyword}%`)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('likes_count', { ascending: false })
+            .order('rank_position', { ascending: true, nullsFirst: false })
             .order('id', { ascending: true })
             .range(offset, offset + batchSize - 1);
 
@@ -458,7 +458,7 @@ export default function SearchModal({
             .overlaps('genre_ids', selectedGenreIds)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('likes_count', { ascending: false })
+            .order('rank_position', { ascending: true, nullsFirst: false })
             .order('id', { ascending: true })
             .range(offset, offset + batchSize - 1);
 
@@ -489,7 +489,7 @@ export default function SearchModal({
           .overlaps('actress_ids', selectedActressIds)
           .not('thumbnail_url', 'is', null)
           .not('sample_video_url', 'is', null)
-          .order('likes_count', { ascending: false })
+          .order('rank_position', { ascending: true, nullsFirst: false })
           .order('id', { ascending: true });
 
         // 女優名での検索
@@ -502,7 +502,7 @@ export default function SearchModal({
             .ilike('title', `%${actress.name}%`)
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
-            .order('likes_count', { ascending: false })
+            .order('rank_position', { ascending: true, nullsFirst: false })
             .order('id', { ascending: true });
 
           if (nameResult) {
@@ -523,12 +523,14 @@ export default function SearchModal({
           )
         );
 
-        // ソート
+        // ソート（人気順）
         data.sort((a, b) => {
-          if (b.likes_count !== a.likes_count) {
-            return b.likes_count - a.likes_count;
+          const rankA = a.rank_position || 999999;
+          const rankB = b.rank_position || 999999;
+          if (rankA !== rankB) {
+            return rankA - rankB;
           }
-          return Math.random() - 0.5;
+          return a.id.localeCompare(b.id);
         });
       } else {
         // 検索条件なし（性別フィルタのみ）
@@ -556,7 +558,6 @@ export default function SearchModal({
       const displayData = filteredData.slice(0, 20);
       const meta = {
         hasMore: filteredData.length > 20,
-        totalCount: filteredData.length,
         isSearchResult: true
       };
 
@@ -905,13 +906,6 @@ export default function SearchModal({
             </div>
           ) : (
             <>
-              {currentMeta.totalCount > 0 && (
-                <div className="mb-3">
-                  <p className="text-gray-400 text-sm">
-                    {currentMeta.totalCount.toLocaleString()}件の動画が見つかりました
-                  </p>
-                </div>
-              )}
               <div className="grid grid-cols-2 gap-3 pb-20">
                 {displayVideos.map((video) => {
                   const isCurrentVideo = video.dmm_content_id === currentVideoId;

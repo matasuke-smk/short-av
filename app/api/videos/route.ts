@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       .eq('is_active', true)
       .not('thumbnail_url', 'is', null)
       .not('sample_video_url', 'is', null)
-      .order('rank_position', { ascending: true, nullsLast: true })
+      .order('rank_position', { ascending: true, nullsFirst: false })
       .limit(10000); // 大量に取得
 
     if (error) {
