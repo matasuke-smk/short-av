@@ -212,7 +212,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
     event.stopPropagation();
 
-    console.log('[toggleLike] videoId:', videoId);
     if (!userId) return;
 
     const wasLiked = likedVideos.has(videoId);
@@ -225,6 +224,22 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       }
       return newSet;
     });
+
+    // いいねした動画をvideoPoolに追加（まだ存在しない場合）
+    if (!wasLiked) {
+      const currentVideo = videos.find(v => v.id === videoId || v.dmm_content_id === videoId);
+      if (currentVideo) {
+        setVideoPool(prev => {
+          // 既に存在するかチェック（dmm_content_idで）
+          const exists = prev.some(v => v.dmm_content_id === currentVideo.dmm_content_id);
+          if (!exists) {
+            console.log('[toggleLike] videoPoolに動画を追加:', currentVideo.dmm_content_id);
+            return [...prev, currentVideo];
+          }
+          return prev;
+        });
+      }
+    }
 
     // Google Analytics: いいねイベント
     trackLike(videoId, wasLiked ? 'unlike' : 'like');
@@ -251,7 +266,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         return newSet;
       });
     }
-  }, [userId, likedVideos]);
+  }, [userId, likedVideos, videos]);
 
   // 初期位置にスクロール（アニメーション付き）
   useEffect(() => {
