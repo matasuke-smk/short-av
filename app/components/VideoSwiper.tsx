@@ -209,7 +209,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   }, [videos.length, isLoadingMore, videoPool, poolIndex]);
 
   // いいねを切り替える関数
-  const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
+  const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent, video?: Video) => {
     event.stopPropagation();
 
     if (!userId) return;
@@ -232,7 +232,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       const response = await fetch('/api/likes/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, userId }),
+        body: JSON.stringify({
+          videoId,
+          userId,
+          videoData: video // 動画データを含める
+        }),
       });
 
       if (!response.ok) {
@@ -409,7 +413,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* いいねボタン - サムネイル左下 */}
                     <button
-                      onClick={(e) => toggleLike(video.id, e)}
+                      onClick={(e) => toggleLike(video.id, e, video)}
                       className="absolute bottom-6 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                       aria-label="いいね"
                     >
@@ -779,7 +783,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleLike(currentVideo.id, e);
+                    toggleLike(currentVideo.id, e, currentVideo);
                   }}
                   className="bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                   aria-label="いいね"
@@ -864,7 +868,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleLike(currentVideo.id, e);
+                toggleLike(currentVideo.id, e, currentVideo);
               }}
               className="landscape:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
               aria-label="いいね"

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { videoId, userId } = body;
+    const { videoId, userId, videoData: videoPayload } = body;
 
     if (!videoId || !userId) {
       return NextResponse.json(
@@ -23,8 +23,57 @@ export async function POST(request: NextRequest) {
 
     if (videoData) {
       actualVideoId = videoData.id; // 実際のUUID IDを使用
+    } else if (videoPayload) {
+      // 動画がデータベースに存在しない場合、videoPayloadから追加
+      console.log('[Like API] 動画がデータベースに存在しないため追加します:', videoId);
+      const { data: newVideo, error: insertError } = await supabase
+        .from('videos')
+        .insert({
+          dmm_content_id: videoPayload.dmm_content_id,
+          title: videoPayload.title,
+          description: videoPayload.description,
+          thumbnail_url: videoPayload.thumbnail_url,
+          sample_video_url: videoPayload.sample_video_url,
+          dmm_product_url: videoPayload.dmm_product_url,
+          price: videoPayload.price,
+          release_date: videoPayload.release_date,
+          duration: videoPayload.duration,
+          maker: videoPayload.maker,
+          label: videoPayload.label,
+          series: videoPayload.series,
+          genre_ids: videoPayload.genre_ids,
+          actress_ids: videoPayload.actress_ids,
+          rank_position: videoPayload.rank_position,
+          is_active: true,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error('[Like API] 動画追加エラー:', insertError);
+        // upsert を試みる（既に存在する場合のエラーを回避）
+        const { data: existingVideo } = await supabase
+          .from('videos')
+          .select('id')
+          .eq('dmm_content_id', videoPayload.dmm_content_id)
+          .maybeSingle();
+
+        if (existingVideo) {
+          actualVideoId = existingVideo.id;
+        } else {
+          return NextResponse.json({ error: '動画の追加に失敗しました' }, { status: 500 });
+        }
+      } else if (newVideo) {
+        actualVideoId = newVideo.id;
+        console.log('[Like API] 動画を追加しました:', actualVideoId);
+      }
+    } else {
+      // 動画データがない場合はエラー
+      return NextResponse.json(
+        { error: '動画がデータベースに存在しません' },
+        { status: 404 }
+      );
     }
-    // 動画がデータベースに存在しない場合、videoIdをそのまま使用（DMM content_id）
 
     // 既にいいね済みかチェック
     const { data: existingLike } = await supabase
