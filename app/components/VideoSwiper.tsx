@@ -413,7 +413,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       className="absolute bottom-6 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                       aria-label="いいね"
                     >
-                      {likedVideos.has(video.id) ? (
+                      {(likedVideos.has(video.id) || likedVideos.has(video.dmm_content_id)) ? (
                         <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                         </svg>
@@ -784,7 +784,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   className="bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                   aria-label="いいね"
                 >
-                  {likedVideos.has(currentVideo.id) ? (
+                  {(likedVideos.has(currentVideo.id) || likedVideos.has(currentVideo.dmm_content_id)) ? (
                     <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                     </svg>
@@ -869,7 +869,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               className="landscape:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
               aria-label="いいね"
             >
-              {likedVideos.has(currentVideo.id) ? (
+              {(likedVideos.has(currentVideo.id) || likedVideos.has(currentVideo.dmm_content_id)) ? (
                 <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>

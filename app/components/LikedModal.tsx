@@ -41,22 +41,27 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
           return;
         }
 
-        // いいねした動画IDでフィルタリング
-        const videos = videoPool.filter(v => likesData.videoIds.includes(v.id));
+        // いいねした動画IDでフィルタリング（idまたはdmm_content_idでマッチング）
+        const videos = videoPool.filter(v =>
+          likesData.videoIds.includes(v.id) || likesData.videoIds.includes(v.dmm_content_id)
+        );
 
         // 見つからなかった動画をデータベースから取得
         const foundVideoIds = new Set(videos.map((v: Video) => v.id));
-        const missingVideoIds = likesData.videoIds.filter((id: string) => !foundVideoIds.has(id));
+        const foundDmmContentIds = new Set(videos.map((v: Video) => v.dmm_content_id));
+        const missingVideoIds = likesData.videoIds.filter((id: string) =>
+          !foundVideoIds.has(id) && !foundDmmContentIds.has(id)
+        );
 
         let missingVideos: Video[] = [];
         if (missingVideoIds.length > 0) {
           console.log(`いいね済み動画のうち${missingVideoIds.length}件がプールに見つかりませんでした。データベースから取得します...`);
 
-          // データベースから直接取得
+          // データベースから直接取得（idまたはdmm_content_idでマッチング）
           const { data: fetchedVideos } = await (await import('@/lib/supabase')).supabase
             .from('videos')
             .select('*')
-            .in('id', missingVideoIds);
+            .or(missingVideoIds.map((id: string) => `id.eq.${id},dmm_content_id.eq.${id}`).join(','));
 
           if (fetchedVideos) {
             missingVideos = fetchedVideos;
@@ -69,8 +74,9 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
 
         // いいねした日時順に並び替え（新しい順）
         const sortedVideos = allLikedVideos.sort((a, b) => {
-          const timeA = likesData.likedAtMap?.[a.id];
-          const timeB = likesData.likedAtMap?.[b.id];
+          // idまたはdmm_content_idでマッチング
+          const timeA = likesData.likedAtMap?.[a.id] || likesData.likedAtMap?.[a.dmm_content_id];
+          const timeB = likesData.likedAtMap?.[b.id] || likesData.likedAtMap?.[b.dmm_content_id];
           if (!timeA || !timeB) return 0;
           return new Date(timeB).getTime() - new Date(timeA).getTime();
         });
