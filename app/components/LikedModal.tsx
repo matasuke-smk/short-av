@@ -62,16 +62,27 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         if (missingVideoIds.length > 0) {
           console.log(`いいね済み動画のうち${missingVideoIds.length}件がプールに見つかりませんでした。データベースから取得します...`);
 
-          // データベースから直接取得（idまたはdmm_content_idでマッチング）
-          const { data: fetchedVideos } = await (await import('@/lib/supabase')).supabase
+          // データベースから直接取得（まずidで検索）
+          const { data: videosById } = await (await import('@/lib/supabase')).supabase
             .from('videos')
             .select('*')
-            .or(missingVideoIds.map((id: string) => `id.eq.${id},dmm_content_id.eq.${id}`).join(','));
+            .in('id', missingVideoIds);
 
-          if (fetchedVideos) {
-            missingVideos = fetchedVideos;
-            console.log(`データベースから${fetchedVideos.length}件の動画を取得しました`);
+          const foundByIdSet = new Set((videosById || []).map((v: Video) => v.id));
+          const stillMissingIds = missingVideoIds.filter((id: string) => !foundByIdSet.has(id));
+
+          // 見つからなかったものをdmm_content_idで検索
+          let videosByDmmContentId: Video[] = [];
+          if (stillMissingIds.length > 0) {
+            const { data } = await (await import('@/lib/supabase')).supabase
+              .from('videos')
+              .select('*')
+              .in('dmm_content_id', stillMissingIds);
+            videosByDmmContentId = data || [];
           }
+
+          missingVideos = [...(videosById || []), ...videosByDmmContentId];
+          console.log(`データベースから${missingVideos.length}件の動画を取得しました`);
         }
 
         // プールの動画と、データベースから取得した動画をマージ
