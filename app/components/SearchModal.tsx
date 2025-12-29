@@ -27,11 +27,9 @@ export default function SearchModal({
   videoPool
 }: SearchModalProps) {
   // 検索UI状態
-  const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
+  const [searchMode, setSearchMode] = useState<'genre' | 'actress'>('genre');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showGenreModal, setShowGenreModal] = useState(false);
-  const [showActressModal, setShowActressModal] = useState(false);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
 
@@ -271,8 +269,8 @@ export default function SearchModal({
       let data: Video[] = [];
 
       // 検索条件に応じてデータ取得
-      if (searchMode === 'keyword' && keyword.trim()) {
-        // キーワード検索
+      if (keyword.trim()) {
+        // タイトル検索（キーワードが入力されている場合）
         const allData: Video[] = [];
         let offset = 0;
         const batchSize = 1000;
@@ -450,159 +448,234 @@ export default function SearchModal({
           <div className="flex-1 landscape:w-[55%] flex flex-col overflow-hidden">
             {/* ヘッダー（縦画面のみ） */}
             <div className="landscape:hidden px-4 py-4 border-b border-gray-800">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">検索</h2>
-            </div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">検索</h2>
+              </div>
 
-          {/* 検索モード切り替え */}
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setSearchMode('keyword')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                searchMode === 'keyword'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              キーワード
-            </button>
-            <button
-              onClick={() => setSearchMode('genre')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                searchMode === 'genre'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              ジャンル
-            </button>
-            <button
-              onClick={() => setSearchMode('actress')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                searchMode === 'actress'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              女優
-            </button>
-          </div>
-
-          {/* 検索入力エリア */}
-          {searchMode === 'genre' ? (
-            <div>
-              <button
-                onClick={() => setShowGenreModal(true)}
-                className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white flex items-center"
-              >
-                <div className="flex justify-between items-center w-full">
-                  <span className="truncate">
-                    {selectedGenreIds.length > 0
-                      ? genres
-                          .filter((g: Genre) => selectedGenreIds.includes(g.id))
-                          .map((g: Genre) => g.name)
-                          .join(', ')
-                      : 'ジャンルを選択'}
-                  </span>
-                  {selectedGenreIds.length > 0 && currentFilterCount > 0 && (
-                    <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
-                      {currentFilterCount.toLocaleString()}件
-                    </span>
-                  )}
-                </div>
-              </button>
-            </div>
-          ) : searchMode === 'actress' ? (
-            <div>
-              <button
-                onClick={() => setShowActressModal(true)}
-                className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white flex items-center"
-              >
-                <div className="flex justify-between items-center w-full">
-                  <span className="truncate">
-                    {selectedActressIds.length > 0
-                      ? actresses
-                          .filter((a: Actress) => selectedActressIds.includes(a.id))
-                          .map((a: Actress) => a.name)
-                          .join(', ')
-                      : '女優を選択'}
-                  </span>
-                  {selectedActressIds.length > 0 && currentFilterCount > 0 && (
-                    <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
-                      {currentFilterCount.toLocaleString()}件
-                    </span>
-                  )}
-                </div>
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur();
-                    handleSearch();
-                  }
-                }}
-                placeholder="タイトルで検索..."
-                className="flex-1 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
-              />
-              <button
-                onClick={() => handleSearch()}
-                disabled={loading}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white w-12 h-12 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
-              >
-                {loading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-
-            {/* コンテンツエリア */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 search-modal-content landscape:pb-0">
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-              <p className="text-gray-400 text-sm">検索中...</p>
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <p className="text-gray-400 text-sm">キーワード・ジャンル・女優で検索してください</p>
-            </div>
-          )}
-            </div>
-          </div>
-
-          {/* 右側：固定エリア（横画面時のみ） */}
-          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-2 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto">
-            <h2 className="text-2xl font-bold text-white">検索</h2>
-
-            <div className="flex flex-col gap-3">
-              {/* 検索モード */}
-              <div className="flex gap-2">
+              {/* タイトル検索フォーム（常時表示） */}
+              <div className="flex gap-2 mb-3">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                      handleSearch();
+                    }
+                  }}
+                  placeholder="タイトルで検索..."
+                  className="flex-1 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
+                />
                 <button
-                  onClick={() => setSearchMode('keyword')}
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors text-sm ${
-                    searchMode === 'keyword'
+                  onClick={() => handleSearch()}
+                  disabled={loading}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-600 text-white w-12 h-12 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+
+              {/* 検索モード切り替え */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => setSearchMode('genre')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
+                    searchMode === 'genre'
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-700 text-gray-300'
                   }`}
                 >
-                  キーワード
+                  ジャンル
                 </button>
+                <button
+                  onClick={() => setSearchMode('actress')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
+                    searchMode === 'actress'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-700 text-gray-300'
+                  }`}
+                >
+                  女優
+                </button>
+              </div>
+
+              {/* フィルター検索ボックス */}
+              {searchMode === 'genre' && (
+                <input
+                  type="text"
+                  value={genreSearchKeyword}
+                  onChange={(e) => setGenreSearchKeyword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="ジャンル名で検索..."
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+                />
+              )}
+
+              {searchMode === 'actress' && (
+                <input
+                  type="text"
+                  value={actressSearchKeyword}
+                  onChange={(e) => setActressSearchKeyword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="女優名で検索..."
+                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+                />
+              )}
+            </div>
+
+            {/* コンテンツエリア */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 search-modal-content landscape:pb-0">
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                  <p className="text-gray-400 text-sm">読み込み中...</p>
+                </div>
+              ) : searchMode === 'genre' ? (
+                <div>
+                  {/* 選択中のジャンル表示 */}
+                  {selectedGenreIds.length > 0 && (
+                    <div className="mb-4 pb-4 border-b border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">選択中: {selectedGenreIds.length}件</p>
+                        {currentFilterCount > 0 && (
+                          <p className="text-xs text-blue-400">
+                            {currentFilterCount.toLocaleString()}件の動画
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {genres
+                          .filter((g: Genre) => selectedGenreIds.includes(g.id))
+                          .map((g: Genre) => (
+                            <span key={g.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
+                              {g.name}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* ジャンル一覧 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {displayGenres.map((genre) => {
+                      const isSelected = selectedGenreIds.includes(genre.id);
+                      return (
+                        <button
+                          key={genre.id}
+                          onClick={() => toggleGenreSelection(genre.id)}
+                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isSelected
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {genre.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : searchMode === 'actress' ? (
+                <div>
+                  {/* 選択中の女優表示 */}
+                  {selectedActressIds.length > 0 && (
+                    <div className="mb-4 pb-4 border-b border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-gray-400">選択中: {selectedActressIds.length}件</p>
+                        {currentFilterCount > 0 && (
+                          <p className="text-xs text-blue-400">
+                            {currentFilterCount.toLocaleString()}件の動画
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {actresses
+                          .filter((a: Actress) => selectedActressIds.includes(a.id))
+                          .map((a: Actress) => (
+                            <span key={a.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
+                              {a.name}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* 女優一覧 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {displayActresses.map((actress) => {
+                      const isSelected = selectedActressIds.includes(actress.id);
+                      return (
+                        <button
+                          key={actress.id}
+                          onClick={() => toggleActressSelection(actress.id)}
+                          className={`px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isSelected
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {actress.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* 右側：固定エリア（横画面時のみ） */}
+          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto">
+            <h2 className="text-2xl font-bold text-white">検索</h2>
+
+            <div className="flex flex-col gap-3">
+              {/* タイトル検索フォーム（常時表示） */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="タイトルで検索"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                      handleSearch();
+                    }
+                  }}
+                  className="flex-1 min-w-0 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white w-12 h-12 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
+                  aria-label="検索"
+                >
+                  {loading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+
+              {/* 検索モード切り替え */}
+              <div className="flex gap-2">
                 <button
                   onClick={() => setSearchMode('genre')}
                   className={`flex-1 py-3 px-4 rounded-lg transition-colors text-sm ${
@@ -625,61 +698,63 @@ export default function SearchModal({
                 </button>
               </div>
 
-              {/* 検索入力 */}
-              {searchMode === 'keyword' && (
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="タイトルで検索"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.currentTarget.blur();
-                        handleSearch();
-                      }
-                    }}
-                    className="flex-1 min-w-0 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={handleSearch}
-                    disabled={!keyword.trim()}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500 text-white w-12 h-12 rounded-lg transition-colors flex items-center justify-center flex-shrink-0"
-                    aria-label="検索"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
+              {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
-                <button
-                  onClick={() => setShowGenreModal(true)}
-                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white truncate flex items-center"
-                >
-                  {selectedGenreIds.length > 0
-                    ? genres
-                        .filter((g: Genre) => selectedGenreIds.includes(g.id))
-                        .map((g: Genre) => g.name)
-                        .join(', ')
-                    : 'ジャンルを選択'}
-                </button>
+                <input
+                  type="text"
+                  value={genreSearchKeyword}
+                  onChange={(e) => setGenreSearchKeyword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="ジャンル名で検索..."
+                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+                />
               )}
 
               {searchMode === 'actress' && (
+                <input
+                  type="text"
+                  value={actressSearchKeyword}
+                  onChange={(e) => setActressSearchKeyword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="女優名で検索..."
+                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+                />
+              )}
+
+              {/* 選択をクリアボタン */}
+              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
+                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
                 <button
-                  onClick={() => setShowActressModal(true)}
-                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg text-left text-sm text-white truncate flex items-center"
+                  onClick={() => {
+                    if (searchMode === 'genre') {
+                      setSelectedGenreIds([]);
+                    } else {
+                      setSelectedActressIds([]);
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors font-medium text-sm"
                 >
-                  {selectedActressIds.length > 0
-                    ? actresses
-                        .filter((a: Actress) => selectedActressIds.includes(a.id))
-                        .map((a: Actress) => a.name)
-                        .join(', ')
-                    : '女優を選択'}
+                  選択をクリア
+                </button>
+              )}
+
+              {/* 検索実行ボタン */}
+              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
+                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg transition-colors font-medium"
+                >
+                  {loading ? '検索中...' : '検索'}
                 </button>
               )}
 
@@ -696,399 +771,64 @@ export default function SearchModal({
             </div>
           </div>
 
-          {/* 閉じるボタン - 最下部（縦画面のみ） */}
+          {/* ボタンエリア - 最下部（縦画面のみ） */}
           <div className="landscape:hidden border-t border-gray-800 p-4">
-            <button
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                document.body.style.pointerEvents = 'none';
-                setTimeout(() => {
-                  onClose();
+            <div className="flex gap-3">
+              {/* 選択をクリアボタン */}
+              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
+                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+                <button
+                  onClick={() => {
+                    if (searchMode === 'genre') {
+                      setSelectedGenreIds([]);
+                    } else {
+                      setSelectedActressIds([]);
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition-colors font-medium flex-shrink-0"
+                >
+                  クリア
+                </button>
+              )}
+
+              {/* 検索ボタン */}
+              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
+                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
+                >
+                  {loading ? '検索中...' : '検索'}
+                </button>
+              )}
+
+              {/* 閉じるボタン */}
+              <button
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  document.body.style.pointerEvents = 'none';
                   setTimeout(() => {
-                    document.body.style.pointerEvents = 'auto';
-                  }, 300);
-                }, 50);
-              }}
-              className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
-            >
-              閉じる
-            </button>
+                    onClose();
+                    setTimeout(() => {
+                      document.body.style.pointerEvents = 'auto';
+                    }, 300);
+                  }, 50);
+                }}
+                className={`bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium ${
+                  (searchMode === 'genre' && selectedGenreIds.length > 0) ||
+                  (searchMode === 'actress' && selectedActressIds.length > 0)
+                    ? 'flex-shrink-0 px-6'
+                    : 'w-full'
+                }`}
+              >
+                閉じる
+              </button>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* ジャンル選択モーダル - レスポンシブ対応 */}
-      {showGenreModal && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center md:p-4">
-          <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl flex flex-col landscape:flex-row overflow-hidden">
-            {/* 左側：ジャンルリスト（横画面時） */}
-            <div className="flex-1 landscape:w-[55%] flex flex-col overflow-hidden">
-              {/* ヘッダー（縦画面のみ） */}
-              <div className="landscape:hidden flex items-center justify-between p-4 border-b border-gray-700">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-white">ジャンルを選択</h2>
-                  {selectedGenreIds.length > 0 && currentFilterCount > 0 && (
-                    <span className="text-gray-400 text-sm">
-                      {currentFilterCount.toLocaleString()}件
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowGenreModal(false);
-                  }}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              {/* 選択中のジャンル表示（縦画面のみ） */}
-              {selectedGenreIds.length > 0 && (
-                <div className="landscape:hidden p-4 border-b border-gray-700">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-gray-400">選択中:</p>
-                    {genres
-                      .filter((g: Genre) => selectedGenreIds.includes(g.id))
-                      .map((g: Genre) => (
-                        <span key={g.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
-                          {g.name}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-              {/* 検索入力（縦画面のみ） */}
-              <div className="landscape:hidden p-4 border-b border-gray-700">
-                <input
-                  type="text"
-                  value={genreSearchKeyword}
-                  onChange={(e) => setGenreSearchKeyword(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="ジャンル名で検索..."
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-              {/* ジャンルリスト */}
-              <div className="flex-1 overflow-y-auto p-4 landscape:pb-0">
-                <div className="grid grid-cols-2 gap-2">
-                  {displayGenres.map((genre) => {
-                    const isSelected = selectedGenreIds.includes(genre.id);
-                    return (
-                      <button
-                        key={genre.id}
-                        onClick={() => toggleGenreSelection(genre.id)}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isSelected
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {genre.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              {/* 決定・リセットボタン（縦画面のみ） */}
-              <div className="landscape:hidden p-4 border-t border-gray-700">
-                <div className="flex gap-3">
-                  <button
-                    onClick={async () => {
-                      setShowGenreModal(false);
-                      await handleSearch();
-                    }}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
-                  >
-                    決定
-                  </button>
-                  <button
-                    onClick={() => setSelectedGenreIds([])}
-                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
-                  >
-                    リセット
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* 右側：固定エリア（横画面時のみ） */}
-            <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-between landscape:pt-3 landscape:pb-6 landscape:px-3 landscape:bg-gray-900/50">
-              {/* 上部コンテンツ */}
-              <div className="flex flex-col gap-3">
-                {/* タイトル、件数、閉じるボタン */}
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold text-white">ジャンルを選択</h2>
-                  <div className="flex items-center gap-3">
-                    {selectedGenreIds.length > 0 && currentFilterCount > 0 && (
-                      <p className="text-gray-400 text-sm">
-                        {currentFilterCount.toLocaleString()}件
-                      </p>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowGenreModal(false);
-                      }}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 検索入力 */}
-                <input
-                  type="text"
-                  value={genreSearchKeyword}
-                  onChange={(e) => setGenreSearchKeyword(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="ジャンル名で検索..."
-                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
-                />
-
-                {/* 選択中のジャンル表示 */}
-                {selectedGenreIds.length > 0 && (
-                  <div className="p-3 bg-gray-800 rounded-lg max-h-32 overflow-y-auto">
-                    <div className="flex items-start gap-1.5 flex-wrap">
-                      <p className="text-xs text-gray-400">選択中:</p>
-                      {genres
-                        .filter((g: Genre) => selectedGenreIds.includes(g.id))
-                        .map((g: Genre) => (
-                          <span key={g.id} className="bg-blue-500 text-white px-1.5 py-0.5 rounded text-xs">
-                            {g.name}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 決定・リセットボタン（下部固定） */}
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setShowGenreModal(false);
-                    await handleSearch();
-                  }}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors font-medium"
-                >
-                  決定
-                </button>
-                <button
-                  onClick={() => setSelectedGenreIds([])}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg transition-colors font-medium"
-                >
-                  リセット
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 女優選択モーダル - レスポンシブ対応 */}
-      {showActressModal && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center md:p-4">
-          <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl flex flex-col landscape:flex-row overflow-hidden">
-            {/* 左側：女優リスト（横画面時） */}
-            <div className="flex-1 landscape:w-[55%] flex flex-col overflow-hidden">
-              {/* ヘッダー（縦画面のみ） */}
-              <div className="landscape:hidden flex items-center justify-between p-4 border-b border-gray-700">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-white">女優を選択</h2>
-                  {selectedActressIds.length > 0 && currentFilterCount > 0 && (
-                    <span className="text-gray-400 text-sm">
-                      {currentFilterCount.toLocaleString()}件
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowActressModal(false);
-                  }}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* 選択中の女優表示（縦画面のみ） */}
-              {selectedActressIds.length > 0 && (
-                <div className="landscape:hidden p-4 border-b border-gray-700">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-gray-400">選択中:</p>
-                    {actresses
-                      .filter((a: Actress) => selectedActressIds.includes(a.id))
-                      .map((a: Actress) => (
-                        <span key={a.id} className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs">
-                          {a.name}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 検索入力（縦画面のみ） */}
-              <div className="landscape:hidden p-4 border-b border-gray-700">
-                <input
-                  type="text"
-                  value={actressSearchKeyword}
-                  onChange={(e) => setActressSearchKeyword(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="女優名で検索..."
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                />
-              </div>
-
-              {/* 女優リスト */}
-              <div className="flex-1 overflow-y-auto p-4 landscape:pb-0">
-                <div className="grid grid-cols-2 gap-2">
-                  {displayActresses.map((actress) => {
-                    const isSelected = selectedActressIds.includes(actress.id);
-                    return (
-                      <button
-                        key={actress.id}
-                        onClick={() => toggleActressSelection(actress.id)}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isSelected
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {actress.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ボタンエリア（縦画面のみ） */}
-              <div className="landscape:hidden p-4 border-t border-gray-700">
-                <div className="flex gap-3">
-                  <button
-                    onClick={async () => {
-                      setShowActressModal(false);
-                      await handleSearch();
-                    }}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg transition-colors font-medium"
-                  >
-                    決定
-                  </button>
-                  <button
-                    onClick={() => setSelectedActressIds([])}
-                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg transition-colors font-medium"
-                  >
-                    リセット
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* 右側：固定エリア（横画面時のみ） */}
-            <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-between landscape:pt-3 landscape:pb-6 landscape:px-3 landscape:bg-gray-900/50">
-              {/* 上部コンテンツ */}
-              <div className="flex flex-col gap-3">
-                {/* タイトル、件数、閉じるボタン */}
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold text-white">女優を選択</h2>
-                  <div className="flex items-center gap-3">
-                    {selectedActressIds.length > 0 && currentFilterCount > 0 && (
-                      <p className="text-gray-400 text-sm">
-                        {currentFilterCount.toLocaleString()}件
-                      </p>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShowActressModal(false);
-                      }}
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 検索入力 */}
-                <input
-                  type="text"
-                  value={actressSearchKeyword}
-                  onChange={(e) => setActressSearchKeyword(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  placeholder="女優名で検索..."
-                  className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                />
-
-                {/* 選択中の女優表示 */}
-                {selectedActressIds.length > 0 && (
-                  <div className="p-3 bg-gray-800 rounded-lg max-h-32 overflow-y-auto">
-                    <div className="flex items-start gap-1.5 flex-wrap">
-                      <p className="text-xs text-gray-400">選択中:</p>
-                      {actresses
-                        .filter((a: Actress) => selectedActressIds.includes(a.id))
-                        .map((a: Actress) => (
-                          <span key={a.id} className="bg-blue-500 text-white px-1.5 py-0.5 rounded text-xs">
-                            {a.name}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 決定・リセットボタン（下部固定） */}
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    setShowActressModal(false);
-                    await handleSearch();
-                  }}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors font-medium"
-                >
-                  決定
-                </button>
-                <button
-                  onClick={() => setSelectedActressIds([])}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg transition-colors font-medium"
-                >
-                  リセット
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
