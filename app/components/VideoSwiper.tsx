@@ -90,9 +90,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   // プール管理
   const [videoPool, setVideoPool] = useState<Video[]>(initialVideoPool);
   const [poolIndex, setPoolIndex] = useState<number>(20); // 初期表示で20件消費済み
-
-  // URLパラメータ処理済みフラグ
-  const processedUrlParamRef = useRef<string | null>(null);
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
     monthly: [],
@@ -163,43 +160,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     fetchLikes();
   }, [userId]);
-
-  // URLパラメータ（?v=xxx）を処理して該当動画にスクロール
-  useEffect(() => {
-    if (!emblaApi) return;
-
-    const videoParam = searchParams.get('v');
-    if (!videoParam) return;
-
-    // 既に処理済みのURLパラメータの場合はスキップ
-    if (processedUrlParamRef.current === videoParam) return;
-
-    // 現在表示中の動画リストから該当動画を探す
-    const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
-
-    if (targetIndex !== -1) {
-      // 動画が見つかった場合、そこにスクロール
-      emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
-      processedUrlParamRef.current = videoParam; // 処理済みとしてマーク
-    } else {
-      // 見つからない場合、プールから探す
-      const foundIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
-
-      if (foundIndex !== -1) {
-        // プールから見つかった場合、そこまでの動画を表示リストに追加
-        const videosToAdd = videoPool.slice(poolIndex, foundIndex + 1);
-        setVideos(prev => [...prev, ...videosToAdd]);
-        setPoolIndex(foundIndex + 1);
-        processedUrlParamRef.current = videoParam; // 処理済みとしてマーク
-
-        // 次のレンダリング後にスクロール
-        setTimeout(() => {
-          const newIndex = videos.length + videosToAdd.length - 1;
-          emblaApi.scrollTo(newIndex, false);
-        }, 100);
-      }
-    }
-  }, [emblaApi, searchParams, videoPool, poolIndex]);
 
   // 履歴に追加する関数
   const addToHistory = useCallback((videoId: string) => {
@@ -323,9 +283,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }
 
         window.history.pushState({}, '', url.toString());
-
-        // URLパラメータ処理の無限ループを防ぐため、このURLを処理済みとしてマーク
-        processedUrlParamRef.current = currentVideo.dmm_content_id;
       }
     };
 
@@ -956,7 +913,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             const url = new URL(window.location.href);
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
-            processedUrlParamRef.current = videoId;
           } else {
             // 現在のvideosに動画が存在しない場合、プールから探す
             const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoId);
@@ -975,7 +931,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                   const url = new URL(window.location.href);
                   url.searchParams.set('v', videoId);
                   window.history.pushState({}, '', url.toString());
-                  processedUrlParamRef.current = videoId;
                 }
               });
             } else {
@@ -1000,7 +955,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     const url = new URL(window.location.href);
                     url.searchParams.set('v', videoId);
                     window.history.pushState({}, '', url.toString());
-                    processedUrlParamRef.current = videoId;
                   }
                 });
               }
@@ -1025,7 +979,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
               emblaApi.reInit();
               setTimeout(() => {
                 emblaApi.scrollTo(targetIndex, false);
-                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1069,7 +1022,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
-                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1106,7 +1058,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
-                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
@@ -1143,7 +1094,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 const url = new URL(window.location.href);
                 url.searchParams.set('v', selectedVideoId);
                 window.history.pushState({}, '', url.toString());
-                processedUrlParamRef.current = selectedVideoId;
               }, 150);
             }
           }
