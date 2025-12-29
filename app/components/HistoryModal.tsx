@@ -72,11 +72,11 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
 
   return (
     <div className="fixed inset-0 bg-black/80 md:bg-black/60 z-[60] flex items-center justify-center md:p-4">
-      <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl flex flex-col landscape:flex-row overflow-hidden">
-        {/* 左側：コンテンツ（横画面時） */}
-        <div className="flex-1 landscape:w-[55%] flex flex-col overflow-hidden">
-          {/* ヘッダー（縦画面のみ） */}
-          <div className="landscape:hidden bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 shrink-0">
+      <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
+        {/* 左側：コンテンツ（横画面時・PC時） */}
+        <div className="flex-1 landscape:w-[55%] lg:w-[55%] flex flex-col overflow-hidden">
+          {/* ヘッダー（縦画面のみ、PC時は非表示） */}
+          <div className="landscape:hidden lg:hidden bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 shrink-0">
             <div className="px-4 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-white">視聴履歴</h2>
               <div className="flex items-center gap-4">
@@ -105,7 +105,7 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
           </div>
 
           {/* コンテンツ */}
-          <div className="flex-1 overflow-y-auto landscape:pb-0 pb-20">
+          <div className="flex-1 overflow-y-auto landscape:pb-0 lg:pb-0 pb-20">
           <div className="px-4 py-6">
             {loading ? (
               <div className="text-center py-12">
@@ -156,8 +156,8 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
           </div>
         </div>
 
-        {/* 右側：固定エリア（横画面時のみ） */}
-        <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-center landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50">
+        {/* 右側：固定エリア（横画面時・PC時のみ） */}
+        <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-center landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 lg:flex lg:w-[45%] lg:flex-col lg:justify-center lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50">
           <div className="flex flex-col gap-4">
             <h2 className="text-2xl font-bold text-white">視聴履歴</h2>
             {historyVideos.length > 0 && (
@@ -181,8 +181,8 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
           </div>
         </div>
 
-        {/* 閉じるボタン - 最下部固定（縦画面のみ） */}
-        <div className="landscape:hidden absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4 z-20">
+        {/* 閉じるボタン - 最下部固定（縦画面のみ、PC時は非表示） */}
+        <div className="landscape:hidden lg:hidden absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4 z-20">
           <button
             onPointerDown={(e) => {
               e.preventDefault();

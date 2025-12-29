@@ -473,11 +473,11 @@ export default function SearchModal({
       {/* モーダルバックドロップ - 大画面では半透明背景 */}
       <div className="fixed inset-0 z-50 bg-black/80 md:bg-black/60 flex items-center justify-center md:p-4">
         {/* モーダルコンテンツ - レスポンシブ対応 */}
-        <div className="w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row overflow-hidden">
-          {/* 左側：コンテンツ領域（横画面時） */}
-          <div className="flex-1 landscape:w-[55%] flex flex-col overflow-hidden">
-            {/* ヘッダー（縦画面のみ） */}
-            <div className="landscape:hidden px-4 py-4 border-b border-gray-800">
+        <div className="w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
+          {/* 左側：コンテンツ領域（横画面時・PC時） */}
+          <div className="flex-1 landscape:w-[55%] lg:w-[55%] flex flex-col overflow-hidden">
+            {/* ヘッダー（縦画面のみ、PC時は非表示） */}
+            <div className="landscape:hidden lg:hidden px-4 py-4 border-b border-gray-800">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-white">検索</h2>
               </div>
@@ -570,7 +570,7 @@ export default function SearchModal({
             </div>
 
             {/* コンテンツエリア */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 search-modal-content landscape:pb-0">
+            <div className="flex-1 overflow-y-auto px-4 py-4 search-modal-content landscape:pb-0 lg:pb-0">
               {loading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
@@ -668,8 +668,8 @@ export default function SearchModal({
             </div>
           </div>
 
-          {/* 右側：固定エリア（横画面時のみ） */}
-          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto">
+          {/* 右側：固定エリア（横画面時・PC時のみ） */}
+          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto lg:flex lg:w-[45%] lg:flex-col lg:justify-start lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50 lg:overflow-y-auto">
             <h2 className="text-2xl font-bold text-white">検索</h2>
 
             <div className="flex flex-col gap-3">
@@ -801,8 +801,8 @@ export default function SearchModal({
             </div>
           </div>
 
-          {/* ボタンエリア - 最下部（縦画面のみ） */}
-          <div className="landscape:hidden border-t border-gray-800 p-4">
+          {/* ボタンエリア - 最下部（縦画面のみ、PC時は非表示） */}
+          <div className="landscape:hidden lg:hidden border-t border-gray-800 p-4">
             <div className="flex gap-3">
               {/* 選択をクリアボタン */}
               {((searchMode === 'genre' && selectedGenreIds.length > 0) ||

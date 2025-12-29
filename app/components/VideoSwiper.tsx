@@ -378,19 +378,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
-        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide pt-6 landscape:pt-0" ref={emblaRef}>
+        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide pt-6 landscape:pt-0 lg:pt-0" ref={emblaRef}>
           <div className="flex flex-col">
             {videos.map((video, index) => (
               <div
                 key={video.id}
-                className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden"
+                className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden lg:overflow-hidden"
               >
-                {/* メインコンテンツエリア - レスポンシブ対応（横画面時は左側のみ） */}
-                <div className="flex flex-col landscape:flex-row landscape:items-center items-center md:justify-center h-full landscape:gap-0 landscape:px-0">
+                {/* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */}
+                <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
-                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden w-full flex-shrink-0">
+                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
                     {/* タイトル - 高さ固定（2行分）縦画面のみ表示 */}
-                    <div className="h-16 w-full px-4 flex items-center justify-between gap-2 md:max-w-4xl md:mx-auto landscape:hidden">
+                    <div className="h-16 w-full px-4 flex items-center justify-between gap-2 md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
                       <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">
                         {video.title}
                       </h2>
@@ -408,7 +408,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 md:max-w-4xl md:mx-auto aspect-[4/3] cursor-pointer bg-black"
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
                     <Image
@@ -446,8 +446,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </div>
                     </div>
 
-                    {/* FANZAクレジット - 横画面時のみ表示（サムネイルの下） */}
-                    <div className="hidden landscape:flex landscape:justify-center landscape:items-center bg-black/50 backdrop-blur-sm text-white landscape:h-8 landscape:flex-shrink-0 text-xs landscape:px-2">
+                    {/* FANZAクレジット - 横画面時・PC時のみ表示（サムネイルの下） */}
+                    <div className="hidden landscape:flex landscape:justify-center landscape:items-center lg:flex lg:justify-center lg:items-center bg-black/50 backdrop-blur-sm text-white landscape:h-8 landscape:flex-shrink-0 lg:h-8 lg:flex-shrink-0 text-xs landscape:px-2 lg:px-2">
                       {enableAffiliateLinks ? (
                         <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
                       ) : (
@@ -514,8 +514,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         </div>
       </div>
 
-      {/* 右側固定エリア - 横画面時のみ表示 */}
-      <div className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto">
+      {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
+      <div className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
         {/* タイトル - 2行固定 */}
         {currentVideo && (
           <div className="h-12 flex items-start overflow-hidden flex-shrink-0">
@@ -621,8 +621,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         </div>
       </div>
 
-      {/* 下部固定エリア - レスポンシブ対応（横画面時は非表示） */}
-      <div className="landscape:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
+      {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
+      <div className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 動画情報 - 高さ固定（2行分） */}
           <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex flex-col justify-end">
@@ -731,7 +731,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       {showVideoModal && (
         <div
           key={`modal-${isLandscape ? 'landscape' : 'portrait'}-${modalKey}`}
-          className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-start landscape:flex-row landscape:items-stretch landscape:justify-start landscape:p-0 landscape:gap-0"
+          className="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-start landscape:flex-row landscape:items-stretch landscape:justify-start landscape:p-0 landscape:gap-0 lg:flex-row lg:items-stretch lg:justify-start lg:p-0 lg:gap-0"
           onClick={closeModal}
           onTouchStart={handleModalTouchStart}
           onTouchEnd={handleModalTouchEnd}
@@ -747,8 +747,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </div>
           )}
 
-          {/* 左側コントロールエリア - 横画面時のみ表示 */}
-          <div className="hidden landscape:flex landscape:flex-1 landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2">
+          {/* 左側コントロールエリア - 横画面時・PC時のみ表示 */}
+          <div className="hidden landscape:flex landscape:flex-1 landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2 lg:flex lg:flex-1 lg:flex-col lg:items-stretch lg:justify-between lg:py-4 lg:px-2">
             {/* 閉じるボタン（上部固定） */}
             <div className="flex justify-center">
               <button
@@ -816,11 +816,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
           <div
-            className="w-full landscape:w-auto landscape:flex-shrink-0 landscape:flex landscape:items-center landscape:justify-center"
+            className="w-full landscape:w-auto landscape:flex-shrink-0 landscape:flex landscape:items-center landscape:justify-center lg:w-auto lg:flex-shrink-0 lg:flex lg:items-center lg:justify-center"
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:w-auto landscape:h-[90vh] landscape:aspect-[560/420]"
+              className="w-full aspect-[560/420] landscape:w-auto landscape:h-[90vh] landscape:aspect-[560/420] lg:w-auto lg:h-[90vh] lg:aspect-[560/420]"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
@@ -842,8 +842,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </div>
           )}
 
-          {/* 縦画面時のみ表示 */}
-          <div className="landscape:hidden w-full">
+          {/* 縦画面時のみ表示（PC時は非表示） */}
+          <div className="landscape:hidden lg:hidden w-full">
             {/* 価格表示と詳細ページボタン */}
             <div
               className="w-full px-4 mt-4 relative"
@@ -875,14 +875,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </div>
           </div>
 
-          {/* いいねボタン - 縦画面時のみ表示 */}
+          {/* いいねボタン - 縦画面時のみ表示（PC時は非表示） */}
           {currentVideo && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 toggleLike(currentVideo.id, e);
               }}
-              className="landscape:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
+              className="landscape:hidden lg:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
               aria-label="いいね"
             >
               {(likedVideos.has(currentVideo.id) || likedVideos.has(currentVideo.dmm_content_id)) ? (
@@ -897,8 +897,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             </button>
           )}
 
-          {/* 閉じるヒント - 縦画面時のみ表示 */}
-          <div className="landscape:hidden flex-1 flex items-start justify-center pt-4">
+          {/* 閉じるヒント - 縦画面時のみ表示（PC時は非表示） */}
+          <div className="landscape:hidden lg:hidden flex-1 flex items-start justify-center pt-4">
             <p className="text-white/60 text-sm">画面をタップで閉じる</p>
           </div>
         </div>
