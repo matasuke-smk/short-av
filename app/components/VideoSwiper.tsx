@@ -516,7 +516,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                       <div className="w-full md:max-w-4xl md:mx-auto">
                         <DMMBanner
                           key={`thumbnail-banner-${video.id}-${currentIndex}`}
-                          bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
+                          bannerId={landscapeBannerIds[currentIndex % 2]}
                           className="w-full aspect-[640/200]"
                         />
                       </div>
@@ -586,7 +586,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {isLandscape && currentVideo && (
             <DMMBanner
               key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
-              bannerId={landscapeBannerIds[(currentIndex + 3) % landscapeBannerIds.length]}
+              bannerId={landscapeBannerIds[currentIndex % 2]}
               className="w-full aspect-[640/200]"
             />
           )}
@@ -797,7 +797,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             <div className="w-full">
               <DMMBanner
                 key={`modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={landscapeBannerIds[(currentIndex + 5) % landscapeBannerIds.length]}
+                bannerId={landscapeBannerIds[(currentIndex + 1) % 2]}
                 className="w-full aspect-[640/200]"
               />
             </div>
@@ -892,7 +892,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             <div className="flex-shrink-0 h-[90vh] w-auto aspect-[160/600]">
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={portraitBannerIds[currentIndex % portraitBannerIds.length]}
+                bannerId={portraitBannerIds[(currentIndex + 1) % 2]}
                 className="w-full h-full"
               />
             </div>
