@@ -70,26 +70,34 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         if (missingVideoIds.length > 0) {
           console.log(`いいね済み動画のうち${missingVideoIds.length}件がプールに見つかりませんでした。データベースから取得します...`);
 
-          // データベースから直接取得（まずidで検索）
-          const { data: videosById } = await (await import('@/lib/supabase')).supabase
-            .from('videos')
-            .select('*')
-            .in('id', missingVideoIds);
+          // UUIDとDMM content_idを分類（UUIDは8-4-4-4-12形式）
+          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const uuidIds = missingVideoIds.filter((id: string) => uuidPattern.test(id));
+          const dmmContentIds = missingVideoIds.filter((id: string) => !uuidPattern.test(id));
 
-          const foundByIdSet = new Set((videosById || []).map((v: Video) => v.id));
-          const stillMissingIds = missingVideoIds.filter((id: string) => !foundByIdSet.has(id));
+          console.log(`UUID形式: ${uuidIds.length}件, DMM content_id形式: ${dmmContentIds.length}件`);
 
-          // 見つからなかったものをdmm_content_idで検索
-          let videosByDmmContentId: Video[] = [];
-          if (stillMissingIds.length > 0) {
+          // UUID形式のIDで検索
+          let videosById: Video[] = [];
+          if (uuidIds.length > 0) {
             const { data } = await (await import('@/lib/supabase')).supabase
               .from('videos')
               .select('*')
-              .in('dmm_content_id', stillMissingIds);
+              .in('id', uuidIds);
+            videosById = data || [];
+          }
+
+          // DMM content_id形式のIDで検索
+          let videosByDmmContentId: Video[] = [];
+          if (dmmContentIds.length > 0) {
+            const { data } = await (await import('@/lib/supabase')).supabase
+              .from('videos')
+              .select('*')
+              .in('dmm_content_id', dmmContentIds);
             videosByDmmContentId = data || [];
           }
 
-          missingVideos = [...(videosById || []), ...videosByDmmContentId];
+          missingVideos = [...videosById, ...videosByDmmContentId];
           console.log(`データベースから${missingVideos.length}件の動画を取得しました`);
         }
 
