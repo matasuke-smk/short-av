@@ -90,6 +90,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   // プール管理
   const [videoPool, setVideoPool] = useState<Video[]>(initialVideoPool);
   const [poolIndex, setPoolIndex] = useState<number>(20); // 初期表示で20件消費済み
+
+  // URLパラメータ処理済みフラグ
+  const processedUrlParamRef = useRef<string | null>(null);
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
     monthly: [],
@@ -166,32 +169,37 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (!emblaApi) return;
 
     const videoParam = searchParams.get('v');
-    if (videoParam) {
-      // 現在表示中の動画リストから該当動画を探す
-      const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
+    if (!videoParam) return;
 
-      if (targetIndex !== -1) {
-        // 動画が見つかった場合、そこにスクロール
-        emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
-      } else {
-        // 見つからない場合、プールから探す
-        const foundIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
+    // 既に処理済みのURLパラメータの場合はスキップ
+    if (processedUrlParamRef.current === videoParam) return;
 
-        if (foundIndex !== -1) {
-          // プールから見つかった場合、そこまでの動画を表示リストに追加
-          const videosToAdd = videoPool.slice(poolIndex, foundIndex + 1);
-          setVideos(prev => [...prev, ...videosToAdd]);
-          setPoolIndex(foundIndex + 1);
+    // 現在表示中の動画リストから該当動画を探す
+    const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
 
-          // 次のレンダリング後にスクロール
-          setTimeout(() => {
-            const newIndex = videos.length + videosToAdd.length - 1;
-            emblaApi.scrollTo(newIndex, false);
-          }, 100);
-        }
+    if (targetIndex !== -1) {
+      // 動画が見つかった場合、そこにスクロール
+      emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
+      processedUrlParamRef.current = videoParam; // 処理済みとしてマーク
+    } else {
+      // 見つからない場合、プールから探す
+      const foundIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
+
+      if (foundIndex !== -1) {
+        // プールから見つかった場合、そこまでの動画を表示リストに追加
+        const videosToAdd = videoPool.slice(poolIndex, foundIndex + 1);
+        setVideos(prev => [...prev, ...videosToAdd]);
+        setPoolIndex(foundIndex + 1);
+        processedUrlParamRef.current = videoParam; // 処理済みとしてマーク
+
+        // 次のレンダリング後にスクロール
+        setTimeout(() => {
+          const newIndex = videos.length + videosToAdd.length - 1;
+          emblaApi.scrollTo(newIndex, false);
+        }, 100);
       }
     }
-  }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
+  }, [emblaApi, searchParams, videoPool, poolIndex]);
 
   // 履歴に追加する関数
   const addToHistory = useCallback((videoId: string) => {
