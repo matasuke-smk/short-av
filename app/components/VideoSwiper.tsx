@@ -758,7 +758,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           )}
 
           {/* 左側コントロールエリア - 横画面時・PC時のみ表示 */}
-          <div className="hidden landscape:flex landscape:w-[5%] landscape:min-w-[80px] landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2 lg:flex lg:w-[5%] lg:min-w-[80px] lg:flex-col lg:items-stretch lg:justify-between lg:py-4 lg:px-2">
+          <div className="hidden landscape:flex landscape:w-[15%] landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2 lg:flex lg:w-[15%] lg:flex-col lg:items-stretch lg:justify-between lg:py-4 lg:px-2">
             {/* 閉じるボタン（上部固定） */}
             <div className="flex justify-center">
               <button
@@ -830,7 +830,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:aspect-auto landscape:w-full landscape:h-full landscape:max-h-screen lg:aspect-auto lg:w-full lg:h-full lg:max-h-screen"
+              className="w-full aspect-[560/420] landscape:w-[70vw] landscape:h-[90vh] landscape:aspect-auto lg:w-[70vw] lg:h-[90vh] lg:aspect-auto"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
@@ -841,8 +841,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           </div>
 
-          {/* バナー領域 - 一時的に非表示（動画エリア最大化のため） */}
-          {/* {isLandscape && currentVideo && (
+          {/* バナー領域 - 横画面時のみ表示（上下中央配置） */}
+          {isLandscape && currentVideo && (
             <div className="flex-shrink-0 h-full w-auto flex items-center justify-center">
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
@@ -850,7 +850,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 className="w-auto h-auto max-h-[90vh]"
               />
             </div>
-          )} */}
+          )}
 
           {/* 縦画面時のみ表示（PC時は非表示） */}
           <div className="landscape:hidden lg:hidden w-full">
