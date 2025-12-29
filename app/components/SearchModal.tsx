@@ -76,6 +76,21 @@ export default function SearchModal({
         offset += batchSize;
       }
 
+      // videoPoolから各ジャンルの動画数をカウント
+      const genreCounts = new Map<string, number>();
+      videoPool.forEach(video => {
+        (video.genre_ids || []).forEach((genreId: string) => {
+          genreCounts.set(genreId, (genreCounts.get(genreId) || 0) + 1);
+        });
+      });
+
+      // 動画数の多い順（人気順）にソート
+      allGenres.sort((a, b) => {
+        const countA = genreCounts.get(a.id) || 0;
+        const countB = genreCounts.get(b.id) || 0;
+        return countB - countA; // 降順
+      });
+
       setGenres(allGenres);
     };
 
@@ -101,12 +116,27 @@ export default function SearchModal({
         offset += batchSize;
       }
 
+      // videoPoolから各女優の動画数をカウント
+      const actressCounts = new Map<string, number>();
+      videoPool.forEach(video => {
+        (video.actress_ids || []).forEach((actressId: string) => {
+          actressCounts.set(actressId, (actressCounts.get(actressId) || 0) + 1);
+        });
+      });
+
+      // 動画数の多い順（人気順）にソート
+      allActresses.sort((a, b) => {
+        const countA = actressCounts.get(a.id) || 0;
+        const countB = actressCounts.get(b.id) || 0;
+        return countB - countA; // 降順
+      });
+
       setActresses(allActresses);
     };
 
     loadGenres();
     loadActresses();
-  }, [isOpen]);
+  }, [isOpen, videoPool]);
 
   // 選択条件での件数とフィルタ可能なジャンル/女優をデータベースから取得
   useEffect(() => {
