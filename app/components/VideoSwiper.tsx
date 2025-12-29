@@ -386,7 +386,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden lg:overflow-hidden"
               >
                 {/* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */}
-                <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
+                <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
                   <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
                     {/* タイトル - 高さ固定（2行分）縦画面のみ表示 */}
@@ -408,7 +408,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto aspect-[4/3] cursor-pointer bg-black"
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
                     <Image
@@ -457,7 +457,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     {index === currentIndex && !isLandscape && (
-                      <div className="w-full md:max-w-4xl md:mx-auto">
+                      <div className="w-full md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0">
                         <DMMBanner
                           key={`thumbnail-banner-${video.id}-${currentIndex}`}
                           bannerId={landscapeBannerIds[currentIndex % 2]}
