@@ -8,25 +8,6 @@ import type { Database } from '@/lib/supabase';
 type Video = Database['public']['Tables']['videos']['Row'];
 type Genre = Database['public']['Tables']['genres']['Row'];
 type Actress = Database['public']['Tables']['actresses']['Row'];
-type GenderFilter = 'straight' | 'lesbian' | 'gay';
-
-interface GenderCounts {
-  straight: number;
-  lesbian: number;
-  gay: number;
-}
-
-interface GenderVideos {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
-
-interface GenderPools {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -34,9 +15,7 @@ interface SearchModalProps {
   onVideoSelect: (videoId: string) => void;
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
   currentVideoId?: string;
-  genderCounts?: GenderCounts;
-  genderVideos?: GenderVideos; // 各フィルタの初期20件
-  genderPools?: GenderPools; // 各フィルタのプール全件
+  videoPool: Video[]; // 単一プール
 }
 
 export default function SearchModal({
@@ -45,15 +24,12 @@ export default function SearchModal({
   onVideoSelect,
   onReplaceVideos,
   currentVideoId,
-  genderCounts,
-  genderVideos,
-  genderPools
+  videoPool
 }: SearchModalProps) {
   // 検索UI状態
   const [searchMode, setSearchMode] = useState<'keyword' | 'genre' | 'actress'>('keyword');
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [genderFilter, setGenderFilter] = useState<GenderFilter>('straight');
   const [showGenreModal, setShowGenreModal] = useState(false);
   const [showActressModal, setShowActressModal] = useState(false);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
@@ -65,15 +41,8 @@ export default function SearchModal({
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [selectedActressIds, setSelectedActressIds] = useState<string[]>([]);
 
-  // 各フィルタのプール（検索結果の全件）
-  const [straightPool, setStraightPool] = useState<Video[]>([]);
-  const [lesbianPool, setLesbianPool] = useState<Video[]>([]);
-  const [gayPool, setGayPool] = useState<Video[]>([]);
-
-  // 各フィルタの元のプール（page.tsxから渡された全動画、上書きしない）
-  const [originalStraightPool, setOriginalStraightPool] = useState<Video[]>([]);
-  const [originalLesbianPool, setOriginalLesbianPool] = useState<Video[]>([]);
-  const [originalGayPool, setOriginalGayPool] = useState<Video[]>([]);
+  // 検索結果プール
+  const [searchResultPool, setSearchResultPool] = useState<Video[]>([]);
 
   // 利用可能なジャンル/女優
   const [availableGenres, setAvailableGenres] = useState<Set<string>>(new Set());
@@ -82,66 +51,6 @@ export default function SearchModal({
 
   // refs
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // 現在のフィルタのプールを取得
-  const currentPool = {
-    straight: straightPool,
-    lesbian: lesbianPool,
-    gay: gayPool
-  }[genderFilter];
-
-  // 初期化: propsからプールを設定（初回のみ）
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (isOpen && genderPools && !initializedRef.current) {
-      setStraightPool(genderPools.straight || []);
-      setOriginalStraightPool(genderPools.straight || []);
-
-      setLesbianPool(genderPools.lesbian || []);
-      setOriginalLesbianPool(genderPools.lesbian || []);
-
-      setGayPool(genderPools.gay || []);
-      setOriginalGayPool(genderPools.gay || []);
-
-      initializedRef.current = true;
-    }
-  }, [isOpen, genderPools]);
-
-  // 現在の動画から性別フィルタを判定（初回のみ）
-  useEffect(() => {
-    if (!isOpen || genres.length === 0) return;
-
-    // 現在の動画をDBから取得して性別フィルタを判定
-    const determineGenderFilter = async () => {
-      if (!currentVideoId) return;
-
-      const { data: currentVideo } = await supabase
-        .from('videos')
-        .select('*')
-        .eq('dmm_content_id', currentVideoId)
-        .single();
-
-      if (currentVideo) {
-        const genreMap = new Map(genres.map(g => [g.id, g.name]));
-        const videoGenreNames = (currentVideo.genre_ids || [])
-          .map((id: string) => genreMap.get(id) || '')
-          .join(',');
-
-        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-        const hasGay = videoGenreNames.includes('ゲイ');
-
-        if (hasLesbian && !hasGay) {
-          setGenderFilter('lesbian');
-        } else if (hasGay && !hasLesbian) {
-          setGenderFilter('gay');
-        } else {
-          setGenderFilter('straight');
-        }
-      }
-    };
-
-    determineGenderFilter();
-  }, [isOpen, currentVideoId, genres]);
 
   // ジャンル・女優データのロード
   useEffect(() => {
@@ -477,39 +386,17 @@ export default function SearchModal({
           return a.id.localeCompare(b.id);
         });
       } else {
-        // 検索条件なし（性別フィルタのみ）
+        // 検索条件なし
         setLoading(false);
         return;
       }
 
-      // 性別フィルタを適用
-      const genreMap = new Map(genres.map(g => [g.id, g.name]));
-      const filteredData = data.filter(video => {
-        const videoGenreNames = (video.genre_ids || [])
-          .map((id: string) => genreMap.get(id) || '')
-          .join(',');
-
-        const hasLesbian = videoGenreNames.includes('レズビアン') || videoGenreNames.includes('レズキス');
-        const hasGay = videoGenreNames.includes('ゲイ');
-
-        if (genderFilter === 'straight') return !hasLesbian && !hasGay;
-        if (genderFilter === 'lesbian') return hasLesbian && !hasGay;
-        if (genderFilter === 'gay') return hasGay && !hasLesbian;
-        return false;
-      });
-
-      // 検索結果のプールを更新
-      if (genderFilter === 'straight') {
-        setStraightPool(filteredData);
-      } else if (genderFilter === 'lesbian') {
-        setLesbianPool(filteredData);
-      } else if (genderFilter === 'gay') {
-        setGayPool(filteredData);
-      }
+      // 検索結果プールを更新
+      setSearchResultPool(data);
 
       // 検索結果が見つかった場合、すぐにスワイプ画面に遷移
-      if (filteredData.length > 0) {
-        onReplaceVideos(filteredData, filteredData[0].dmm_content_id);
+      if (data.length > 0) {
+        onReplaceVideos(data, data[0].dmm_content_id);
         setTimeout(() => onClose(), 200);
       }
     } catch (error) {
@@ -551,17 +438,6 @@ export default function SearchModal({
     ? filteredGenres.filter(g => availableGenres.has(g.id))
     : filteredGenres;
 
-  // 性別フィルタ変更ハンドラー
-  const handleGenderFilterChange = (newFilter: GenderFilter) => {
-    if (newFilter !== genderFilter) {
-      setGenderFilter(newFilter);
-      setSearchMode('keyword');
-      setSelectedGenreIds([]);
-      setSelectedActressIds([]);
-      setKeyword('');
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -577,40 +453,6 @@ export default function SearchModal({
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">検索</h2>
             </div>
-
-          {/* 性別フィルター */}
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => handleGenderFilterChange('straight')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilter === 'straight'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              ♂♀
-            </button>
-            <button
-              onClick={() => handleGenderFilterChange('lesbian')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilter === 'lesbian'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              ♀♀
-            </button>
-            <button
-              onClick={() => handleGenderFilterChange('gay')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors text-sm ${
-                genderFilter === 'gay'
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-gray-700 text-gray-300'
-              }`}
-            >
-              ♂♂
-            </button>
-          </div>
 
           {/* 検索モード切り替え */}
           <div className="flex gap-2 mb-3">
@@ -642,7 +484,7 @@ export default function SearchModal({
                   : 'bg-gray-700 text-gray-300'
               }`}
             >
-              {genderFilter === 'gay' ? '男優' : '女優'}
+              女優
             </button>
           </div>
 
@@ -683,7 +525,7 @@ export default function SearchModal({
                           .filter((a: Actress) => selectedActressIds.includes(a.id))
                           .map((a: Actress) => a.name)
                           .join(', ')
-                      : (genderFilter === 'gay' ? '男優を選択' : '女優を選択')}
+                      : '女優を選択'}
                   </span>
                   {selectedActressIds.length > 0 && currentFilterCount > 0 && (
                     <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
@@ -733,19 +575,12 @@ export default function SearchModal({
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-gray-400 text-sm">検索中...</p>
             </div>
-          ) : currentPool.length === 0 && (keyword || selectedGenreIds.length > 0 || selectedActressIds.length > 0) ? (
-            <div className="text-center py-12">
-              <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <p className="text-gray-400 text-sm">検索結果がありません</p>
-            </div>
           ) : (
             <div className="text-center py-12">
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <p className="text-gray-400 text-sm">性別フィルタを選択するか、キーワード・ジャンル・女優で検索してください</p>
+              <p className="text-gray-400 text-sm">キーワード・ジャンル・女優で検索してください</p>
             </div>
           )}
             </div>
@@ -756,40 +591,6 @@ export default function SearchModal({
             <h2 className="text-2xl font-bold text-white">検索</h2>
 
             <div className="flex flex-col gap-3">
-              {/* 性別フィルター */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleGenderFilterChange('straight')}
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors text-sm ${
-                    genderFilter === 'straight'
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  ♂♀
-                </button>
-                <button
-                  onClick={() => handleGenderFilterChange('lesbian')}
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors text-sm ${
-                    genderFilter === 'lesbian'
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  ♀♀
-                </button>
-                <button
-                  onClick={() => handleGenderFilterChange('gay')}
-                  className={`flex-1 py-3 px-4 rounded-lg transition-colors text-sm ${
-                    genderFilter === 'gay'
-                      ? 'bg-pink-500 text-white'
-                      : 'bg-gray-700 text-gray-300'
-                  }`}
-                >
-                  ♂♂
-                </button>
-              </div>
-
               {/* 検索モード */}
               <div className="flex gap-2">
                 <button
@@ -820,7 +621,7 @@ export default function SearchModal({
                       : 'bg-gray-700 text-gray-300'
                   }`}
                 >
-                  {genderFilter === 'gay' ? '男優' : '女優'}
+                  女優
                 </button>
               </div>
 
@@ -878,7 +679,7 @@ export default function SearchModal({
                         .filter((a: Actress) => selectedActressIds.includes(a.id))
                         .map((a: Actress) => a.name)
                         .join(', ')
-                    : `${genderFilter === 'gay' ? '男優' : '女優'}を選択`}
+                    : '女優を選択'}
                 </button>
               )}
 
@@ -1110,7 +911,7 @@ export default function SearchModal({
               {/* ヘッダー（縦画面のみ） */}
               <div className="landscape:hidden flex items-center justify-between p-4 border-b border-gray-700">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
+                  <h2 className="text-lg font-bold text-white">女優を選択</h2>
                   {selectedActressIds.length > 0 && currentFilterCount > 0 && (
                     <span className="text-gray-400 text-sm">
                       {currentFilterCount.toLocaleString()}件
@@ -1158,7 +959,7 @@ export default function SearchModal({
                       e.currentTarget.blur();
                     }
                   }}
-                  placeholder={genderFilter === 'gay' ? '男優名で検索...' : '女優名で検索...'}
+                  placeholder="女優名で検索..."
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                 />
               </div>
@@ -1213,7 +1014,7 @@ export default function SearchModal({
               <div className="flex flex-col gap-3">
                 {/* タイトル、件数、閉じるボタン */}
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-bold text-white">{genderFilter === 'gay' ? '男優を選択' : '女優を選択'}</h2>
+                  <h2 className="text-2xl font-bold text-white">女優を選択</h2>
                   <div className="flex items-center gap-3">
                     {selectedActressIds.length > 0 && currentFilterCount > 0 && (
                       <p className="text-gray-400 text-sm">
@@ -1245,7 +1046,7 @@ export default function SearchModal({
                       e.currentTarget.blur();
                     }
                   }}
-                  placeholder={genderFilter === 'gay' ? '男優名で検索...' : '女優名で検索...'}
+                  placeholder="女優名で検索..."
                   className="w-full h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                 />
 

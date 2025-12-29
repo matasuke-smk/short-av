@@ -40,27 +40,13 @@ import {
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
-interface GenderCounts {
-  straight: number;
-  lesbian: number;
-  gay: number;
-}
-
-interface GenderVideos {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
-
 interface VideoSwiperProps {
   videos: Video[];
   initialOffset: number;
   totalVideos: number;
   startIndex?: number; // 配列内の開始位置（デフォルト0）
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
-  genderCounts?: GenderCounts; // 性別フィルタ別の総件数
-  genderVideos?: GenderVideos; // 性別フィルタ別の動画リスト
-  genderPools?: GenderVideos; // 性別フィルタ別のプール（全データ）
+  videoPool: Video[]; // 動画プール（全データ）
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -70,7 +56,7 @@ function removeAffiliateIdFromUrl(url: string | null): string {
   return url.replace(/\/affi_id=[^/]+\//g, '/');
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, genderCounts, genderVideos, genderPools }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool }: VideoSwiperProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -101,17 +87,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [isLandscape, setIsLandscape] = useState(false);
   const [modalKey, setModalKey] = useState(0);
 
-  // プール管理（性別フィルタごと）
-  const [videoPools, setVideoPools] = useState<GenderVideos>(genderPools || {
-    straight: [],
-    lesbian: [],
-    gay: []
-  });
-  const [poolIndexes, setPoolIndexes] = useState<{ straight: number, lesbian: number, gay: number }>({
-    straight: 20, // 初期表示で20件消費済み
-    lesbian: 20,
-    gay: 20
-  });
+  // プール管理
+  const [videoPool, setVideoPool] = useState<Video[]>(initialVideoPool);
+  const [poolIndex, setPoolIndex] = useState<number>(20); // 初期表示で20件消費済み
   const [rankingVideos, setRankingVideos] = useState<{ weekly: Video[], monthly: Video[], all: Video[] }>({
     weekly: [],
     monthly: [],
@@ -197,18 +175,13 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         emblaApi.scrollTo(targetIndex, false); // アニメーションなしで即座に移動
       } else {
         // 見つからない場合、プールから探す
-        const currentGender: 'straight' | 'lesbian' | 'gay' = 'straight';
-        const pool = videoPools[currentGender];
-        const poolIndex = pool.findIndex(v => v.dmm_content_id === videoParam);
+        const foundIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
 
-        if (poolIndex !== -1) {
+        if (foundIndex !== -1) {
           // プールから見つかった場合、そこまでの動画を表示リストに追加
-          const videosToAdd = pool.slice(poolIndexes[currentGender], poolIndex + 1);
+          const videosToAdd = videoPool.slice(poolIndex, foundIndex + 1);
           setVideos(prev => [...prev, ...videosToAdd]);
-          setPoolIndexes(prev => ({
-            ...prev,
-            [currentGender]: poolIndex + 1
-          }));
+          setPoolIndex(foundIndex + 1);
 
           // 次のレンダリング後にスクロール
           setTimeout(() => {
@@ -218,7 +191,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }
       }
     }
-  }, [emblaApi, searchParams, videos, videoPools, poolIndexes]);
+  }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
 
   // 履歴に追加する関数
   const addToHistory = useCallback((videoId: string) => {
@@ -240,18 +213,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
     setIsLoadingMore(true);
     try {
-      const currentGender: 'straight' | 'lesbian' | 'gay' = 'straight'; // TODO: 性別フィルタ状態を管理
-      const currentPool = videoPools[currentGender];
-      const currentIndex = poolIndexes[currentGender];
-
       // プールに残りがある場合
-      if (currentIndex < currentPool.length) {
-        const nextVideos = currentPool.slice(currentIndex, currentIndex + 20);
+      if (poolIndex < videoPool.length) {
+        const nextVideos = videoPool.slice(poolIndex, poolIndex + 20);
         setVideos(prev => [...prev, ...nextVideos]);
-        setPoolIndexes(prev => ({
-          ...prev,
-          [currentGender]: prev[currentGender] + 20
-        }));
+        setPoolIndex(prev => prev + 20);
       } else {
         // プールが尽きた場合、新規取得
         console.log('プール尽きた：新規取得を実行');
@@ -260,14 +226,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
         if (data.pool && data.pool.length > 0) {
           // 新しいプールを設定
-          setVideoPools(prev => ({
-            ...prev,
-            [currentGender]: data.pool
-          }));
-          setPoolIndexes(prev => ({
-            ...prev,
-            [currentGender]: 20
-          }));
+          setVideoPool(data.pool);
+          setPoolIndex(20);
           // 最初の20件を追加
           const nextVideos = data.pool.slice(0, 20);
           setVideos(prev => [...prev, ...nextVideos]);
@@ -278,7 +238,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos.length, isLoadingMore, videoPools, poolIndexes]);
+  }, [videos.length, isLoadingMore, videoPool, poolIndex]);
 
   // いいねを切り替える関数
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
@@ -986,18 +946,13 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             url.searchParams.set('v', videoId);
             window.history.pushState({}, '', url.toString());
           } else {
-            // 現在のvideosに動画が存在しない場合
-            // まず現在の性別フィルタのプールから探す
-            const currentGenderFilter = (document.querySelector('[data-gender-filter].bg-white') as HTMLElement)?.dataset?.genderFilter || 'straight';
-            const currentPool = videoPools[currentGenderFilter as keyof typeof videoPools] || [];
-
-            // 現在のプールで動画を探す
-            let poolTargetIndex = currentPool.findIndex(v => v.dmm_content_id === videoId);
+            // 現在のvideosに動画が存在しない場合、プールから探す
+            const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoId);
 
             if (poolTargetIndex !== -1) {
-              // 現在のプールに存在する場合、プール全体を表示用に設定
-              console.log(`動画が現在のプール(${currentGenderFilter})の${poolTargetIndex}番目に見つかりました`);
-              setVideos(currentPool);
+              // プールに存在する場合、プール全体を表示用に設定
+              console.log(`動画がプールの${poolTargetIndex}番目に見つかりました`);
+              setVideos(videoPool);
               setIsFiniteList(true);
               requestAnimationFrame(() => {
                 if (emblaApi) {
@@ -1011,67 +966,29 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 }
               });
             } else {
-              // 他のプールも探す
-              const allPoolVideos = [
-                ...(videoPools.straight || []),
-                ...(videoPools.lesbian || []),
-                ...(videoPools.gay || [])
-              ];
-              const targetVideo = allPoolVideos.find(v => v.dmm_content_id === videoId);
+              // プールに存在しない場合、データベースから直接取得
+              console.log('動画がプールに存在しないため、データベースから取得します');
+              const { data: targetVideo } = await supabase
+                .from('videos')
+                .select('*')
+                .eq('dmm_content_id', videoId)
+                .single();
 
               if (targetVideo) {
-                // 動画が見つかった場合、その動画を含む適切なプールに切り替える
-                let newVideos: any[] = [];
-                if (videoPools.straight?.some(v => v.dmm_content_id === videoId)) {
-                  newVideos = videoPools.straight;
-                } else if (videoPools.lesbian?.some(v => v.dmm_content_id === videoId)) {
-                  newVideos = videoPools.lesbian;
-                } else if (videoPools.gay?.some(v => v.dmm_content_id === videoId)) {
-                  newVideos = videoPools.gay;
-                }
-
-                if (newVideos.length > 0) {
-                  // 新しい動画リストに切り替えて、選択した動画に移動
-                  const newTargetIndex = newVideos.findIndex(v => v.dmm_content_id === videoId);
-                  setVideos(newVideos);
-                  setIsFiniteList(true);
-                  requestAnimationFrame(() => {
-                    if (emblaApi) {
-                      emblaApi.reInit();
-                      emblaApi.scrollTo(newTargetIndex, false);
-                      setCurrentIndex(newTargetIndex);
-                      // URLを更新
-                      const url = new URL(window.location.href);
-                      url.searchParams.set('v', videoId);
-                      window.history.pushState({}, '', url.toString());
-                    }
-                  });
-                }
-              } else {
-                // どのプールにも存在しない場合、データベースから直接取得
-                console.log('動画がプールに存在しないため、データベースから取得します');
-                const { data: targetVideo } = await supabase
-                  .from('videos')
-                  .select('*')
-                  .eq('dmm_content_id', videoId)
-                  .single();
-
-                if (targetVideo) {
-                  // 取得した動画を現在のプールの先頭に追加
-                  const updatedVideos = [targetVideo, ...videos];
-                  setVideos(updatedVideos);
-                  requestAnimationFrame(() => {
-                    if (emblaApi) {
-                      emblaApi.reInit();
-                      emblaApi.scrollTo(0, false); // 先頭（追加した動画）に移動
-                      setCurrentIndex(0);
-                      // URLを更新
-                      const url = new URL(window.location.href);
-                      url.searchParams.set('v', videoId);
-                      window.history.pushState({}, '', url.toString());
-                    }
-                  });
-                }
+                // 取得した動画を現在のプールの先頭に追加
+                const updatedVideos = [targetVideo, ...videos];
+                setVideos(updatedVideos);
+                requestAnimationFrame(() => {
+                  if (emblaApi) {
+                    emblaApi.reInit();
+                    emblaApi.scrollTo(0, false); // 先頭（追加した動画）に移動
+                    setCurrentIndex(0);
+                    // URLを更新
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('v', videoId);
+                    window.history.pushState({}, '', url.toString());
+                  }
+                });
               }
             }
           }
@@ -1099,9 +1016,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
-        genderCounts={genderCounts}
-        genderVideos={genderVideos}
-        genderPools={videoPools}
+        videoPool={videoPool}
       />
 
       {/* ランキングモーダル */}
@@ -1117,7 +1032,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         setRankingVideos={setRankingVideos}
         lastSelectedRanking={lastSelectedRanking}
         setLastSelectedRanking={setLastSelectedRanking}
-        videoPools={videoPools}
+        videoPool={videoPool}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: ランキングから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
           // 選択された動画のindexを見つける
@@ -1152,7 +1067,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           setShowLikedModal(false);
           trackModalClose('liked');
         }}
-        videoPools={videoPools}
+        videoPool={videoPool}
         videos={videos}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: いいね済みから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
@@ -1188,7 +1103,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           setShowHistoryModal(false);
           trackModalClose('history');
         }}
-        videoPools={videoPools}
+        videoPool={videoPool}
         videos={videos}
         onReplaceVideos={(newVideos, selectedVideoId) => {
           console.log('VideoSwiper: 履歴から動画リストを置き換え', { count: newVideos.length, selectedVideoId });

@@ -6,21 +6,15 @@ import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
-interface GenderVideos {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
-
 interface HistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  videoPools: GenderVideos;
+  videoPool: Video[];
   videos: Video[];
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function HistoryModal({ isOpen, onClose, videoPools, videos, onReplaceVideos }: HistoryModalProps) {
+export default function HistoryModal({ isOpen, onClose, videoPool, videos, onReplaceVideos }: HistoryModalProps) {
   const [historyVideos, setHistoryVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,16 +36,9 @@ export default function HistoryModal({ isOpen, onClose, videoPools, videos, onRe
         return;
       }
 
-      // 全プールを結合
-      const allVideos = [
-        ...videoPools.straight,
-        ...videoPools.lesbian,
-        ...videoPools.gay
-      ];
-
       // 履歴の順番でソート
       const sortedVideos = history
-        .map((id: string) => allVideos.find(v => v.id === id))
+        .map((id: string) => videoPool.find(v => v.id === id))
         .filter((v: Video | undefined): v is Video => v !== undefined);
 
       // 見つからなかった動画をログ出力

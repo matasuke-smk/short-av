@@ -13,12 +13,6 @@ interface RankingVideos {
   all: Video[];
 }
 
-interface GenderVideos {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
-
 interface RankingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,7 +22,7 @@ interface RankingModalProps {
   setRankingVideos: React.Dispatch<React.SetStateAction<RankingVideos>>;
   lastSelectedRanking: RankingPeriod;
   setLastSelectedRanking: React.Dispatch<React.SetStateAction<RankingPeriod>>;
-  videoPools: GenderVideos;
+  videoPool: Video[];
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
@@ -41,7 +35,7 @@ export default function RankingModal({
   setRankingVideos,
   lastSelectedRanking,
   setLastSelectedRanking,
-  videoPools,
+  videoPool,
   onReplaceVideos
 }: RankingModalProps) {
   const [period, setPeriod] = useState<RankingPeriod>(lastSelectedRanking);

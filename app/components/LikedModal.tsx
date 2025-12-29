@@ -7,21 +7,15 @@ import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
-interface GenderVideos {
-  straight: Video[];
-  lesbian: Video[];
-  gay: Video[];
-}
-
 interface LikedModalProps {
   isOpen: boolean;
   onClose: () => void;
-  videoPools: GenderVideos;
+  videoPool: Video[];
   videos: Video[];
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
 }
 
-export default function LikedModal({ isOpen, onClose, videoPools, videos, onReplaceVideos }: LikedModalProps) {
+export default function LikedModal({ isOpen, onClose, videoPool, videos, onReplaceVideos }: LikedModalProps) {
   const [likedVideos, setLikedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
@@ -47,15 +41,8 @@ export default function LikedModal({ isOpen, onClose, videoPools, videos, onRepl
           return;
         }
 
-        // 全プールを結合
-        const allVideos = [
-          ...videoPools.straight,
-          ...videoPools.lesbian,
-          ...videoPools.gay
-        ];
-
         // いいねした動画IDでフィルタリング
-        const videos = allVideos.filter(v => likesData.videoIds.includes(v.id));
+        const videos = videoPool.filter(v => likesData.videoIds.includes(v.id));
 
         // 見つからなかった動画をデータベースから取得
         const foundVideoIds = new Set(videos.map((v: Video) => v.id));
