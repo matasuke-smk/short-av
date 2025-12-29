@@ -19,11 +19,12 @@ export async function POST(request: NextRequest) {
       .from('videos')
       .select('id, dmm_content_id')
       .or(`id.eq.${videoId},dmm_content_id.eq.${videoId}`)
-      .single();
+      .maybeSingle();
 
     if (videoData) {
       actualVideoId = videoData.id; // 実際のUUID IDを使用
     }
+    // 動画がデータベースに存在しない場合、videoIdをそのまま使用（DMM content_id）
 
     // 既にいいね済みかチェック
     const { data: existingLike } = await supabase
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('video_id', actualVideoId)
       .eq('user_identifier', userId)
-      .single();
+      .maybeSingle();
 
     if (existingLike) {
       // いいね済み → 削除（いいね解除）
