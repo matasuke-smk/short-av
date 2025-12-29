@@ -108,15 +108,23 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     showVideoModalRef.current = showVideoModal;
   }, [showVideoModal]);
 
-  // 横画面かどうかを検出
+  // 横画面またはPC画面かどうかを検出
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(orientation: landscape)');
+    const orientationQuery = window.matchMedia('(orientation: landscape)');
+    const widthQuery = window.matchMedia('(min-width: 1024px)');
+
+    // 横画面またはPC画面（1024px以上）の場合true
+    const checkIsWideLayout = () => {
+      const isWide = orientationQuery.matches || widthQuery.matches;
+      setIsLandscape(isWide);
+      return isWide;
+    };
 
     // 初期状態を設定
-    setIsLandscape(mediaQuery.matches);
+    checkIsWideLayout();
 
     // メディアクエリの変更をリスン
-    const handleChange = (e: MediaQueryListEvent) => {
+    const handleChange = () => {
       const wasModalOpen = showVideoModalRef.current;
 
       // モーダルが開いている場合は一度閉じる
@@ -124,7 +132,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         setShowVideoModal(false);
       }
 
-      setIsLandscape(e.matches);
+      checkIsWideLayout();
 
       // モーダルが開いていた場合は、少し待ってから再度開く
       if (wasModalOpen) {
@@ -135,10 +143,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       }
     };
 
-    mediaQuery.addEventListener('change', handleChange);
+    orientationQuery.addEventListener('change', handleChange);
+    widthQuery.addEventListener('change', handleChange);
 
     return () => {
-      mediaQuery.removeEventListener('change', handleChange);
+      orientationQuery.removeEventListener('change', handleChange);
+      widthQuery.removeEventListener('change', handleChange);
     };
   }, []);
 
