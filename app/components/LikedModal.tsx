@@ -48,16 +48,20 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         console.log('[LikedModal] current videos count:', videos.length);
 
         const allAvailableVideos = [...videoPool, ...videos];
+        console.log('[LikedModal] allAvailableVideos count:', allAvailableVideos.length);
+
         const matchedVideos = allAvailableVideos.filter(v =>
           likesData.videoIds.includes(v.id) || likesData.videoIds.includes(v.dmm_content_id)
         );
+        console.log('[LikedModal] matchedVideos (before dedup):', matchedVideos.length);
 
         // 重複を削除（同じdmm_content_idの動画は1つだけ）
         const uniqueVideos = Array.from(
           new Map(matchedVideos.map(v => [v.dmm_content_id, v])).values()
         );
 
-        console.log('[LikedModal] Matched videos:', uniqueVideos.length);
+        console.log('[LikedModal] uniqueVideos (after dedup):', uniqueVideos.length);
+        console.log('[LikedModal] uniqueVideos dmm_content_ids:', uniqueVideos.map(v => v.dmm_content_id));
 
         // 見つからなかった動画をデータベースから取得
         const foundVideoIds = new Set(uniqueVideos.map((v: Video) => v.id));
@@ -103,6 +107,8 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
 
         // プール+現在のvideosと、データベースから取得した動画をマージ
         const allLikedVideos = [...uniqueVideos, ...missingVideos];
+        console.log('[LikedModal] allLikedVideos (final):', allLikedVideos.length);
+        console.log('[LikedModal] allLikedVideos dmm_content_ids:', allLikedVideos.map(v => v.dmm_content_id));
 
         // いいねした日時順に並び替え（新しい順）
         const sortedVideos = allLikedVideos.sort((a, b) => {
