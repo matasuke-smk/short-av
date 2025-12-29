@@ -758,7 +758,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           )}
 
           {/* 左側コントロールエリア - 横画面時・PC時のみ表示 */}
-          <div className="hidden landscape:flex landscape:flex-1 landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2 lg:flex lg:flex-1 lg:flex-col lg:items-stretch lg:justify-between lg:py-4 lg:px-2">
+          <div className="hidden landscape:flex landscape:w-[15%] landscape:flex-col landscape:items-stretch landscape:justify-between landscape:py-4 landscape:px-2 lg:flex lg:w-[15%] lg:flex-col lg:items-stretch lg:justify-between lg:py-4 lg:px-2">
             {/* 閉じるボタン（上部固定） */}
             <div className="flex justify-center">
               <button
@@ -826,11 +826,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* 動画エリア - 画面幅いっぱい、クリックしても閉じない */}
           <div
-            className="w-full landscape:w-auto landscape:flex-shrink-0 landscape:flex landscape:items-center landscape:justify-center lg:w-auto lg:flex-shrink-0 lg:flex lg:items-center lg:justify-center"
+            className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center lg:flex-1 lg:flex lg:items-center lg:justify-center"
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:w-auto landscape:h-[90vh] landscape:aspect-[560/420] lg:w-auto lg:h-[90vh] lg:aspect-[560/420]"
+              className="w-full aspect-[560/420] landscape:w-auto landscape:h-full landscape:max-h-[100vh] landscape:aspect-[560/420] lg:w-auto lg:h-full lg:max-h-[100vh] lg:aspect-[560/420]"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
@@ -843,7 +843,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           {/* バナー領域 - 横画面時のみ表示 */}
           {isLandscape && currentVideo && (
-            <div className="flex-shrink-0 h-[90vh] w-auto aspect-[160/600]">
+            <div className="flex-shrink-0 h-full w-auto aspect-[160/600]">
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
                 bannerId={portraitBannerIds[(currentIndex + 1) % 2]}
