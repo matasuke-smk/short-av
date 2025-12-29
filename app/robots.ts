@@ -12,6 +12,10 @@ export default function robots(): MetadataRoute.Robots {
           '/api/',           // APIエンドポイントをクロール対象外に
           '/*.json',         // JSONファイルを除外
           '/private/',       // プライベートディレクトリ（存在する場合）
+          '/test-*',         // テストページを除外
+          '/admin/',         // 管理ページを除外
+          '/history',        // ユーザー固有の履歴ページを除外
+          '/liked',          // ユーザー固有のいいね済みページを除外
         ],
       },
       {
