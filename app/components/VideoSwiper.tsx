@@ -212,6 +212,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
     event.stopPropagation();
 
+    console.log('[toggleLike] videoId:', videoId);
     if (!userId) return;
 
     const wasLiked = likedVideos.has(videoId);

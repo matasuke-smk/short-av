@@ -42,9 +42,14 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         }
 
         // いいねした動画IDでフィルタリング（idまたはdmm_content_idでマッチング）
+        console.log('[LikedModal] likesData.videoIds:', likesData.videoIds);
+        console.log('[LikedModal] videoPool sample:', videoPool.slice(0, 3).map(v => ({ id: v.id, dmm_content_id: v.dmm_content_id })));
+
         const videos = videoPool.filter(v =>
           likesData.videoIds.includes(v.id) || likesData.videoIds.includes(v.dmm_content_id)
         );
+
+        console.log('[LikedModal] Matched videos from pool:', videos.length);
 
         // 見つからなかった動画をデータベースから取得
         const foundVideoIds = new Set(videos.map((v: Video) => v.id));
