@@ -830,7 +830,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           >
             <iframe
               src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:w-auto landscape:h-[90vh] landscape:aspect-[4/3] lg:w-auto lg:h-[90vh] lg:aspect-[4/3]"
+              className="w-full aspect-[560/420] landscape:w-[calc(90vh*4/3)] landscape:h-[90vh] lg:w-[calc(90vh*4/3)] lg:h-[90vh]"
               allowFullScreen
               allow="autoplay; fullscreen"
               frameBorder="0"
