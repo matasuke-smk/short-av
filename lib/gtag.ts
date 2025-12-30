@@ -61,13 +61,13 @@ export const trackGenderFilter = (filter: 'straight' | 'lesbian' | 'gay') => {
 };
 
 // モーダル開閉イベント
-export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail') => {
+export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_open', {
     modal_type: modalType,
   });
 };
 
-export const trackModalClose = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail') => {
+export const trackModalClose = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_close', {
     modal_type: modalType,
   });
