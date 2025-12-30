@@ -28,6 +28,9 @@ const LikedModal = dynamic(() => import('./LikedModal'), {
 const HistoryModal = dynamic(() => import('./HistoryModal'), {
   ssr: false,
 });
+const ActressModal = dynamic(() => import('./ActressModal'), {
+  ssr: false,
+});
 import {
   trackVideoView,
   trackLike,
@@ -83,6 +86,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const [showRankingModal, setShowRankingModal] = useState(false);
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showActressModal, setShowActressModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [isLandscape, setIsLandscape] = useState(false);
   const [modalKey, setModalKey] = useState(0);
@@ -635,17 +639,34 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       <div className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 動画情報 - 高さ固定（2行分） */}
-          <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex flex-col justify-end">
-            {currentVideo?.maker && (
-              <p className="text-gray-300 truncate">
-                <span className="text-gray-400">メーカー:</span> {currentVideo.maker}
-              </p>
-            )}
-            {currentVideo?.release_date && (
-              <p className="text-gray-300 truncate">
-                <span className="text-gray-400">リリース:</span>{' '}
-                {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}
-              </p>
+          <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex items-end justify-between gap-3">
+            <div className="flex-1 flex flex-col justify-end min-w-0">
+              {currentVideo?.maker && (
+                <p className="text-gray-300 truncate">
+                  <span className="text-gray-400">メーカー:</span> {currentVideo.maker}
+                </p>
+              )}
+              {currentVideo?.release_date && (
+                <p className="text-gray-300 truncate">
+                  <span className="text-gray-400">リリース:</span>{' '}
+                  {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}
+                </p>
+              )}
+            </div>
+            {/* 女優ボタン */}
+            {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
+              <button
+                onClick={() => {
+                  setShowActressModal(true);
+                  trackModalOpen('actress');
+                }}
+                className="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-2 flex items-center gap-1 transition-colors active:scale-95 h-fit"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-xs font-medium">女優</span>
+              </button>
             )}
           </div>
 
@@ -1122,6 +1143,52 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 window.history.pushState({}, '', url.toString());
               }, 150);
             }
+          }
+        }}
+      />
+
+      {/* 女優モーダル */}
+      <ActressModal
+        isOpen={showActressModal}
+        onClose={() => {
+          setShowActressModal(false);
+          trackModalClose('actress');
+        }}
+        actressIds={currentVideo?.actress_ids || []}
+        onActressSelect={async (actressId, actressName) => {
+          console.log('女優選択:', actressId, actressName);
+          // 女優の動画を取得
+          const { data: actressVideos, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_active', true)
+            .not('thumbnail_url', 'is', null)
+            .not('sample_video_url', 'is', null)
+            .contains('actress_ids', [actressId])
+            .order('release_date', { ascending: false })
+            .limit(100);
+
+          if (error) {
+            console.error('女優の動画取得エラー:', error);
+            return;
+          }
+
+          if (actressVideos && actressVideos.length > 0) {
+            // 動画リストを置き換え
+            setVideos(actressVideos);
+            setCurrentIndex(0);
+            setIsFiniteList(true);
+
+            // スクロール位置をリセット
+            if (emblaApi) {
+              emblaApi.reInit();
+              setTimeout(() => {
+                emblaApi.scrollTo(0, false);
+              }, 150);
+            }
+
+            // GA4トラッキング
+            trackModalOpen('actress_videos');
           }
         }}
       />
