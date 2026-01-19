@@ -175,6 +175,63 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     fetchLikes();
   }, [userId]);
 
+  // URLパラメータ（?v=xxx）を処理して該当動画にスクロール
+  useEffect(() => {
+    if (!emblaApi) return;
+
+    const videoParam = searchParams.get('v');
+    if (videoParam) {
+      // 現在表示中の動画リストから該当動画を探す
+      const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
+
+      if (targetIndex !== -1) {
+        // 動画が見つかった場合、そこにスクロール
+        emblaApi.scrollTo(targetIndex, false);
+      } else {
+        // 見つからない場合、プールから探す
+        const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
+
+        if (poolTargetIndex !== -1) {
+          // プールから見つかった場合、その動画までを表示リストに追加
+          const videosToAdd = videoPool.slice(poolIndex, poolTargetIndex + 1);
+          setVideos(prev => [...prev, ...videosToAdd]);
+          setPoolIndex(poolTargetIndex + 1);
+
+          setTimeout(() => {
+            const newIndex = videos.length + videosToAdd.length - 1;
+            emblaApi.scrollTo(newIndex, false);
+          }, 100);
+        } else {
+          // プールにも見つからない場合、Supabaseから直接取得
+          const fetchVideo = async () => {
+            const { data: video, error } = await supabase
+              .from('videos')
+              .select('*')
+              .eq('dmm_content_id', videoParam)
+              .eq('is_active', true)
+              .single();
+
+            if (!error && video) {
+              // 取得した動画を先頭に追加
+              setVideos(prev => {
+                if (prev.some(v => v.dmm_content_id === videoParam)) {
+                  return prev;
+                }
+                return [video, ...prev];
+              });
+
+              setTimeout(() => {
+                emblaApi.scrollTo(0, false);
+              }, 100);
+            }
+          };
+
+          fetchVideo();
+        }
+      }
+    }
+  }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
+
   // 履歴に追加する関数
   const addToHistory = useCallback((videoId: string) => {
     const historyKey = 'video_history';
