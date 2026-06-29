@@ -846,9 +846,35 @@ function getGirthRegionalEquivalent(diameterMm) {
     sendStatisticsData(lengthMm, diameter, 'erect', document.getElementById('ageInput').value);
   }
 
+  // 匿名ユーザーIDを取得（LocalStorageベース。1ユーザー1データの判定に使用）
+  function getSizeToolUserId() {
+    try {
+      var key = 'short-av-user-id';
+      var userId = localStorage.getItem(key);
+      if (!userId) {
+        userId = (crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : 'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        localStorage.setItem(key, userId);
+      }
+      return userId;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // 統計データをサーバーに送信
   async function sendStatisticsData(lengthMm, diameterMm, erectionState, ageGroup) {
     try {
+      var submittedKey = 'short-av-size-submitted';
+      var userId = getSizeToolUserId();
+
+      // 既に投稿済みのユーザーは再送信しない（DBへは最初の1件のみ保存される）
+      if (localStorage.getItem(submittedKey) === '1') {
+        loadCollectedStats();
+        return;
+      }
+
       const response = await fetch('/api/size-stats', {
         method: 'POST',
         headers: {
@@ -859,12 +885,15 @@ function getGirthRegionalEquivalent(diameterMm) {
           diameterMm,
           erectionState,
           ageGroup: ageGroup || null,
+          userId,
         }),
       });
 
       if (!response.ok) {
         console.error('Failed to send statistics data');
       } else {
+        // 送信成功後は投稿済みフラグを立て、以降は再送信しない
+        try { localStorage.setItem(submittedKey, '1'); } catch (e) {}
         // データ送信成功後、統計データを更新
         loadCollectedStats();
       }
@@ -903,12 +932,12 @@ function getGirthRegionalEquivalent(diameterMm) {
       html += '<div ' + cls + '="stats-half-item">';
       html += '<div ' + cls + '="stats-label">平均長さ</div>';
       html += '<div ' + cls + '="stats-value">' + data.statistics.avgLength + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">mm（SD: ' + data.statistics.stdLength + 'mm）</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + data.statistics.stdLength + 'mm）</div>';
       html += '</div>';
       html += '<div ' + cls + '="stats-half-item">';
       html += '<div ' + cls + '="stats-label">平均直径</div>';
       html += '<div ' + cls + '="stats-value">' + data.statistics.avgDiameter + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">mm（SD: ' + data.statistics.stdDiameter + 'mm）</div>';
+      html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + data.statistics.stdDiameter + 'mm）</div>';
       html += '</div>';
       html += '</div>';
       html += '</div>';

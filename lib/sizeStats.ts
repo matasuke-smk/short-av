@@ -67,12 +67,12 @@ export function generateStatsHTML(stats: { count: number; statistics: any } | nu
   html += '<div ' + cls + '="stats-half-item">';
   html += '<div ' + cls + '="stats-label">平均長さ</div>';
   html += '<div ' + cls + '="stats-value">' + stats.statistics.avgLength + '</div>';
-  html += '<div ' + cls + '="stats-subvalue">mm（SD: ' + stats.statistics.stdLength + 'mm）</div>';
+  html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + stats.statistics.stdLength + 'mm）</div>';
   html += '</div>';
   html += '<div ' + cls + '="stats-half-item">';
   html += '<div ' + cls + '="stats-label">平均直径</div>';
   html += '<div ' + cls + '="stats-value">' + stats.statistics.avgDiameter + '</div>';
-  html += '<div ' + cls + '="stats-subvalue">mm（SD: ' + stats.statistics.stdDiameter + 'mm）</div>';
+  html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + stats.statistics.stdDiameter + 'mm）</div>';
   html += '</div>';
   html += '</div>';
   html += '</div>';

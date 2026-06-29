@@ -8,12 +8,20 @@ export const revalidate = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lengthMm, diameterMm, erectionState, ageGroup } = body;
+    const { lengthMm, diameterMm, erectionState, ageGroup, userId } = body;
 
     // バリデーション
     if (!lengthMm || !diameterMm || !erectionState) {
       return NextResponse.json(
         { error: 'lengthMm, diameterMm, and erectionState are required' },
+        { status: 400 }
+      );
+    }
+
+    // ユーザー識別子（1ユーザー1データの判定に使用）
+    if (!userId || typeof userId !== 'string') {
+      return NextResponse.json(
+        { error: 'userId is required' },
         { status: 400 }
       );
     }
@@ -42,23 +50,30 @@ export async function POST(request: NextRequest) {
     }
 
     // データを保存
+    // 1ユーザー1データ: user_identifier が既に存在する場合は何もしない（ON CONFLICT DO NOTHING）。
+    // これにより、同一ユーザーが連続投稿しても最初の1件だけがDBに保存される。
     const { data, error } = await supabase
       .from('size_statistics')
-      .insert({
-        length_mm: lengthMm,
-        diameter_mm: diameterMm,
-        erection_state: erectionState,
-        age_group: ageGroup || null,
-      })
+      .upsert(
+        {
+          length_mm: lengthMm,
+          diameter_mm: diameterMm,
+          erection_state: erectionState,
+          age_group: ageGroup || null,
+          user_identifier: userId,
+        },
+        { onConflict: 'user_identifier', ignoreDuplicates: true }
+      )
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Size stats insert error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data });
+    // data が存在すれば新規登録、null なら既存ユーザーのため未登録
+    return NextResponse.json({ success: true, recorded: !!data, data });
   } catch (error) {
     console.error('Size stats error:', error);
     return NextResponse.json(
