@@ -458,7 +458,7 @@ export const articles: Article[] = [
 
     <div class="form-group">
       <label class="form-label">長さ（mm）</label>
-      <input type="number" id="lengthInput" class="form-input" min="60" max="220" step="1" placeholder="例: 126">
+      <input type="number" id="lengthInput" class="form-input" min="70" max="200" step="1" placeholder="例: 126">
       <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
     </div>
 
@@ -478,7 +478,7 @@ export const articles: Article[] = [
 
     <div class="form-group">
       <label class="form-label" id="girthLabel">太さ - 直径（mm）</label>
-      <input type="number" id="girthInput" class="form-input" min="22" max="55" step="1" placeholder="例: 35">
+      <input type="number" id="girthInput" class="form-input" min="25" max="50" step="1" placeholder="例: 35">
       <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
     </div>
 
@@ -646,13 +646,13 @@ export const articles: Article[] = [
 
         if (this.value === 'diameter') {
           label.textContent = '太さ - 直径（mm）';
-          input.min = 22;
-          input.max = 55;
+          input.min = 25;
+          input.max = 50;
           input.placeholder = '例: 35';
         } else {
           label.textContent = '太さ - 外周（mm）';
-          input.min = 70;
-          input.max = 170;
+          input.min = 80;
+          input.max = 157;
           input.placeholder = '例: 110';
         }
         input.value = '';
@@ -771,8 +771,8 @@ function getGirthRegionalEquivalent(diameterMm) {
     return;
   }
 
-  if (lengthMm < 60 || lengthMm > 220) {
-    alert('長さは60〜220mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.01%未満）');
+  if (lengthMm < 70 || lengthMm > 200) {
+    alert('長さは70〜200mm（7.0〜20.0cm）の範囲で入力してください。この範囲外の値は医学的に極めて稀です');
     return;
   }
 
@@ -783,13 +783,13 @@ function getGirthRegionalEquivalent(diameterMm) {
   let diameter;
   if (girthType === 'diameter') {
     diameter = girthInput;
-    if (diameter < 22 || diameter > 55) {
-      alert('直径は22〜55mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.1%未満）');
+    if (diameter < 25 || diameter > 50) {
+      alert('直径は25〜50mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です');
       return;
     }
   } else {
-    if (girthInput < 70 || girthInput > 170) {
-      alert('外周は70〜170mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です（0.1%未満）');
+    if (girthInput < 80 || girthInput > 157) {
+      alert('外周は80〜157mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です');
       return;
     }
     diameter = circumferenceToDiameter(girthInput);

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { computeRobustStat } from '@/lib/robustStats';
 
 export async function getSizeStatistics(erectionState: 'erect' | 'flaccid' = 'erect') {
   try {
@@ -12,29 +13,18 @@ export async function getSizeStatistics(erectionState: 'erect' | 'flaccid' = 'er
       return null;
     }
 
-    // 統計を計算
+    // 統計を計算（外れ値はIQR法で除外し、平均・標準偏差の汚染を防ぐ）
     if (data && data.length > 0) {
-      const lengths = data.map(d => d.length_mm);
-      const diameters = data.map(d => d.diameter_mm);
-
-      const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-      const avgDiameter = diameters.reduce((a, b) => a + b, 0) / diameters.length;
-
-      // 標準偏差を計算
-      const stdLength = Math.sqrt(
-        lengths.reduce((sum, val) => sum + Math.pow(val - avgLength, 2), 0) / lengths.length
-      );
-      const stdDiameter = Math.sqrt(
-        diameters.reduce((sum, val) => sum + Math.pow(val - avgDiameter, 2), 0) / diameters.length
-      );
+      const lengthStat = computeRobustStat(data.map(d => d.length_mm));
+      const diameterStat = computeRobustStat(data.map(d => d.diameter_mm));
 
       return {
         count: data.length,
         statistics: {
-          avgLength: avgLength.toFixed(1),
-          avgDiameter: avgDiameter.toFixed(1),
-          stdLength: stdLength.toFixed(1),
-          stdDiameter: stdDiameter.toFixed(1),
+          avgLength: lengthStat.avg.toFixed(1),
+          avgDiameter: diameterStat.avg.toFixed(1),
+          stdLength: lengthStat.std.toFixed(1),
+          stdDiameter: diameterStat.std.toFixed(1),
         },
       };
     }
