@@ -222,8 +222,16 @@ export async function GET(request: Request) {
       if (likesError) throw likesError;
       const likedIds = new Set((liked ?? []).map((l) => String(l.video_id)));
 
+      // X で紹介した作品は、投稿のリンクが切れないよう削除しない
+      const { data: promoted, error: promotedError } = await supabase
+        .from('x_posts')
+        .select('dmm_content_id')
+        .neq('status', 'skipped');
+      if (promotedError) throw promotedError;
+      const promotedIds = new Set((promoted ?? []).map((p) => p.dmm_content_id as string));
+
       const deletableIds = (oldVideos ?? [])
-        .filter((v) => !likedIds.has(v.id) && !likedIds.has(v.dmm_content_id))
+        .filter((v) => !likedIds.has(v.id) && !likedIds.has(v.dmm_content_id) && !promotedIds.has(v.dmm_content_id))
         .map((v) => v.id as string);
 
       for (const deletable of chunk(deletableIds, CHUNK_SIZE)) {
