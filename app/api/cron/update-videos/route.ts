@@ -32,6 +32,8 @@ const GENRE_FETCH_BUDGET_MS = 25_000;
 const STALE_DAYS = 30;
 // .in() / バルク書き込み1回あたりの件数
 const CHUNK_SIZE = 200;
+// 既存動画の更新を並列実行する件数
+const UPDATE_CONCURRENCY = 20;
 
 function verifyCronRequest(request: Request): boolean {
   const authHeader = request.headers.get('authorization');
@@ -154,25 +156,31 @@ export async function GET(request: Request) {
     const videoRows = [...allVideos.values()].map((video) => {
       const actressIds = extractActresses(video).map((a) => actressIdMap.get(a.slug)).filter(Boolean) as string[];
       const genreIds = extractGenres(video).map((g) => genreIdMap.get(g.slug)).filter(Boolean) as string[];
+      // videos.id はDB側で採番されるUUIDのため、convertDMMItemToVideo の id（content_id）は除く
+      const { id: _contentId, ...row } = convertDMMItemToVideo(video, rankMap.get(video.content_id));
       return {
-        ...convertDMMItemToVideo(video, rankMap.get(video.content_id)),
+        ...row,
         genre_ids: genreIds.length > 0 ? genreIds : null,
         actress_ids: actressIds.length > 0 ? actressIds : null,
         updated_at: now,
       };
     });
 
-    const existingIds = new Set<string>();
-    for (const idChunk of chunk(videoRows.map((v) => v.id), CHUNK_SIZE)) {
-      const { data, error } = await supabase.from('videos').select('id').in('id', idChunk);
+    // dmm_content_id → 既存動画のUUID
+    const existingIdMap = new Map<string, string>();
+    for (const idChunk of chunk(videoRows.map((v) => v.dmm_content_id), CHUNK_SIZE)) {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('id, dmm_content_id')
+        .in('dmm_content_id', idChunk);
       if (error) throw error;
-      for (const row of data ?? []) existingIds.add(row.id);
+      for (const row of data ?? []) existingIdMap.set(row.dmm_content_id, row.id);
     }
 
+    const newRows = videoRows.filter((v) => !existingIdMap.has(v.dmm_content_id));
     // 既存動画は閲覧数・クリック数を上書きしないよう、カウンタ列を除いて更新する
-    const newRows = videoRows.filter((v) => !existingIds.has(v.id));
     const updateRows = videoRows
-      .filter((v) => existingIds.has(v.id))
+      .filter((v) => existingIdMap.has(v.dmm_content_id))
       .map(({ view_count: _view, click_count: _click, ...rest }) => rest);
 
     let saveErrors = 0;
@@ -183,11 +191,17 @@ export async function GET(request: Request) {
         saveErrors += rows.length;
       }
     }
-    for (const rows of chunk(updateRows, CHUNK_SIZE)) {
-      const { error } = await supabase.from('videos').upsert(rows, { onConflict: 'id' });
-      if (error) {
-        console.error('[Cron] 更新エラー:', error);
-        saveErrors += rows.length;
+    for (const rows of chunk(updateRows, UPDATE_CONCURRENCY)) {
+      const results = await Promise.all(
+        rows.map((row) =>
+          supabase.from('videos').update(row).eq('id', existingIdMap.get(row.dmm_content_id)!),
+        ),
+      );
+      for (const { error } of results) {
+        if (error) {
+          console.error('[Cron] 更新エラー:', error);
+          saveErrors++;
+        }
       }
     }
     const saved = videoRows.length - saveErrors;
@@ -199,22 +213,20 @@ export async function GET(request: Request) {
       const threshold = new Date(Date.now() - STALE_DAYS * 86_400_000).toISOString();
       const { data: oldVideos, error } = await supabase
         .from('videos')
-        .select('id')
+        .select('id, dmm_content_id')
         .lt('updated_at', threshold);
       if (error) throw error;
 
-      const oldIds = (oldVideos ?? []).map((v) => v.id as string);
-      for (const idChunk of chunk(oldIds, CHUNK_SIZE)) {
-        const { data: liked, error: likesError } = await supabase
-          .from('likes')
-          .select('video_id')
-          .in('video_id', idChunk);
-        if (likesError) throw likesError;
+      // いいねの video_id はUUIDとcontent_idが混在しうるため、両方で照合する
+      const { data: liked, error: likesError } = await supabase.from('likes').select('video_id');
+      if (likesError) throw likesError;
+      const likedIds = new Set((liked ?? []).map((l) => String(l.video_id)));
 
-        const likedIds = new Set((liked ?? []).map((l) => l.video_id));
-        const deletable = idChunk.filter((id) => !likedIds.has(id));
-        if (deletable.length === 0) continue;
+      const deletableIds = (oldVideos ?? [])
+        .filter((v) => !likedIds.has(v.id) && !likedIds.has(v.dmm_content_id))
+        .map((v) => v.id as string);
 
+      for (const deletable of chunk(deletableIds, CHUNK_SIZE)) {
         const { error: deleteError } = await supabase.from('videos').delete().in('id', deletable);
         if (deleteError) throw deleteError;
         deletedCount += deletable.length;
