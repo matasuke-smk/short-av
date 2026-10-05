@@ -1,11 +1,55 @@
 import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
+import { getVideoUrl } from '@/lib/x-post-text';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
 // revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
 export const revalidate = 0;
+
+// ?v=作品ID で開かれた場合は、SNS のリンクカードにその作品のタイトルとサムネイルを出す
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ v?: string | string[] }>;
+}): Promise<Metadata> {
+  const { v } = await searchParams;
+  const contentId = typeof v === 'string' ? v : undefined;
+  if (!contentId || contentId.length > 64) return {};
+
+  const { data: video } = await supabase
+    .from('videos')
+    .select('title, thumbnail_url')
+    .eq('dmm_content_id', contentId)
+    .maybeSingle();
+  if (!video?.thumbnail_url) return {};
+
+  const title = `${video.title} | Short AV`;
+  const description = 'サンプル動画を縦スワイプでチェック。Short AV で作品を探そう。';
+  const images = [{ url: video.thumbnail_url, alt: video.title }];
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: getVideoUrl(contentId),
+      siteName: 'Short AV',
+      images,
+      locale: 'ja_JP',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [video.thumbnail_url],
+    },
+  };
+}
 
 async function VideoList() {
   // 動画の総件数を取得
