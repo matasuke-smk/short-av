@@ -6,7 +6,7 @@
  */
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { countXWeightedLength, getVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 export type SlotType = 'new' | 'ranking' | 'random';
 
@@ -57,7 +57,7 @@ function pickRandom<T>(items: T[]): T | undefined {
 }
 
 export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType): string {
-  const url = getVideoUrl(video.dmm_content_id);
+  const url = getXPostVideoUrl(video.dmm_content_id, 'card');
   const actress = actressNames.slice(0, 2).join('・');
   const heading =
     type === 'new' ? '【新着作品】' : type === 'ranking' ? '【人気ランキング作品】' : '【今日のおすすめ】';
