@@ -50,6 +50,7 @@ interface VideoSwiperProps {
   startIndex?: number; // 配列内の開始位置（デフォルト0）
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
   videoPool: Video[]; // 動画プール（全データ）
+  linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -59,7 +60,14 @@ function removeAffiliateIdFromUrl(url: string | null): string {
   return url.replace(/\/affi_id=[^/]+\//g, '/');
 }
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
+  const [notice, setNotice] = useState(linkNotice);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(undefined), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -438,6 +446,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
+      {notice && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-md bg-gray-800/95 text-white text-sm px-4 py-3 rounded-lg shadow-lg">
+          {notice}
+        </div>
+      )}
       {/* FANZAクレジット（画面上部固定、横画面時は非表示） */}
       <div className="landscape:hidden fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
         {enableAffiliateLinks ? (

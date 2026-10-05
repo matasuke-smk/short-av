@@ -51,7 +51,10 @@ export async function generateMetadata({
   };
 }
 
-async function VideoList() {
+// ?v= の作品IDとして受け付ける形式
+const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
+
+async function VideoList({ targetId }: { targetId?: string }) {
   // 動画の総件数を取得
   const { count: totalCount } = await supabase
     .from('videos')
@@ -106,7 +109,25 @@ async function VideoList() {
   }
 
   // プールを作成
-  const videoPool = videosAll || [];
+  let videoPool = videosAll || [];
+
+  // ?v= で作品が指定された場合は、サーバー側で先頭に入れておく。
+  // クライアント側で後から探すと、スワイプ画面の初期化（URL の書き換え）と競合して別の動画に戻ることがあった。
+  let linkNotice: string | undefined;
+  if (targetId) {
+    const { data: target } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('dmm_content_id', targetId)
+      .eq('is_active', true)
+      .not('sample_video_url', 'is', null)
+      .maybeSingle();
+    if (target) {
+      videoPool = [target, ...videoPool.filter((v: { dmm_content_id: string }) => v.dmm_content_id !== targetId)];
+    } else {
+      linkNotice = 'お探しの作品は掲載が終了しました。ほかの作品をお楽しみください。';
+    }
+  }
 
   // プールから最初の20件を表示用として取り出す
   const videos = videoPool.slice(0, displaySize);
@@ -156,11 +177,19 @@ async function VideoList() {
       totalVideos={totalVideos}
       startIndex={0}
       videoPool={videoPool}
+      linkNotice={linkNotice}
     />
   );
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ v?: string | string[] }>;
+}) {
+  const { v } = await searchParams;
+  const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
+
   // 最初の動画を取得して構造化データを生成（Suspense外で実行）
   const { data: videos } = await supabase
     .from('videos')
@@ -183,7 +212,7 @@ export default async function Home() {
         />
       )}
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList />
+        <VideoList targetId={targetId} />
       </Suspense>
     </>
   );
