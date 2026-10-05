@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { buildXIntentUrl, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import {
+  buildXIntentUrl,
+  countXWeightedLength,
+  getPostFormat,
+  setPostFormat,
+  X_MAX_WEIGHTED_LENGTH,
+  X_POST_FORMAT_LABEL,
+  type XPostFormat,
+} from '@/lib/x-post-text';
 
 type XPost = {
   id: string;
@@ -51,7 +59,15 @@ async function toPngBlob(file: Blob): Promise<Blob> {
  * PC ではクリップボードへのコピー（X の投稿画面で Ctrl+V）、スマホでは共有メニューで X アプリへ送る。
  * X アカウントが DMM アフィリエイトの運営サイトとして承認されてから使うこと。
  */
-function SampleImagePicker({ contentId, text }: { contentId: string; text: string }) {
+function SampleImagePicker({
+  contentId,
+  text,
+  onUseImages,
+}: {
+  contentId: string;
+  text: string;
+  onUseImages: () => void; // 画像を使ったら投稿形式を「画像4枚」に切り替える
+}) {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -110,6 +126,7 @@ function SampleImagePicker({ contentId, text }: { contentId: string; text: strin
 
   async function copy(url: string, index: number) {
     setStatus('');
+    onUseImages();
     try {
       const file = files[url] ?? (await fetchImageFile(url));
       // Safari 対策で Promise のまま渡す
@@ -125,13 +142,15 @@ function SampleImagePicker({ contentId, text }: { contentId: string; text: strin
   async function share() {
     setStatus('');
     try {
-      await navigator.share({ text, files: selected.map((url) => files[url]) });
+      onUseImages();
+      await navigator.share({ text: setPostFormat(text, 'img4'), files: selected.map((url) => files[url]) });
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setStatus('共有できませんでした');
     }
   }
 
   async function download() {
+    onUseImages();
     for (const url of selected) {
       const link = document.createElement('a');
       link.href = proxiedImageUrl(url);
@@ -299,9 +318,27 @@ export default function XPostsAdminPage() {
     }
   }
 
+  async function changeFormat(post: XPost, format: XPostFormat) {
+    const current = drafts[post.id] ?? post.text;
+    const next = setPostFormat(current, format);
+    if (next === current) return;
+    setDrafts((prev) => ({ ...prev, [post.id]: next }));
+    if (await update(post.id, { text: next })) {
+      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: next } : p)));
+    }
+  }
+
   async function openInX(post: XPost) {
-    await saveText(post);
-    window.open(buildXIntentUrl(drafts[post.id]), '_blank', 'noopener');
+    // 計測用パラメータが無い URL（機能追加前に作った候補）にも付けてから開く
+    const current = drafts[post.id] ?? post.text;
+    const finalText = setPostFormat(current, getPostFormat(current));
+    if (finalText !== post.text) {
+      setDrafts((prev) => ({ ...prev, [post.id]: finalText }));
+      if (await update(post.id, { text: finalText })) {
+        setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: finalText } : p)));
+      }
+    }
+    window.open(buildXIntentUrl(finalText), '_blank', 'noopener');
   }
 
   const pendingCount = posts.filter((p) => p.status === 'pending').length;
@@ -313,6 +350,7 @@ export default function XPostsAdminPage() {
         <p className="text-gray-400 text-sm mb-6">
           毎週水曜 9時に翌日（木曜）から1週間分の候補が自動で作られます。
           「X で開く」→ X の投稿画面で表示中の日時に予約 →「予約済みにする」の順で進めてください。
+          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「X で開く」を押してください（効果測定のため）。
         </p>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -348,6 +386,19 @@ export default function XPostsAdminPage() {
                     <span className="text-lg font-bold">{formatSlot(post.slot_at)}</span>
                     <span className="text-xs bg-gray-700 px-2 py-0.5 rounded">{SLOT_LABEL[post.slot_type]}</span>
                     {scheduled && <span className="text-xs bg-green-700 px-2 py-0.5 rounded">予約済み</span>}
+                    <div className="ml-auto flex items-center gap-1 text-xs" title="Google Analytics で効果を比べるため、リンクの utm_content に入ります">
+                      <span className="text-gray-400">投稿形式:</span>
+                      {(Object.keys(X_POST_FORMAT_LABEL) as XPostFormat[]).map((format) => (
+                        <button
+                          key={format}
+                          onClick={() => changeFormat(post, format)}
+                          disabled={scheduled}
+                          className={`px-2 py-0.5 rounded ${getPostFormat(text) === format ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+                        >
+                          {X_POST_FORMAT_LABEL[format]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex flex-col md:flex-row gap-4">
@@ -372,7 +423,11 @@ export default function XPostsAdminPage() {
 
                   {!scheduled && (
                     <div className="mt-3">
-                      <SampleImagePicker contentId={post.dmm_content_id} text={text} />
+                      <SampleImagePicker
+                        contentId={post.dmm_content_id}
+                        text={text}
+                        onUseImages={() => changeFormat(post, 'img4')}
+                      />
                     </div>
                   )}
 
