@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { getUserId } from '@/lib/user-id';
+import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
@@ -41,68 +42,8 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
           return;
         }
 
-        // いいねした動画IDでフィルタリング（idまたはdmm_content_idでマッチング）
-        // videoPoolと現在のvideosの両方から検索
-        const allAvailableVideos = [...videoPool, ...videos];
-
-        const matchedVideos = allAvailableVideos.filter(v =>
-          likesData.videoIds.includes(v.id) || likesData.videoIds.includes(v.dmm_content_id)
-        );
-
-        // 重複を削除（同じdmm_content_idの動画は1つだけ）
-        const uniqueVideos = Array.from(
-          new Map(matchedVideos.map(v => [v.dmm_content_id, v])).values()
-        );
-
-        // 見つからなかった動画をデータベースから取得
-        const foundVideoIds = new Set(uniqueVideos.map((v: Video) => v.id));
-        const foundDmmContentIds = new Set(uniqueVideos.map((v: Video) => v.dmm_content_id));
-        const missingVideoIds = likesData.videoIds.filter((id: string) =>
-          !foundVideoIds.has(id) && !foundDmmContentIds.has(id)
-        );
-
-        let missingVideos: Video[] = [];
-        if (missingVideoIds.length > 0) {
-          // UUIDとDMM content_idを分類（UUIDは8-4-4-4-12形式）
-          const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-          const uuidIds = missingVideoIds.filter((id: string) => uuidPattern.test(id));
-          const dmmContentIds = missingVideoIds.filter((id: string) => !uuidPattern.test(id));
-
-          // UUID形式のIDで検索
-          let videosById: Video[] = [];
-          if (uuidIds.length > 0) {
-            const { data } = await (await import('@/lib/supabase')).supabase
-              .from('videos')
-              .select('*')
-              .in('id', uuidIds);
-            videosById = data || [];
-          }
-
-          // DMM content_id形式のIDで検索
-          let videosByDmmContentId: Video[] = [];
-          if (dmmContentIds.length > 0) {
-            const { data } = await (await import('@/lib/supabase')).supabase
-              .from('videos')
-              .select('*')
-              .in('dmm_content_id', dmmContentIds);
-            videosByDmmContentId = data || [];
-          }
-
-          missingVideos = [...videosById, ...videosByDmmContentId];
-        }
-
-        // プール+現在のvideosと、データベースから取得した動画をマージ
-        const allLikedVideos = [...uniqueVideos, ...missingVideos];
-
-        // いいねした日時順に並び替え（新しい順）
-        const sortedVideos = allLikedVideos.sort((a, b) => {
-          // idまたはdmm_content_idでマッチング
-          const timeA = likesData.likedAtMap?.[a.id] || likesData.likedAtMap?.[a.dmm_content_id];
-          const timeB = likesData.likedAtMap?.[b.id] || likesData.likedAtMap?.[b.dmm_content_id];
-          if (!timeA || !timeB) return 0;
-          return new Date(timeB).getTime() - new Date(timeA).getTime();
-        });
-        setLikedVideos(sortedVideos);
+        // videoIds は新しい順の dmm_content_id。掲載終了の作品は除いて、いいねした順に表示する
+        setLikedVideos(await fetchVideosByIds<Video>(likesData.videoIds));
       } catch (error) {
         console.error('Failed to fetch liked videos:', error);
       } finally {

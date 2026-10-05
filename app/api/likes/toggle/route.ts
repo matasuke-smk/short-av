@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
+import { getVideoIdCandidates } from '@/lib/likes';
 
+/**
+ * いいねの登録・解除
+ * - videoId は dmm_content_id（推奨）でも videos.id（UUID・旧形式）でもよい。保存は dmm_content_id に統一する
+ * - liked（true/false）を渡すとその状態にする。省略時は現在の状態を反転する
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { videoId, userId } = body;
+    const { videoId, userId, liked } = body;
 
     if (typeof videoId !== 'string' || videoId.length === 0 || videoId.length > 64 || !isValidUserId(userId)) {
       return NextResponse.json(
@@ -13,56 +19,41 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (liked !== undefined && typeof liked !== 'boolean') {
+      return NextResponse.json({ error: 'liked must be a boolean' }, { status: 400 });
+    }
 
     const supabase = getSupabaseAdmin();
 
-    // videoIdをそのまま使用（DMM content_idでもUUID IDでもOK）
-    const actualVideoId = videoId;
+    // 同じ作品を指す旧形式（UUID）のいいねもまとめて扱う
+    const { contentId, candidates } = await getVideoIdCandidates(supabase, videoId);
 
-    // 既にいいね済みかチェック
-    const { data: existingLike } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from('likes')
       .select('id')
-      .eq('video_id', actualVideoId)
       .eq('user_identifier', userId)
-      .maybeSingle();
+      .in('video_id', candidates);
+    if (selectError) throw selectError;
 
-    if (existingLike) {
-      // いいね済み → 削除（いいね解除）
+    const isLiked = (existing ?? []).length > 0;
+    const shouldLike = liked ?? !isLiked;
+
+    if (!shouldLike && isLiked) {
       const { error } = await supabase
         .from('likes')
         .delete()
-        .eq('video_id', actualVideoId)
-        .eq('user_identifier', userId);
-
-      if (error) {
-        console.error('Like delete error:', error);
-        return NextResponse.json({ error: 'Database error' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        liked: false,
-        likesCount: 0
-      });
-    } else {
-      // 未いいね → 追加
+        .eq('user_identifier', userId)
+        .in('video_id', candidates);
+      if (error) throw error;
+    } else if (shouldLike && !isLiked) {
       const { error } = await supabase
         .from('likes')
-        .insert({
-          video_id: actualVideoId,
-          user_identifier: userId
-        });
-
-      if (error) {
-        console.error('Like insert error:', error);
-        return NextResponse.json({ error: 'Database error' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        liked: true,
-        likesCount: 0
-      });
+        .insert({ video_id: contentId, user_identifier: userId });
+      // 23505: 一意制約違反（連打で同時に登録された）。すでにいいね済みなので成功扱い
+      if (error && error.code !== '23505') throw error;
     }
+
+    return NextResponse.json({ liked: shouldLike, videoId: contentId });
   } catch (error) {
     console.error('Toggle like error:', error);
     return NextResponse.json(

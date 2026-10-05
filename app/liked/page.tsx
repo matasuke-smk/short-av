@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getUserId } from '@/lib/user-id';
+import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 import Link from 'next/link';
 
 type LikedVideo = {
@@ -41,30 +42,12 @@ export default function LikedPage() {
           return;
         }
 
-        // 動画詳細を取得（Supabaseから直接）
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        // 動画詳細を取得（videoIds は新しい順の dmm_content_id）
+        const videos = await fetchVideosByIds<LikedVideo>(
+          likesData.videoIds,
+          'id, title, thumbnail_url, dmm_content_id, likes_count, maker, release_date',
         );
-
-        const { data: videos, error } = await supabase
-          .from('videos')
-          .select('id, title, thumbnail_url, dmm_content_id, likes_count, maker, release_date')
-          .in('id', likesData.videoIds)
-          .eq('is_active', true);
-
-        if (error) {
-          console.error('Failed to fetch videos:', error);
-        } else {
-          // いいねした日時順に並び替え（新しい順）
-          const sortedVideos = (videos || []).sort((a, b) => {
-            const timeA = likesData.likedAtMap[a.id];
-            const timeB = likesData.likedAtMap[b.id];
-            return new Date(timeB).getTime() - new Date(timeA).getTime();
-          });
-          setLikedVideos(sortedVideos);
-        }
+        setLikedVideos(videos);
       } catch (error) {
         console.error('Failed to fetch liked videos:', error);
       } finally {

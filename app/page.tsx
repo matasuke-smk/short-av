@@ -71,13 +71,16 @@ async function VideoList({ targetId }: { targetId?: string }) {
   let videosAll = null;
 
   // まずRPC関数を使用してランダム取得を試みる
+  // （以前は存在しない get_random_videos を呼んでいたため、毎回フォールバックの「同じ200本」になっていた）
   try {
     const { data, error } = await supabase
-      .rpc('get_random_videos', {
+      .rpc('get_random_videos_all', {
         p_limit: poolSize
       });
 
-    if (!error) {
+    if (error) {
+      console.error('get_random_videos_all エラー:', error.message);
+    } else {
       videosAll = data;
     }
   } catch (error) {

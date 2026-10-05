@@ -194,60 +194,33 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     fetchLikes();
   }, [userId]);
 
-  // URLパラメータ（?v=xxx）を処理して該当動画にスクロール
+  // URLパラメータ（?v=xxx）が変わったときだけ、該当動画にスクロールする。
+  // スワイプのたびに URL を書き換えるので、表示中の動画と同じ v なら何もしない（以前は毎回動き、補充位置の巻き戻しなどが起きていた）
+  // 初回の ?v= はサーバー側（app/page.tsx）で一覧の先頭に入れている
+  const lastHandledParamRef = useRef<string | null>(null);
   useEffect(() => {
     if (!emblaApi) return;
 
     const videoParam = searchParams.get('v');
-    if (videoParam) {
-      // 現在表示中の動画リストから該当動画を探す
-      const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
+    if (!videoParam || videoParam === lastHandledParamRef.current) return;
+    lastHandledParamRef.current = videoParam;
 
-      if (targetIndex !== -1) {
-        // 動画が見つかった場合、そこにスクロール
-        emblaApi.scrollTo(targetIndex, false);
-      } else {
-        // 見つからない場合、プールから探す
-        const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoParam);
+    if (videos[emblaApi.selectedScrollSnap()]?.dmm_content_id === videoParam) return;
 
-        if (poolTargetIndex !== -1) {
-          // プールから見つかった場合、その動画までを表示リストに追加
-          const videosToAdd = videoPool.slice(poolIndex, poolTargetIndex + 1);
-          setVideos(prev => [...prev, ...videosToAdd]);
-          setPoolIndex(poolTargetIndex + 1);
+    const targetIndex = videos.findIndex(v => v.dmm_content_id === videoParam);
+    if (targetIndex !== -1) {
+      emblaApi.scrollTo(targetIndex, false);
+      return;
+    }
 
-          setTimeout(() => {
-            const newIndex = videos.length + videosToAdd.length - 1;
-            emblaApi.scrollTo(newIndex, false);
-          }, 100);
-        } else {
-          // プールにも見つからない場合、Supabaseから直接取得
-          const fetchVideo = async () => {
-            const { data: video, error } = await supabase
-              .from('videos')
-              .select('*')
-              .eq('dmm_content_id', videoParam)
-              .eq('is_active', true)
-              .single();
-
-            if (!error && video) {
-              // 取得した動画を先頭に追加
-              setVideos(prev => {
-                if (prev.some(v => v.dmm_content_id === videoParam)) {
-                  return prev;
-                }
-                return [video, ...prev];
-              });
-
-              setTimeout(() => {
-                emblaApi.scrollTo(0, false);
-              }, 100);
-            }
-          };
-
-          fetchVideo();
-        }
-      }
+    // まだ表示していないプールの先にある場合は、そこまで追加してスクロール（プールの位置は戻さない）
+    const poolTargetIndex = videoPool.findIndex((v, i) => i >= poolIndex && v.dmm_content_id === videoParam);
+    if (poolTargetIndex !== -1) {
+      const videosToAdd = videoPool.slice(poolIndex, poolTargetIndex + 1);
+      const newIndex = videos.length + videosToAdd.length - 1;
+      setVideos(prev => [...prev, ...videosToAdd]);
+      setPoolIndex(poolTargetIndex + 1);
+      setTimeout(() => emblaApi.scrollTo(newIndex, false), 100);
     }
   }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
 
@@ -282,12 +255,18 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         const response = await fetch(`/api/videos?limit=200`);
         const data = await response.json();
 
-        if (data.pool && data.pool.length > 0) {
+        // 表示済みの動画は除く（以前は補充のたびに見た動画が約2割混ざっていた）
+        const shownIds = new Set(videos.map((v) => v.dmm_content_id));
+        const freshPool: Video[] = (data.pool ?? []).filter((v: Video) => !shownIds.has(v.dmm_content_id));
+        // 全作品を見終わった場合は、重複を許して続ける
+        const nextPool: Video[] = freshPool.length > 0 ? freshPool : (data.pool ?? []);
+
+        if (nextPool.length > 0) {
           // 新しいプールを設定
-          setVideoPool(data.pool);
+          setVideoPool(nextPool);
           setPoolIndex(20);
           // 最初の20件を追加
-          const nextVideos = data.pool.slice(0, 20);
+          const nextVideos = nextPool.slice(0, 20);
           setVideos(prev => [...prev, ...nextVideos]);
         }
       }
@@ -296,40 +275,24 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos.length, isLoadingMore, videoPool, poolIndex]);
+  }, [videos, isLoadingMore, videoPool, poolIndex]);
 
-  // いいねを切り替える関数
-  const toggleLike = useCallback(async (videoId: string, event: React.MouseEvent) => {
+  // いいねを切り替える関数（いいねは dmm_content_id で管理する）
+  const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
     event.stopPropagation();
 
     if (!userId) return;
 
+    const videoId = video.dmm_content_id;
     const wasLiked = likedVideos.has(videoId);
-    setLikedVideos(prev => {
-      const newSet = new Set(prev);
-      if (wasLiked) {
-        newSet.delete(videoId);
-      } else {
-        newSet.add(videoId);
-      }
-      return newSet;
-    });
-
-    // いいねした動画をvideoPoolに追加（まだ存在しない場合）
-    if (!wasLiked) {
-      const currentVideo = videos.find(v => v.id === videoId || v.dmm_content_id === videoId);
-      if (currentVideo) {
-        setVideoPool(prev => {
-          // 既に存在するかチェック（dmm_content_idで）
-          const exists = prev.some(v => v.dmm_content_id === currentVideo.dmm_content_id);
-          if (!exists) {
-            console.log('[toggleLike] videoPoolに動画を追加:', currentVideo.dmm_content_id);
-            return [...prev, currentVideo];
-          }
-          return prev;
-        });
-      }
-    }
+    const setLiked = (liked: boolean) =>
+      setLikedVideos(prev => {
+        const newSet = new Set(prev);
+        if (liked) newSet.add(videoId);
+        else newSet.delete(videoId);
+        return newSet;
+      });
+    setLiked(!wasLiked);
 
     // Google Analytics: いいねイベント
     trackLike(videoId, wasLiked ? 'unlike' : 'like');
@@ -338,7 +301,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       const response = await fetch('/api/likes/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ videoId, userId }),
+        // 反転ではなく目標の状態を送る（画面とサーバーの状態がずれていても意図どおりになる）
+        body: JSON.stringify({ videoId, userId, liked: !wasLiked }),
       });
 
       if (!response.ok) {
@@ -346,17 +310,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       }
     } catch (error) {
       console.error('Like toggle error:', error);
-      setLikedVideos(prev => {
-        const newSet = new Set(prev);
-        if (wasLiked) {
-          newSet.add(videoId);
-        } else {
-          newSet.delete(videoId);
-        }
-        return newSet;
-      });
+      setLiked(wasLiked);
     }
-  }, [userId, likedVideos, videos]);
+  }, [userId, likedVideos]);
 
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
@@ -438,7 +394,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           url.searchParams.set('index', index.toString());
         }
 
-        window.history.pushState({}, '', url.toString());
+        // スワイプのたびに履歴を積むと「戻る」で何十回も押す必要があったため、置き換えにする
+        if (url.toString() !== window.location.href) {
+          lastHandledParamRef.current = currentVideo.dmm_content_id;
+          window.history.replaceState(window.history.state, '', url.toString());
+        }
       }
     };
 
@@ -458,7 +418,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       setModalVideoUrl(removeAffiliateIdFromUrl(currentVideo.sample_video_url));
       setShowVideoModal(true);
       // 履歴に追加
-      addToHistory(currentVideo.id);
+      addToHistory(currentVideo.dmm_content_id);
 
       // Google Analytics: 動画視聴イベント
       trackVideoView(
@@ -570,11 +530,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
                     {/* いいねボタン - サムネイル左下 */}
                     <button
-                      onClick={(e) => toggleLike(video.id, e)}
+                      onClick={(e) => toggleLike(video, e)}
                       className="absolute bottom-6 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                       aria-label="いいね"
                     >
-                      {(likedVideos.has(video.id) || likedVideos.has(video.dmm_content_id)) ? (
+                      {likedVideos.has(video.dmm_content_id) ? (
                         <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                         </svg>
@@ -970,12 +930,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleLike(currentVideo.id, e);
+                    toggleLike(currentVideo, e);
                   }}
                   className="bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
                   aria-label="いいね"
                 >
-                  {(likedVideos.has(currentVideo.id) || likedVideos.has(currentVideo.dmm_content_id)) ? (
+                  {likedVideos.has(currentVideo.dmm_content_id) ? (
                     <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                       <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                     </svg>
@@ -1055,12 +1015,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                toggleLike(currentVideo.id, e);
+                toggleLike(currentVideo, e);
               }}
               className="landscape:hidden lg:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
               aria-label="いいね"
             >
-              {(likedVideos.has(currentVideo.id) || likedVideos.has(currentVideo.dmm_content_id)) ? (
+              {likedVideos.has(currentVideo.dmm_content_id) ? (
                 <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                 </svg>

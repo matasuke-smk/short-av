@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
+import { toContentIds } from '@/lib/likes';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,13 +29,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    // video_idの配列と、video_id -> created_at のマッピングを返す
-    const videoIds = likes?.map(like => like.video_id) || [];
-    const likedAtMap = likes?.reduce((acc, like) => {
-      acc[like.video_id] = like.created_at;
-      return acc;
-    }, {} as Record<string, string>) || {};
+    // 旧形式（UUID）のいいねも dmm_content_id に読み替え、重複を除いて返す（新しい順）
+    const contentIdMap = await toContentIds(supabase, (likes ?? []).map((like) => like.video_id));
+    const videoIds: string[] = [];
+    const likedAtMap: Record<string, string> = {};
+    for (const like of likes ?? []) {
+      const contentId = contentIdMap.get(like.video_id);
+      if (!contentId || likedAtMap[contentId]) continue;
+      videoIds.push(contentId);
+      likedAtMap[contentId] = like.created_at;
+    }
 
+    // videoIds / likedAtMap のキーはすべて dmm_content_id
     return NextResponse.json({ videoIds, likedAtMap });
   } catch (error) {
     console.error('Get my likes error:', error);
