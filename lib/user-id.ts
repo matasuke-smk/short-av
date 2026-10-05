@@ -21,3 +21,14 @@ export function getUserId(): string {
 
   return userId;
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// crypto.randomUUID 非対応ブラウザ向けのフォールバック形式（lib/articles.ts のサイズ診断ツール）
+const FALLBACK_ID_PATTERN = /^uid-\d+-[0-9a-z]+$/;
+
+/**
+ * クライアントが発行する形式のユーザーIDかどうかを検証（API側の入力チェック用）
+ */
+export function isValidUserId(userId: unknown): userId is string {
+  return typeof userId === 'string' && (UUID_PATTERN.test(userId) || FALLBACK_ID_PATTERN.test(userId));
+}

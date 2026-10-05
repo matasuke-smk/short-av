@@ -36,7 +36,7 @@ export default function RankingPage() {
         case 'recent':
           // 新着ランキング（リリース日でソート）
           query = query
-            .not('release_date', 'is', null)
+            .filter('release_date', 'not.is', null)
             .order('release_date', { ascending: false });
           break;
         case 'likes':
@@ -52,7 +52,7 @@ export default function RankingPage() {
         return;
       }
 
-      setVideos(data || []);
+      setVideos((data || []) as Video[]);
     } catch (error) {
       console.error('ランキング読み込みエラー:', error);
     } finally {

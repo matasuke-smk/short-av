@@ -23,7 +23,8 @@ const nextConfig: NextConfig = {
 
   // パフォーマンス最適化
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // console.error / warn / info は本番でも残す（Vercelのログで障害を追えるように）
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn', 'info'] } : false,
   },
 
   // 実験的機能（パフォーマンス改善）
@@ -68,7 +69,7 @@ const nextConfig: NextConfig = {
       },
       // 画像のキャッシュ（Vercel経由の画像）
       {
-        source: '/_next/image:path*',
+        source: '/_next/image',
         headers: [
           {
             key: 'Cache-Control',

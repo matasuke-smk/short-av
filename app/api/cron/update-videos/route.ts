@@ -1,22 +1,14 @@
-// @ts-nocheck
 /**
- * Vercel Cron用API Route
+ * Vercel Cron用API Route（vercel.json で毎日実行）
  *
- * 設定方法:
- * vercel.jsonに以下を追加:
- * {
- *   "crons": [{
- *     "path": "/api/cron/update-videos",
- *     "schedule": "0 0 * * *"
- *   }]
- * }
- *
- * schedule: "0 0 * * *" = 毎日午前0時（UTC）
- * schedule: "0 (star)/6 * * *" = 6時間ごと
+ * Vercelの実行時間制限内に収めるため、以下の方針で処理する:
+ * - ランキング・新着は毎回取得し、ジャンル別はローテーションで一部のみ取得（数日で全ジャンルを一巡）
+ * - DBへの書き込みはまとめて（バルクで）実行する
+ * - 古いデータの削除は保存が成功した後にのみ行う（途中で打ち切られても動画が減り続けないように）
  */
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   fetchRankingVideos,
   fetchNewReleases,
@@ -25,15 +17,25 @@ import {
   convertDMMItemToVideo,
   extractActresses,
   extractGenres,
-  type DMMItem
+  type DMMItem,
 } from '@/lib/dmm-api';
-import type { Database } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
-// Vercel Cronからのリクエストを検証
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
+// 1回の実行で取得するジャンル数（100ジャンル ÷ 15 ≒ 7日で一巡）
+const GENRES_PER_RUN = 15;
+// ジャンル取得に使う時間の上限（DB保存の時間を残すため）
+const GENRE_FETCH_BUDGET_MS = 25_000;
+// この日数以上更新されず、いいねもされていない動画を削除する（ジャンル一巡の期間より十分長くする）
+const STALE_DAYS = 30;
+// .in() / バルク書き込み1回あたりの件数
+const CHUNK_SIZE = 200;
+
 function verifyCronRequest(request: Request): boolean {
   const authHeader = request.headers.get('authorization');
 
-  // Vercel Cronからのリクエストには特定のヘッダーが付与される
   if (process.env.CRON_SECRET) {
     return authHeader === `Bearer ${process.env.CRON_SECRET}`;
   }
@@ -42,292 +44,211 @@ function verifyCronRequest(request: Request): boolean {
   return process.env.NODE_ENV === 'development';
 }
 
+function chunk<T>(array: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+}
+
+/**
+ * slug → id のマップを作成し、未登録のものはまとめて追加する（女優・ジャンル共通）
+ */
+async function upsertBySlug(
+  supabase: SupabaseClient,
+  table: 'actresses' | 'genres',
+  items: Map<string, string>, // slug → name
+): Promise<Map<string, string>> {
+  const slugToId = new Map<string, string>();
+  const slugs = [...items.keys()];
+
+  for (const slugChunk of chunk(slugs, CHUNK_SIZE)) {
+    const { data, error } = await supabase.from(table).select('id, slug').in('slug', slugChunk);
+    if (error) throw error;
+    for (const row of data ?? []) slugToId.set(row.slug, row.id);
+  }
+
+  const missing = slugs.filter((slug) => !slugToId.has(slug));
+  for (const slugChunk of chunk(missing, CHUNK_SIZE)) {
+    const rows = slugChunk.map((slug) =>
+      table === 'actresses'
+        ? { name: items.get(slug)!, slug, video_count: 0, is_active: true }
+        : { name: items.get(slug)!, slug, sort_order: 999, is_active: true },
+    );
+    const { data, error } = await supabase.from(table).insert(rows).select('id, slug');
+    if (error) throw error;
+    for (const row of data ?? []) slugToId.set(row.slug, row.id);
+  }
+
+  return slugToId;
+}
+
 export async function GET(request: Request) {
-  const executionStartTime = Date.now();
+  const startTime = Date.now();
+  const elapsed = () => `${((Date.now() - startTime) / 1000).toFixed(1)}秒`;
+
+  if (!verifyCronRequest(request)) {
+    console.warn('[Cron] 認証失敗');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    // リクエストの検証
-    if (!verifyCronRequest(request)) {
-      console.log('[Cron] ❌ 認証失敗');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const supabase = getSupabaseAdmin();
+    console.info('[Cron] 動画データ更新開始');
 
-    console.log('[Cron] ========================================');
-    console.log('[Cron] 🚀 動画データ更新開始');
-    console.log('[Cron] 開始時刻:', new Date().toISOString());
-    console.log('[Cron] ========================================');
+    // 1. ランキング・新着を取得
+    const [rankingVideos, newVideos] = await Promise.all([
+      fetchRankingVideos(100),
+      fetchNewReleases(100),
+    ]);
+    console.info(`[Cron] ランキング${rankingVideos.length}件 / 新着${newVideos.length}件 (${elapsed()})`);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
-
-    // 1. ランキングTOP100を取得
-    console.log('[Cron] 📊 ランキング取得開始...');
-    const rankingStartTime = Date.now();
-    const rankingVideos = await fetchRankingVideos(100);
-    console.log(`[Cron] ✅ ランキング取得完了: ${rankingVideos.length}件 (${Date.now() - rankingStartTime}ms)`);
-
-    // 2. 新着100件を取得
-    console.log('[Cron] 🆕 新着動画取得開始...');
-    const newStartTime = Date.now();
-    const newVideos = await fetchNewReleases(100);
-    console.log(`[Cron] ✅ 新着動画取得完了: ${newVideos.length}件 (${Date.now() - newStartTime}ms)`);
-
-    // 3. 全ジャンル一覧を取得
-    console.log('[Cron] 🏷️ 全ジャンル一覧を取得開始...');
-    const genresStartTime = Date.now();
+    // 2. ジャンル別TOP100をローテーションで取得
     const genres = await fetchGenres();
-    console.log(`[Cron] ✅ ジャンル取得完了: ${genres.length}件 (${Date.now() - genresStartTime}ms)`);
-
-    // 4. 各ジャンルのTOP100を取得
-    console.log('[Cron] 🎬 各ジャンルのTOP100を取得開始...');
-    const genreLoopStartTime = Date.now();
     const genreVideos: DMMItem[] = [];
-    let successCount = 0;
-    let failCount = 0;
+    let genresFetched = 0;
+    if (genres.length > 0) {
+      const dayIndex = Math.floor(Date.now() / 86_400_000);
+      const offset = (dayIndex * GENRES_PER_RUN) % genres.length;
+      const genreStart = Date.now();
 
-    for (const genre of genres) {
-      try {
-        const videos = await searchByGenre(genre.id, 100);
-        genreVideos.push(...videos);
-        successCount++;
-
-        if (successCount % 50 === 0) {
-          const elapsed = ((Date.now() - genreLoopStartTime) / 1000).toFixed(1);
-          console.log(`[Cron] 進捗: ${successCount}/${genres.length}ジャンル完了 (${elapsed}秒経過)`);
+      for (let i = 0; i < Math.min(GENRES_PER_RUN, genres.length); i++) {
+        if (Date.now() - genreStart > GENRE_FETCH_BUDGET_MS) {
+          console.warn('[Cron] ジャンル取得の時間上限に達したため打ち切り');
+          break;
         }
-      } catch (error) {
-        failCount++;
-        console.error(`[Cron] ❌ ジャンル${genre.name}(${genre.id})の取得失敗:`, error);
+        const genre = genres[(offset + i) % genres.length];
+        try {
+          genreVideos.push(...(await searchByGenre(genre.id, 100)));
+          genresFetched++;
+        } catch (error) {
+          console.error(`[Cron] ジャンル${genre.name}(${genre.id})の取得失敗:`, error);
+        }
       }
-
-      // APIレート制限対策：各リクエスト間に100msの遅延
-      await new Promise(resolve => setTimeout(resolve, 100));
     }
-    const genreLoopDuration = ((Date.now() - genreLoopStartTime) / 1000).toFixed(1);
-    console.log(`[Cron] ✅ ジャンル動画取得完了: ${genreVideos.length}件`);
-    console.log(`[Cron] 成功: ${successCount}件 / 失敗: ${failCount}件 (${genreLoopDuration}秒)`);
+    console.info(`[Cron] ジャンル${genresFetched}/${genres.length}件から${genreVideos.length}件取得 (${elapsed()})`);
 
-    // 5. 重複を除去してマージ（サムネイル&サンプル動画のフィルタリング）
-    console.log('[Cron] 🔄 重複除去とフィルタリング開始...');
+    // 3. 重複除去（サムネイルとサンプル動画が両方ある動画のみ）
     const allVideos = new Map<string, DMMItem>();
-    let filteredOutCount = 0;
-
-    const addVideo = (video: DMMItem) => {
-      // サムネイルとサンプル動画の両方が存在する動画のみ追加
-      if (video.imageURL?.large && video.sampleMovieURL?.size_560_360) {
+    for (const video of [...rankingVideos, ...newVideos, ...genreVideos]) {
+      if (video.imageURL?.large && video.sampleMovieURL?.size_560_360 && !allVideos.has(video.content_id)) {
         allVideos.set(video.content_id, video);
-      } else {
-        filteredOutCount++;
       }
-    };
+    }
+    const rankMap = new Map(rankingVideos.map((v, i) => [v.content_id, i + 1]));
 
-    const totalBeforeFilter = rankingVideos.length + newVideos.length + genreVideos.length;
-    rankingVideos.forEach(addVideo);
-    newVideos.forEach(addVideo);
-    genreVideos.forEach(addVideo);
+    // 4. 女優・ジャンルをまとめて登録
+    const actressNames = new Map<string, string>();
+    const genreNames = new Map<string, string>();
+    for (const video of allVideos.values()) {
+      for (const a of extractActresses(video)) actressNames.set(a.slug, a.name);
+      for (const g of extractGenres(video)) genreNames.set(g.slug, g.name);
+    }
+    const actressIdMap = await upsertBySlug(supabase, 'actresses', actressNames);
+    const genreIdMap = await upsertBySlug(supabase, 'genres', genreNames);
+    console.info(`[Cron] 女優${actressIdMap.size}件 / ジャンル${genreIdMap.size}件を紐付け (${elapsed()})`);
 
-    console.log(`[Cron] 取得総数: ${totalBeforeFilter}件`);
-    console.log(`[Cron] フィルタ除外: ${filteredOutCount}件（サムネイルorサンプル動画なし）`);
-    console.log(`[Cron] ✅ 重複除去後: ${allVideos.size}件（ユニーク）`);
+    // 5. 動画をまとめて保存
+    const now = new Date().toISOString();
+    const videoRows = [...allVideos.values()].map((video) => {
+      const actressIds = extractActresses(video).map((a) => actressIdMap.get(a.slug)).filter(Boolean) as string[];
+      const genreIds = extractGenres(video).map((g) => genreIdMap.get(g.slug)).filter(Boolean) as string[];
+      return {
+        ...convertDMMItemToVideo(video, rankMap.get(video.content_id)),
+        genre_ids: genreIds.length > 0 ? genreIds : null,
+        actress_ids: actressIds.length > 0 ? actressIds : null,
+        updated_at: now,
+      };
+    });
 
-    // 6. 古いデータを削除（1ヶ月以上更新されず、いいねもされていない動画）
-    console.log('[Cron] 🗑️ 古いデータ削除開始...');
-    const deleteStartTime = Date.now();
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const existingIds = new Set<string>();
+    for (const idChunk of chunk(videoRows.map((v) => v.id), CHUNK_SIZE)) {
+      const { data, error } = await supabase.from('videos').select('id').in('id', idChunk);
+      if (error) throw error;
+      for (const row of data ?? []) existingIds.add(row.id);
+    }
 
-    const { data: oldVideos } = await supabase
-      .from('videos')
-      .select('id, dmm_content_id, updated_at')
-      .lt('updated_at', oneMonthAgo.toISOString());
+    // 既存動画は閲覧数・クリック数を上書きしないよう、カウンタ列を除いて更新する
+    const newRows = videoRows.filter((v) => !existingIds.has(v.id));
+    const updateRows = videoRows
+      .filter((v) => existingIds.has(v.id))
+      .map(({ view_count: _view, click_count: _click, ...rest }) => rest);
 
-    console.log(`[Cron] 1ヶ月以上未更新の動画: ${oldVideos?.length || 0}件`);
+    let saveErrors = 0;
+    for (const rows of chunk(newRows, CHUNK_SIZE)) {
+      const { error } = await supabase.from('videos').insert(rows);
+      if (error) {
+        console.error('[Cron] 新規保存エラー:', error);
+        saveErrors += rows.length;
+      }
+    }
+    for (const rows of chunk(updateRows, CHUNK_SIZE)) {
+      const { error } = await supabase.from('videos').upsert(rows, { onConflict: 'id' });
+      if (error) {
+        console.error('[Cron] 更新エラー:', error);
+        saveErrors += rows.length;
+      }
+    }
+    const saved = videoRows.length - saveErrors;
+    console.info(`[Cron] 新規${newRows.length}件 / 更新${updateRows.length}件 / エラー${saveErrors}件 (${elapsed()})`);
 
+    // 6. 保存が成功した場合のみ、古い動画（いいね無し）を削除
     let deletedCount = 0;
-    if (oldVideos && oldVideos.length > 0) {
-      for (const oldVideo of oldVideos) {
-        const { count } = await supabase
+    if (saved > 0 && saveErrors === 0) {
+      const threshold = new Date(Date.now() - STALE_DAYS * 86_400_000).toISOString();
+      const { data: oldVideos, error } = await supabase
+        .from('videos')
+        .select('id')
+        .lt('updated_at', threshold);
+      if (error) throw error;
+
+      const oldIds = (oldVideos ?? []).map((v) => v.id as string);
+      for (const idChunk of chunk(oldIds, CHUNK_SIZE)) {
+        const { data: liked, error: likesError } = await supabase
           .from('likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('video_id', oldVideo.id);
+          .select('video_id')
+          .in('video_id', idChunk);
+        if (likesError) throw likesError;
 
-        if (count === 0) {
-          const { error } = await supabase
-            .from('videos')
-            .delete()
-            .eq('id', oldVideo.id);
+        const likedIds = new Set((liked ?? []).map((l) => l.video_id));
+        const deletable = idChunk.filter((id) => !likedIds.has(id));
+        if (deletable.length === 0) continue;
 
-          if (!error) {
-            deletedCount++;
-          }
-        }
+        const { error: deleteError } = await supabase.from('videos').delete().in('id', deletable);
+        if (deleteError) throw deleteError;
+        deletedCount += deletable.length;
       }
+    } else {
+      console.warn('[Cron] 保存に失敗があったため古いデータの削除をスキップ');
     }
-    console.log(`[Cron] ✅ 削除完了: ${deletedCount}件 (${Date.now() - deleteStartTime}ms)`);
-
-    // 7. Supabaseに保存
-    console.log('[Cron] 💾 データベース保存開始...');
-    const saveStartTime = Date.now();
-    let savedCount = 0;
-    let updatedCount = 0;
-    let errorCount = 0;
-
-    let processedCount = 0;
-    const totalToProcess = allVideos.size;
-
-    for (const [contentId, video] of allVideos.entries()) {
-      try {
-        processedCount++;
-        if (processedCount % 100 === 0) {
-          const elapsed = ((Date.now() - saveStartTime) / 1000).toFixed(1);
-          console.log(`[Cron] 保存進捗: ${processedCount}/${totalToProcess} (${elapsed}秒)`);
-        }
-
-        // 女優データを処理
-        const actresses = extractActresses(video);
-        const actressIds: string[] = [];
-
-        for (const actress of actresses) {
-          const { data: existingActress } = await supabase
-            .from('actresses')
-            .select('id')
-            .eq('slug', actress.slug)
-            .single();
-
-          if (existingActress) {
-            actressIds.push(existingActress.id);
-          } else {
-            const { data: newActress } = await supabase
-              .from('actresses')
-              .insert({
-                name: actress.name,
-                slug: actress.slug,
-                video_count: 0,
-                is_active: true,
-              })
-              .select('id')
-              .single();
-
-            if (newActress) {
-              actressIds.push(newActress.id);
-            }
-          }
-        }
-
-        // ジャンルデータを処理
-        const genresFromVideo = extractGenres(video);
-        const genreIds: string[] = [];
-
-        for (const genre of genresFromVideo) {
-          const { data: existingGenre } = await supabase
-            .from('genres')
-            .select('id')
-            .eq('slug', genre.slug)
-            .single();
-
-          if (existingGenre) {
-            genreIds.push(existingGenre.id);
-          } else {
-            const { data: newGenre } = await supabase
-              .from('genres')
-              .insert({
-                name: genre.name,
-                slug: genre.slug,
-                sort_order: 999,
-                is_active: true,
-              })
-              .select('id')
-              .single();
-
-            if (newGenre) {
-              genreIds.push(newGenre.id);
-            }
-          }
-        }
-
-        // 既存データをチェック
-        const { data: existingVideo } = await supabase
-          .from('videos')
-          .select('id, dmm_content_id')
-          .eq('dmm_content_id', contentId)
-          .single();
-
-        const videoData = {
-          ...convertDMMItemToVideo(video),
-          genre_ids: genreIds.length > 0 ? genreIds : null,
-          actress_ids: actressIds.length > 0 ? actressIds : null,
-        } as any;
-
-        if (existingVideo) {
-          // 更新
-          const { error } = await supabase
-            .from('videos')
-            .update(videoData)
-            .eq('id', existingVideo.id);
-
-          if (error) throw error;
-          updatedCount++;
-        } else {
-          // 新規作成
-          const { error } = await supabase
-            .from('videos')
-            .insert(videoData);
-
-          if (error) throw error;
-          savedCount++;
-        }
-      } catch (error) {
-        console.error(`[Cron] ❌ エラー (${contentId}):`, error);
-        errorCount++;
-      }
-    }
-
-    const saveDuration = ((Date.now() - saveStartTime) / 1000).toFixed(1);
-    console.log(`[Cron] ✅ 保存完了: ${saveDuration}秒`);
-    console.log(`[Cron] 新規: ${savedCount}件 / 更新: ${updatedCount}件 / エラー: ${errorCount}件`);
-
-    const executionDuration = ((Date.now() - executionStartTime) / 1000).toFixed(1);
 
     const result = {
-      success: true,
+      success: saveErrors === 0,
       timestamp: new Date().toISOString(),
-      executionTime: `${executionDuration}秒`,
+      executionTime: elapsed(),
       stats: {
-        total: allVideos.size,
-        saved: savedCount,
-        updated: updatedCount,
+        total: videoRows.length,
+        inserted: newRows.length,
+        updated: updateRows.length,
         deleted: deletedCount,
-        errors: errorCount,
+        errors: saveErrors,
+        genresFetched,
       },
     };
+    console.info('[Cron] 処理完了:', JSON.stringify(result.stats));
 
-    console.log('[Cron] ========================================');
-    console.log('[Cron] ✅ 処理完了');
-    console.log('[Cron] 総実行時間:', executionDuration, '秒');
-    console.log('[Cron] 統計:', JSON.stringify(result.stats, null, 2));
-    console.log('[Cron] ========================================');
-
-    return NextResponse.json(result);
-
+    return NextResponse.json(result, { status: saveErrors === 0 ? 200 : 500 });
   } catch (error) {
-    const executionDuration = ((Date.now() - executionStartTime) / 1000).toFixed(1);
-    console.error('[Cron] ========================================');
-    console.error('[Cron] ❌ エラー発生');
-    console.error('[Cron] 実行時間:', executionDuration, '秒');
-    console.error('[Cron] エラー詳細:', error);
-    if (error instanceof Error) {
-      console.error('[Cron] エラーメッセージ:', error.message);
-      console.error('[Cron] スタックトレース:', error.stack);
-    }
-    console.error('[Cron] ========================================');
+    console.error(`[Cron] エラー発生 (${elapsed()}):`, error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
-        executionTime: `${executionDuration}秒`
+        executionTime: elapsed(),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
