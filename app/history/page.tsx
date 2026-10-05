@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 import Link from 'next/link';
 import type { Database } from '@/lib/supabase';
 
@@ -23,26 +23,8 @@ export default function HistoryPage() {
           return;
         }
 
-        // 履歴のビデオIDをもとにデータベースから動画情報を取得
-        const { data, error } = await supabase
-          .from('videos')
-          .select('*')
-          .in('id', history)
-          .eq('is_active', true);
-
-        if (error) {
-          console.error('履歴取得エラー:', error);
-          return;
-        }
-
-        if (data) {
-          // 履歴の順序を保持してソート
-          const sortedVideos = history
-            .map((id: string) => data.find(v => v.id === id))
-            .filter((v: Video | undefined): v is Video => v !== undefined);
-
-          setVideos(sortedVideos);
-        }
+        // 履歴は新しい順の dmm_content_id（旧形式の UUID も混在しうる）。履歴の順番どおりに取得する
+        setVideos(await fetchVideosByIds<Video>(history));
       } catch (error) {
         console.error('履歴読み込みエラー:', error);
       } finally {

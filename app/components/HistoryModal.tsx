@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { Database } from '@/lib/supabase';
+import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -36,19 +37,9 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
         return;
       }
 
-      // 履歴の順番でソート
-      const sortedVideos = history
-        .map((id: string) => videoPool.find(v => v.id === id))
-        .filter((v: Video | undefined): v is Video => v !== undefined);
-
-      // 見つからなかった動画をログ出力
-      const foundVideoIds = new Set(sortedVideos.map((v: Video) => v.id));
-      const missingVideoIds = history.filter((id: string) => !foundVideoIds.has(id));
-      if (missingVideoIds.length > 0) {
-        console.warn(`視聴履歴のうち${missingVideoIds.length}件がプールに見つかりませんでした:`, missingVideoIds);
-      }
-
-      setHistoryVideos(sortedVideos);
+      // 履歴は新しい順の dmm_content_id（旧形式の UUID も混在しうる）。
+      // 以前は読み込み済みの動画からしか探さず、大半が表示されなかったため DB から取得する
+      setHistoryVideos(await fetchVideosByIds<Video>(history));
     } catch (error) {
       console.error('履歴読み込みエラー:', error);
     } finally {
