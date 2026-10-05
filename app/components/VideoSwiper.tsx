@@ -60,6 +60,8 @@ function removeAffiliateIdFromUrl(url: string | null): string {
   return url.replace(/\/affi_id=[^/]+\//g, '/');
 }
 
+const SWIPED_KEY = 'short-av-has-swiped';
+
 export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
@@ -89,6 +91,15 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   const showVideoModalRef = useRef(showVideoModal);
   const [userId, setUserId] = useState<string>('');
   const [showTutorial, setShowTutorial] = useState(true);
+  // 一度でも次の動画へ移動したか（未移動の間は1本目にスワイプのヒントを出す）
+  const [hasSwiped, setHasSwiped] = useState(true);
+  useEffect(() => {
+    try {
+      setHasSwiped(localStorage.getItem(SWIPED_KEY) === '1');
+    } catch {
+      // localStorage が使えない環境ではヒントを出さない
+    }
+  }, []);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showRankingModal, setShowRankingModal] = useState(false);
@@ -347,6 +358,48 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     }
   }, [userId, likedVideos, videos]);
 
+  // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
+  const overlayOpenRef = useRef(false);
+  overlayOpenRef.current =
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal;
+
+  // PC: マウスホイールと ↑↓ キーで前後の動画へ移動（ドラッグ以外の操作手段）
+  useEffect(() => {
+    if (!emblaApi) return;
+    const root = emblaApi.rootNode();
+    let lastWheelAt = 0;
+
+    const onWheel = (e: WheelEvent) => {
+      if (overlayOpenRef.current || Math.abs(e.deltaY) < 30) return;
+      const now = Date.now();
+      // トラックパッドの慣性スクロールで何本も進まないよう、1回の操作で1本だけ移動
+      if (now - lastWheelAt < 700) return;
+      lastWheelAt = now;
+      if (e.deltaY > 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+      if (overlayOpenRef.current) return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        emblaApi.scrollNext();
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        emblaApi.scrollPrev();
+      }
+    };
+
+    root.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      root.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [emblaApi]);
+
   // 初期位置にスクロール（アニメーション付き）
   useEffect(() => {
     if (!emblaApi || startIndex === 0) return;
@@ -359,6 +412,14 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
     if (!emblaApi) return;
 
     const onSelect = () => {
+      if (emblaApi.selectedScrollSnap() > 0) {
+        setHasSwiped(true);
+        try {
+          localStorage.setItem(SWIPED_KEY, '1');
+        } catch {
+          // 保存できなくても動作には影響しない
+        }
+      }
       const index = emblaApi.selectedScrollSnap();
       setCurrentIndex(index);
 
@@ -523,6 +584,19 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                         </svg>
                       )}
                     </button>
+
+                    {/* スワイプのヒント - 一度も次の動画へ移動していない間だけ1本目に表示 */}
+                    {index === 0 && !hasSwiped && (
+                      <div className="pointer-events-none absolute bottom-7 left-1/2 -translate-x-1/2 z-40 animate-hint-nudge">
+                        <div className="flex items-center gap-1.5 bg-black/75 backdrop-blur-sm text-white text-sm font-bold rounded-full px-4 py-2 shadow-lg whitespace-nowrap">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                          </svg>
+                          <span className="lg:hidden">上にスワイプで次の動画</span>
+                          <span className="hidden lg:inline">ホイール・↓キーで次の動画</span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* PRバッジ - サムネイル右下 */}
                     <div className="absolute bottom-6 right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg">

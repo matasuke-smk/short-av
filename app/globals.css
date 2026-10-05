@@ -29,6 +29,43 @@
     animation: swipe-up 1.5s ease-in-out infinite;
   }
 
+  /* 1本目のスワイプのヒント: 上方向に小さく揺れる */
+  .animate-hint-nudge {
+    animation: hint-nudge 1.6s ease-in-out infinite;
+  }
+
+  @keyframes hint-nudge {
+    0%, 100% {
+      transform: translate(-50%, 0);
+    }
+    50% {
+      transform: translate(-50%, -8px);
+    }
+  }
+
+  /* チュートリアル: 指が下から上へスワイプする動き */
+  .animate-swipe-hand {
+    animation: swipe-hand 1.8s ease-in-out infinite;
+  }
+
+  @keyframes swipe-hand {
+    0% {
+      transform: translateY(60px);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    70% {
+      transform: translateY(-60px);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-60px);
+      opacity: 0;
+    }
+  }
+
   @keyframes bounce {
     0%, 100% {
       transform: translateY(0);
