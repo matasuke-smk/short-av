@@ -22,16 +22,69 @@ const SLOT_LABEL: Record<XPost['slot_type'], string> = {
 
 const MAX_IMAGES = 4;
 
+// 画像は別ドメイン（pics.dmm.co.jp）のため、同一オリジンの中継 API 経由で取得する
+function proxiedImageUrl(url: string): string {
+  return `/api/admin/x-posts/image-download?url=${encodeURIComponent(url)}`;
+}
+
+async function fetchImageFile(url: string): Promise<File> {
+  const response = await fetch(proxiedImageUrl(url));
+  if (!response.ok) throw new Error('image fetch failed');
+  const blob = await response.blob();
+  return new File([blob], url.split('/').pop() ?? 'image.jpg', { type: 'image/jpeg' });
+}
+
+// クリップボードは PNG しか受け付けないため変換する
+async function toPngBlob(file: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob failed'))), 'image/png'),
+  );
+}
+
 /**
- * 作品のサンプル画像から X に添付する画像（最大4枚）を選んでダウンロードする。
+ * 作品のサンプル画像から X に添付する画像（最大4枚）を選び、
+ * PC ではクリップボードへのコピー（X の投稿画面で Ctrl+V）、スマホでは共有メニューで X アプリへ送る。
  * X アカウントが DMM アフィリエイトの運営サイトとして承認されてから使うこと。
  */
-function SampleImagePicker({ contentId }: { contentId: string }) {
+function SampleImagePicker({ contentId, text }: { contentId: string; text: string }) {
   const [open, setOpen] = useState(false);
   const [images, setImages] = useState<string[] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [files, setFiles] = useState<Record<string, File>>({});
   const [error, setError] = useState('');
-  const [downloading, setDownloading] = useState(false);
+  const [status, setStatus] = useState('');
+  const [canShareFiles, setCanShareFiles] = useState(false);
+
+  useEffect(() => {
+    try {
+      const probe = new File([new Blob()], 'probe.jpg', { type: 'image/jpeg' });
+      setCanShareFiles(typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] }));
+    } catch {
+      setCanShareFiles(false);
+    }
+  }, []);
+
+  // 共有メニューはボタン操作の直後でないと開けないため、選択中の画像は先に読み込んでおく
+  useEffect(() => {
+    const missing = selected.filter((url) => !files[url]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    Promise.all(missing.map(async (url) => [url, await fetchImageFile(url)] as const))
+      .then((entries) => {
+        if (!cancelled) setFiles((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      })
+      .catch(() => {
+        if (!cancelled) setError('画像の読み込みに失敗しました');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, files]);
 
   async function load() {
     setOpen(true);
@@ -55,11 +108,33 @@ function SampleImagePicker({ contentId }: { contentId: string }) {
     });
   }
 
+  async function copy(url: string, index: number) {
+    setStatus('');
+    try {
+      const file = files[url] ?? (await fetchImageFile(url));
+      // Safari 対策で Promise のまま渡す
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': toPngBlob(file) })]);
+      setStatus(`画像${index + 1}をコピーしました。X の投稿画面で Ctrl+V で貼り付けてください`);
+    } catch {
+      setStatus('コピーできませんでした（ブラウザがクリップボードへの画像コピーに対応していない可能性があります）');
+    }
+  }
+
+  const ready = selected.length > 0 && selected.every((url) => files[url]);
+
+  async function share() {
+    setStatus('');
+    try {
+      await navigator.share({ text, files: selected.map((url) => files[url]) });
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') setStatus('共有できませんでした');
+    }
+  }
+
   async function download() {
-    setDownloading(true);
     for (const url of selected) {
       const link = document.createElement('a');
-      link.href = `/api/admin/x-posts/image-download?url=${encodeURIComponent(url)}`;
+      link.href = proxiedImageUrl(url);
       link.download = '';
       document.body.appendChild(link);
       link.click();
@@ -67,7 +142,6 @@ function SampleImagePicker({ contentId }: { contentId: string }) {
       // 連続ダウンロードがブラウザにブロックされないよう少し間を空ける
       await new Promise((resolve) => setTimeout(resolve, 400));
     }
-    setDownloading(false);
   }
 
   if (!open) {
@@ -112,13 +186,31 @@ function SampleImagePicker({ contentId }: { contentId: string }) {
               );
             })}
           </div>
-          <button
-            onClick={download}
-            disabled={selected.length === 0 || downloading}
-            className="mt-3 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
-          >
-            {downloading ? 'ダウンロード中...' : `選択した${selected.length}枚をダウンロード`}
-          </button>
+
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            {canShareFiles && (
+              <button
+                onClick={share}
+                disabled={!ready}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
+              >
+                {ready ? `本文と画像${selected.length}枚を共有（X アプリへ）` : '画像を準備中...'}
+              </button>
+            )}
+            {selected.map((url, i) => (
+              <button
+                key={url}
+                onClick={() => copy(url, i)}
+                className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm"
+              >
+                画像{i + 1}をコピー
+              </button>
+            ))}
+            <button onClick={download} className="text-xs text-gray-400 hover:text-gray-200 underline">
+              ダウンロード
+            </button>
+          </div>
+          {status && <div className="text-xs text-yellow-300 mt-2">{status}</div>}
         </>
       )}
     </div>
@@ -280,7 +372,7 @@ export default function XPostsAdminPage() {
 
                   {!scheduled && (
                     <div className="mt-3">
-                      <SampleImagePicker contentId={post.dmm_content_id} />
+                      <SampleImagePicker contentId={post.dmm_content_id} text={text} />
                     </div>
                   )}
 
