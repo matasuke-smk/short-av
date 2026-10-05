@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="0.6" stop-color="#1f2937"/>
+      <stop offset="1" stop-color="#7f1d1d"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#991b1b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <!-- 右側: 縦に並ぶ動画カード（スワイプのイメージ） -->
+  <g opacity="0.95">
+    <rect x="1110" y="-60" width="170" height="250" rx="22" fill="#374151"/>
+    <rect x="1110" y="210" width="170" height="250" rx="22" fill="url(#card)"/>
+    <path d="M1175 300 L1225 335 L1175 370 Z" fill="#ffffff"/>
+    <rect x="1110" y="480" width="170" height="250" rx="22" fill="#374151"/>
+    <path d="M1330 330 L1330 250 M1308 272 L1330 250 L1352 272" stroke="#f9fafb" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  </g>
+  <!-- 左側: サイト名とキャッチコピー（左下はアイコンと重なるため上寄せ） -->
+  <text x="430" y="190" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="104" fill="#ffffff">Short AV</text>
+  <text x="434" y="262" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="40" fill="#e5e7eb">サンプル動画を、縦スワイプで。</text>
+  <text x="434" y="322" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-size="30" fill="#9ca3af">FANZA の人気作・新作を毎日紹介</text>
+  <text x="434" y="400" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#f87171">short-av.com</text>
+</svg>
