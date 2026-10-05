@@ -260,7 +260,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
       } else {
         // プールが尽きた場合、新規取得
         console.log('プール尽きた：新規取得を実行');
-        const response = await fetch(`/api/videos?limit=10000`);
+        const response = await fetch(`/api/videos?limit=200`);
         const data = await response.json();
 
         if (data.pool && data.pool.length > 0) {
@@ -1232,7 +1232,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
 
           if (actressVideos && actressVideos.length > 0) {
             // 動画リストを置き換え
-            setVideos(actressVideos);
+            setVideos(actressVideos as Video[]);
             setCurrentIndex(0);
             setIsFiniteList(true);
 

@@ -1,66 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// 抽選対象とする動画の最大件数（人気順の上位から）
+const CANDIDATE_LIMIT = 3000;
+const DEFAULT_POOL_SIZE = 200;
+const MAX_POOL_SIZE = 500;
+
+/**
+ * 重み付きランダムサンプリング（Efraimidis-Spirakis法、O(n log n)）
+ * ランキング上位ほど選ばれやすいが、下位も選ばれる可能性がある
+ */
+function weightedRandomSample<T extends { rank_position: number | null }>(
+  array: T[],
+  sampleSize: number
+): T[] {
+  return array
+    .map((item, index) => {
+      // rank_positionがあればそれを使用、なければインデックスベース
+      const rank = item.rank_position || (index + 1);
+      // ランク1位: 100, 100位: 90, 500位: 50, 1000位以降: 1
+      const weight = Math.max(1, 100 - (rank - 1) * 0.1);
+      return { item, key: Math.pow(Math.random(), 1 / weight) };
+    })
+    .sort((a, b) => b.key - a.key)
+    .slice(0, sampleSize)
+    .map(({ item }) => item);
+}
+
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const limit = parseInt(searchParams.get('limit') || '20');
+  const requested = parseInt(request.nextUrl.searchParams.get('limit') || '', 10);
+  const limit = Number.isFinite(requested)
+    ? Math.min(Math.max(requested, 1), MAX_POOL_SIZE)
+    : DEFAULT_POOL_SIZE;
 
   try {
-    /**
-     * 重み付きランダムサンプリング
-     * ランキング上位ほど選ばれやすいが、下位も選ばれる可能性がある
-     */
-    function weightedRandomSample<T extends { rank_position: number | null }>(
-      array: T[],
-      sampleSize: number
-    ): T[] {
-      const result: T[] = [];
-      const available = [...array];
-
-      // 各動画に重みスコアを付与
-      const weighted = available.map((item, index) => {
-        // rank_positionがあればそれを使用、なければインデックスベース
-        const rank = item.rank_position || (index + 1);
-
-        // 重みスコア計算
-        // ランク1位: 100, 10位: 90, 100位: 50, 500位: 10, 1000位: 5, それ以降: 1
-        const weight = Math.max(1, 100 - (rank - 1) * 0.1);
-
-        return { item, weight };
-      });
-
-      // サンプルサイズ分だけ選択
-      for (let i = 0; i < Math.min(sampleSize, weighted.length); i++) {
-        if (weighted.length === 0) break;
-
-        // 総重みを計算
-        const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0);
-
-        // ランダム値を生成
-        let random = Math.random() * totalWeight;
-
-        // 累積重みから選択
-        let selectedIndex = 0;
-        for (let j = 0; j < weighted.length; j++) {
-          random -= weighted[j].weight;
-          if (random <= 0) {
-            selectedIndex = j;
-            break;
-          }
-        }
-
-        // 選択した動画を結果に追加
-        result.push(weighted[selectedIndex].item);
-
-        // 選択した動画を候補から除外
-        weighted.splice(selectedIndex, 1);
-      }
-
-      return result;
-    }
-
     // rank_position順で動画を取得（人気順）
-    // 大量に取得して重み付きランダムサンプリング
     const { data: allVideos, error } = await supabase
       .from('videos')
       .select('*')
@@ -68,24 +42,17 @@ export async function GET(request: NextRequest) {
       .not('thumbnail_url', 'is', null)
       .not('sample_video_url', 'is', null)
       .order('rank_position', { ascending: true, nullsFirst: false })
-      .limit(10000); // 大量に取得
+      .limit(CANDIDATE_LIMIT);
 
     if (error) {
       console.error('動画取得エラー:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    const filteredVideos = allVideos || [];
-
-    console.log(`[Videos API] Filtered videos: ${filteredVideos.length}`);
-
-    // 重み付きランダムサンプリング
     // 人気動画が出やすいが、隠れた作品も発掘できる
-    const pool = weightedRandomSample(filteredVideos, filteredVideos.length);
+    const pool = weightedRandomSample(allVideos || [], limit);
 
-    console.log(`[Videos API] Weighted random pool created: ${pool.length} videos`);
-
-    return NextResponse.json({ pool: pool || [] });
+    return NextResponse.json({ pool });
   } catch (error) {
     console.error('予期しないエラー:', error);
     return NextResponse.json(

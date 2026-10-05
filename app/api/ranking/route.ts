@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || 'all'; // weekly, monthly, all
-    const limit = parseInt(searchParams.get('limit') || '20');
+    // DMM APIの1リクエスト上限（100件）に制限
+    const requested = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Number.isFinite(requested) ? Math.min(Math.max(requested, 1), 100) : 20;
 
     console.log(`[Ranking API] Fetching ${period} ranking, limit: ${limit}`);
 
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch ranking',
+        error: 'Failed to fetch ranking',
       },
       { status: 500 }
     );

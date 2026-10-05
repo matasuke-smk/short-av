@@ -38,7 +38,7 @@ export default function SizeStatsAdminPage() {
         ...(ageGroup && { ageGroup }),
       });
 
-      const response = await fetch(`/api/size-stats?${params}`);
+      const response = await fetch(`/api/admin/size-stats?${params}`);
       if (response.ok) {
         const data = await response.json();
         setStats(data);

@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { isValidUserId } from '@/lib/user-id';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { videoId, userId } = body;
 
-    if (!videoId || !userId) {
+    if (typeof videoId !== 'string' || videoId.length === 0 || videoId.length > 64 || !isValidUserId(userId)) {
       return NextResponse.json(
-        { error: 'videoId and userId are required' },
+        { error: 'valid videoId and userId are required' },
         { status: 400 }
       );
     }
+
+    const supabase = getSupabaseAdmin();
 
     // videoIdをそのまま使用（DMM content_idでもUUID IDでもOK）
     const actualVideoId = videoId;
@@ -34,7 +37,7 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         console.error('Like delete error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
       }
 
       return NextResponse.json({
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         console.error('Like insert error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
       }
 
       return NextResponse.json({
