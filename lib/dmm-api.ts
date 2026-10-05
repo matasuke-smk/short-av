@@ -28,6 +28,9 @@ export type DMMItem = {
     sample_s: {
       image: string[];
     };
+    sample_l?: {
+      image: string[];
+    };
   };
   sampleMovieURL?: {
     size_560_360: string;
@@ -102,6 +105,7 @@ export async function fetchDMMProducts(options: {
   article?: string;
   article_id?: string;
   actress?: string;
+  cid?: string;
 } = {}): Promise<DMMApiResponse> {
   const apiId = process.env.DMM_API_ID;
   const affiliateId = process.env.DMM_AFFILIATE_ID;
@@ -128,6 +132,7 @@ export async function fetchDMMProducts(options: {
   if (options.article) params.append('article', options.article);
   if (options.article_id) params.append('article_id', options.article_id);
   if (options.actress) params.append('actress', options.actress);
+  if (options.cid) params.append('cid', options.cid);
 
   const url = `${DMM_API_BASE_URL}?${params.toString()}`;
 
@@ -415,4 +420,19 @@ export function extractGenres(item: DMMItem) {
     name: genre.name,
     slug: genre.id.toString(), // DMM APIのIDをslugとして使用
   })) || [];
+}
+
+/**
+ * 作品のサンプル画像（大）の URL 一覧を取得
+ */
+export async function fetchSampleImages(contentId: string): Promise<string[]> {
+  const response = await fetchDMMProducts({
+    site: 'FANZA',
+    service: 'digital',
+    floor: 'videoa',
+    cid: contentId,
+    hits: 1,
+  });
+  const item = response.result.items?.find((i) => i.content_id === contentId) ?? response.result.items?.[0];
+  return item?.sampleImageURL?.sample_l?.image ?? item?.sampleImageURL?.sample_s?.image ?? [];
 }

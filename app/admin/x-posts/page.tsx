@@ -20,6 +20,111 @@ const SLOT_LABEL: Record<XPost['slot_type'], string> = {
   random: 'ランダム',
 };
 
+const MAX_IMAGES = 4;
+
+/**
+ * 作品のサンプル画像から X に添付する画像（最大4枚）を選んでダウンロードする。
+ * X アカウントが DMM アフィリエイトの運営サイトとして承認されてから使うこと。
+ */
+function SampleImagePicker({ contentId }: { contentId: string }) {
+  const [open, setOpen] = useState(false);
+  const [images, setImages] = useState<string[] | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState(false);
+
+  async function load() {
+    setOpen(true);
+    if (images) return;
+    try {
+      const response = await fetch(`/api/admin/x-posts/sample-images?cid=${encodeURIComponent(contentId)}`);
+      if (!response.ok) throw new Error();
+      const data = await response.json();
+      setImages(data.images);
+      setSelected(data.images.slice(0, MAX_IMAGES));
+    } catch {
+      setError('サンプル画像を取得できませんでした');
+    }
+  }
+
+  function toggle(url: string) {
+    setSelected((prev) => {
+      if (prev.includes(url)) return prev.filter((u) => u !== url);
+      if (prev.length >= MAX_IMAGES) return prev;
+      return [...prev, url];
+    });
+  }
+
+  async function download() {
+    setDownloading(true);
+    for (const url of selected) {
+      const link = document.createElement('a');
+      link.href = `/api/admin/x-posts/image-download?url=${encodeURIComponent(url)}`;
+      link.download = '';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      // 連続ダウンロードがブラウザにブロックされないよう少し間を空ける
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+    setDownloading(false);
+  }
+
+  if (!open) {
+    return (
+      <button onClick={load} className="text-sm text-blue-300 hover:text-blue-200 underline">
+        添付用のサンプル画像を表示
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 bg-gray-900 rounded p-3">
+      {error ? (
+        <div className="text-red-400 text-sm">{error}</div>
+      ) : !images ? (
+        <div className="text-gray-400 text-sm">読み込み中...</div>
+      ) : images.length === 0 ? (
+        <div className="text-gray-400 text-sm">この作品にはサンプル画像がありません</div>
+      ) : (
+        <>
+          <div className="text-xs text-gray-400 mb-2">
+            添付する画像をクリックで選択（最大{MAX_IMAGES}枚・選んだ順に番号）。
+            DMM アフィリエイトで X アカウントが承認されてから使ってください。
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+            {images.map((url) => {
+              const order = selected.indexOf(url);
+              return (
+                <button
+                  key={url}
+                  onClick={() => toggle(url)}
+                  className={`relative rounded overflow-hidden border-2 ${order >= 0 ? 'border-blue-500' : 'border-transparent opacity-60'}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="w-full aspect-[3/2] object-cover" loading="lazy" />
+                  {order >= 0 && (
+                    <span className="absolute top-1 left-1 bg-blue-600 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {order + 1}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={download}
+            disabled={selected.length === 0 || downloading}
+            className="mt-3 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
+          >
+            {downloading ? 'ダウンロード中...' : `選択した${selected.length}枚をダウンロード`}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
 function formatSlot(iso: string): string {
   return new Date(iso).toLocaleString('ja-JP', {
     timeZone: 'Asia/Tokyo',
@@ -172,6 +277,12 @@ export default function XPostsAdminPage() {
                       </div>
                     </div>
                   </div>
+
+                  {!scheduled && (
+                    <div className="mt-3">
+                      <SampleImagePicker contentId={post.dmm_content_id} />
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap gap-2 mt-3">
                     {scheduled ? (
