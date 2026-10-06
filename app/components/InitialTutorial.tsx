@@ -93,8 +93,8 @@ export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialPr
             <path d="M8 5v14l11-7z" />
           </svg>
           <p className="text-white text-base">
-            <span className="lg:hidden">サムネイルをタップで再生</span>
-            <span className="hidden lg:inline">サムネイルをクリックで再生</span>
+            <span className="lg:hidden">中央の▶をタップで再生</span>
+            <span className="hidden lg:inline">中央の▶をクリックで再生</span>
           </p>
         </div>
       </div>

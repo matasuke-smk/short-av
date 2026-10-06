@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
+import InlineSamplePlayer from './InlineSamplePlayer';
 import { CONTACT_FORM_URL } from '@/config/site';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
@@ -496,6 +497,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
   }, [currentVideo, addToHistory, getViewContext]);
 
+  // サムネイルの中央の▶から再生したとき（再生画面は開かない）
+  const recordInlineView = useCallback(() => {
+    if (!currentVideo) return;
+    addToHistory(currentVideo.dmm_content_id);
+    trackVideoView(currentVideo.id, currentVideo.dmm_content_id || '', currentVideo.title || '', getViewContext());
+  }, [currentVideo, addToHistory, getViewContext]);
+
   const closeModal = useCallback(() => {
     setShowVideoModal(false);
     setModalVideoUrl('');
@@ -583,6 +591,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
+                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
+                    {index === currentIndex && video.sample_video_url ? (
+                      <InlineSamplePlayer
+                        key={video.dmm_content_id}
+                        playerUrl={(size) => getSamplePlayerUrl(video.sample_video_url!, size)}
+                        thumbnailUrl={video.thumbnail_url}
+                        title={video.title}
+                        priority
+                        onStart={recordInlineView}
+                      />
+                    ) : (
                     <Image
                       src={video.thumbnail_url}
                       alt={video.title}
@@ -594,6 +613,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       unoptimized={true}
                       {...(index === 0 && { fetchPriority: 'high' } as any)}
                     />
+                    )}
 
                     {/* いいねボタン - サムネイル左下 */}
                     <button
