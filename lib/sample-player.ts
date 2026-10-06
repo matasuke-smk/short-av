@@ -90,15 +90,30 @@ export async function measureSampleLengths(supabase: SupabaseClient, deadline: n
 
   const queue = [...(data ?? [])];
   let measured = 0;
+  const failedIds: string[] = [];
   const worker = async () => {
     while (queue.length > 0 && Date.now() < deadline) {
       const video = queue.shift()!;
       const cid = (video.sample_video_url as string).match(/\/cid=([0-9a-z_]+)\//)?.[1] ?? (video.dmm_content_id as string);
       const seconds = await getSampleSeconds(cid).catch(() => null);
-      const { error: updateError } = await supabase.from('videos').update({ sample_seconds: seconds ?? -1 }).eq('id', video.id);
+      if (seconds === null) {
+        failedIds.push(video.id as string);
+        continue;
+      }
+      const { error: updateError } = await supabase.from('videos').update({ sample_seconds: seconds }).eq('id', video.id);
       if (!updateError) measured++;
     }
   };
   await Promise.all(Array.from({ length: concurrency }, worker));
+
+  // 調べられなかった作品は -1 にする。ただし1件も調べられなかったときは、FANZA 側の制限など仕組みの問題の
+  // 可能性が高いので記録しない（以前、海外のサーバーから実行して全件が -1 になったことがある）
+  if (measured > 0 && failedIds.length > 0) {
+    for (let i = 0; i < failedIds.length; i += 200) {
+      await supabase.from('videos').update({ sample_seconds: -1 }).in('id', failedIds.slice(i, i + 200));
+    }
+  } else if (measured === 0 && failedIds.length > 0) {
+    console.error(`[sample-length] ${failedIds.length}件すべて調べられませんでした（記録はしません）`);
+  }
   return measured;
 }
