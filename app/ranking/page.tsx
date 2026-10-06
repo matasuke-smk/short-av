@@ -7,7 +7,7 @@ import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
-type RankingType = 'overall' | 'recent' | 'likes';
+type RankingType = 'overall' | 'recent';
 
 export default function RankingPage() {
   const [rankingType, setRankingType] = useState<RankingType>('overall');
@@ -21,31 +21,17 @@ export default function RankingPage() {
   const loadRanking = async () => {
     setLoading(true);
     try {
-      let query = supabase
+      // 総合: DMMの人気順位（順位のない動画は除く） / 新着: リリース日の新しい順
+      const sortColumn = rankingType === 'overall' ? 'rank_position' : 'release_date';
+      const { data, error } = await supabase
         .from('videos')
         .select('*')
         .eq('is_active', true)
-        .not('thumbnail_url', 'is', null);
-
-      // ランキングタイプに応じてソート
-      switch (rankingType) {
-        case 'overall':
-          // 総合ランキング（rank_positionでソート）
-          query = query.order('rank_position', { ascending: true });
-          break;
-        case 'recent':
-          // 新着ランキング（リリース日でソート）
-          query = query
-            .filter('release_date', 'not.is', null)
-            .order('release_date', { ascending: false });
-          break;
-        case 'likes':
-          // いいね数ランキング（後で実装予定のため、現時点では総合と同じ）
-          query = query.order('rank_position', { ascending: true });
-          break;
-      }
-
-      const { data, error } = await query.limit(100);
+        .not('thumbnail_url', 'is', null)
+        .not(sortColumn, 'is', null)
+        .order(sortColumn, { ascending: rankingType === 'overall' })
+        .order('id', { ascending: true })
+        .limit(100);
 
       if (error) {
         console.error('ランキング取得エラー:', error);
@@ -99,16 +85,6 @@ export default function RankingPage() {
             >
               新着
             </button>
-            <button
-              onClick={() => setRankingType('likes')}
-              className={`flex-1 py-2 px-4 rounded-lg transition-colors ${
-                rankingType === 'likes'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              いいね
-            </button>
           </div>
         </div>
       </div>
@@ -130,8 +106,7 @@ export default function RankingPage() {
             <div className="mb-4">
               <p className="text-gray-400">
                 {rankingType === 'overall' && '総合ランキング'}
-                {rankingType === 'recent' && '新着ランキング'}
-                {rankingType === 'likes' && 'いいねランキング'}
+                {rankingType === 'recent' && '新着作品'}
                 {' '}TOP {videos.length}
               </p>
             </div>
@@ -144,14 +119,20 @@ export default function RankingPage() {
                 >
                   {/* ランキング番号 */}
                   <div className="flex items-center justify-center w-16 bg-gray-700 shrink-0">
-                    <span className={`text-2xl font-bold ${
-                      index === 0 ? 'text-yellow-400' :
-                      index === 1 ? 'text-gray-300' :
-                      index === 2 ? 'text-orange-400' :
-                      'text-gray-400'
-                    }`}>
-                      {index + 1}
-                    </span>
+                    {(() => {
+                      // 総合は DMM の順位をそのまま表示（間に掲載外の作品があると連番とずれるため）
+                      const rank = rankingType === 'overall' ? video.rank_position ?? index + 1 : index + 1;
+                      return (
+                        <span className={`text-2xl font-bold ${
+                          rank === 1 ? 'text-yellow-400' :
+                          rank === 2 ? 'text-gray-300' :
+                          rank === 3 ? 'text-orange-400' :
+                          'text-gray-400'
+                        }`}>
+                          {rank}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* サムネイル */}

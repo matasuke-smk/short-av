@@ -604,7 +604,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <h3 className="text-2xl font-bold mb-2">これで最後です</h3>
-                  <p className="text-gray-400 mb-8">検索結果は全て表示されました</p>
+                  <p className="text-gray-400 mb-8">このリストの動画はすべて表示しました</p>
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => {
@@ -617,12 +617,12 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
                     </button>
                     <button
                       onClick={() => {
-                        // 完全なURLで読み込んで新しい動画セットを取得
-                        window.location.href = 'https://short-av.com';
+                        // トップを読み直して通常のフィード（新しい動画セット）に戻る
+                        window.location.href = '/';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
-                      ホームに戻る
+                      おすすめに戻る
                     </button>
                   </div>
                 </div>
@@ -653,6 +653,22 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             />
           )}
         </div>
+
+        {/* 女優ボタン（縦画面と同じく、女優情報がある動画のみ） */}
+        {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
+          <button
+            onClick={() => {
+              setShowActressModal(true);
+              trackModalOpen('actress');
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 flex items-center justify-center gap-1 transition-colors active:scale-95 flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <span className="text-xs font-medium">この作品の女優</span>
+          </button>
+        )}
 
         {/* ボタンエリア - 3列グリッド */}
         <div className="grid grid-cols-3 gap-2">
@@ -687,8 +703,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           {/* ホームボタン */}
           <button
             onClick={() => {
-              // 完全なURLで読み込んで新しい動画セットを取得
-              window.location.href = 'https://short-av.com';
+              // トップを読み直して通常のフィード（新しい動画セット）に戻る
+              window.location.href = '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -807,8 +823,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             {/* ホームボタン（中央） - 新しい動画セットを取得 */}
             <button
               onClick={() => {
-                // 完全なURLで読み込んで新しい動画セットを取得
-                window.location.href = 'https://short-av.com';
+                // トップを読み直して通常のフィード（新しい動画セット）に戻る
+                window.location.href = '/';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >

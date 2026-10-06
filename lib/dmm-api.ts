@@ -179,13 +179,20 @@ export async function fetchRankingVideos(limit: number = 20): Promise<DMMItem[]>
 }
 
 /**
- * 週間ランキング（過去7日間の人気動画）
+ * n 日前（日本時間）の 0 時を DMM API の gte_date 形式で返す
+ * 秒単位にするとリクエストURLが毎回変わり、fetch のキャッシュが効かないため日単位にする
+ */
+function jstDaysAgo(days: number): string {
+  const jst = new Date(Date.now() + 9 * 3_600_000 - days * 86_400_000);
+  return `${jst.toISOString().slice(0, 10)}T00:00:00`;
+}
+
+/**
+ * 週間ランキング（過去7日間に発売された作品の人気順）
  */
 export async function fetchWeeklyRanking(limit: number = 20): Promise<DMMItem[]> {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const gteDate = sevenDaysAgo.toISOString().split('.')[0]; // ISO8601形式
+    const gteDate = jstDaysAgo(7);
 
     const params = new URLSearchParams({
       api_id: process.env.DMM_API_ID!,
@@ -215,13 +222,11 @@ export async function fetchWeeklyRanking(limit: number = 20): Promise<DMMItem[]>
 }
 
 /**
- * 月間ランキング（過去30日間の人気動画）
+ * 月間ランキング（過去30日間に発売された作品の人気順）
  */
 export async function fetchMonthlyRanking(limit: number = 20): Promise<DMMItem[]> {
   try {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const gteDate = thirtyDaysAgo.toISOString().split('.')[0]; // ISO8601形式
+    const gteDate = jstDaysAgo(30);
 
     const params = new URLSearchParams({
       api_id: process.env.DMM_API_ID!,
