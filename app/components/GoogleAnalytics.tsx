@@ -35,9 +35,10 @@ export default function GoogleAnalytics() {
               history.replaceState(history.state, '', url.toString());
             }
             // 管理画面にログインしている端末、本番以外（Vercel のプレビュー・ローカル）からのアクセスも運営者として扱う
+            // （以前は short-av.com 以外をすべて除外していたため、www.short-av.com から来た利用者まで除外していた）
             internal = localStorage.getItem('short-av-internal') === '1'
               || document.cookie.split('; ').indexOf('sav_admin_ui=1') >= 0
-              || location.hostname !== 'short-av.com';
+              || /\\.vercel\\.app$|^localhost$|^127\\.0\\.0\\.1$/.test(location.hostname);
           } catch (e) {}
 
           gtag('config', '${measurementId}', internal ? { traffic_type: 'internal' } : {});
