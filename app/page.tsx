@@ -55,14 +55,6 @@ export async function generateMetadata({
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
 
 async function VideoList({ targetId }: { targetId?: string }) {
-  // 動画の総件数を取得
-  const { count: totalCount } = await supabase
-    .from('videos')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null);
-
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   const poolSize = 200; // プールサイズ
   const displaySize = 20; // 初期表示件数
@@ -135,8 +127,6 @@ async function VideoList({ targetId }: { targetId?: string }) {
   // プールから最初の20件を表示用として取り出す
   const videos = videoPool.slice(0, displaySize);
 
-  // 全動画件数
-  const totalVideos = totalCount || 0;
   const error = fetchError;
 
   if (error) {
@@ -172,16 +162,23 @@ async function VideoList({ targetId }: { targetId?: string }) {
     );
   }
 
+  // 最初に表示する作品の構造化データ（?v= 指定時はその作品）
+  const firstVideoSchema = generateVideoSchema(videos[0]);
+
   // URLパラメータの処理はクライアント側（VideoSwiper）で行う
   return (
-    <VideoSwiper
-      videos={videos}
-      initialOffset={0}
-      totalVideos={totalVideos}
-      startIndex={0}
-      videoPool={videoPool}
-      linkNotice={linkNotice}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
+      />
+      <VideoSwiper
+        videos={videos}
+        startIndex={0}
+        videoPool={videoPool}
+        linkNotice={linkNotice}
+      />
+    </>
   );
 }
 
@@ -193,27 +190,8 @@ export default async function Home({
   const { v } = await searchParams;
   const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
 
-  // 最初の動画を取得して構造化データを生成（Suspense外で実行）
-  const { data: videos } = await supabase
-    .from('videos')
-    .select('*')
-    .eq('is_active', true)
-    .not('thumbnail_url', 'is', null)
-    .not('sample_video_url', 'is', null)
-    .order('id', { ascending: true })
-    .limit(1);
-
-  const firstVideoSchema = videos && videos[0] ? generateVideoSchema(videos[0]) : null;
-
   return (
     <>
-      {/* VideoObject構造化データ（Suspense外で確実に初期HTMLに含める） */}
-      {firstVideoSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
-        />
-      )}
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
         <VideoList targetId={targetId} />
       </Suspense>

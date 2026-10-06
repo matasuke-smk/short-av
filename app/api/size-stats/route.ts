@@ -1,16 +1,34 @@
+import { createHmac } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
-import { getSizeStatisticsRows, summarizeSizeStatistics } from '@/lib/sizeStats';
+import { generateStatsHTML, getSizeStatisticsRows, summarizeSizeStatistics } from '@/lib/sizeStats';
 
 // 統計データは常に最新を取得するため、キャッシュを無効化
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// 同じ回線（IP）からの登録は、この日数に1件まで
+const IP_LIMIT_DAYS = 30;
+
+/**
+ * 送信元IPを、サーバーだけが知る秘密の値で HMAC にした文字列（IP そのものは保存しない）
+ * 秘密の値は SIZE_STATS_IP_SECRET（未設定ならサーバー専用のキー）を使う
+ */
+function hashClientIp(request: NextRequest): string | null {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip');
+  const secret = process.env.SIZE_STATS_IP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!ip || !secret) return null;
+  return createHmac('sha256', secret).update(ip).digest('hex');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lengthMm, diameterMm, erectionState, ageGroup, userId } = body;
+    const { erectionState, ageGroup, userId } = body;
+    // DB の列は整数。外周から換算した直径などの小数は四捨五入する
+    const lengthMm = typeof body.lengthMm === 'number' ? Math.round(body.lengthMm) : body.lengthMm;
+    const diameterMm = typeof body.diameterMm === 'number' ? Math.round(body.diameterMm) : body.diameterMm;
 
     // バリデーション
     if (!lengthMm || !diameterMm || !erectionState) {
@@ -65,10 +83,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = getSupabaseAdmin();
+
+    // 同じ回線から一定期間内にすでに登録がある場合は保存しない
+    // （プライベートウィンドウや別ブラウザで匿名IDを変えて何度も送るのを防ぐ）
+    const ipHash = hashClientIp(request);
+    if (ipHash) {
+      const since = new Date(Date.now() - IP_LIMIT_DAYS * 86_400_000).toISOString();
+      const { count, error: countError } = await supabase
+        .from('size_statistics')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip_hash', ipHash)
+        .gte('created_at', since);
+      if (countError) {
+        console.error('Size stats ip check error:', countError);
+        return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      }
+      if ((count ?? 0) > 0) {
+        return NextResponse.json({ success: true, recorded: false });
+      }
+    }
+
     // データを保存
     // 1ユーザー1データ: user_identifier が既に存在する場合は何もしない（ON CONFLICT DO NOTHING）。
     // これにより、同一ユーザーが連続投稿しても最初の1件だけがDBに保存される。
-    const { data, error } = await getSupabaseAdmin()
+    const { data, error } = await supabase
       .from('size_statistics')
       .upsert(
         {
@@ -77,6 +116,7 @@ export async function POST(request: NextRequest) {
           erection_state: erectionState,
           age_group: ageGroup || null,
           user_identifier: userId,
+          ip_hash: ipHash,
         },
         { onConflict: 'user_identifier', ignoreDuplicates: true }
       )
@@ -108,7 +148,8 @@ export async function GET(request: NextRequest) {
     const ageGroup = searchParams.get('ageGroup');
 
     const rows = await getSizeStatisticsRows(erectionState, ageGroup);
-    return NextResponse.json(summarizeSizeStatistics(rows));
+    const summary = summarizeSizeStatistics(rows);
+    return NextResponse.json({ ...summary, html: generateStatsHTML(summary) });
   } catch (error) {
     console.error('Size stats GET error:', error);
     return NextResponse.json(

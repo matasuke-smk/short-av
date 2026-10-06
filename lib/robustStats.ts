@@ -31,13 +31,15 @@ export function removeOutliers(values: number[]): number[] {
   return filtered.length > 0 ? filtered : sorted;
 }
 
+// 平均・標準偏差（母標準偏差）
+export function computeMeanStd(values: number[]): RobustStat {
+  const n = values.length;
+  const avg = values.reduce((a, b) => a + b, 0) / n;
+  const std = Math.sqrt(values.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / n);
+  return { avg, std, n };
+}
+
 // 外れ値除去後の平均・標準偏差を計算
 export function computeRobustStat(values: number[]): RobustStat {
-  const filtered = removeOutliers(values);
-  const n = filtered.length;
-  const avg = filtered.reduce((a, b) => a + b, 0) / n;
-  const std = Math.sqrt(
-    filtered.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / n
-  );
-  return { avg, std, n };
+  return computeMeanStd(removeOutliers(values));
 }

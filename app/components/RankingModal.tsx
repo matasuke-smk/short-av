@@ -242,22 +242,27 @@ export default function RankingModal({
                         onClick={() => handleSelectVideo(video.dmm_content_id)}
                         className={`group text-left relative ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
                       >
-                        {/* ランキング番号バッジ */}
-                        <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
-                          <span
-                            className={`text-sm font-bold ${
-                              index === 0
-                                ? 'text-yellow-400'
-                                : index === 1
-                                ? 'text-gray-300'
-                                : index === 2
-                                ? 'text-orange-400'
-                                : 'text-gray-400'
-                            }`}
-                          >
-                            {index + 1}
-                          </span>
-                        </div>
+                        {/* ランキング番号バッジ（再生できない作品を除いているため、連番ではなく DMM の順位を出す） */}
+                        {(() => {
+                          const rank = video.rank_position ?? index + 1;
+                          return (
+                            <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
+                              <span
+                                className={`text-sm font-bold ${
+                                  rank === 1
+                                    ? 'text-yellow-400'
+                                    : rank === 2
+                                    ? 'text-gray-300'
+                                    : rank === 3
+                                    ? 'text-orange-400'
+                                    : 'text-gray-400'
+                                }`}
+                              >
+                                {rank}
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="relative aspect-[4/3] bg-gray-900 rounded-lg overflow-hidden mb-2">
                           <Image
