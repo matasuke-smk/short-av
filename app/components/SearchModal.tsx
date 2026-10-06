@@ -74,6 +74,17 @@ async function fetchAllActresses(): Promise<Actress[]> {
   return all;
 }
 
+// 作品の内容ではなく配信形式などを表すタグ。選択肢の末尾に回す
+const FORMAT_GENRES = new Set([
+  'ハイビジョン', '4K', '単体作品', '独占配信', '4時間以上作品', 'デジモ', 'サンプル動画',
+  'ベスト・総集編', 'セール', '期間限定セール', 'アウトレット', '16時間以上作品', 'FANZA配信限定', 'VR専用', '高品質VR',
+]);
+
+// 配信形式のタグを末尾に回す（それ以外の並びは保つ）
+function formatGenresLast(items: Genre[]): Genre[] {
+  return [...items.filter(g => !FORMAT_GENRES.has(g.name)), ...items.filter(g => FORMAT_GENRES.has(g.name))];
+}
+
 // 動画数の多い順（人気順）に並べる。件数が取れなかったときは元の順序のまま
 function sortByCount<T extends { id: string }>(items: T[], counts: FacetCounts | null): T[] {
   if (!counts) return items;
@@ -130,7 +141,7 @@ export default function SearchModal({
       ]);
       if (cancelled) return;
 
-      setGenres(sortByCount(allGenres, genreCounts));
+      setGenres(formatGenresLast(sortByCount(allGenres, genreCounts)));
       setActresses(sortByCount(allActresses, actressCounts));
       setOverallCounts({ genre: genreCounts, actress: actressCounts });
       // 取得に失敗したときは次に開いたときに再取得する
@@ -264,6 +275,12 @@ export default function SearchModal({
     return selected.includes(id) || (counts[id] || 0) > 0;
   };
 
+  // 選択肢に添える件数（選択中なら、その条件にさらに加えたときの件数）
+  const optionCount = (id: string, selected: string[]): number | null => {
+    const counts = selected.length > 0 ? filteredCounts : overallCounts[searchMode];
+    return counts ? counts[id] || 0 : null;
+  };
+
   const actressQuery = actressSearchKeyword.trim();
   const displayActresses = actresses.filter(a =>
     (!actressQuery || a.name.includes(actressQuery)) && isAvailable(a.id, selectedActressIds)
@@ -280,6 +297,11 @@ export default function SearchModal({
     : currentFilterCount === null
       ? ''
       : `${currentFilterCount.toLocaleString()}件の動画`;
+
+  // 下部の検索ボタン（タイトル検索と区別できるよう、何で検索するかと件数を出す）
+  const filterSearchLabel = `選んだ${searchMode === 'genre' ? 'ジャンル' : '女優'}で検索${
+    !countLoading && currentFilterCount !== null ? `（${currentFilterCount.toLocaleString()}件）` : ''
+  }`;
 
   if (!isOpen) return null;
 
@@ -310,7 +332,7 @@ export default function SearchModal({
                       handleSearch('keyword');
                     }
                   }}
-                  placeholder="タイトルで検索..."
+                  placeholder="作品タイトルで検索（Enter）"
                   className="flex-1 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
                 />
                 <button
@@ -431,6 +453,9 @@ export default function SearchModal({
                           }`}
                         >
                           {genre.name}
+                          {optionCount(genre.id, selectedGenreIds) !== null && (
+                            <span className="ml-1 text-xs opacity-60">{optionCount(genre.id, selectedGenreIds)!.toLocaleString()}</span>
+                          )}
                         </button>
                       );
                     })}
@@ -471,6 +496,9 @@ export default function SearchModal({
                           }`}
                         >
                           {actress.name}
+                          {optionCount(actress.id, selectedActressIds) !== null && (
+                            <span className="ml-1 text-xs opacity-60">{optionCount(actress.id, selectedActressIds)!.toLocaleString()}</span>
+                          )}
                         </button>
                       );
                     })}
@@ -489,7 +517,7 @@ export default function SearchModal({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="タイトルで検索"
+                  placeholder="作品タイトルで検索（Enter）"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => {
@@ -596,7 +624,7 @@ export default function SearchModal({
                   disabled={loading}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 px-6 rounded-lg transition-colors font-medium"
                 >
-                  {loading ? '検索中...' : '検索'}
+                  {loading ? '検索中...' : filterSearchLabel}
                 </button>
               )}
 
@@ -641,7 +669,7 @@ export default function SearchModal({
                   disabled={loading}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium"
                 >
-                  {loading ? '検索中...' : '検索'}
+                  {loading ? '検索中...' : filterSearchLabel}
                 </button>
               )}
 

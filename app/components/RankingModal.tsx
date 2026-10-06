@@ -242,9 +242,9 @@ export default function RankingModal({
                         onClick={() => handleSelectVideo(video.dmm_content_id)}
                         className={`group text-left relative ${isCurrentVideo ? 'ring-2 ring-blue-500' : ''}`}
                       >
-                        {/* ランキング番号バッジ（再生できない作品を除いているため、連番ではなく DMM の順位を出す） */}
+                        {/* ランキング番号バッジ（再生できる作品だけを人気順に並べたときの順番） */}
                         {(() => {
-                          const rank = video.rank_position ?? index + 1;
+                          const rank = index + 1;
                           return (
                             <div className="absolute top-1 left-1 z-10 bg-gray-900/90 rounded-full w-8 h-8 flex items-center justify-center">
                               <span

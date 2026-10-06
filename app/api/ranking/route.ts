@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Ranking API] Fetching ${period} ranking, limit: ${limit}`);
 
-    // サンプル動画のない作品は押しても再生できないため除く。その分を見込んで少し多めに取得する
-    const fetchCount = Math.min(limit + 10, 100);
+    // サンプル動画のない作品は押しても再生できないため除く。半分ほど除かれることがあるので2倍取得する
+    const fetchCount = Math.min(limit * 2, 100);
     let dmmItems;
 
     // DMM APIから期間別ランキングを取得
