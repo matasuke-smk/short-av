@@ -9,7 +9,8 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
-export type SlotType = 'new' | 'ranking' | 'random';
+// manual = サイトを見ながら管理者が選んだ作品（自動作成の枠には使わない）
+export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
 
 // 投稿枠（日本時間）
 export const DAILY_SLOTS: { hour: number; type: SlotType }[] = [
@@ -26,7 +27,7 @@ const CANDIDATE_POOL = 200;
 const SWIPE_PLAY_DAYS = 28;
 const PAGE_SIZE = 1000;
 
-type VideoRow = {
+export type VideoRow = {
   dmm_content_id: string;
   title: string;
   thumbnail_url: string | null;
@@ -187,6 +188,7 @@ export async function generateUpcomingWeek(now = new Date()) {
     new: (newRes.data ?? []) as VideoRow[],
     ranking: (rankingRes.data ?? []) as VideoRow[],
     random: (randomRes.data ?? []) as VideoRow[],
+    manual: [],
   };
 
   const swipePool = (swipeRes.data ?? []) as VideoRow[];
@@ -238,4 +240,35 @@ export async function generateUpcomingWeek(now = new Date()) {
   }
 
   return { created: rows.length, slots: slots.length };
+}
+
+/**
+ * 管理者がサイトで選んだ作品の投稿文を作る（/api/admin/x-posts/compose）
+ * alreadyPosted: すでに紹介済み（スキップ以外の候補がある）か
+ */
+export async function composeForVideo(contentId: string) {
+  const supabase = getSupabaseAdmin();
+  const { data: video, error } = await supabase
+    .from('videos')
+    .select('dmm_content_id, title, thumbnail_url, maker, actress_ids')
+    .eq('dmm_content_id', contentId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!video) return null;
+
+  const actressIds = (video.actress_ids ?? []) as string[];
+  const [{ data: actresses }, { count }] = await Promise.all([
+    actressIds.length > 0
+      ? supabase.from('actresses').select('id, name').in('id', actressIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    supabase.from('x_posts').select('id', { count: 'exact', head: true }).eq('dmm_content_id', contentId).neq('status', 'skipped'),
+  ]);
+  const nameById = new Map((actresses ?? []).map((a) => [a.id as string, a.name as string]));
+  const names = actressIds.map((id) => nameById.get(id)).filter(Boolean) as string[];
+
+  return {
+    video: video as VideoRow,
+    text: buildPostText(video as VideoRow, names, 'manual'),
+    alreadyPosted: (count ?? 0) > 0,
+  };
 }

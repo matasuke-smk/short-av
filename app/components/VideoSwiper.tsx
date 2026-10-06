@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
+import AdminXCompose from './AdminXCompose';
 import { CONTACT_FORM_URL } from '@/config/site';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
@@ -1156,6 +1157,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           onShow={() => trackTutorialView()}
         />
       )}
+
+      {/* 管理者用: 表示中の作品の X 投稿文を作る（管理画面にログインした端末だけに表示） */}
+      <AdminXCompose contentId={currentVideo?.dmm_content_id} />
 
       {/* 検索モーダル */}
       <SearchModal

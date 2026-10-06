@@ -13,7 +13,7 @@ import {
 type XPost = {
   id: string;
   slot_at: string;
-  slot_type: 'new' | 'ranking' | 'random';
+  slot_type: 'new' | 'ranking' | 'random' | 'manual';
   dmm_content_id: string;
   title: string;
   thumbnail_url: string | null;
@@ -25,6 +25,7 @@ const SLOT_LABEL: Record<XPost['slot_type'], string> = {
   new: '新着',
   ranking: 'ランキング',
   random: 'ランダム',
+  manual: '手動で選択',
 };
 
 const MAX_IMAGES = 4;

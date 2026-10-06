@@ -11,6 +11,9 @@
 
 export const ADMIN_SESSION_COOKIE = 'sav_admin';
 export const ADMIN_SESSION_MAX_AGE = 90 * 24 * 60 * 60; // 90日
+// サイト側で管理者用のボタン（X 投稿文の作成など）を出すかどうかの目印（JavaScript から読める）
+// 認証そのものには使わない（API は ADMIN_SESSION_COOKIE で保護している）
+export const ADMIN_UI_COOKIE = 'sav_admin_ui';
 
 function getCredentials(): { user: string; password: string } | null {
   const user = process.env.ADMIN_USER;
