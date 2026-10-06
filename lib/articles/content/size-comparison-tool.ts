@@ -2,21 +2,19 @@ import type { Article } from '../types';
 
 export const article: Article = {
   slug: 'size-comparison-tool',
-  title: 'ペニスサイズ比較ツール - 日本人・世界平均との統計比較',
-  description: '自分のサイズを入力するだけで、日本人平均や世界平均と比較できる統計ツール。パーセンタイル、100人中の順位、最適なコンドームサイズを科学的に表示。完全匿名で安全に利用できます。',
+  title: 'ペニスサイズ比較ツール - 研究データの平均値と比べる目安',
+  description: '勃起時の長さと太さを入力すると、日本人の目安値や Veale ら（2015年）のメタ分析の平均値と比べたおおよその位置を表示するツール。結果は統計上の目安で、医学的な診断ではありません。',
   content: `
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-<h1 style="font-size: 1.8rem; font-weight: bold; margin-bottom: 1.5rem; color: white; line-height: 1.4;">ペニスサイズ比較ツール - 日本人・世界平均との統計比較</h1>
+<p style="color: #d1d5db; margin-bottom: 1rem;">勃起時の長さと太さを入力すると、日本人の目安値や海外の研究データの平均値と比べたおおよその位置を確認できます。結果は統計上の目安で、医学的な診断ではありません。</p>
 
-<p style="color: #d1d5db; margin-bottom: 1rem;">自分のサイズを入力すると、日本人平均および世界平均と比較して、統計的な位置を確認できます。</p>
-
-<p style="color: #d1d5db; margin-bottom: 1.5rem;">入力データは完全匿名でサーバーに送信され、統計データとして活用されます。個人を特定できる情報は一切含まれません。</p>
+<p style="color: #d1d5db; margin-bottom: 1.5rem;">「統計を計算する」を押すと、入力した長さ・太さ（直径）・年齢層（任意）と、ブラウザごとの匿名ID がサーバーに送信・保存され、匿名の統計データとして利用されます。氏名やメールアドレスなどの入力はありません。詳しくは<a href="/privacy" style="color: #60a5fa; text-decoration: underline;">プライバシーポリシー</a>をご覧ください。</p>
 
 <!-- 収集された統計データ表示 -->
 <div id="collectedStats" class="collected-stats-card">
   <div class="stats-header">
-    <h3>📊 収集された統計データ（勃起時）</h3>
+    <h3>📊 このツールに集まったデータ（勃起時・自己申告）</h3>
   </div>
   <div id="statsContent" class="stats-content">
     <div class="stats-loading">データを読み込み中...</div>
@@ -208,108 +206,6 @@ export const article: Article = {
   font-size: 0.85rem;
 }
 
-.regional-equivalent-compact {
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid #8b5cf6;
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-}
-
-.regional-equiv-row {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  align-items: center;
-}
-
-.regional-equiv-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.regional-equiv-label {
-  color: #c4b5fd;
-  font-size: 0.8rem;
-}
-
-.regional-equiv-value {
-  color: #fff;
-  font-size: 0.95rem;
-  font-weight: bold;
-}
-
-.regional-comparison {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.regional-title {
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.regional-table {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.regional-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.regional-row:last-child {
-  border-bottom: none;
-}
-
-.regional-header {
-  background: rgba(255, 255, 255, 0.1);
-  font-weight: bold;
-  padding: 8px 10px;
-}
-
-.regional-highlight {
-  background: rgba(59, 130, 246, 0.15);
-  font-weight: bold;
-}
-
-.regional-cell {
-  color: #e5e7eb;
-  font-size: 0.8rem;
-  text-align: left;
-}
-
-.regional-header .regional-cell {
-  color: #fff;
-  font-weight: bold;
-  font-size: 0.85rem;
-}
-
-.regional-highlight .regional-cell {
-  color: #fff;
-}
-
-.regional-cell:nth-child(2),
-.regional-cell:nth-child(3) {
-  text-align: center;
-}
-
-.regional-note {
-  color: #9ca3af;
-  font-size: 0.75rem;
-  margin-top: 6px;
-  text-align: center;
-}
-
 .condom-recommendation {
   background: #065f46;
   border: 1px solid #059669;
@@ -329,6 +225,12 @@ export const article: Article = {
   color: #fff;
   font-size: 1.1rem;
   font-weight: bold;
+}
+
+.condom-note {
+  color: #d1fae5;
+  font-size: 0.75rem;
+  margin-top: 4px;
 }
 
 .chart-container {
@@ -433,7 +335,7 @@ export const article: Article = {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-}
+
   .stat-grid {
     grid-template-columns: 1fr;
   }
@@ -497,19 +399,6 @@ export const article: Article = {
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
 
-      <div class="regional-equivalent-compact">
-        <div class="regional-equiv-row">
-          <div class="regional-equiv-item">
-            <span class="regional-equiv-label">長さ:</span>
-            <span class="regional-equiv-value" id="lengthEquivalent">○○人相当</span>
-          </div>
-          <div class="regional-equiv-item">
-            <span class="regional-equiv-label">太さ:</span>
-            <span class="regional-equiv-value" id="girthEquivalent">○○人相当</span>
-          </div>
-        </div>
-      </div>
-
       <div class="stat-grid">
         <div class="stat-item-double">
           <div class="stat-label">長さ</div>
@@ -540,70 +429,15 @@ export const article: Article = {
       </div>
 
       <div class="condom-recommendation">
-        <div class="condom-title">推奨コンドームサイズ</div>
-        <div class="condom-size" id="condomSize">Mサイズ（32-36mm）</div>
+        <div class="condom-title">コンドームサイズの目安</div>
+        <div class="condom-size" id="condomSize">Mサイズ前後</div>
+        <div class="condom-note">※ あくまで目安です。サイズの基準はメーカーごとに異なるため、各メーカーのサイズ表（公称幅）で確認してください。</div>
       </div>
 
-      <div class="regional-comparison">
-        <h4 class="regional-title">世界各地域の平均サイズ</h4>
-        <div class="regional-table">
-          <div class="regional-row regional-header">
-            <div class="regional-cell">地域</div>
-            <div class="regional-cell">平均長さ</div>
-            <div class="regional-cell">平均直径</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">コンゴ</div>
-            <div class="regional-cell">170mm</div>
-            <div class="regional-cell">42mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">中南米</div>
-            <div class="regional-cell">145mm</div>
-            <div class="regional-cell">38mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">中東</div>
-            <div class="regional-cell">130mm</div>
-            <div class="regional-cell">37mm</div>
-          </div>
-          <div class="regional-row regional-highlight">
-            <div class="regional-cell">世界平均</div>
-            <div class="regional-cell">131mm</div>
-            <div class="regional-cell">37mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">ヨーロッパ</div>
-            <div class="regional-cell">126mm</div>
-            <div class="regional-cell">36mm</div>
-          </div>
-          <div class="regional-row regional-highlight">
-            <div class="regional-cell">日本</div>
-            <div class="regional-cell">124mm</div>
-            <div class="regional-cell">36mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">西太平洋</div>
-            <div class="regional-cell">116mm</div>
-            <div class="regional-cell">34mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">東南アジア</div>
-            <div class="regional-cell">109mm</div>
-            <div class="regional-cell">33mm</div>
-          </div>
-          <div class="regional-row">
-            <div class="regional-cell">韓国</div>
-            <div class="regional-cell">95mm</div>
-            <div class="regional-cell">31mm</div>
-          </div>
-        </div>
-        <div class="regional-note">※ 複数の研究データに基づく推定値です</div>
-      </div>
     </div>
 
     <div class="tool-card">
-      <h3>日本人平均との比較</h3>
+      <h3>目安値との比較</h3>
       <div class="chart-container">
         <canvas id="comparisonChart"></canvas>
       </div>
@@ -611,11 +445,9 @@ export const article: Article = {
 
     <div class="disclaimer">
       <div class="disclaimer-text">
-        ※ 統計データに基づく参考情報です<br>
-        ※ 個人差があります<br>
-        ※ 医学的診断ではありません<br>
-        ※ 入力データ（勃起時のサイズ）は匿名で自動的に収集され、統計データとして活用されます<br>
-        ※ 収集されるデータ：長さ・太さ・年齢層のみ（個人を特定する情報は一切含まれません）
+        ※ 結果は、目安値を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
+        ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください<br>
+        ※ 「統計を計算する」を押すと、長さ・直径（外周で入力した場合は直径に換算した値）・年齢層（任意）・ブラウザごとの匿名ID・登録日時がサーバーに保存され、匿名の統計データとして利用されます（同じブラウザからは最初の1回分のみ）
       </div>
     </div>
   </div>
@@ -686,67 +518,15 @@ function getRankLevel(percentile) {
   return { level: '小さめ', description: '日本人男性の下位10%に入ります' };
 }
 
-// コンドームサイズ推奨
+// コンドームサイズの目安（外周から大まかに判定。S/M/L の基準はメーカーごとに異なる）
 function recommendCondomSize(diameter) {
-  if (diameter < 27) return 'SSサイズ（〜26mm）';
-  if (diameter < 32) return 'Sサイズ（27-31mm）';
-  if (diameter < 37) return 'Mサイズ（32-36mm）';
-  if (diameter < 42) return 'Lサイズ（37-41mm）';
-  return 'XLサイズ（42mm以上）';
-}
-
-// 地域別の平均データから最も近い地域を計算（長さ）
-function getLengthRegionalEquivalent(lengthMm) {
-  const regions = [
-    { name: 'コンゴ', avg: 170 },
-    { name: '中南米', avg: 145 },
-    { name: '中東', avg: 130 },
-    { name: 'ヨーロッパ', avg: 126 },
-    { name: '日本', avg: 124 },
-    { name: '西太平洋', avg: 116 },
-    { name: '東南アジア', avg: 109 },
-    { name: '韓国', avg: 95 }
-  ];
-
-  let closestRegion = regions[0];
-  let minDiff = Math.abs(lengthMm - regions[0].avg);
-
-  for (let i = 1; i < regions.length; i++) {
-    const diff = Math.abs(lengthMm - regions[i].avg);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestRegion = regions[i];
-    }
-  }
-
-  return closestRegion.name + '人相当';
-}
-
-// 地域別の平均データから最も近い地域を計算（直径）
-function getGirthRegionalEquivalent(diameterMm) {
-  const regions = [
-    { name: 'コンゴ', avg: 42 },
-    { name: '中南米', avg: 38 },
-    { name: '中東', avg: 37 },
-    { name: 'ヨーロッパ', avg: 36 },
-    { name: '日本', avg: 36 },
-    { name: '西太平洋', avg: 34 },
-    { name: '東南アジア', avg: 33 },
-    { name: '韓国', avg: 31 }
-  ];
-
-  let closestRegion = regions[0];
-  let minDiff = Math.abs(diameterMm - regions[0].avg);
-
-  for (let i = 1; i < regions.length; i++) {
-    const diff = Math.abs(diameterMm - regions[i].avg);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestRegion = regions[i];
-    }
-  }
-
-  return closestRegion.name + '人相当';
+  const circumference = Math.round(diameter * Math.PI);
+  let size;
+  if (circumference < 105) size = 'Sサイズ前後';
+  else if (circumference < 115) size = 'Mサイズ前後';
+  else if (circumference < 123) size = 'Lサイズ前後';
+  else size = 'XLサイズ前後';
+  return size + '（外周 約' + circumference + 'mm）';
 }
 
   let comparisonChart = null;
@@ -787,9 +567,8 @@ function getGirthRegionalEquivalent(diameterMm) {
     diameter = circumferenceToDiameter(girthInput);
   }
 
-  // 日本人統計データ（mm単位）
-  // 出典: 泌尿器科調査(2006,324人)117mm、国内研究(100例)127mm、TENGA調査(50万件)135.6mm
-  // 加重平均（医学的測定3：自己申告1）
+  // 日本人の目安値（mm単位）
+  // 国内の複数の報告（勃起時の長さはおおむね12〜14cm程度の範囲）を参考にした目安値。単一の調査の値ではない
   const jpLengthMean = 124;
   const jpLengthStd = 18;
   const jpDiameterMean = 36;
@@ -810,10 +589,6 @@ function getGirthRegionalEquivalent(diameterMm) {
   // コンドームサイズ
   const condomSize = recommendCondomSize(diameter);
 
-  // 地域別比較
-  const lengthEquivalent = getLengthRegionalEquivalent(length);
-  const girthEquivalent = getGirthRegionalEquivalent(diameter);
-
   // 結果を表示
   document.getElementById('lengthPercentile').textContent = lengthPercentile.toFixed(1) + '%';
   document.getElementById('girthPercentile').textContent = diameterPercentile.toFixed(1) + '%';
@@ -821,8 +596,6 @@ function getGirthRegionalEquivalent(diameterMm) {
   document.getElementById('girthRank').textContent = diameterRank + '位';
   document.getElementById('rankLevel').textContent = rankInfo.level;
   document.getElementById('rankDescription').textContent = rankInfo.description;
-  document.getElementById('lengthEquivalent').textContent = lengthEquivalent;
-  document.getElementById('girthEquivalent').textContent = girthEquivalent;
   document.getElementById('condomSize').textContent = condomSize;
 
   // 結果エリアを表示
@@ -835,7 +608,8 @@ function getGirthRegionalEquivalent(diameterMm) {
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     // 統計データを送信（常に送信、勃起時固定）
-    sendStatisticsData(lengthMm, diameter, 'erect', document.getElementById('ageInput').value);
+    // DB の列は整数のため、直径（外周から換算すると小数になる）などは四捨五入して送る
+    sendStatisticsData(Math.round(lengthMm), Math.round(diameter), 'erect', document.getElementById('ageInput').value);
   }
 
   // 匿名ユーザーIDを取得（LocalStorageベース。1ユーザー1データの判定に使用）
@@ -964,15 +738,15 @@ function getGirthRegionalEquivalent(diameterMm) {
           borderWidth: 2
         },
         {
-          label: '日本人平均',
+          label: '日本人の目安値',
           data: [124, 36],
           backgroundColor: 'rgba(34, 197, 94, 0.8)',
           borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 2
         },
         {
-          label: '世界平均',
-          data: [131, 37.3],
+          label: 'Veale ら（2015）の平均',
+          data: [131, 37.1],
           backgroundColor: 'rgba(251, 146, 60, 0.8)',
           borderColor: 'rgba(251, 146, 60, 1)',
           borderWidth: 2
@@ -1027,45 +801,62 @@ function getGirthRegionalEquivalent(diameterMm) {
 <div class="tool-card" style="margin-top: 40px;">
   <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">このツールについて</h2>
 
-  <p class="mb-4 text-gray-300">このツールは、科学的な統計データに基づいてあなたのサイズを客観的に評価します。勃起時のサイズのみを対象としています。</p>
+  <p class="mb-4 text-gray-300">このツールは、下記の目安値・研究データの平均値と比べて、入力したサイズがおおよそどのあたりに位置するかを表示します。対象は勃起時のサイズのみです。結果は統計上の目安で、医学的な診断ではありません。</p>
 
-  <p class="mb-6 text-gray-300">入力されたデータ（勃起時の長さ・太さ・年齢層）は匿名で自動的に収集され、より正確な統計データの作成に活用されます。個人を特定する情報は一切含まれません。</p>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">保存されるデータと使い方</h3>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">使用している統計データ</h3>
+  <p class="mb-4 text-gray-300">「統計を計算する」を押すと、次の情報がサーバーに送信・保存されます。</p>
+
+  <ul class="list-disc ml-6 space-y-1 text-gray-300 mb-4">
+    <li>長さ（mm）と直径（mm。外周で入力した場合は直径に換算した値）</li>
+    <li>状態（このツールでは常に「勃起時」）</li>
+    <li>年齢層（選んだ場合のみ）</li>
+    <li>ブラウザごとの匿名ID（ブラウザ内で自動生成されるランダムな文字列。同じブラウザからの重複登録を防ぐために使用）</li>
+    <li>登録日時</li>
+  </ul>
+
+  <p class="mb-4 text-gray-300">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけです。詳しくは<a href="/privacy" class="text-blue-400 hover:text-blue-300 underline">プライバシーポリシー</a>をご覧ください。</p>
+
+  <p class="mb-6 text-gray-300">ページ上部の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
+
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">計算に使っている値</h3>
 
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-    <div class="font-bold text-white mb-2">■ 日本人データ</div>
+    <div class="font-bold text-white mb-2">■ 日本人の目安値（パーセンタイル・順位の計算に使用）</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ平均</strong><br>124mm（標準偏差18mm）</li>
-      <li><strong class="text-white">直径平均</strong><br>36mm（標準偏差3.6mm）</li>
-      <li><strong class="text-white">データソース</strong><br>泌尿器科調査(2006,324人)、国内研究(100例)、TENGA調査(50万件)の加重平均</li>
+      <li><strong class="text-white">長さ</strong><br>124mm（標準偏差18mm）</li>
+      <li><strong class="text-white">直径</strong><br>36mm（標準偏差3.6mm）</li>
+      <li><strong class="text-white">根拠</strong><br>国内の調査では勃起時の長さがおおむね12〜14cm程度の範囲で報告されており、それらを参考にしたおおよその目安値です。単一の調査の結果ではなく、測定方法（医療者による測定か自己申告か）によっても数値は変わります。</li>
     </ul>
   </div>
 
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-    <div class="font-bold text-white mb-2">■ 世界平均データ</div>
+    <div class="font-bold text-white mb-2">■ 海外の研究データ（グラフの比較に使用）</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ平均</strong><br>131mm</li>
-      <li><strong class="text-white">外周平均</strong><br>117mm（直径約37.3mm）</li>
-      <li><strong class="text-white">データソース</strong><br>Veale et al. (2015) BJU International、15,521人のメタアナリシス</li>
+      <li><strong class="text-white">勃起時の長さ</strong><br>平均 約13.1cm（標準偏差 約1.7cm）</li>
+      <li><strong class="text-white">勃起時の外周</strong><br>平均 約11.7cm（直径に換算すると約37mm）</li>
+      <li><strong class="text-white">平常時の長さ（参考）</strong><br>平均 約9.2cm</li>
+      <li><strong class="text-white">出典</strong><br>Veale ら（2015年）BJU International。医療者が測定した研究を集めたメタ分析</li>
     </ul>
   </div>
 
+  <p class="mb-6 text-gray-300">計算では、これらの値が正規分布に従うと仮定しています。実際の分布とは異なる場合があるため、パーセンタイルや「100人中○位」は大まかな目安として受け止めてください。</p>
+
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">パーセンタイルとは</h3>
 
-  <p class="mb-4 text-gray-300">パーセンタイルは、あなたが全体の中でどの位置にいるかを示す指標です。</p>
+  <p class="mb-4 text-gray-300">パーセンタイルは、全体の中でどの位置にいるかを示す指標です。</p>
 
-  <p class="mb-6 text-gray-300">50パーセンタイルは平均を意味し、80パーセンタイルなら上位20%に入ることを意味します。</p>
+  <p class="mb-6 text-gray-300">50パーセンタイルは真ん中（このツールでは目安値と同じ）を意味し、80パーセンタイルなら上位20%程度にあたります。</p>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">測定のコツ</h3>
 
-  <p class="mb-4 text-gray-300">正確な測定のために、以下のポイントを押さえましょう。</p>
+  <p class="mb-4 text-gray-300">測り方によって数値は大きく変わることがあります。次のポイントを押さえましょう。</p>
 
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
     <div class="font-bold text-white mb-2">■ 長さの測定</div>
     <ul class="list-disc ml-6 space-y-1 text-gray-300">
-      <li>完全に勃起した状態で測定</li>
-      <li>恥骨の骨から先端まで</li>
+      <li>勃起した状態で測定</li>
+      <li>定規を根元の恥骨に軽く当て、上側から先端まで測る</li>
       <li>定規を使って真っすぐ測る</li>
     </ul>
   </div>
@@ -1073,28 +864,29 @@ function getGirthRegionalEquivalent(diameterMm) {
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
     <div class="font-bold text-white mb-2">■ 太さの測定</div>
     <ul class="list-disc ml-6 space-y-1 text-gray-300">
-      <li>メジャーで外周を測定</li>
-      <li>または直径をノギスで測定</li>
-      <li>最も太い部分で測る</li>
+      <li>柔らかいメジャーで外周を測る（紙テープに印を付けて定規で測ってもよい）</li>
+      <li>直径を直接測るのは難しいため、外周で入力するのがおすすめ</li>
+      <li>竿の中ほど（一番太いあたり）で測る</li>
     </ul>
   </div>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">コンドームサイズの選び方</h3>
 
-  <p class="mb-4 text-gray-300">コンドームは正しいサイズを選ぶことが重要です。</p>
+  <p class="mb-4 text-gray-300">コンドームは自分に合ったサイズを選ぶことが大切です。きつすぎると痛みや破損の原因になり、緩すぎると外れやすくなります。</p>
 
-  <p class="mb-6 text-gray-300">きつすぎると痛みや破損のリスクがあり、緩すぎると外れる可能性があります。このツールの推奨サイズを参考にしてください。</p>
+  <p class="mb-6 text-gray-300">このツールが表示するサイズは外周から見た大まかな目安です。S・M・L などの基準はメーカーによって異なるため、購入前に各メーカーのサイズ表（公称幅）を確認してください。選び方は<a href="/articles/condom-size-guide" class="text-blue-400 hover:text-blue-300 underline">コンドームのサイズ選びガイド</a>で詳しく解説しています。</p>
 
   <h2 class="text-xl md:text-2xl font-bold mt-8 mb-4 text-white">関連記事</h2>
 
   <ul class="list-disc ml-6 space-y-2">
-    <li><a href="/articles/japanese-men-condom-size-data" class="text-blue-400 hover:text-blue-300 underline">購買データで判明！日本人男性のリアルなサイズ分布</a> - コンドーム購買データ分析</li>
-    <li><a href="/articles/penis-size-global-comparison" class="text-blue-400 hover:text-blue-300 underline">ペニスサイズの真実：世界と日本のデータ比較</a> - 国際比較</li>
-    <li><a href="/articles/how-to-measure-penis-correctly" class="text-blue-400 hover:text-blue-300 underline">自分のサイズを正しく測る方法</a> - 測定方法詳細</li>
+    <li><a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">日本人男性のペニスサイズ｜データで見る平均値と正しい理解</a></li>
+    <li><a href="/articles/condom-size-guide" class="text-blue-400 hover:text-blue-300 underline">コンドームのサイズ選びガイド</a></li>
+    <li><a href="/articles/penis-size-satisfaction-truth" class="text-blue-400 hover:text-blue-300 underline">ペニスサイズと満足度の真実</a></li>
   </ul>
 </div>
   `.trim(),
   publishedAt: '2025-11-05',
+  updatedAt: '2026-10-06',
   pinned: true,
   category: 'ツール'
 };
