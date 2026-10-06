@@ -1,16 +1,17 @@
 import Link from 'next/link';
-import { getAllArticles } from '@/lib/articles';
+import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
+import ArticleLink from './ArticleLink';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '記事一覧 - Short AV使い方完全ガイド',
-  description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！初心者から上級者まで役立つ60以上の記事で、DMMの動画をもっと快適に楽しめます。',
+  description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！初心者から上級者まで役立つ50以上の記事で、DMMの動画をもっと快適に楽しめます。',
   alternates: {
     canonical: '/articles',
   },
   openGraph: {
     title: '記事一覧 - Short AV使い方完全ガイド',
-    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！60以上の充実した記事を掲載。',
+    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！50以上の記事を掲載。',
     url: 'https://short-av.com/articles',
     siteName: 'Short AV',
     images: [
@@ -27,22 +28,15 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '記事一覧 - Short AV使い方完全ガイド',
-    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！60以上の充実した記事を掲載。',
+    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！50以上の記事を掲載。',
     images: ['/og-image.jpg'],
   },
 };
 
 // ページネーション削除：全記事を1ページに表示してクローラビリティを向上
 export default async function ArticlesPage() {
-  const rawArticles = getAllArticles();
-
-  // size-comparison-toolを先頭に固定
-  const toolArticle = rawArticles.find(a => a.slug === 'size-comparison-tool');
-  const otherArticles = rawArticles.filter(a => a.slug !== 'size-comparison-tool');
-  const allArticles = toolArticle ? [toolArticle, ...otherArticles] : rawArticles;
-
-  // 全記事を表示（SEO改善のため）
-  const articles = allArticles;
+  // サイズ比較ツール（pinned）が先頭、以降は公開日の新しい順
+  const articles = getAllArticles();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -65,16 +59,19 @@ export default async function ArticlesPage() {
 
       {/* コンテンツ - レスポンシブ対応 */}
       <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
-        <p className="text-gray-400 mb-8 md:mb-10 text-base md:text-lg">
-          Short AVの使い方や便利な機能について解説しています。
+        <p className="text-gray-400 mb-2 text-base md:text-lg">
+          Short AVの使い方や便利な機能、男性の体と性の知識について解説しています。
+        </p>
+        <p className="text-gray-500 mb-8 md:mb-10 text-xs md:text-sm">
+          ※本ページはプロモーション（広告）を含みます。
         </p>
 
         {/* 記事一覧 - レスポンシブ対応 */}
         <div className="space-y-4 md:space-y-5">
           {articles.map((article) => (
-            <Link
+            <ArticleLink
               key={article.slug}
-              href={`/articles/${article.slug}`}
+              article={article}
               className="block bg-gray-800 hover:bg-gray-700 rounded-lg p-6 md:p-8 transition-colors border border-gray-700"
             >
               <div className="flex items-start justify-between gap-4">
@@ -85,15 +82,16 @@ export default async function ArticlesPage() {
                   <p className="text-gray-400 mb-3 md:mb-4 text-sm md:text-base">
                     {article.description}
                   </p>
-                  {article.slug !== 'size-comparison-tool' && (
+                  {!article.pinned && (
                     <div className="flex items-center gap-4 text-sm md:text-base text-gray-500">
                       {article.category && (
                         <span className="bg-gray-700 px-2 md:px-3 py-1 rounded text-xs md:text-sm">
                           {article.category}
                         </span>
                       )}
-                      <time dateTime={article.publishedAt}>
-                        {new Date(article.publishedAt).toLocaleDateString('ja-JP')}
+                      <time dateTime={getArticleModifiedAt(article)}>
+                        {new Date(getArticleModifiedAt(article)).toLocaleDateString('ja-JP')}
+                        {article.updatedAt && article.updatedAt !== article.publishedAt && ' 更新'}
                       </time>
                     </div>
                   )}
@@ -102,13 +100,13 @@ export default async function ArticlesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
-            </Link>
+            </ArticleLink>
           ))}
         </div>
 
         {/* 記事総数表示 */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          全{allArticles.length}件の記事
+          全{articles.length}件の記事
         </div>
 
         {/* フッター - レスポンシブ対応 */}

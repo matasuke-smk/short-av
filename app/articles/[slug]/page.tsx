@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getArticleBySlug, getAllArticles } from '@/lib/articles';
+import { getArticleBySlug, getAllArticles, getArticleModifiedAt } from '@/lib/articles';
+import { renderArticleMarkdown, isInteractiveArticle } from '@/lib/articles/markdown';
 import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
+import ArticleLink, { formatDate } from '../ArticleLink';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -51,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: 'ja_JP',
       type: 'article',
       publishedTime: article.publishedAt,
-      modifiedTime: article.publishedAt,
+      modifiedTime: getArticleModifiedAt(article),
       authors: ['Short AV'],
     },
     twitter: {
@@ -90,7 +92,8 @@ export default async function ArticlePage({ params }: Props) {
   const prevArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
 
   // HTMLツール記事かどうかを判定（<script>や<style>が含まれている場合）
-  const isInteractiveTool = content.includes('<script') || content.includes('<style');
+  const isInteractiveTool = isInteractiveArticle(content);
+  const modifiedAt = getArticleModifiedAt(article);
 
   // Article構造化データ
   const articleSchema = {
@@ -111,7 +114,7 @@ export default async function ArticlePage({ params }: Props) {
       },
     },
     datePublished: article.publishedAt,
-    dateModified: article.publishedAt,
+    dateModified: getArticleModifiedAt(article),
     mainEntityOfPage: {
       '@type': 'WebPage',
       '@id': `https://short-av.com/articles/${article.slug}`,
@@ -180,22 +183,27 @@ export default async function ArticlePage({ params }: Props) {
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 leading-tight whitespace-pre-line">
               {article.title}
             </h1>
-            {article.slug !== 'size-comparison-tool' && (
-              <div className="flex items-center gap-4 text-sm text-gray-400">
+            {!article.pinned && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
                 {article.category && (
                   <span className="bg-gray-800 px-3 py-1 rounded">
                     {article.category}
                   </span>
                 )}
-                <time dateTime={article.publishedAt}>
-                  {new Date(article.publishedAt).toLocaleDateString('ja-JP', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </time>
+                <span>
+                  公開日 <time dateTime={article.publishedAt}>{formatDate(article.publishedAt)}</time>
+                </span>
+                {modifiedAt !== article.publishedAt && (
+                  <span>
+                    更新日 <time dateTime={modifiedAt}>{formatDate(modifiedAt)}</time>
+                  </span>
+                )}
               </div>
             )}
+            {/* ステルスマーケティング規制（2023年10月〜）への対応として、全記事に広告表記を出す */}
+            <p className="mt-4 text-xs md:text-sm text-gray-500">
+              ※本ページはプロモーション（広告）を含みます。
+            </p>
           </header>
 
           {/* 本文 - レスポンシブ対応 */}
@@ -210,82 +218,7 @@ export default async function ArticlePage({ params }: Props) {
               /* 通常の記事の場合はMarkdown処理 */
               <div
                 className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
-                dangerouslySetInnerHTML={{
-                  __html: content
-                    .split('\n\n')
-                    .map(para => {
-                      // 見出し
-                      if (para.startsWith('# ')) {
-                        return `<h1 class="text-2xl md:text-3xl font-bold mt-8 mb-4 text-white">${para.substring(2)}</h1>`;
-                      }
-                      if (para.startsWith('## ')) {
-                        return `<h2 class="text-xl md:text-2xl font-bold mt-6 mb-3 text-white">${para.substring(3)}</h2>`;
-                      }
-                      if (para.startsWith('### ')) {
-                        return `<h3 class="text-lg md:text-xl font-bold mt-4 mb-2 text-white">${para.substring(4)}</h3>`;
-                      }
-
-                    // 表（Markdown table）をカード形式に変換
-                    if (para.includes('|') && para.split('\n').length > 2) {
-                      const lines = para.split('\n').filter(line => line.trim());
-                      if (lines.length >= 2 && lines[1].includes('---')) {
-                        const headers = lines[0].split('|').map(h => h.trim()).filter(h => h);
-                        const rows = lines.slice(2).map(line =>
-                          line.split('|').map(cell => cell.trim()).filter(cell => cell !== '')
-                        );
-
-                        // カード形式でレンダリング（スマホに最適）
-                        let cardsHTML = '<div class="space-y-4 my-6">';
-                        rows.forEach((row, index) => {
-                          cardsHTML += '<div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">';
-                          row.forEach((cell, cellIndex) => {
-                            if (cellIndex < headers.length) {
-                              const header = headers[cellIndex].replace(/\*\*(.+?)\*\*/g, '$1');
-                              let processed = cell.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
-                              processed = processed.replace(/<br>/g, '<br class="my-1">');
-
-                              // 最初の項目は大きく表示
-                              if (cellIndex === 0) {
-                                cardsHTML += `<div class="text-lg font-bold text-white mb-3 pb-3 border-b border-gray-700">${processed}</div>`;
-                              } else {
-                                cardsHTML += `<div class="flex justify-between items-start py-2 border-b border-gray-700/50 last:border-0">`;
-                                cardsHTML += `<span class="text-sm text-gray-400 font-medium">${header}</span>`;
-                                cardsHTML += `<span class="text-sm text-gray-200 text-right ml-4">${processed}</span>`;
-                                cardsHTML += `</div>`;
-                              }
-                            }
-                          });
-                          cardsHTML += '</div>';
-                        });
-                        cardsHTML += '</div>';
-                        return cardsHTML;
-                      }
-                    }
-
-                    // リスト
-                    if (para.startsWith('- ')) {
-                      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                      const items = para.split('\n').map(line => {
-                        if (line.startsWith('- ')) {
-                          let content = line.substring(2);
-                          content = content.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
-                          const withLinks = content.replace(linkRegex, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
-                          return `<li class="ml-4">${withLinks}</li>`;
-                        }
-                        return line;
-                      }).join('');
-                      return `<ul class="list-disc ml-6 space-y-2">${items}</ul>`;
-                    }
-
-                    // 通常の段落 - 太字とリンクを処理
-                    let processed = para.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
-                    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                    processed = processed.replace(linkRegex, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
-
-                      return `<p class="mb-4">${processed}</p>`;
-                    })
-                    .join('')
-                }}
+                dangerouslySetInnerHTML={{ __html: renderArticleMarkdown(content, article.title) }}
               />
             )}
           </div>
@@ -297,8 +230,8 @@ export default async function ArticlePage({ params }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 前の記事 */}
               {prevArticle ? (
-                <Link
-                  href={`/articles/${prevArticle.slug}`}
+                <ArticleLink
+                  article={prevArticle}
                   className="group bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg p-4 md:p-6 transition-colors"
                 >
                   <div className="text-xs md:text-sm text-gray-400 mb-2 flex items-center gap-2">
@@ -310,15 +243,15 @@ export default async function ArticlePage({ params }: Props) {
                   <div className="text-sm md:text-base font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
                     {prevArticle.title}
                   </div>
-                </Link>
+                </ArticleLink>
               ) : (
                 <div className="hidden md:block"></div>
               )}
 
               {/* 次の記事 */}
               {nextArticle && (
-                <Link
-                  href={`/articles/${nextArticle.slug}`}
+                <ArticleLink
+                  article={nextArticle}
                   className="group bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg p-4 md:p-6 transition-colors md:text-right"
                 >
                   <div className="text-xs md:text-sm text-gray-400 mb-2 flex items-center gap-2 md:justify-end">
@@ -330,7 +263,7 @@ export default async function ArticlePage({ params }: Props) {
                   <div className="text-sm md:text-base font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
                     {nextArticle.title}
                   </div>
-                </Link>
+                </ArticleLink>
               )}
             </div>
           </nav>

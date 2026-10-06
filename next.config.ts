@@ -32,6 +32,13 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['embla-carousel-react', '@supabase/supabase-js'],
   },
 
+  // 削除した記事は記事一覧へ転送する（検索エンジンや外部リンクからの流入を 404 にしない）
+  async redirects() {
+    return ['penis-traction-complete-guide', 'japanese-men-condom-size-data', 'av-industry-trends-2024'].map(
+      (slug) => ({ source: `/articles/${slug}`, destination: '/articles', permanent: true }),
+    );
+  },
+
   // ヘッダーの最適化（キャッシュ制御）
   async headers() {
     return [

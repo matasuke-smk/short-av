@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { getAllArticles } from '@/lib/articles';
+import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://short-av.com';
@@ -42,7 +42,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // 記事ページ
   const articlePages: MetadataRoute.Sitemap = articles.map((article) => ({
     url: `${baseUrl}/articles/${article.slug}`,
-    lastModified: new Date(article.publishedAt),
+    lastModified: new Date(getArticleModifiedAt(article)),
     changeFrequency: 'weekly' as const,
     priority: 0.7,
   }));
