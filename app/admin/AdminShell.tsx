@@ -29,6 +29,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [tab, setTab] = useState<TabKey>('analytics');
   // 一度開いた画面は表示を切り替えるだけにして、入力中の内容や読み込んだデータを残す
   const [opened, setOpened] = useState<TabKey[]>(['analytics']);
+  // サイトを管理画面の上に重ねて表示する（別ページに移るとブラウザ表示になるため）。一度開いたら閉じても残し、続きから見られるようにする
+  const [siteOpen, setSiteOpen] = useState(false);
+  const [siteLoaded, setSiteLoaded] = useState(false);
+  const [siteKey, setSiteKey] = useState(0);
 
   const select = (key: TabKey, updateUrl = true) => {
     setTab(key);
@@ -73,14 +77,47 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             ),
           )}
-          <a href="/" target="_blank" rel="noopener" className="ml-auto px-3 py-2 text-xs text-gray-400 hover:text-gray-200 whitespace-nowrap">
-            サイトを開く ↗
-          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setSiteLoaded(true);
+              setSiteOpen(true);
+            }}
+            className="ml-auto px-3 py-2 text-xs text-gray-300 hover:text-white whitespace-nowrap"
+          >
+            サイトを開く
+          </button>
           <a href="/api/admin/logout" className="px-3 py-2 text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap">
             ログアウト
           </a>
         </div>
       </nav>
+
+      {siteLoaded && (
+        <div
+          className={`fixed inset-0 z-[100] bg-black flex flex-col ${siteOpen ? '' : 'hidden'}`}
+          role="dialog"
+          aria-label="サイト"
+        >
+          <div className="flex items-center gap-2 px-2 pb-1 pt-[max(env(safe-area-inset-top),0.25rem)] bg-gray-950 border-b border-gray-800">
+            <button
+              type="button"
+              onClick={() => setSiteOpen(false)}
+              className="px-3 py-1.5 rounded-lg bg-gray-800 text-sm text-white"
+            >
+              × 管理画面に戻る
+            </button>
+            <button
+              type="button"
+              onClick={() => setSiteKey((k) => k + 1)}
+              className="ml-auto px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200"
+            >
+              最初から開き直す
+            </button>
+          </div>
+          <iframe key={siteKey} src="/" title="Short AV" className="flex-1 w-full border-0" allow="autoplay; fullscreen; clipboard-write" />
+        </div>
+      )}
 
       {isHome ? (
         <>
