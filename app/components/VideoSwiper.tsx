@@ -735,13 +735,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* メーカー・発売日 - 1行固定 */}
-        <p className="h-5 text-sm text-gray-400 truncate flex-shrink-0">
-          {currentVideo?.maker && <>メーカー: {currentVideo.maker}</>}
-          {currentVideo?.maker && currentVideo?.release_date && '　'}
-          {currentVideo?.release_date && <>発売日: {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}</>}
-        </p>
-
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
         <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0">
           {isLandscape && currentVideo && (
@@ -878,47 +871,34 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
       <div className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
-          {/* 動画情報 - 高さ固定（2行分） */}
-          <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex items-end justify-between gap-3">
-            <div className="flex-1 flex flex-col justify-end min-w-0">
-              {currentVideo?.maker && (
-                <p className="text-gray-300 truncate">
-                  <span className="text-gray-400">メーカー:</span> {currentVideo.maker}
-                </p>
-              )}
-              {currentVideo?.release_date && (
-                <p className="text-gray-300 truncate">
-                  <span className="text-gray-400">リリース:</span>{' '}
-                  {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}
-                </p>
-              )}
-            </div>
-            {/* 女優ボタン */}
+          {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
+              メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
+          <div className="mb-3 md:mb-4 h-12 flex items-stretch gap-3">
             {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
               <button
                 onClick={() => {
                   setShowActressModal(true);
                   trackModalOpen('actress');
                 }}
-                className="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-2 flex items-center gap-1 transition-colors active:scale-95 h-fit"
+                className="w-1/3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center gap-1 transition-colors active:scale-95"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-xs font-medium">女優</span>
+                <span className="text-sm font-medium">女優</span>
               </button>
             )}
-            {/* 価格と FANZA の作品ページへのボタン（▶で再生する場合は再生画面を通らないため、ここにも出す） */}
+            {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
             {enableAffiliateLinks && currentVideo?.dmm_product_url && (
               <a
                 href={currentVideo.dmm_product_url}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
                 onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
-                className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg px-3 py-1 flex flex-col items-center leading-tight transition-transform active:scale-95 h-fit shadow"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
-                {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
-                <span className="text-[11px] font-medium">詳細はこちら</span>
+                {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+                <span className="text-sm font-medium">詳細はこちら</span>
               </a>
             )}
           </div>
