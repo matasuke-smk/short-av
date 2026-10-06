@@ -27,12 +27,37 @@ export const trackAgeVerification = (accepted: boolean) => {
   });
 };
 
-// 動画視聴イベント
-export const trackVideoView = (videoId: string, contentId: string, title: string) => {
+// スワイプ・視聴の文脈（どの一覧で、何回目のスワイプの後か）
+// list_type: feed = トップのおすすめ、list = 検索・ランキング・いいね・履歴・女優の一覧
+// via: swipe = スワイプして見つけた作品、direct = スワイプせずに最初の1本を開いた
+export type ViewContext = {
+  list_type: 'feed' | 'list';
+  swipe_index: number;
+  via: 'swipe' | 'direct';
+};
+
+// スワイプして別の作品に切り替わったとき
+export const trackSwipe = (
+  direction: 'next' | 'prev',
+  swipeIndex: number,
+  contentId: string,
+  listType: ViewContext['list_type'],
+) => {
+  sendGAEvent('swipe', {
+    direction,
+    swipe_index: swipeIndex,
+    content_id: contentId,
+    list_type: listType,
+  });
+};
+
+// 動画視聴イベント（サンプル動画を開いたとき）
+export const trackVideoView = (videoId: string, contentId: string, title: string, context?: ViewContext) => {
   sendGAEvent('video_view', {
     video_id: videoId,
     content_id: contentId,
     video_title: title,
+    ...context,
   });
 };
 
@@ -45,18 +70,17 @@ export const trackLike = (videoId: string, action: 'like' | 'unlike') => {
 };
 
 // DMMリンククリックイベント
-export const trackDMMClick = (videoId: string, contentId: string, linkType: 'detail' | 'affiliate') => {
+export const trackDMMClick = (
+  videoId: string,
+  contentId: string,
+  linkType: 'detail' | 'affiliate',
+  context?: ViewContext,
+) => {
   sendGAEvent('dmm_link_click', {
     video_id: videoId,
     content_id: contentId,
     link_type: linkType,
-  });
-};
-
-// 性別フィルタ切り替えイベント
-export const trackGenderFilter = (filter: 'straight' | 'lesbian' | 'gay') => {
-  sendGAEvent('gender_filter_change', {
-    filter: filter,
+    ...context,
   });
 };
 
