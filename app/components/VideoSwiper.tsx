@@ -59,6 +59,28 @@ function removeAffiliateIdFromUrl(url: string | null): string {
   return url.replace(/\/affi_id=[^/]+\//g, '/');
 }
 
+// FANZA のサンプルプレイヤーの縦横比
+const PLAYER_RATIO = 560 / 360;
+
+// 画面に収まるプレイヤーの大きさ（px）
+// 横画面・PC は左の操作列（15%）と右のバナー列（約180px）を除いた領域、縦画面は画面幅いっぱい
+function getPlayerSize(isLandscape: boolean): { width: number; height: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = isLandscape
+    ? Math.min(vw * 0.85 - 200, vh * 0.9 * PLAYER_RATIO)
+    : vw;
+  const w = Math.max(200, Math.floor(width));
+  return { width: w, height: Math.floor(w / PLAYER_RATIO) };
+}
+
+// サンプル動画の URL から、自動再生付きプレイヤー（/api/sample-player）の URL を作る
+function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: number }): string {
+  const cid = sampleUrl.match(/\/cid=([0-9a-z_]+)\//)?.[1];
+  if (!cid) return removeAffiliateIdFromUrl(sampleUrl);
+  return `/api/sample-player?cid=${cid}&w=${size.width}&h=${size.height}`;
+}
+
 const SWIPED_KEY = 'short-av-has-swiped';
 
 export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
@@ -437,7 +459,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const handleThumbnailClick = useCallback(() => {
     if (currentVideo?.sample_video_url) {
       // アフィリエイトIDを削除してからモーダルに設定
-      setModalVideoUrl(removeAffiliateIdFromUrl(currentVideo.sample_video_url));
+      setModalVideoUrl(currentVideo.sample_video_url);
       setShowVideoModal(true);
       // 履歴に追加
       addToHistory(currentVideo.dmm_content_id);
@@ -657,17 +679,25 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
+        {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
-        {currentVideo && (
-          <div className="h-12 flex items-start overflow-hidden flex-shrink-0">
+        <div className="h-12 flex items-start overflow-hidden flex-shrink-0">
+          {currentVideo && (
             <h2 className="text-white text-base font-bold line-clamp-2 leading-6 overflow-hidden">
               {currentVideo.title}
             </h2>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* 広告バナー領域 (640×200) - 横画面時のみ表示 */}
-        <div className="w-full flex-shrink-0">
+        {/* メーカー・発売日 - 1行固定 */}
+        <p className="h-5 text-sm text-gray-400 truncate flex-shrink-0">
+          {currentVideo?.maker && <>メーカー: {currentVideo.maker}</>}
+          {currentVideo?.maker && currentVideo?.release_date && '　'}
+          {currentVideo?.release_date && <>発売日: {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}</>}
+        </p>
+
+        {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
+        <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0">
           {isLandscape && currentVideo && (
             <DMMBanner
               key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
@@ -677,21 +707,26 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* 女優ボタン（縦画面と同じく、女優情報がある動画のみ） */}
-        {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
+        {/* 女優ボタン（女優情報がある動画のみ押せる。ない場合も枠は残してボタンの位置を揃える） */}
+        {(() => {
+          const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
+          return (
           <button
+            disabled={!hasActress}
+            aria-hidden={!hasActress}
             onClick={() => {
               setShowActressModal(true);
               trackModalOpen('actress');
             }}
-            className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 flex items-center justify-center gap-1 transition-colors active:scale-95 flex-shrink-0"
+            className={`bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 flex items-center justify-center gap-1 transition-colors active:scale-95 flex-shrink-0 ${hasActress ? '' : 'invisible'}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <span className="text-xs font-medium">この作品の女優</span>
           </button>
-        )}
+        );
+        })()}
 
         {/* ボタンエリア - 3列グリッド */}
         <div className="grid grid-cols-3 gap-2">
@@ -940,15 +975,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </button>
             </div>
 
-            {/* 詳細リンクボタン（中央・自動調整） */}
-            <div className="flex-1 flex items-stretch justify-center py-4">
+            {/* 作品名と詳細リンクボタン（中央） */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 py-4">
+              {currentVideo && (
+                <p className="w-full max-w-[200px] text-white text-sm font-bold leading-snug line-clamp-4">
+                  {currentVideo.title}
+                </p>
+              )}
               <div className="w-full max-w-[200px] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {enableAffiliateLinks ? (
                   <a
                     href={currentVideo?.dmm_product_url}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
-                    className="w-full h-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-6 text-center transition-all font-bold shadow-lg active:scale-95 flex flex-col justify-center"
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-4 text-center transition-all font-bold shadow-lg active:scale-95 flex flex-col justify-center"
                     onClick={() => {
                       if (currentVideo) {
                         trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail');
@@ -959,7 +999,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <div className="text-2xl">¥{currentVideo?.price || 0}〜</div>
                   </a>
                 ) : (
-                  <div className="w-full h-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl px-4 text-center font-bold flex items-center justify-center">
+                  <div className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl px-4 py-4 text-center font-bold flex items-center justify-center">
                     <div className="text-sm">サイト認証後に表示</div>
                   </div>
                 )}
@@ -995,17 +1035,24 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           <div
             className="w-full landscape:flex-1 landscape:flex landscape:items-center landscape:justify-center landscape:h-screen lg:flex-1 lg:flex lg:items-center lg:justify-center lg:h-screen"
           >
-            <iframe
-              src={modalVideoUrl}
-              className="w-full aspect-[560/420] landscape:w-[calc(90vh*4/3)] landscape:h-[90vh] lg:w-[calc(90vh*4/3)] lg:h-[90vh]"
-              allowFullScreen
-              allow="autoplay; fullscreen"
-              frameBorder="0"
-              scrolling="no"
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={handleModalTouchStart}
-              onTouchEnd={handleModalTouchEnd}
-            />
+            {(() => {
+              // 画面の向きが変わるとモーダルを開き直す（modalKey）ので、その時点の大きさで作り直される
+              const size = getPlayerSize(isLandscape);
+              return (
+                <iframe
+                  src={getSamplePlayerUrl(modalVideoUrl, size)}
+                  style={{ width: size.width, height: size.height }}
+                  className="max-w-full"
+                  allowFullScreen
+                  allow="autoplay; fullscreen"
+                  frameBorder="0"
+                  scrolling="no"
+                  onClick={(e) => e.stopPropagation()}
+                  onTouchStart={handleModalTouchStart}
+                  onTouchEnd={handleModalTouchEnd}
+                />
+              );
+            })()}
           </div>
 
           {/* バナー領域 - 横画面時のみ表示（上下中央配置） */}
@@ -1014,7 +1061,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
                 bannerId={portraitBannerIds[(currentIndex + 1) % 2]}
-                className="w-auto h-auto max-h-[90vh]"
+                className="h-[min(600px,90vh)] w-auto"
               />
             </div>
           )}
