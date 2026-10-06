@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 /**
  * FANZA のサンプル動画プレイヤーまわり（サーバー専用）
  * - プレイヤー本体の URL を取り出す（/api/sample-player で画面に合わせた大きさで開くため）
@@ -66,4 +68,37 @@ export async function getSampleSeconds(cid: string): Promise<number | null> {
     offset += size;
   }
   return null;
+}
+
+/**
+ * まだ長さを調べていない作品のサンプル動画の長さを、締め切り時刻まで調べて videos.sample_seconds に記録する。
+ * 新しい作品から順に。調べられなかった作品は -1 にして、次回以降に同じ作品で止まらないようにする。
+ * 毎日の自動更新（cron）と、管理画面の「今すぐ調べる」ボタンから使う。戻り値は記録した件数。
+ */
+export async function measureSampleLengths(supabase: SupabaseClient, deadline: number, concurrency = 8): Promise<number> {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('id, dmm_content_id, sample_video_url')
+    .is('sample_seconds', null)
+    .not('sample_video_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(600);
+  if (error) {
+    console.error('[sample-length] 対象の取得エラー:', error);
+    return 0;
+  }
+
+  const queue = [...(data ?? [])];
+  let measured = 0;
+  const worker = async () => {
+    while (queue.length > 0 && Date.now() < deadline) {
+      const video = queue.shift()!;
+      const cid = (video.sample_video_url as string).match(/\/cid=([0-9a-z_]+)\//)?.[1] ?? (video.dmm_content_id as string);
+      const seconds = await getSampleSeconds(cid).catch(() => null);
+      const { error: updateError } = await supabase.from('videos').update({ sample_seconds: seconds ?? -1 }).eq('id', video.id);
+      if (!updateError) measured++;
+    }
+  };
+  await Promise.all(Array.from({ length: concurrency }, worker));
+  return measured;
 }
