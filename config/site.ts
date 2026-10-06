@@ -2,3 +2,7 @@
 export const SITE_OPERATOR = 'Short AV 運営事務局';
 // お問い合わせ（Google フォーム）
 export const CONTACT_FORM_URL = 'https://forms.gle/15LKSWnzBL4uEof38';
+
+// 検索の「サンプル動画◯分以上」の基準（秒）と、画面に出す名前
+export const LONG_SAMPLE_SECONDS = 180;
+export const LONG_SAMPLE_LABEL = `サンプル動画${LONG_SAMPLE_SECONDS / 60}分以上`;

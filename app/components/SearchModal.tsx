@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { LONG_SAMPLE_LABEL, LONG_SAMPLE_SECONDS } from '@/config/site';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
@@ -26,8 +27,7 @@ const FACET_COLUMN = { genre: 'genre_ids', actress: 'actress_ids' } as const;
 // ilike のワイルドカードとして解釈される文字をエスケープする
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
-// ジャンルの一番上に出す「サンプル動画2分以上」の基準（秒）。sample_seconds は毎日の自動更新が調べて入れる（sql/010）
-const LONG_SAMPLE_SECONDS = 120;
+// ジャンルの一番上に出す「サンプル動画◯分以上」の基準は config/site.ts。sample_seconds は毎日の自動処理が調べて入れる（sql/010）
 
 // 選択中の ID をすべて含む動画について、ジャンル/女優ごとの件数を DB で集計する（sql/007）
 // 関数が未作成・エラーのときは null（絞り込まずに全件を表示する）
@@ -102,7 +102,7 @@ export default function SearchModal({
 }: SearchModalProps) {
   // 検索UI状態
   const [searchMode, setSearchMode] = useState<SearchMode>('genre');
-  // 「サンプル動画2分以上」はジャンルの1つとして扱う（ジャンル検索のときだけ効く）
+  // 「サンプル動画◯分以上」はジャンルの1つとして扱う（ジャンル検索のときだけ効く）
   const [longOnly, setLongOnly] = useState(false);
   const minSampleSeconds = longOnly && searchMode === 'genre' ? LONG_SAMPLE_SECONDS : 0;
   const [keyword, setKeyword] = useState('');
@@ -133,7 +133,7 @@ export default function SearchModal({
   const searchIdRef = useRef(0);
 
   const selectedIds = searchMode === 'genre' ? selectedGenreIds : selectedActressIds;
-  // 検索できる条件があるか（ジャンルは「サンプル動画2分以上」だけでも検索できる）
+  // 検索できる条件があるか（ジャンルは「サンプル動画◯分以上」だけでも検索できる）
   const hasFilter = selectedIds.length > 0 || minSampleSeconds > 0;
 
   // ジャンル・女優データのロード（初回に開いたときだけ）
@@ -247,7 +247,7 @@ export default function SearchModal({
           query = query.ilike('title', `%${escapeLike(word)}%`);
         }
       } else {
-        // 選択したジャンル/女優をすべて含む動画（「サンプル動画2分以上」を選んでいればその条件も）
+        // 選択したジャンル/女優をすべて含む動画（「サンプル動画◯分以上」を選んでいればその条件も）
         if (selectedIds.length > 0) query = query.contains(FACET_COLUMN[searchMode], selectedIds);
         if (minSampleSeconds > 0) query = query.gte('sample_seconds', minSampleSeconds);
       }
@@ -452,7 +452,7 @@ export default function SearchModal({
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {longOnly && (
-                          <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs">サンプル動画2分以上</span>
+                          <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs">{LONG_SAMPLE_LABEL}</span>
                         )}
                         {genres
                           .filter((g: Genre) => selectedGenreIds.includes(g.id))
@@ -472,7 +472,7 @@ export default function SearchModal({
                     }`}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                    サンプル動画2分以上
+                    {LONG_SAMPLE_LABEL}
                   </button>
 
                   {minSampleSeconds > 0 && !countLoading && currentFilterCount === 0 && (

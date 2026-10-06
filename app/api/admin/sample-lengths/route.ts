@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { measureSampleLengths } from '@/lib/sample-player';
+import { LONG_SAMPLE_SECONDS } from '@/config/site';
 
 // 管理画面用（middleware.ts の認証で保護）
 export const dynamic = 'force-dynamic';
@@ -14,14 +15,14 @@ async function counts() {
     base().is('sample_seconds', null),
     base().gt('sample_seconds', 0),
     base().eq('sample_seconds', -1),
-    base().gte('sample_seconds', 120),
+    base().gte('sample_seconds', LONG_SAMPLE_SECONDS),
     base(),
   ]);
   return {
     remaining: remaining.count ?? 0, // まだ調べていない
     measured: measured.count ?? 0, // 長さが分かった
     failed: failed.count ?? 0, // 調べられなかった
-    long: long.count ?? 0, // うち2分以上
+    long: long.count ?? 0, // うち基準（LONG_SAMPLE_SECONDS）以上
     total: total.count ?? 0,
   };
 }

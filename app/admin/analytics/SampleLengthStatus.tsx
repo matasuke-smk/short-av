@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LONG_SAMPLE_LABEL, LONG_SAMPLE_SECONDS } from '@/config/site';
 
 type Counts = { remaining: number; measured: number; failed: number; long: number; total: number };
 
-/** サンプル動画の長さの記録状況と「今すぐ調べる」ボタン（検索の「サンプル動画2分以上」用） */
+/** サンプル動画の長さの記録状況と「今すぐ調べる」ボタン（検索の「サンプル動画◯分以上」用） */
 export default function SampleLengthStatus() {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,7 +31,7 @@ export default function SampleLengthStatus() {
 
   return (
     <section className="bg-gray-800 rounded-lg p-4 md:p-6 mb-6">
-      <h2 className="text-lg font-bold">サンプル動画の長さ（検索の「サンプル動画2分以上」用）</h2>
+      <h2 className="text-lg font-bold">サンプル動画の長さ（検索の「{LONG_SAMPLE_LABEL}」用）</h2>
       {counts ? (
         <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
           <div className="bg-gray-900 rounded p-3">
@@ -38,7 +39,7 @@ export default function SampleLengthStatus() {
             <dd className="text-lg font-bold">{counts.measured.toLocaleString()}件</dd>
           </div>
           <div className="bg-gray-900 rounded p-3">
-            <dt className="text-xs text-gray-400">うち2分以上</dt>
+            <dt className="text-xs text-gray-400">うち{LONG_SAMPLE_SECONDS / 60}分以上</dt>
             <dd className="text-lg font-bold">{counts.long.toLocaleString()}件</dd>
           </div>
           <div className="bg-gray-900 rounded p-3">
@@ -53,7 +54,7 @@ export default function SampleLengthStatus() {
       ) : (
         <p className="text-sm text-gray-300 mt-2">読み込み中...</p>
       )}
-      <p className="text-xs text-gray-500 mt-2">全{counts?.total.toLocaleString() ?? '—'}件。「調べられなかった」作品は、検索の「サンプル動画2分以上」の対象になりません。</p>
+      <p className="text-xs text-gray-500 mt-2">全{counts?.total.toLocaleString() ?? '—'}件。「調べられなかった」作品は、検索の「{LONG_SAMPLE_LABEL}」の対象になりません。</p>
       <p className="text-xs text-gray-400 mt-1">毎日の自動更新でも少しずつ記録されます。1回押すと約45秒で200〜300件ほど記録します。</p>
       <div className="flex items-center gap-3 mt-3">
         <button
