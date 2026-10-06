@@ -5,6 +5,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/sample-lengths",
+      "schedule": "30 0 * * *"
+    },
+    {
       "path": "/api/cron/generate-x-posts",
       "schedule": "0 0 * * 3"
     }

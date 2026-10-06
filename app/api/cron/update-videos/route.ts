@@ -20,7 +20,6 @@ import {
   type DMMItem,
 } from '@/lib/dmm-api';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { measureSampleLengths } from '@/lib/sample-player';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -31,8 +30,6 @@ const GENRES_PER_RUN = 15;
 const GENRE_FETCH_BUDGET_MS = 18_000;
 // この日数以上更新されず、いいねもされていない動画を削除する（ジャンル一巡の期間より十分長くする）
 const STALE_DAYS = 30;
-// サンプル動画の長さを調べ終える時刻（開始からの経過。関数の上限 60 秒に収める）
-const SAMPLE_LENGTH_DEADLINE_MS = 52_000;
 // .in() / バルク書き込み1回あたりの件数
 const CHUNK_SIZE = 200;
 
@@ -259,9 +256,7 @@ export async function GET(request: Request) {
       console.warn('[Cron] 保存に失敗があったため古いデータの削除をスキップ');
     }
 
-    // 7. サンプル動画の長さを調べる（まだ調べていない作品を新しい順に、時間の許す限り）
-    const sampleMeasured = await measureSampleLengths(supabase, startTime + SAMPLE_LENGTH_DEADLINE_MS);
-    console.info(`[Cron] サンプルの長さ ${sampleMeasured}件 (${elapsed()})`);
+    // サンプル動画の長さは別の cron（/api/cron/sample-lengths、9:30）で記録する（ここでは保存で時間を使い切るため）
 
     const result = {
       success: saveErrors === 0,
@@ -274,7 +269,6 @@ export async function GET(request: Request) {
         deleted: deletedCount,
         errors: saveErrors,
         genresFetched,
-        sampleMeasured,
       },
     };
     console.info('[Cron] 処理完了:', JSON.stringify(result.stats));
