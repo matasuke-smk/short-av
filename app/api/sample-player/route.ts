@@ -11,9 +11,12 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
  * サンプル動画プレイヤーへのリダイレクト
  *
  * 以前は FANZA の litevideo ページ（中に 560x360 固定のプレイヤーを埋め込んだページ）を iframe で開いていたため、
- * - 再生ボタンをもう一度押さないと再生されない
- * - PC で iframe を大きくしても動画は 560x360 のまま
- * だった。litevideo ページの中にあるプレイヤー本体の URL を取り出し、表示サイズを指定して自動再生付きで開く。
+ * PC で iframe を大きくしても動画は 560x360 のままだった。
+ * litevideo ページの中にあるプレイヤー本体の URL を取り出し、画面に合わせた表示サイズを指定して開く。
+ *
+ * 注意: 再生はプレイヤーの中をタップ/クリックしたときにしか始まらない（2026-10-06 に確認）。
+ * プレイヤー設定の autoPlay（URL に forceAutoPlay=1/ で有効になる）は表示を変えるだけで再生はしない。
+ * ミュートは FANZA ドメインの cookie でしか決まらず、外から再生を指示する仕組み（postMessage の受信）もない。
  *
  * GET /api/sample-player?cid=<作品ID>&w=<幅>&h=<高さ>
  */
@@ -35,18 +38,16 @@ export async function GET(request: NextRequest) {
     const match = html.match(/https:\/\/www\.dmm\.co\.jp\/service\/digitalapi\/-\/html5_player\/=\/[^"']+/);
     if (!response.ok || !match) throw new Error(`player url not found (${response.status})`);
 
-    const playerUrl =
-      match[0]
-        .replace(/\/width=\d+\//, `/width=${width}/`)
-        .replace(/\/height=\d+\//, `/height=${height}/`)
-        .replace(/\/?$/, '/') + 'forceAutoPlay=1/';
+    const playerUrl = match[0]
+      .replace(/\/width=\d+\//, `/width=${width}/`)
+      .replace(/\/height=\d+\//, `/height=${height}/`);
 
     return NextResponse.redirect(playerUrl, {
       status: 302,
       headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400' },
     });
   } catch (error) {
-    // 取り出せなかったときは従来どおり litevideo ページを開く（自動再生はされない）
+    // 取り出せなかったときは従来どおり litevideo ページを開く
     console.error('[sample-player]', cid, error);
     return NextResponse.redirect(litevideoUrl, { status: 302 });
   }

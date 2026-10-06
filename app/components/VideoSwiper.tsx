@@ -76,7 +76,7 @@ function getPlayerSize(isLandscape: boolean): { width: number; height: number } 
   return { width: w, height: Math.floor(w / PLAYER_RATIO) };
 }
 
-// サンプル動画の URL から、自動再生付きプレイヤー（/api/sample-player）の URL を作る
+// サンプル動画の URL から、画面に合う大きさのプレイヤー（/api/sample-player）の URL を作る
 function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: number }): string {
   const cid = sampleUrl.match(/\/cid=([0-9a-z_]+)\//)?.[1];
   if (!cid) return removeAffiliateIdFromUrl(sampleUrl);
