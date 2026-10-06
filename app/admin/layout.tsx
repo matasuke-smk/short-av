@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import AdminNav from './AdminNav';
+import AdminShell from './AdminShell';
 
 export const metadata: Metadata = {
   title: '管理画面 - Short AV',
@@ -19,9 +19,6 @@ export default function AdminLayout({
   children: ReactNode;
 }) {
   return (
-    <>
-      <AdminNav />
-      {children}
-    </>
+    <AdminShell>{children}</AdminShell>
   );
 }
