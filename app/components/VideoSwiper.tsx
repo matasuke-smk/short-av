@@ -497,9 +497,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
   }, [currentVideo, addToHistory, getViewContext]);
 
+  // サムネイルの中央の▶から再生中の作品（再生バーと重ならないよう、いいね・PR 表示を上に移す）
+  const [inlinePlayingId, setInlinePlayingId] = useState<string | null>(null);
+
   // サムネイルの中央の▶から再生したとき（再生画面は開かない）
   const recordInlineView = useCallback(() => {
     if (!currentVideo) return;
+    setInlinePlayingId(currentVideo.dmm_content_id);
     addToHistory(currentVideo.dmm_content_id);
     trackVideoView(currentVideo.id, currentVideo.dmm_content_id || '', currentVideo.title || '', getViewContext());
   }, [currentVideo, addToHistory, getViewContext]);
@@ -618,7 +622,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     {/* いいねボタン - サムネイル左下 */}
                     <button
                       onClick={(e) => toggleLike(video, e)}
-                      className="absolute bottom-6 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
+                      className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
                       aria-label="いいね"
                     >
                       {likedVideos.has(video.dmm_content_id) ? (
@@ -646,7 +650,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     )}
 
                     {/* PRバッジ - サムネイル右下 */}
-                    <div className="absolute bottom-6 right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg">
+                    <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
                       PR
                     </div>
                     </div>
