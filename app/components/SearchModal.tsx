@@ -231,7 +231,9 @@ export default function SearchModal({
         return;
       }
 
-      onReplaceVideos(data, data[0].dmm_content_id);
+      // contains の列名を変数で渡すと結果の型が推論できなくなるため、ここで Video[] として扱う
+      const videos = data as Video[];
+      onReplaceVideos(videos, videos[0].dmm_content_id);
       setTimeout(() => onClose(), 200);
     } catch (error) {
       if (searchId !== searchIdRef.current) return;
