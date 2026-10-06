@@ -109,3 +109,21 @@ export async function runReports(requests: ReportRequest[]): Promise<ReportRow[]
   }
   return results;
 }
+
+/** リアルタイムレポート（直近30分）。dateRanges は指定しない */
+export async function runRealtimeReport(request: Omit<ReportRequest, 'dateRanges'>): Promise<ReportRow[]> {
+  const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
+  const token = await getAccessToken();
+  const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    cache: 'no-store',
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(`GA のリアルタイムの取得に失敗: ${data.error?.message ?? response.status}`);
+  return (data.rows ?? []).map((row: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }) => ({
+    dimensions: (row.dimensionValues ?? []).map((v) => v.value),
+    metrics: (row.metricValues ?? []).map((v) => Number(v.value)),
+  }));
+}

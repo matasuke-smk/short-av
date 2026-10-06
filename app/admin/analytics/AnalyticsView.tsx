@@ -148,9 +148,38 @@ function HourlyChart({ rows }: { rows: ReportRow[] }) {
   );
 }
 
+// ページのタイトルから種類を見分ける（作品は「作品名 | Short AV」、記事は「記事名 - Short AV」）
+function pageKind(title: string): { label: string; name: string } {
+  if (title.endsWith(' | Short AV')) return { label: '作品', name: title.slice(0, -' | Short AV'.length) };
+  if (title.startsWith('Short AV - ')) return { label: 'トップ', name: 'トップページ（作品を開く前）' };
+  const i = title.indexOf(' - Short AV');
+  if (i > 0) return { label: '記事など', name: title.slice(0, i) };
+  return { label: 'その他', name: notSet(title) };
+}
+
+// ページの一覧（タイトル・種類・表示回数・人数）
+function PageList({ rows }: { rows: ReportRow[] }) {
+  if (rows.length === 0) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
+  return (
+    <ol className="text-sm space-y-2">
+      {rows.map((r, i) => {
+        const kind = pageKind(r.dimensions[0]);
+        return (
+          <li key={r.dimensions[0] + i} className="flex items-start gap-2">
+            <span className="text-gray-500 w-5 text-right flex-shrink-0">{i + 1}</span>
+            <span className="text-[10px] bg-gray-700 rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5">{kind.label}</span>
+            <span className="flex-1 min-w-0 line-clamp-2">{kind.name}</span>
+            <span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回・{fmt(r.metrics[1])}人</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<RangeData, { reports: ReportRow[][] }> }) {
   const { reports, db } = data;
-  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults] = reports;
+  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages] = reports;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [users = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
@@ -306,6 +335,10 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
           </div>
         </Section>
 
+        <Section title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）">
+          <PageList rows={pages ?? []} />
+        </Section>
+
         <Section title="日別">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -348,10 +381,12 @@ export default function AnalyticsView({
   data,
   initialRange,
   fetchedAt,
+  realtime,
 }: {
   data: Record<RangeKey, RangeData>;
   initialRange: RangeKey;
   fetchedAt: string;
+  realtime: ReportRow[] | null; // いま見られているページ（直近30分）。取得できなければ null
 }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>(initialRange);
   const current = data[rangeKey];
@@ -372,6 +407,18 @@ export default function AnalyticsView({
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。スワイプ関連の数字は 2026/10/6 以降のみ。
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
+
+        <section className="bg-gray-800 rounded-lg p-4 md:p-6 mt-6">
+          <h2 className="text-lg font-bold">いま見られているページ（直近30分）</h2>
+          <p className="text-xs text-gray-400 mt-1">{fetchedAt} 時点。最新にするにはページを再読み込みしてください。</p>
+          <div className="mt-4">
+            {realtime === null ? (
+              <p className="text-sm text-gray-400">取得できませんでした。</p>
+            ) : (
+              <PageList rows={realtime} />
+            )}
+          </div>
+        </section>
 
         <nav className="flex gap-2 my-6">
           {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
