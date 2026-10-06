@@ -77,7 +77,7 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.variable}>
       <head>
         {/* PWA設定 */}
-        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#000000" />
