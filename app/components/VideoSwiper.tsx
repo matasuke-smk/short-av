@@ -460,6 +460,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         const url = new URL(window.location.href);
         url.searchParams.set('v', currentVideo.dmm_content_id);
 
+        // ページのタイトルを見ている作品の名前にする（GA は URL の ? 以降を「ページ」に含めないため、
+        // タイトルで作品ごとに見分けられるようにする。URL の書き換えで GA が page_view を送る前に変える）
+        document.title = `${currentVideo.title} | Short AV`;
+
         // スワイプのたびに履歴を積むと「戻る」で何十回も押す必要があったため、置き換えにする
         if (url.toString() !== window.location.href) {
           lastHandledParamRef.current = currentVideo.dmm_content_id;
