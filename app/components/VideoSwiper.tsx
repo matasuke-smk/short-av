@@ -753,26 +753,42 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* 女優ボタン（女優情報がある動画のみ押せる。ない場合も枠は残してボタンの位置を揃える） */}
-        {(() => {
-          const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
-          return (
-          <button
-            disabled={!hasActress}
-            aria-hidden={!hasActress}
-            onClick={() => {
-              setShowActressModal(true);
-              trackModalOpen('actress');
-            }}
-            className={`bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 flex items-center justify-center gap-1 transition-colors active:scale-95 flex-shrink-0 ${hasActress ? '' : 'invisible'}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs font-medium">この作品の女優</span>
-          </button>
-        );
-        })()}
+        {/* 女優ボタンと、価格・作品ページへのボタン（1行・高さ固定。ない場合も枠は残してボタンの位置を揃える） */}
+        <div className="grid grid-cols-2 gap-2 h-11 flex-shrink-0">
+          {(() => {
+            const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
+            return (
+              <button
+                disabled={!hasActress}
+                aria-hidden={!hasActress}
+                onClick={() => {
+                  setShowActressModal(true);
+                  trackModalOpen('actress');
+                }}
+                className={`bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center justify-center gap-1 transition-colors active:scale-95 ${hasActress ? '' : 'invisible'}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-xs font-medium">この作品の女優</span>
+              </button>
+            );
+          })()}
+          {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
+            <a
+              href={currentVideo.dmm_product_url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
+            >
+              {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              <span className="text-xs font-medium">詳細はこちら</span>
+            </a>
+          ) : (
+            <div />
+          )}
+        </div>
 
         {/* ボタンエリア - 3列グリッド */}
         <div className="grid grid-cols-3 gap-2">
@@ -891,6 +907,19 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 </svg>
                 <span className="text-xs font-medium">女優</span>
               </button>
+            )}
+            {/* 価格と FANZA の作品ページへのボタン（▶で再生する場合は再生画面を通らないため、ここにも出す） */}
+            {enableAffiliateLinks && currentVideo?.dmm_product_url && (
+              <a
+                href={currentVideo.dmm_product_url}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+                className="flex-shrink-0 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg px-3 py-1 flex flex-col items-center leading-tight transition-transform active:scale-95 h-fit shadow"
+              >
+                {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+                <span className="text-[11px] font-medium">詳細はこちら</span>
+              </a>
             )}
           </div>
 
