@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { generateUpcomingWeek } from '@/lib/x-posts';
 
 // 管理画面用（middleware.ts のBasic認証で保護）
 export const dynamic = 'force-dynamic';
@@ -19,17 +18,6 @@ export async function GET() {
     return NextResponse.json({ posts: data ?? [] });
   } catch (error) {
     console.error('X posts GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-// 「1週間分を作成」ボタン（空いている枠だけ作る）
-export async function POST() {
-  try {
-    const result = await generateUpcomingWeek();
-    return NextResponse.json({ success: true, ...result });
-  } catch (error) {
-    console.error('X posts generate error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -236,6 +236,141 @@ function SampleImagePicker({
   );
 }
 
+type RecommendedVideo = {
+  dmm_content_id: string;
+  title: string;
+  thumbnail_url: string | null;
+  plays: number;
+  swipePlays: number;
+  clicks: number;
+  likes: number;
+  rank: number | null;
+};
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // クリップボード API が使えないブラウザ向け
+    const area = document.createElement('textarea');
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  }
+}
+
+// おすすめの作品1件（「投稿文を作る」で本文を作り、コピー → X に貼り付け →「紹介済みにする」）
+function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPosted: () => void }) {
+  const [text, setText] = useState<string | null>(null);
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function compose() {
+    setStatus('作成中...');
+    const response = await fetch(`/api/admin/x-posts/compose?contentId=${encodeURIComponent(video.dmm_content_id)}`);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      setStatus(data?.error ?? '作成できませんでした');
+      return;
+    }
+    setText(data.text);
+    setStatus('');
+  }
+
+  // 計測用パラメータ（投稿形式）を付けた本文
+  const finalText = () => (text ? setPostFormat(text, getPostFormat(text)) : '');
+
+  async function copy() {
+    await copyToClipboard(finalText());
+    setStatus('コピーしました。X に貼り付けて投稿・予約したら「紹介済みにする」を押してください');
+  }
+
+  async function record() {
+    setBusy(true);
+    const response = await fetch('/api/admin/x-posts/compose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId: video.dmm_content_id, text: finalText() }),
+    });
+    setBusy(false);
+    if (response.ok) onPosted();
+    else setStatus('記録できませんでした');
+  }
+
+  const reasons = [
+    video.clicks > 0 && `FANZA へ ${video.clicks}回`,
+    video.swipePlays > 0 && `スワイプ後に再生 ${video.swipePlays}回`,
+    video.plays > 0 && `再生 ${video.plays}回`,
+    video.likes > 0 && `いいね ${video.likes}`,
+    video.rank && `ランキング ${video.rank}位`,
+  ].filter(Boolean) as string[];
+  const length = text ? countXWeightedLength(text) : 0;
+
+  return (
+    <div className="bg-gray-800 rounded-lg p-3">
+      <div className="flex gap-3">
+        {video.thumbnail_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={video.thumbnail_url} alt="" className="w-24 md:w-32 rounded object-cover self-start" loading="lazy" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold line-clamp-2">{video.title}</p>
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {reasons.map((reason) => (
+              <span key={reason} className="text-[11px] bg-gray-700 text-gray-200 rounded px-1.5 py-0.5">{reason}</span>
+            ))}
+          </div>
+          {text === null && (
+            <button onClick={compose} className="mt-2 bg-blue-600 hover:bg-blue-500 rounded px-3 py-1.5 text-sm font-bold">
+              投稿文を作る
+            </button>
+          )}
+        </div>
+      </div>
+
+      {text !== null && (
+        <div className="mt-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={8}
+            className="w-full bg-gray-900 text-white text-sm p-2 rounded border border-gray-700"
+          />
+          <div className={`text-xs mt-1 ${length > X_MAX_WEIGHTED_LENGTH ? 'text-red-400' : 'text-gray-400'}`}>
+            {length} / {X_MAX_WEIGHTED_LENGTH}
+          </div>
+          <div className="mt-2">
+            <SampleImagePicker
+              contentId={video.dmm_content_id}
+              text={text}
+              onUseImages={() => setText((t) => (t === null ? t : setPostFormat(t, 'img4')))}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              onClick={copy}
+              disabled={length > X_MAX_WEIGHTED_LENGTH}
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
+            >
+              本文をコピー
+            </button>
+            <button
+              onClick={record}
+              disabled={busy}
+              className="bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
+            >
+              紹介済みにする
+            </button>
+          </div>
+        </div>
+      )}
+      {status && <p className="text-xs text-yellow-300 mt-2">{status}</p>}
+    </div>
+  );
+}
+
 function formatSlot(iso: string): string {
   return new Date(iso).toLocaleString('ja-JP', {
     timeZone: 'Asia/Tokyo',
@@ -251,9 +386,11 @@ export default function XPostsAdminPage() {
   const [posts, setPosts] = useState<XPost[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [recommended, setRecommended] = useState<RecommendedVideo[] | null>(null);
+  const [recommendDays, setRecommendDays] = useState(7);
+  const [recommendError, setRecommendError] = useState('');
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -270,24 +407,28 @@ export default function XPostsAdminPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
-
-  async function generate() {
-    setBusy(true);
-    setMessage('');
+  const fetchRecommended = useCallback(async () => {
+    setRecommendError('');
     try {
-      const response = await fetch('/api/admin/x-posts', { method: 'POST' });
+      const response = await fetch('/api/admin/x-posts/recommend');
       if (!response.ok) throw new Error();
       const data = await response.json();
-      setMessage(data.created > 0 ? `${data.created}件の候補を作成しました` : '作成が必要な枠はありません');
-      await fetchPosts();
+      setRecommended(data.videos);
+      setRecommendDays(data.days);
     } catch {
-      setMessage('作成に失敗しました');
-    } finally {
-      setBusy(false);
+      setRecommendError('おすすめの作品を読み込めませんでした');
     }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts();
+    fetchRecommended();
+  }, [fetchPosts, fetchRecommended]);
+
+  // 紹介済みにした作品を一覧から外し、下の「紹介した作品」に出す
+  function markPosted(contentId: string) {
+    setRecommended((prev) => prev?.filter((v) => v.dmm_content_id !== contentId) ?? prev);
+    fetchPosts();
   }
 
   async function update(id: string, body: { text?: string; status?: XPost['status'] }) {
@@ -341,17 +482,7 @@ export default function XPostsAdminPage() {
         setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: finalText } : p)));
       }
     }
-    try {
-      await navigator.clipboard.writeText(finalText);
-    } catch {
-      // クリップボード API が使えないブラウザ向け
-      const area = document.createElement('textarea');
-      area.value = finalText;
-      document.body.appendChild(area);
-      area.select();
-      document.execCommand('copy');
-      area.remove();
-    }
+    await copyToClipboard(finalText);
     setCopiedId(post.id);
     setTimeout(() => setCopiedId((id) => (id === post.id ? null : id)), 3000);
   }
@@ -361,22 +492,35 @@ export default function XPostsAdminPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">X 予約投稿ストック</h1>
-        <p className="text-gray-400 text-sm mb-6">
-          毎週水曜 9時に翌日（木曜）から1週間分の候補が自動で作られます。
-          「本文をコピー」→ X の投稿画面に貼り付けて、表示中の日時に予約 →「予約済みにする」の順で進めてください。
-          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「本文をコピー」を押してください（効果測定のため）。
-          候補は、スワイプした先でよく再生された作品が選ばれやすく、一度紹介した作品は選ばれません。
-        </p>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">X 投稿</h1>
 
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button
-            onClick={generate}
-            disabled={busy}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-2 rounded font-bold"
-          >
-            {busy ? '作成中...' : '1週間分を作成（空き枠のみ）'}
-          </button>
+        <section className="mb-10">
+          <h2 className="text-xl font-bold mb-1">投稿すると効果的な作品</h2>
+          <p className="text-gray-400 text-sm mb-4">
+            直近{recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、まだ紹介していない作品を反応の大きい順に表示しています。
+            「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。紹介済みにした作品は、この一覧に出なくなります。
+          </p>
+          {recommendError ? (
+            <div className="text-red-400 text-sm">{recommendError}</div>
+          ) : recommended === null ? (
+            <div className="text-gray-400 text-sm">読み込み中...</div>
+          ) : recommended.length === 0 ? (
+            <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400 text-sm">いまおすすめできる作品はありません。</div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-3">
+              {recommended.map((video) => (
+                <RecommendedCard key={video.dmm_content_id} video={video} onPosted={() => markPosted(video.dmm_content_id)} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        <h2 className="text-xl font-bold mb-1">ストック・紹介した作品</h2>
+        <p className="text-gray-400 text-sm mb-4">
+          紹介済みにした作品と、以前の毎週の自動作成で作った候補です（前日以降の分）。
+          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「本文をコピー」を押してください（効果測定のため）。
+        </p>
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <span className="text-gray-300 text-sm">未予約: {pendingCount}件</span>
           {message && <span className="text-yellow-300 text-sm">{message}</span>}
         </div>
@@ -385,7 +529,7 @@ export default function XPostsAdminPage() {
           <div className="text-gray-400">読み込み中...</div>
         ) : posts.length === 0 ? (
           <div className="bg-gray-800 rounded-lg p-8 text-center text-gray-400">
-            候補がありません。「1週間分を作成」を押してください。
+            まだありません。
           </div>
         ) : (
           <div className="space-y-4">
@@ -473,7 +617,7 @@ export default function XPostsAdminPage() {
                         <button
                           onClick={() => setStatus(post, 'skipped')}
                           className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm"
-                          title="この候補を外します。もう一度「1週間分を作成」を押すと、この枠に別の作品が入ります"
+                          title="この候補を外します（作品はまたおすすめに出るようになります）"
                         >
                           スキップ
                         </button>
