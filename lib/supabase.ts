@@ -32,6 +32,7 @@ export type Database = {
           click_count: number;
           likes_count: number;
           rank_position: number | null;
+          sample_seconds: number | null; // サンプル動画の長さ（秒）。-1 は調べられなかった作品
           is_active: boolean;
           created_at: string;
           updated_at: string;

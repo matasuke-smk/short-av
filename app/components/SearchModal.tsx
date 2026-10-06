@@ -26,12 +26,16 @@ const FACET_COLUMN = { genre: 'genre_ids', actress: 'actress_ids' } as const;
 // ilike のワイルドカードとして解釈される文字をエスケープする
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
+// 「サンプル動画が長い作品のみ」の基準（秒）。sample_seconds は毎日の自動更新が調べて入れる（sql/010）
+const LONG_SAMPLE_SECONDS = 120;
+
 // 選択中の ID をすべて含む動画について、ジャンル/女優ごとの件数を DB で集計する（sql/007）
 // 関数が未作成・エラーのときは null（絞り込まずに全件を表示する）
-async function fetchFacets(kind: SearchMode, selected: string[]): Promise<FacetCounts | null> {
+async function fetchFacets(kind: SearchMode, selected: string[], minSampleSeconds = 0): Promise<FacetCounts | null> {
   const { data, error } = await supabase.rpc('get_search_facets', {
     p_kind: kind,
     p_selected: selected,
+    p_min_sample_seconds: minSampleSeconds,
   });
   if (error) {
     console.error('get_search_facets エラー:', error.message);
@@ -98,6 +102,8 @@ export default function SearchModal({
 }: SearchModalProps) {
   // 検索UI状態
   const [searchMode, setSearchMode] = useState<SearchMode>('genre');
+  const [longOnly, setLongOnly] = useState(false);
+  const minSampleSeconds = longOnly ? LONG_SAMPLE_SECONDS : 0;
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -143,7 +149,6 @@ export default function SearchModal({
 
       setGenres(formatGenresLast(sortByCount(allGenres, genreCounts)));
       setActresses(sortByCount(allActresses, actressCounts));
-      setOverallCounts({ genre: genreCounts, actress: actressCounts });
       // 取得に失敗したときは次に開いたときに再取得する
       masterLoadedRef.current = allGenres.length > 0 && allActresses.length > 0;
     })();
@@ -152,6 +157,22 @@ export default function SearchModal({
       cancelled = true;
     };
   }, [isOpen]);
+
+  // 何も選択していないときの選択肢と件数（「長い作品のみ」を切り替えたら取り直す）
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      const [genreCounts, actressCounts] = await Promise.all([
+        fetchFacets('genre', [], minSampleSeconds),
+        fetchFacets('actress', [], minSampleSeconds),
+      ]);
+      if (!cancelled) setOverallCounts({ genre: genreCounts, actress: actressCounts });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, minSampleSeconds]);
 
   // 選択条件での件数と、さらに絞り込めるジャンル/女優を取得
   useEffect(() => {
@@ -169,16 +190,15 @@ export default function SearchModal({
     setCountLoading(true);
 
     (async () => {
-      const [facets, countResult] = await Promise.all([
-        fetchFacets(searchMode, selected),
-        supabase
-          .from('videos')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_active', true)
-          .not('thumbnail_url', 'is', null)
-          .not('sample_video_url', 'is', null)
-          .contains(FACET_COLUMN[searchMode], selected),
-      ]);
+      let countQuery = supabase
+        .from('videos')
+        .select('id', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .not('thumbnail_url', 'is', null)
+        .not('sample_video_url', 'is', null)
+        .contains(FACET_COLUMN[searchMode], selected);
+      if (minSampleSeconds > 0) countQuery = countQuery.gte('sample_seconds', minSampleSeconds);
+      const [facets, countResult] = await Promise.all([fetchFacets(searchMode, selected, minSampleSeconds), countQuery]);
       if (cancelled) return;
 
       setFilteredCounts(facets);
@@ -189,12 +209,12 @@ export default function SearchModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, searchMode, selectedGenreIds, selectedActressIds]);
+  }, [isOpen, searchMode, selectedGenreIds, selectedActressIds, minSampleSeconds]);
 
   // 条件を変えたら前回の「見つかりませんでした」等は消す
   useEffect(() => {
     setMessage(null);
-  }, [keyword, searchMode, selectedGenreIds, selectedActressIds]);
+  }, [keyword, searchMode, selectedGenreIds, selectedActressIds, longOnly]);
 
   // 検索実行
   // keyword: タイトル検索（入力欄の検索ボタン・Enter）
@@ -227,6 +247,7 @@ export default function SearchModal({
         // 選択したジャンル/女優をすべて含む動画
         query = query.contains(FACET_COLUMN[searchMode], selectedIds);
       }
+      if (minSampleSeconds > 0) query = query.gte('sample_seconds', minSampleSeconds);
 
       const { data, error } = await query
         .order('rank_position', { ascending: true, nullsFirst: false })
@@ -373,6 +394,17 @@ export default function SearchModal({
                   女優
                 </button>
               </div>
+
+              {/* サンプル動画が長い作品だけに絞る（タイトル検索・ジャンル・女優のすべてに効く） */}
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none mb-3">
+                <input
+                  type="checkbox"
+                  checked={longOnly}
+                  onChange={(e) => setLongOnly(e.target.checked)}
+                  className="w-4 h-4 accent-blue-500"
+                />
+                サンプル動画が長い作品のみ（2分以上）
+              </label>
 
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
@@ -567,6 +599,17 @@ export default function SearchModal({
                   女優
                 </button>
               </div>
+
+              {/* サンプル動画が長い作品だけに絞る（タイトル検索・ジャンル・女優のすべてに効く） */}
+              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={longOnly}
+                  onChange={(e) => setLongOnly(e.target.checked)}
+                  className="w-4 h-4 accent-blue-500"
+                />
+                サンプル動画が長い作品のみ（2分以上）
+              </label>
 
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
