@@ -58,7 +58,34 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     // 9: 端末
     { dateRanges, dimensions: [{ name: 'deviceCategory' }], metrics: [{ name: 'activeUsers' }], orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] },
   ];
-  return runReports(requests);
+  // 開いた画面・検索（登録したばかりのカスタム定義は GA に反映されるまでエラーになることがあるため、
+  // 別に取得して失敗しても他の集計は表示する）
+  const extraRequests: ReportRequest[] = [
+    // 0: 開いた画面（検索・人気・いいね・履歴など）
+    { dateRanges, dimensions: [{ name: 'customEvent:modal_type' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIs('modal_open'), orderBys: [byMetricDesc] },
+    // 1: 検索の種類（タイトル / ジャンル / 女優）
+    { dateRanges, dimensions: [{ name: 'customEvent:search_type' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIs('search'), orderBys: [byMetricDesc] },
+    // 2: よく検索されたキーワード・ジャンル・女優
+    { dateRanges, dimensions: [{ name: 'customEvent:search_term' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('search'), orderBys: [byMetricDesc], limit: 10 },
+    // 3: 結果が0件だった検索
+    {
+      dateRanges,
+      dimensions: [{ name: 'customEvent:search_term' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [eventIs('search'), { filter: { fieldName: 'customEvent:result_bucket', stringFilter: { value: '0件' } } }],
+        },
+      },
+      orderBys: [byMetricDesc],
+      limit: 10,
+    },
+  ];
+  const extraReports = await runReports(extraRequests).catch((error) => {
+    console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
+    return extraRequests.map(() => [] as ReportRow[]);
+  });
+  return [...(await runReports(requests)), ...extraReports];
 }
 
 // サイトのデータベースから（いいね・サイズ比較ツールの登録・クリックされた作品名）
@@ -142,7 +169,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices] = reports;
+  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, screens, searchTypes, searchTerms, zeroResults] = reports;
+  const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
+  const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [users = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
@@ -271,6 +300,44 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             ))}
           </Section>
         </div>
+
+        <Section title="画面と検索" note="開いた画面の種類と、検索の使われ方（2026/10/6 以降のみ）">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <Card label="検索画面を開いた" value={`${fmt(searchOpens[0])}回`} sub={`${fmt(searchOpens[1])}人`} />
+            <Card label="検索を実行した" value={`${fmt(searches)}回`} sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
+            <Card label="結果が0件だった検索" value={`${fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))}回`} />
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-sm font-bold mb-2">開いた画面</h3>
+              {screens.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : screens.map((r) => (
+                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={screens[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
+              ))}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">検索の種類</h3>
+              {searchTypes.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : searchTypes.map((r) => (
+                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={searchTypes[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
+              ))}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">よく検索されたもの</h3>
+              {searchTerms.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+                <ol className="text-sm space-y-1 list-decimal ml-5">
+                  {searchTerms.map((r) => <li key={r.dimensions[0]}><span className="line-clamp-1">{notSet(r.dimensions[0])}</span><span className="text-gray-400">{fmt(r.metrics[0])}回</span></li>)}
+                </ol>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">見つからなかった検索（0件）</h3>
+              {zeroResults.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+                <ol className="text-sm space-y-1 list-decimal ml-5">
+                  {zeroResults.map((r) => <li key={r.dimensions[0]}><span className="line-clamp-1">{notSet(r.dimensions[0])}</span><span className="text-gray-400">{fmt(r.metrics[0])}回</span></li>)}
+                </ol>
+              )}
+            </div>
+          </div>
+        </Section>
 
         <Section title="日別">
           <div className="overflow-x-auto">
