@@ -34,8 +34,10 @@ export default function GoogleAnalytics() {
               url.searchParams.delete('sav_owner');
               history.replaceState(history.state, '', url.toString());
             }
-            // 管理画面にログインしている端末も運営者として扱う
-            internal = localStorage.getItem('short-av-internal') === '1' || document.cookie.split('; ').indexOf('sav_admin_ui=1') >= 0;
+            // 管理画面にログインしている端末、本番以外（Vercel のプレビュー・ローカル）からのアクセスも運営者として扱う
+            internal = localStorage.getItem('short-av-internal') === '1'
+              || document.cookie.split('; ').indexOf('sav_admin_ui=1') >= 0
+              || location.hostname !== 'short-av.com';
           } catch (e) {}
 
           gtag('config', '${measurementId}', internal ? { traffic_type: 'internal' } : {});
