@@ -37,6 +37,9 @@ export default function InlineSamplePlayer({
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const [playing, setPlaying] = useState(false);
   const startedRef = useRef(false);
+  // 親の再描画で検知の準備（フォーカスを戻す処理など）がやり直されないよう、最新の onStart は ref で持つ
+  const onStartRef = useRef(onStart);
+  onStartRef.current = onStart;
 
   // 枠の大きさに合わせてプレイヤーの大きさを決める（決まったら固定。途中で変えると読み込み直しになる）
   useEffect(() => {
@@ -52,14 +55,22 @@ export default function InlineSamplePlayer({
       if (startedRef.current) return;
       startedRef.current = true;
       setPlaying(true);
-      onStart();
+      onStartRef.current();
     };
-    // プレイヤーをタップするとページからフォーカスが外れる
-    const onBlur = () => {
-      setTimeout(() => {
-        if (document.activeElement === iframeRef.current) start();
-      }, 0);
+    // プレイヤーをタップすると、フォーカスがプレイヤー（iframe）に移る
+    const checkFocus = () => {
+      if (document.activeElement === iframeRef.current) start();
     };
+    const onBlur = () => setTimeout(checkFocus, 0);
+
+    // 前の作品のプレイヤーにフォーカスが残っていると、次にタップしても blur が起きないため、ページに戻しておく
+    if (document.activeElement instanceof HTMLIFrameElement) {
+      document.activeElement.blur();
+      window.focus();
+    }
+    // blur を取りこぼしたときのため、フォーカスの位置も定期的に確認する
+    const timer = setInterval(checkFocus, 300);
+
     // プレイヤーは再生ボタンが押されると親ページに合図を送る
     const onMessage = (e: MessageEvent) => {
       if (/^https:\/\/([a-z0-9-]+\.)*dmm\.co\.jp$/.test(e.origin) && e.data === 'clickSamplePlayBtn') start();
@@ -67,10 +78,11 @@ export default function InlineSamplePlayer({
     window.addEventListener('blur', onBlur);
     window.addEventListener('message', onMessage);
     return () => {
+      clearInterval(timer);
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('message', onMessage);
     };
-  }, [onStart]);
+  }, []);
 
   const player = box && {
     width: Math.floor(Math.min(box.width, box.height * PLAYER_RATIO)),
