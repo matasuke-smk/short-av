@@ -1,5 +1,5 @@
 import { unstable_cache } from 'next/cache';
-import { GaNotConfiguredError, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
+import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
 import { FUNNEL } from './funnel';
@@ -67,6 +67,8 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       orderBys: [byMetricDesc],
       limit: 10,
     },
+    // 4: よく見られたページ（タイトル別）
+    { dateRanges, dimensions: [{ name: 'pageTitle' }], metrics: [{ name: 'screenPageViews' }, { name: 'totalUsers' }], orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }], limit: 15 },
   ];
   const extraReports = await runReports(extraRequests).catch((error) => {
     console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
@@ -135,7 +137,17 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     }),
   );
   const data = Object.fromEntries(keys.map((key, i) => [key, results[i]])) as Record<RangeKey, RangeData>;
+  // いま見られているページ（直近30分）。リアルタイムなので使い回さずに毎回取得する
+  const realtime = await runRealtimeReport({
+    dimensions: [{ name: 'unifiedScreenName' }],
+    metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
+    orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+    limit: 10,
+  }).catch((error) => {
+    console.error('[analytics] リアルタイムを取得できませんでした:', error);
+    return null;
+  });
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} />;
 }
