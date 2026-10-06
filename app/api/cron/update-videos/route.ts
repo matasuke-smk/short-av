@@ -20,6 +20,7 @@ import {
   type DMMItem,
 } from '@/lib/dmm-api';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getSampleSeconds } from '@/lib/sample-player';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -30,6 +31,9 @@ const GENRES_PER_RUN = 15;
 const GENRE_FETCH_BUDGET_MS = 25_000;
 // この日数以上更新されず、いいねもされていない動画を削除する（ジャンル一巡の期間より十分長くする）
 const STALE_DAYS = 30;
+// サンプル動画の長さを調べるのに使える時間（関数の上限 60 秒に収める）と、同時に調べる本数
+const SAMPLE_LENGTH_DEADLINE_MS = 50_000;
+const SAMPLE_LENGTH_CONCURRENCY = 8;
 // .in() / バルク書き込み1回あたりの件数
 const CHUNK_SIZE = 200;
 // 既存動画の更新を並列実行する件数
@@ -260,6 +264,33 @@ export async function GET(request: Request) {
       console.warn('[Cron] 保存に失敗があったため古いデータの削除をスキップ');
     }
 
+    // 7. サンプル動画の長さを調べる（まだ調べていない作品を新しい順に、時間の許す限り）
+    // 既存の作品は毎日少しずつ埋まる。調べられなかった作品は -1 にして、翌日以降に同じ作品で止まらないようにする
+    let sampleMeasured = 0;
+    const { data: unmeasured, error: unmeasuredError } = await supabase
+      .from('videos')
+      .select('id, dmm_content_id, sample_video_url')
+      .is('sample_seconds', null)
+      .not('sample_video_url', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(600);
+    if (unmeasuredError) {
+      console.error('[Cron] サンプルの長さの対象取得エラー:', unmeasuredError);
+    } else {
+      const queue = [...(unmeasured ?? [])];
+      const worker = async () => {
+        while (queue.length > 0 && Date.now() - startTime < SAMPLE_LENGTH_DEADLINE_MS) {
+          const video = queue.shift()!;
+          const cid = (video.sample_video_url as string).match(/\/cid=([0-9a-z_]+)\//)?.[1] ?? video.dmm_content_id;
+          const seconds = await getSampleSeconds(cid).catch(() => null);
+          const { error } = await supabase.from('videos').update({ sample_seconds: seconds ?? -1 }).eq('id', video.id);
+          if (!error) sampleMeasured++;
+        }
+      };
+      await Promise.all(Array.from({ length: SAMPLE_LENGTH_CONCURRENCY }, worker));
+    }
+    console.info(`[Cron] サンプルの長さ ${sampleMeasured}件 (${elapsed()})`);
+
     const result = {
       success: saveErrors === 0,
       timestamp: new Date().toISOString(),
@@ -271,6 +302,7 @@ export async function GET(request: Request) {
         deleted: deletedCount,
         errors: saveErrors,
         genresFetched,
+        sampleMeasured,
       },
     };
     console.info('[Cron] 処理完了:', JSON.stringify(result.stats));

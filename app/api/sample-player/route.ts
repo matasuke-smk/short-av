@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { findPlayerUrl, litevideoUrl } from '@/lib/sample-player';
 
 // 作品ID（cid）として受け付ける形式
 const CID_PATTERN = /^[0-9a-z_]{1,64}$/;
@@ -29,16 +30,12 @@ export async function GET(request: NextRequest) {
   const width = clamp(parseInt(searchParams.get('w') ?? '', 10) || DEFAULT_WIDTH, 200, 1920);
   const height = clamp(parseInt(searchParams.get('h') ?? '', 10) || DEFAULT_HEIGHT, 120, 1080);
 
-  const litevideoUrl = `https://www.dmm.co.jp/litevideo/-/part/=/cid=${cid}/size=560_360/`;
-
   try {
     // プレイヤー本体の URL（mtype などのパラメータ）は FANZA 側で決まるため、litevideo ページから取り出す
-    const response = await fetch(litevideoUrl, { next: { revalidate: 86400 } });
-    const html = await response.text();
-    const match = html.match(/https:\/\/www\.dmm\.co\.jp\/service\/digitalapi\/-\/html5_player\/=\/[^"']+/);
-    if (!response.ok || !match) throw new Error(`player url not found (${response.status})`);
+    const found = await findPlayerUrl(cid, { next: { revalidate: 86400 } });
+    if (!found) throw new Error('player url not found');
 
-    const playerUrl = match[0]
+    const playerUrl = found
       .replace(/\/width=\d+\//, `/width=${width}/`)
       .replace(/\/height=\d+\//, `/height=${height}/`);
 
@@ -49,6 +46,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     // 取り出せなかったときは従来どおり litevideo ページを開く
     console.error('[sample-player]', cid, error);
-    return NextResponse.redirect(litevideoUrl, { status: 302 });
+    return NextResponse.redirect(litevideoUrl(cid), { status: 302 });
   }
 }
