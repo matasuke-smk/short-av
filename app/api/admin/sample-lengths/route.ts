@@ -10,12 +10,20 @@ async function counts() {
   const supabase = getSupabaseAdmin();
   const base = () =>
     supabase.from('videos').select('id', { count: 'exact', head: true }).not('sample_video_url', 'is', null);
-  const [remaining, long, total] = await Promise.all([
+  const [remaining, measured, failed, long, total] = await Promise.all([
     base().is('sample_seconds', null),
+    base().gt('sample_seconds', 0),
+    base().eq('sample_seconds', -1),
     base().gte('sample_seconds', 120),
     base(),
   ]);
-  return { remaining: remaining.count ?? 0, long: long.count ?? 0, total: total.count ?? 0 };
+  return {
+    remaining: remaining.count ?? 0, // まだ調べていない
+    measured: measured.count ?? 0, // 長さが分かった
+    failed: failed.count ?? 0, // 調べられなかった
+    long: long.count ?? 0, // うち2分以上
+    total: total.count ?? 0,
+  };
 }
 
 // サンプル動画の長さの記録状況
@@ -26,8 +34,9 @@ export async function GET() {
 // 「今すぐ調べる」: 約45秒間、まだ調べていない作品のサンプル動画の長さを調べる
 export async function POST() {
   try {
-    const measured = await measureSampleLengths(getSupabaseAdmin(), Date.now() + 45_000);
-    return NextResponse.json({ measured, ...(await counts()) });
+    // recorded: 今回長さが分かった件数（counts の measured は合計）
+    const recorded = await measureSampleLengths(getSupabaseAdmin(), Date.now() + 45_000);
+    return NextResponse.json({ recorded, ...(await counts()) });
   } catch (error) {
     console.error('sample-lengths error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-type Counts = { remaining: number; long: number; total: number };
+type Counts = { remaining: number; measured: number; failed: number; long: number; total: number };
 
 /** サンプル動画の長さの記録状況と「今すぐ調べる」ボタン（検索の「サンプル動画2分以上」用） */
 export default function SampleLengthStatus() {
@@ -25,17 +25,35 @@ export default function SampleLengthStatus() {
       return;
     }
     setCounts(data);
-    setMessage(`${data.measured}件を記録しました`);
+    setMessage(`今回 ${data.recorded.toLocaleString()}件の長さが分かりました`);
   }
 
   return (
     <section className="bg-gray-800 rounded-lg p-4 md:p-6 mb-6">
       <h2 className="text-lg font-bold">サンプル動画の長さ（検索の「サンプル動画2分以上」用）</h2>
-      <p className="text-sm text-gray-300 mt-2">
-        {counts
-          ? `記録済み ${(counts.total - counts.remaining).toLocaleString()} / ${counts.total.toLocaleString()}件（うち2分以上 ${counts.long.toLocaleString()}件）`
-          : '読み込み中...'}
-      </p>
+      {counts ? (
+        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">長さが分かった</dt>
+            <dd className="text-lg font-bold">{counts.measured.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">うち2分以上</dt>
+            <dd className="text-lg font-bold">{counts.long.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">まだ調べていない</dt>
+            <dd className="text-lg font-bold">{counts.remaining.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">調べられなかった</dt>
+            <dd className="text-lg font-bold">{counts.failed.toLocaleString()}件</dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="text-sm text-gray-300 mt-2">読み込み中...</p>
+      )}
+      <p className="text-xs text-gray-500 mt-2">全{counts?.total.toLocaleString() ?? '—'}件。「調べられなかった」作品は、検索の「サンプル動画2分以上」の対象になりません。</p>
       <p className="text-xs text-gray-400 mt-1">毎日の自動更新でも少しずつ記録されます。1回押すと約45秒で200〜300件ほど記録します。</p>
       <div className="flex items-center gap-3 mt-3">
         <button
