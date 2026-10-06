@@ -13,8 +13,8 @@ const TAP_AREA = 96;
  *
  * FANZA のプレイヤーはプレイヤーの中をタップしたときしか再生を始めない（iPhone・PC とも）。
  * そこでプレイヤーをサムネイルの下に置き、中央の▶の範囲だけプレイヤーにタップが届くようにする。
- * - ▶以外の場所はサムネイル（の親）が受けるので、スワイプやタップ（従来の再生画面を開く）はそのまま使える
- *   （プレイヤー全体を出すと、その上ではスワイプが効かなくなるため）
+ * - ▶以外の場所ではスワイプがそのまま使える（プレイヤー全体を出すと、その上ではスワイプが効かなくなるため）
+ * - ▶以外をタップしたときは、再生する場所が分かるよう▶を一瞬大きくする（以前は旧来の再生画面が開いて分かりにくかった）
  * - 再生が始まったら（プレイヤーにフォーカスが移る / プレイヤーから再生ボタンの合図が届く）、
  *   タップを通す範囲をプレイヤー全体に広げ、サムネイルを消す
  * プレイヤーの位置は変えずに、切り抜く範囲だけを変えるので、iframe は読み込み直されない。
@@ -36,6 +36,7 @@ export default function InlineSamplePlayer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [pulse, setPulse] = useState(false);
   const startedRef = useRef(false);
   // 親の再描画で検知の準備（フォーカスを戻す処理など）がやり直されないよう、最新の onStart は ref で持つ
   const onStartRef = useRef(onStart);
@@ -99,7 +100,17 @@ export default function InlineSamplePlayer({
     : null;
 
   return (
-    <div ref={boxRef} className="absolute inset-0">
+    <div
+      ref={boxRef}
+      className="absolute inset-0"
+      onClick={(e) => {
+        // 親（サムネイル）のクリックで旧来の再生画面が開かないようにする
+        e.stopPropagation();
+        if (playing) return;
+        setPulse(true);
+        setTimeout(() => setPulse(false), 400);
+      }}
+    >
       {player && clip && (
         <div className="absolute overflow-hidden z-10" style={clip}>
           <iframe
@@ -123,7 +134,7 @@ export default function InlineSamplePlayer({
       {/* 中央の▶（ここをタップすると、下のプレイヤーの再生ボタンに届く） */}
       {!playing && (
         <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-          <div className="w-20 h-20 rounded-full bg-black/60 border-2 border-white/80 flex items-center justify-center shadow-lg">
+          <div className={`w-20 h-20 rounded-full bg-black/60 border-2 border-white/80 flex items-center justify-center shadow-lg transition-transform duration-200 ${pulse ? 'scale-125' : 'scale-100'}`}>
             <svg className="w-9 h-9 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
