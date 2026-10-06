@@ -1135,7 +1135,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           }
         }}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
-        videoPool={videoPool}
       />
 
       {/* ランキングモーダル */}
