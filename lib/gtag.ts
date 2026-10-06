@@ -85,6 +85,24 @@ export const trackVideoView = (videoId: string, contentId: string, title: string
   });
 };
 
+// 検索を実行したとき（GA の推奨イベント search。search_term は GA 標準の「検索キーワード」に入る）
+export const trackSearch = (params: {
+  searchTerm: string; // タイトル検索の語、または選んだジャンル・女優の名前
+  searchType: 'タイトル' | 'ジャンル' | '女優';
+  longSample: boolean; // 「サンプル動画◯分以上」を選んでいたか
+  resultCount: number;
+}) => {
+  const n = params.resultCount;
+  sendGAEvent('search', {
+    search_term: params.searchTerm,
+    search_type: params.searchType,
+    long_sample: params.longSample ? 'あり' : 'なし',
+    result_count: n,
+    // 件数の幅（レポートで「0件だった検索」などを見やすくする）
+    result_bucket: n === 0 ? '0件' : n <= 10 ? '1〜10件' : n <= 50 ? '11〜50件' : n < 300 ? '51〜299件' : '300件以上',
+  });
+};
+
 // いいねイベント
 export const trackLike = (videoId: string, action: 'like' | 'unlike') => {
   sendGAEvent('like_action', {
