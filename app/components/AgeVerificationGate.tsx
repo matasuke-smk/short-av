@@ -14,6 +14,9 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
 
   useEffect(() => {
+    // 管理画面（ログインが必要）では出さない
+    if (window.location.pathname.startsWith('/admin')) return;
+
     // URLパラメータで強制表示（デバッグ用）
     const params = new URLSearchParams(window.location.search);
     if (params.get('show_gate') === '1') {
