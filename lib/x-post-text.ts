@@ -70,10 +70,3 @@ export function countXWeightedLength(text: string): number {
   }
   return length;
 }
-
-/**
- * 本文を入力済みにした X の投稿画面の URL
- */
-export function buildXIntentUrl(text: string): string {
-  return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
-}

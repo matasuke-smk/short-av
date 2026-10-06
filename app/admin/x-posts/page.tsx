@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  buildXIntentUrl,
   countXWeightedLength,
   getPostFormat,
   setPostFormat,
@@ -253,6 +252,7 @@ export default function XPostsAdminPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -328,8 +328,10 @@ export default function XPostsAdminPage() {
     }
   }
 
-  async function openInX(post: XPost) {
-    // 計測用パラメータが無い URL（機能追加前に作った候補）にも付けてから開く
+  // 本文をクリップボードにコピーする（X の投稿画面に貼り付けて使う）
+  // 以前は X の投稿画面を開いていたが、スマホでは X アプリ内のブラウザで開いてうまく動かなかった
+  async function copyText(post: XPost) {
+    // 計測用パラメータが無い URL（機能追加前に作った候補）にも付けてからコピーする
     const current = drafts[post.id] ?? post.text;
     const finalText = setPostFormat(current, getPostFormat(current));
     if (finalText !== post.text) {
@@ -338,7 +340,19 @@ export default function XPostsAdminPage() {
         setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: finalText } : p)));
       }
     }
-    window.open(buildXIntentUrl(finalText), '_blank', 'noopener');
+    try {
+      await navigator.clipboard.writeText(finalText);
+    } catch {
+      // クリップボード API が使えないブラウザ向け
+      const area = document.createElement('textarea');
+      area.value = finalText;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    setCopiedId(post.id);
+    setTimeout(() => setCopiedId((id) => (id === post.id ? null : id)), 3000);
   }
 
   const pendingCount = posts.filter((p) => p.status === 'pending').length;
@@ -349,8 +363,9 @@ export default function XPostsAdminPage() {
         <h1 className="text-2xl md:text-3xl font-bold mb-2">X 予約投稿ストック</h1>
         <p className="text-gray-400 text-sm mb-6">
           毎週水曜 9時に翌日（木曜）から1週間分の候補が自動で作られます。
-          「X で開く」→ X の投稿画面で表示中の日時に予約 →「予約済みにする」の順で進めてください。
-          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「X で開く」を押してください（効果測定のため）。
+          「本文をコピー」→ X の投稿画面に貼り付けて、表示中の日時に予約 →「予約済みにする」の順で進めてください。
+          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「本文をコピー」を押してください（効果測定のため）。
+          候補は、スワイプした先でよく再生された作品が選ばれやすく、一度紹介した作品は選ばれません。
         </p>
 
         <div className="flex flex-wrap items-center gap-3 mb-6">
@@ -442,11 +457,11 @@ export default function XPostsAdminPage() {
                     ) : (
                       <>
                         <button
-                          onClick={() => openInX(post)}
+                          onClick={() => copyText(post)}
                           disabled={length > X_MAX_WEIGHTED_LENGTH}
-                          className="bg-black border border-gray-600 hover:bg-gray-950 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
+                          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
                         >
-                          X で開く
+                          {copiedId === post.id ? 'コピーしました' : '本文をコピー'}
                         </button>
                         <button
                           onClick={() => setStatus(post, 'scheduled')}
