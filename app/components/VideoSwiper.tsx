@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
+import { CONTACT_FORM_URL } from '@/config/site';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -896,6 +897,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
               利用規約
             </Link>
+            <a href={CONTACT_FORM_URL} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+              お問い合わせ
+            </a>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { CONTACT_FORM_URL, SITE_OPERATOR } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'プライバシーポリシー - Short AV',
@@ -144,8 +145,16 @@ export default function PrivacyPage() {
             </p>
             <p className="mt-2 text-sm text-gray-600">
               サイト名：Short AV<br />
-              運営者：[運営者名]<br />
-              メールアドレス：[メールアドレス]
+              運営者：{SITE_OPERATOR}<br />
+              お問い合わせ：
+              <a
+                href={CONTACT_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                お問い合わせフォーム
+              </a>
             </p>
           </section>
 
