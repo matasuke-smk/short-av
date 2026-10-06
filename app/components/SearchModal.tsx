@@ -26,7 +26,7 @@ const FACET_COLUMN = { genre: 'genre_ids', actress: 'actress_ids' } as const;
 // ilike のワイルドカードとして解釈される文字をエスケープする
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
-// 「サンプル動画が長い作品のみ」の基準（秒）。sample_seconds は毎日の自動更新が調べて入れる（sql/010）
+// ジャンルの一番上に出す「サンプル動画2分以上」の基準（秒）。sample_seconds は毎日の自動更新が調べて入れる（sql/010）
 const LONG_SAMPLE_SECONDS = 120;
 
 // 選択中の ID をすべて含む動画について、ジャンル/女優ごとの件数を DB で集計する（sql/007）
@@ -102,8 +102,9 @@ export default function SearchModal({
 }: SearchModalProps) {
   // 検索UI状態
   const [searchMode, setSearchMode] = useState<SearchMode>('genre');
+  // 「サンプル動画2分以上」はジャンルの1つとして扱う（ジャンル検索のときだけ効く）
   const [longOnly, setLongOnly] = useState(false);
-  const minSampleSeconds = longOnly ? LONG_SAMPLE_SECONDS : 0;
+  const minSampleSeconds = longOnly && searchMode === 'genre' ? LONG_SAMPLE_SECONDS : 0;
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -132,6 +133,8 @@ export default function SearchModal({
   const searchIdRef = useRef(0);
 
   const selectedIds = searchMode === 'genre' ? selectedGenreIds : selectedActressIds;
+  // 検索できる条件があるか（ジャンルは「サンプル動画2分以上」だけでも検索できる）
+  const hasFilter = selectedIds.length > 0 || minSampleSeconds > 0;
 
   // ジャンル・女優データのロード（初回に開いたときだけ）
   useEffect(() => {
@@ -164,22 +167,22 @@ export default function SearchModal({
     let cancelled = false;
     (async () => {
       const [genreCounts, actressCounts] = await Promise.all([
-        fetchFacets('genre', [], minSampleSeconds),
-        fetchFacets('actress', [], minSampleSeconds),
+        fetchFacets('genre', [], longOnly ? LONG_SAMPLE_SECONDS : 0),
+        fetchFacets('actress', []),
       ]);
       if (!cancelled) setOverallCounts({ genre: genreCounts, actress: actressCounts });
     })();
     return () => {
       cancelled = true;
     };
-  }, [isOpen, minSampleSeconds]);
+  }, [isOpen, longOnly]);
 
   // 選択条件での件数と、さらに絞り込めるジャンル/女優を取得
   useEffect(() => {
     if (!isOpen) return;
 
     const selected = searchMode === 'genre' ? selectedGenreIds : selectedActressIds;
-    if (selected.length === 0) {
+    if (selected.length === 0 && minSampleSeconds === 0) {
       setFilteredCounts(null);
       setCurrentFilterCount(null);
       setCountLoading(false);
@@ -195,8 +198,8 @@ export default function SearchModal({
         .select('id', { count: 'exact', head: true })
         .eq('is_active', true)
         .not('thumbnail_url', 'is', null)
-        .not('sample_video_url', 'is', null)
-        .contains(FACET_COLUMN[searchMode], selected);
+        .not('sample_video_url', 'is', null);
+      if (selected.length > 0) countQuery = countQuery.contains(FACET_COLUMN[searchMode], selected);
       if (minSampleSeconds > 0) countQuery = countQuery.gte('sample_seconds', minSampleSeconds);
       const [facets, countResult] = await Promise.all([fetchFacets(searchMode, selected, minSampleSeconds), countQuery]);
       if (cancelled) return;
@@ -223,7 +226,7 @@ export default function SearchModal({
     inputRef.current?.blur();
 
     const words = keyword.trim().split(/\s+/).filter(Boolean);
-    if (by === 'keyword' ? words.length === 0 : selectedIds.length === 0) return;
+    if (by === 'keyword' ? words.length === 0 : !hasFilter) return;
 
     // 連続で検索したときは最後の検索の結果だけを使う
     const searchId = ++searchIdRef.current;
@@ -244,10 +247,10 @@ export default function SearchModal({
           query = query.ilike('title', `%${escapeLike(word)}%`);
         }
       } else {
-        // 選択したジャンル/女優をすべて含む動画
-        query = query.contains(FACET_COLUMN[searchMode], selectedIds);
+        // 選択したジャンル/女優をすべて含む動画（「サンプル動画2分以上」を選んでいればその条件も）
+        if (selectedIds.length > 0) query = query.contains(FACET_COLUMN[searchMode], selectedIds);
+        if (minSampleSeconds > 0) query = query.gte('sample_seconds', minSampleSeconds);
       }
-      if (minSampleSeconds > 0) query = query.gte('sample_seconds', minSampleSeconds);
 
       const { data, error } = await query
         .order('rank_position', { ascending: true, nullsFirst: false })
@@ -319,10 +322,8 @@ export default function SearchModal({
       ? ''
       : `${currentFilterCount.toLocaleString()}件の動画`;
 
-  // 下部の検索ボタン（タイトル検索と区別できるよう、何で検索するかと件数を出す）
-  const filterSearchLabel = `選んだ${searchMode === 'genre' ? 'ジャンル' : '女優'}で検索${
-    !countLoading && currentFilterCount !== null ? `（${currentFilterCount.toLocaleString()}件）` : ''
-  }`;
+  // 下部の検索ボタン（1行に収まるよう短く。件数が分かれば添える）
+  const filterSearchLabel = `検索${!countLoading && currentFilterCount !== null ? `（${currentFilterCount.toLocaleString()}件）` : ''}`;
 
   if (!isOpen) return null;
 
@@ -395,16 +396,6 @@ export default function SearchModal({
                 </button>
               </div>
 
-              {/* サンプル動画が長い作品だけに絞る（タイトル検索・ジャンル・女優のすべてに効く） */}
-              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none mb-3">
-                <input
-                  type="checkbox"
-                  checked={longOnly}
-                  onChange={(e) => setLongOnly(e.target.checked)}
-                  className="w-4 h-4 accent-blue-500"
-                />
-                サンプル動画が長い作品のみ（2分以上）
-              </label>
 
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
@@ -453,13 +444,16 @@ export default function SearchModal({
               ) : searchMode === 'genre' ? (
                 <div>
                   {/* 選択中のジャンル表示 */}
-                  {selectedGenreIds.length > 0 && (
+                  {hasFilter && (
                     <div className="mb-4 pb-4 border-b border-gray-700">
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs text-gray-400">選択中: {selectedGenreIds.length}件</p>
+                        <p className="text-xs text-gray-400">選択中: {selectedGenreIds.length + (longOnly ? 1 : 0)}件</p>
                         <p className="text-xs text-blue-400">{filterCountLabel}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
+                        {longOnly && (
+                          <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs">サンプル動画2分以上</span>
+                        )}
                         {genres
                           .filter((g: Genre) => selectedGenreIds.includes(g.id))
                           .map((g: Genre) => (
@@ -470,6 +464,23 @@ export default function SearchModal({
                       </div>
                     </div>
                   )}
+                  {/* サンプル動画が長い作品（ジャンルの1つとして一番上に大きく出す） */}
+                  <button
+                    onClick={() => setLongOnly((v) => !v)}
+                    className={`w-full mb-3 px-4 py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                      longOnly ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-200 border border-orange-500/60 hover:bg-orange-500/30'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                    サンプル動画2分以上
+                  </button>
+
+                  {minSampleSeconds > 0 && !countLoading && currentFilterCount === 0 && (
+                    <p className="text-xs text-gray-400 mb-3">
+                      サンプル動画の長さは毎日少しずつ調べています。まだ該当する作品がないため、数日後にお試しください。
+                    </p>
+                  )}
+
                   {/* ジャンル一覧 */}
                   <div className="grid grid-cols-2 gap-2">
                     {displayGenres.map((genre) => {
@@ -600,16 +611,6 @@ export default function SearchModal({
                 </button>
               </div>
 
-              {/* サンプル動画が長い作品だけに絞る（タイトル検索・ジャンル・女優のすべてに効く） */}
-              <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={longOnly}
-                  onChange={(e) => setLongOnly(e.target.checked)}
-                  className="w-4 h-4 accent-blue-500"
-                />
-                サンプル動画が長い作品のみ（2分以上）
-              </label>
 
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
@@ -643,12 +644,12 @@ export default function SearchModal({
               )}
 
               {/* 選択をクリアボタン */}
-              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
-                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+              {hasFilter && (
                 <button
                   onClick={() => {
                     if (searchMode === 'genre') {
                       setSelectedGenreIds([]);
+                      setLongOnly(false);
                     } else {
                       setSelectedActressIds([]);
                     }
@@ -660,8 +661,7 @@ export default function SearchModal({
               )}
 
               {/* 検索実行ボタン */}
-              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
-                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+              {hasFilter && (
                 <button
                   onClick={() => handleSearch('filter')}
                   disabled={loading}
@@ -688,12 +688,12 @@ export default function SearchModal({
           <div className="landscape:hidden lg:hidden border-t border-gray-800 p-4">
             <div className="flex gap-3">
               {/* 選択をクリアボタン */}
-              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
-                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+              {hasFilter && (
                 <button
                   onClick={() => {
                     if (searchMode === 'genre') {
                       setSelectedGenreIds([]);
+                      setLongOnly(false);
                     } else {
                       setSelectedActressIds([]);
                     }
@@ -705,8 +705,7 @@ export default function SearchModal({
               )}
 
               {/* 検索ボタン */}
-              {((searchMode === 'genre' && selectedGenreIds.length > 0) ||
-                (searchMode === 'actress' && selectedActressIds.length > 0)) && (
+              {hasFilter && (
                 <button
                   onClick={() => handleSearch('filter')}
                   disabled={loading}
@@ -730,8 +729,7 @@ export default function SearchModal({
                   }, 50);
                 }}
                 className={`bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg transition-colors font-medium ${
-                  (searchMode === 'genre' && selectedGenreIds.length > 0) ||
-                  (searchMode === 'actress' && selectedActressIds.length > 0)
+                  hasFilter
                     ? 'flex-shrink-0 px-6'
                     : 'w-full'
                 }`}
