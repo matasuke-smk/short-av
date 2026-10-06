@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
   description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。会員登録不要で今すぐ使えます。',
   metadataBase: new URL('https://short-av.com'),
+  // ホーム画面に追加したときの設定。管理画面（app/admin/layout.tsx）では別のものに差し替える
+  manifest: '/manifest.json',
   alternates: {
     canonical: '/',
   },
@@ -75,7 +77,6 @@ export default function RootLayout({
     <html lang="ja" className={notoSansJP.variable}>
       <head>
         {/* PWA設定 */}
-        <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icon-192x192.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
