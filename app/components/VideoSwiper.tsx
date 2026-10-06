@@ -35,12 +35,13 @@ const ActressModal = dynamic(() => import('./ActressModal'), {
 import {
   trackVideoView,
   trackLike,
-  trackGenderFilter,
+  trackSwipe,
   trackModalOpen,
   trackModalClose,
   trackDMMClick,
   trackTutorialView,
 } from '@/lib/gtag';
+import type { ViewContext } from '@/lib/gtag';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -260,6 +261,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   }, []);
 
   // 追加の動画を読み込む関数（プール方式）
+  // アクセス解析: このページを開いてからのスワイプ回数と、直前に表示していた位置
+  const swipeCountRef = useRef(0);
+  const lastSnapRef = useRef<number | null>(null);
+  const getViewContext = useCallback((): ViewContext => ({
+    list_type: isFiniteList ? 'list' : 'feed',
+    swipe_index: swipeCountRef.current,
+    via: swipeCountRef.current > 0 ? 'swipe' : 'direct',
+  }), [isFiniteList]);
+
   // 補充に失敗したら、しばらく再試行しない（失敗→即再試行の繰り返しでリクエストが止まらなくなるのを防ぐ）
   const refillBlockedUntilRef = useRef(0);
 
@@ -322,6 +332,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     const target = pendingScrollRef.current;
     if (!emblaApi || target === null) return;
     pendingScrollRef.current = null;
+    lastSnapRef.current = target;
     emblaApi.reInit();
     emblaApi.scrollTo(target, true); // 第2引数 true = アニメーションなしで即座に移動
   }, [emblaApi, videos]);
@@ -428,6 +439,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       const index = emblaApi.selectedScrollSnap();
       setCurrentIndex(index);
 
+      // アクセス解析: 利用者の操作で別の作品に切り替わったときだけ swipe を送る
+      // （一覧の切り替えでの移動は replaceVideos 側で lastSnapRef を先に合わせるため数えない）
+      const prevIndex = lastSnapRef.current;
+      lastSnapRef.current = index;
+      if (prevIndex !== null && prevIndex !== index && videos[index]) {
+        swipeCountRef.current += 1;
+        trackSwipe(index > prevIndex ? 'next' : 'prev', swipeCountRef.current, videos[index].dmm_content_id, isFiniteList ? 'list' : 'feed');
+      }
+
       // 有限リストでない場合のみ、追加の動画を読み込む
       if (!isFiniteList && index >= videos.length - 5 && !isLoadingMore) {
         loadMoreVideos();
@@ -468,11 +488,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       trackVideoView(
         currentVideo.id,
         currentVideo.dmm_content_id || '',
-        currentVideo.title || ''
+        currentVideo.title || '',
+        getViewContext()
       );
       trackModalOpen('video_detail');
     }
-  }, [currentVideo, addToHistory]);
+  }, [currentVideo, addToHistory, getViewContext]);
 
   const closeModal = useCallback(() => {
     setShowVideoModal(false);
@@ -991,7 +1012,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-4 text-center transition-all font-bold shadow-lg active:scale-95 flex flex-col justify-center"
                     onClick={() => {
                       if (currentVideo) {
-                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail');
+                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext());
                       }
                     }}
                   >
@@ -1083,7 +1104,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
                     onClick={() => {
                       if (currentVideo) {
-                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail');
+                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext());
                       }
                     }}
                   >
