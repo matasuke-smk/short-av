@@ -2,10 +2,10 @@
   <!-- 背景 -->
   <rect width="192" height="192" fill="#000000"/>
 
-  <!-- 再生ボタンアイコン -->
-  <circle cx="96" cy="96" r="60" fill="none" stroke="#3b82f6" stroke-width="4"/>
-  <polygon points="80,70 80,122 120,96" fill="#3b82f6"/>
+  <!-- 再生ボタン（文字と重ならないよう上寄せ・小さめ） -->
+  <circle cx="96.0" cy="78.0" r="46.0" fill="none" stroke="#3b82f6" stroke-width="4.0"/>
+  <polygon points="84.0,58.0 84.0,98.0 116.0,78.0" fill="#3b82f6"/>
 
-  <!-- テキスト "SA" -->
-  <text x="96" y="165" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#3b82f6" text-anchor="middle">Short AV</text>
+  <!-- サイト名 -->
+  <text x="96.0" y="162.0" font-family="Arial, Helvetica, sans-serif" font-size="26.0" font-weight="bold" fill="#3b82f6" text-anchor="middle">Short AV</text>
 </svg>
