@@ -20,10 +20,34 @@ export const sendGAEvent = (
   }
 };
 
+// GA のレポートで読みやすいよう、送る値は日本語にする（コード内では英語の識別子を使う）
+const LABELS = {
+  direction: { next: '次へ', prev: '前へ' },
+  list_type: { feed: 'おすすめ', list: '一覧' },
+  via: { swipe: 'スワイプ', direct: '直接' },
+  modal_type: {
+    ranking: '人気',
+    liked: 'いいね',
+    history: '履歴',
+    search: '検索',
+    video_detail: '再生画面',
+    actress: '女優',
+    actress_videos: '女優の作品一覧',
+  },
+  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト' },
+} as const;
+
+const contextLabels = (context?: ViewContext) =>
+  context && {
+    list_type: LABELS.list_type[context.list_type],
+    swipe_index: context.swipe_index,
+    via: LABELS.via[context.via],
+  };
+
 // 年齢確認イベント
 export const trackAgeVerification = (accepted: boolean) => {
   sendGAEvent('age_verification', {
-    action: accepted ? 'accepted' : 'rejected',
+    action: accepted ? 'はい' : 'いいえ',
   });
 };
 
@@ -44,10 +68,10 @@ export const trackSwipe = (
   listType: ViewContext['list_type'],
 ) => {
   sendGAEvent('swipe', {
-    direction,
+    direction: LABELS.direction[direction],
     swipe_index: swipeIndex,
     content_id: contentId,
-    list_type: listType,
+    list_type: LABELS.list_type[listType],
   });
 };
 
@@ -57,7 +81,7 @@ export const trackVideoView = (videoId: string, contentId: string, title: string
     video_id: videoId,
     content_id: contentId,
     video_title: title,
-    ...context,
+    ...contextLabels(context),
   });
 };
 
@@ -65,7 +89,7 @@ export const trackVideoView = (videoId: string, contentId: string, title: string
 export const trackLike = (videoId: string, action: 'like' | 'unlike') => {
   sendGAEvent('like_action', {
     video_id: videoId,
-    action: action,
+    action: action === 'like' ? 'いいね' : 'いいね解除',
   });
 };
 
@@ -79,21 +103,21 @@ export const trackDMMClick = (
   sendGAEvent('dmm_link_click', {
     video_id: videoId,
     content_id: contentId,
-    link_type: linkType,
-    ...context,
+    link_type: LABELS.link_type[linkType],
+    ...contextLabels(context),
   });
 };
 
 // モーダル開閉イベント
 export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_open', {
-    modal_type: modalType,
+    modal_type: LABELS.modal_type[modalType],
   });
 };
 
 export const trackModalClose = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_close', {
-    modal_type: modalType,
+    modal_type: LABELS.modal_type[modalType],
   });
 };
 
