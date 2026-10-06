@@ -1,30 +1,20 @@
 /**
- * X 予約投稿ストックの生成（サーバー専用）
+ * X 投稿（サーバー専用）
  *
- * 毎週水曜に、翌日（木曜）から次の水曜までの7日分 × 1日3枠の投稿候補を作る。
- * 既に有効な候補がある枠は作らないため、何度実行しても重複しない（スキップした枠だけ作り直される）。
+ * 管理画面で「投稿すると効果的な作品」を選び、その作品の投稿文を作る。
+ * 以前は毎週水曜に1週間分の候補を自動で作っていたが、作品ごとに作る形に変えた。
  */
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
-// manual = サイトを見ながら管理者が選んだ作品（自動作成の枠には使わない）
+// manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
 export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
 
-// 投稿枠（日本時間）
-export const DAILY_SLOTS: { hour: number; type: SlotType }[] = [
-  { hour: 12, type: 'new' },
-  { hour: 18, type: 'ranking' },
-  { hour: 22, type: 'random' },
-];
-
-const DAYS_PER_WEEK = 7;
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-// 各枠タイプで選ぶ候補の母数
-const CANDIDATE_POOL = 200;
-// スワイプした先で再生された回数を数える期間（日）
-const SWIPE_PLAY_DAYS = 28;
+// おすすめを出すための集計期間（日）と件数
+const RECOMMEND_DAYS = 7;
+const RECOMMEND_LIMIT = 20;
 const PAGE_SIZE = 1000;
 
 export type VideoRow = {
@@ -35,71 +25,131 @@ export type VideoRow = {
   actress_ids: string[] | null;
 };
 
-/**
- * 生成対象の枠（UTC の Date）を返す。開始は「今日（日本時間）より後の最初の木曜」。
- */
-export function getUpcomingWeekSlots(now = new Date()): { slotAt: Date; type: SlotType }[] {
-  const jstNow = new Date(now.getTime() + JST_OFFSET_MS);
-  const daysUntilThursday = ((4 - jstNow.getUTCDay() + 7) % 7) || 7;
-  const startY = jstNow.getUTCFullYear();
-  const startM = jstNow.getUTCMonth();
-  const startD = jstNow.getUTCDate() + daysUntilThursday;
+const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFilter: { value } } });
 
-  const slots: { slotAt: Date; type: SlotType }[] = [];
-  for (let day = 0; day < DAYS_PER_WEEK; day++) {
-    for (const { hour, type } of DAILY_SLOTS) {
-      // 日本時間の hour 時 = UTC の hour - 9 時
-      slots.push({ slotAt: new Date(Date.UTC(startY, startM, startD + day, hour - 9)), type });
-    }
-  }
-  return slots;
-}
-
-function pickRandom<T>(items: T[]): T | undefined {
-  return items[Math.floor(Math.random() * items.length)];
-}
-
-// 重み付きで1つ選ぶ（重みが大きいほど選ばれやすい）
-function pickWeighted<T>(items: T[], weight: (item: T) => number): T | undefined {
-  const total = items.reduce((sum, item) => sum + weight(item), 0);
-  if (total <= 0) return pickRandom(items);
-  let r = Math.random() * total;
-  for (const item of items) {
-    r -= weight(item);
-    if (r < 0) return item;
-  }
-  return items[items.length - 1];
+// GA の作品ID別の件数（作品ID → 件数）
+function toCountMap(rows: { dimensions: string[]; metrics: number[] }[]): Map<string, number> {
+  return new Map(rows.filter((r) => r.dimensions[0] && r.dimensions[0] !== '(not set)').map((r) => [r.dimensions[0], r.metrics[0]]));
 }
 
 /**
- * スワイプした先で再生された回数（作品ID → 回数）を Google Analytics から取得する。
- * 最初に表示された1本ではなく、スワイプして見つけて再生された作品だけを数える（video_view の via が「スワイプ」）。
- * GA の鍵が未設定・取得失敗のときは空（従来どおりの選び方になる）。
+ * 直近の作品ごとの反応を Google Analytics から取得する。
+ * - plays: サンプル動画の再生回数
+ * - swipePlays: そのうち、スワイプして見つけて再生された回数（最初に表示された1本ではない）
+ * - clicks: FANZA へのリンクが押された回数
+ * GA の鍵が未設定・取得失敗のときは空（ランキングといいねだけで選ぶ）。
  */
-async function getSwipePlayCounts(): Promise<Map<string, number>> {
+async function getGaCounts(days: number) {
+  const empty = { plays: new Map<string, number>(), swipePlays: new Map<string, number>(), clicks: new Map<string, number>() };
   try {
-    const [rows] = await runReports([
+    const dateRanges = [{ startDate: `${days - 1}daysAgo`, endDate: 'today' }];
+    const dimensions = [{ name: 'customEvent:content_id' }];
+    const metrics = [{ name: 'eventCount' }];
+    const orderBys = [{ metric: { metricName: 'eventCount' }, desc: true }];
+    const [plays, swipePlays, clicks] = await runReports([
+      { dateRanges, dimensions, metrics, orderBys, dimensionFilter: eventIs('video_view'), limit: 200 },
       {
-        dateRanges: [{ startDate: `${SWIPE_PLAY_DAYS}daysAgo`, endDate: 'today' }],
-        dimensions: [{ name: 'customEvent:content_id' }],
-        metrics: [{ name: 'eventCount' }],
+        dateRanges,
+        dimensions,
+        metrics,
+        orderBys,
         dimensionFilter: {
           andGroup: {
-            expressions: [
-              { filter: { fieldName: 'eventName', stringFilter: { value: 'video_view' } } },
-              { filter: { fieldName: 'customEvent:via', stringFilter: { value: 'スワイプ' } } },
-            ],
+            expressions: [eventIs('video_view'), { filter: { fieldName: 'customEvent:via', stringFilter: { value: 'スワイプ' } } }],
           },
         },
-        orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
-        limit: 300,
+        limit: 200,
       },
+      { dateRanges, dimensions, metrics, orderBys, dimensionFilter: eventIs('dmm_link_click'), limit: 200 },
     ]);
-    return new Map(rows.filter((r) => r.dimensions[0] && r.dimensions[0] !== '(not set)').map((r) => [r.dimensions[0], r.metrics[0]]));
+    return { plays: toCountMap(plays), swipePlays: toCountMap(swipePlays), clicks: toCountMap(clicks) };
   } catch (error) {
-    console.warn('[x-posts] スワイプ後の再生回数を取得できませんでした:', error);
-    return new Map();
+    console.warn('[x-posts] GA の作品ごとの反応を取得できませんでした:', error);
+    return empty;
   }
+}
+
+export type RecommendedVideo = {
+  dmm_content_id: string;
+  title: string;
+  thumbnail_url: string | null;
+  score: number;
+  plays: number;
+  swipePlays: number;
+  clicks: number;
+  likes: number;
+  rank: number | null;
+};
+
+/**
+ * 投稿すると効果的な作品（まだ X で紹介していない作品）を、反応の大きい順に返す。
+ * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
+ * リンクが押された作品は「買いたくなる」作品、スワイプ後に再生された作品は「目に留まる」作品なので重く数える。
+ */
+export async function getRecommendedVideos(): Promise<{ days: number; videos: RecommendedVideo[] }> {
+  const supabase = getSupabaseAdmin();
+
+  // 一度でも紹介した作品は除外（スキップしたものは除く）。1000 行上限で切れないようページを分けて取得
+  const used = new Set<string>();
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('x_posts')
+      .select('dmm_content_id')
+      .neq('status', 'skipped')
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const r of data ?? []) used.add(r.dmm_content_id as string);
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+
+  const ga = await getGaCounts(RECOMMEND_DAYS);
+  const gaIds = [...new Set([...ga.plays.keys(), ...ga.clicks.keys()])].filter((id) => !used.has(id));
+
+  const columns = 'dmm_content_id, title, thumbnail_url, likes_count, rank_position';
+  const base = () =>
+    supabase
+      .from('videos')
+      .select(columns)
+      .eq('is_active', true)
+      .not('thumbnail_url', 'is', null)
+      .not('sample_video_url', 'is', null);
+  const [gaRes, rankingRes, likedRes] = await Promise.all([
+    gaIds.length > 0 ? base().in('dmm_content_id', gaIds) : Promise.resolve({ data: [], error: null }),
+    base().not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(60),
+    base().gt('likes_count', 0).order('likes_count', { ascending: false }).limit(60),
+  ]);
+  for (const res of [gaRes, rankingRes, likedRes]) {
+    if (res.error) throw res.error;
+  }
+
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; likes_count: number | null; rank_position: number | null };
+  const byId = new Map<string, Row>();
+  for (const row of [...(gaRes.data ?? []), ...(rankingRes.data ?? []), ...(likedRes.data ?? [])] as Row[]) {
+    if (!used.has(row.dmm_content_id)) byId.set(row.dmm_content_id, row);
+  }
+
+  const videos = [...byId.values()].map((row): RecommendedVideo => {
+    const plays = ga.plays.get(row.dmm_content_id) ?? 0;
+    const swipePlays = ga.swipePlays.get(row.dmm_content_id) ?? 0;
+    const clicks = ga.clicks.get(row.dmm_content_id) ?? 0;
+    const likes = row.likes_count ?? 0;
+    const rank = row.rank_position;
+    const rankBonus = rank ? Math.max(0, 31 - rank) : 0;
+    return {
+      dmm_content_id: row.dmm_content_id,
+      title: row.title,
+      thumbnail_url: row.thumbnail_url,
+      score: clicks * 5 + swipePlays * 2 + plays + likes * 3 + rankBonus,
+      plays,
+      swipePlays,
+      clicks,
+      likes,
+      rank,
+    };
+  });
+  videos.sort((a, b) => b.score - a.score || (a.rank ?? 999) - (b.rank ?? 999));
+  return { days: RECOMMEND_DAYS, videos: videos.filter((v) => v.score > 0).slice(0, RECOMMEND_LIMIT) };
 }
 
 export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType): string {
@@ -130,116 +180,6 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
     text = build(title);
   }
   return text;
-}
-
-export async function generateUpcomingWeek(now = new Date()) {
-  const supabase = getSupabaseAdmin();
-  const slots = getUpcomingWeekSlots(now);
-
-  // 既に有効な候補がある枠は除外
-  const { data: existing, error: existingError } = await supabase
-    .from('x_posts')
-    .select('slot_at')
-    .neq('status', 'skipped')
-    .gte('slot_at', slots[0].slotAt.toISOString())
-    .lte('slot_at', slots[slots.length - 1].slotAt.toISOString());
-  if (existingError) throw existingError;
-  const filled = new Set((existing ?? []).map((r) => new Date(r.slot_at).getTime()));
-  const targets = slots.filter((s) => !filled.has(s.slotAt.getTime()));
-  if (targets.length === 0) return { created: 0, slots: slots.length };
-
-  // 一度でも紹介した作品は除外（スキップしたものは除く）。1000 行上限で切れないようページを分けて取得
-  const used = new Set<string>();
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from('x_posts')
-      .select('dmm_content_id')
-      .neq('status', 'skipped')
-      .order('id', { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    for (const r of data ?? []) used.add(r.dmm_content_id as string);
-    if (!data || data.length < PAGE_SIZE) break;
-  }
-
-  const swipePlays = await getSwipePlayCounts();
-
-  const columns = 'dmm_content_id, title, thumbnail_url, maker, actress_ids';
-  const base = () =>
-    supabase
-      .from('videos')
-      .select(columns)
-      .eq('is_active', true)
-      .not('thumbnail_url', 'is', null)
-      .not('sample_video_url', 'is', null);
-
-  const swipeIds = [...swipePlays.keys()].filter((id) => !used.has(id));
-  const [newRes, rankingRes, randomRes, swipeRes] = await Promise.all([
-    base().order('release_date', { ascending: false, nullsFirst: false }).limit(CANDIDATE_POOL),
-    base().not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(CANDIDATE_POOL),
-    // 並び順を指定しない limit だと毎回ほぼ同じ行が返るため、全作品からランダムに取る RPC を使う
-    supabase.rpc('get_random_videos_all', { p_limit: CANDIDATE_POOL * 5 }),
-    swipeIds.length > 0 ? base().in('dmm_content_id', swipeIds) : Promise.resolve({ data: [], error: null }),
-  ]);
-  for (const res of [newRes, rankingRes, randomRes, swipeRes]) {
-    if (res.error) throw res.error;
-  }
-  const pools: Record<SlotType, VideoRow[]> = {
-    new: (newRes.data ?? []) as VideoRow[],
-    ranking: (rankingRes.data ?? []) as VideoRow[],
-    random: (randomRes.data ?? []) as VideoRow[],
-    manual: [],
-  };
-
-  const swipePool = (swipeRes.data ?? []) as VideoRow[];
-  // スワイプした先でよく再生された作品ほど選ばれやすくする（再生されていない作品も選ばれうる）
-  const plays = (v: VideoRow) => swipePlays.get(v.dmm_content_id) ?? 0;
-  const weight = (v: VideoRow) => 1 + plays(v) * 5;
-
-  // 枠ごとに未使用の作品を選ぶ
-  // - 新着・人気ランキング枠: 各候補の上位30件から、スワイプ後の再生が多い作品を優先
-  // - おすすめ枠: スワイプした先で再生された作品から、再生回数に応じて選ぶ（データがなければランダム）
-  // 候補が尽きたらランダム枠の母数から補う
-  const picks: { slot: (typeof targets)[number]; video: VideoRow }[] = [];
-  for (const slot of targets) {
-    const available = (pool: VideoRow[]) => pool.filter((v) => !used.has(v.dmm_content_id));
-    const video =
-      slot.type === 'random'
-        ? pickWeighted(available(swipePool), plays) ?? pickRandom(available(pools.random))
-        : pickWeighted(available(pools[slot.type]).slice(0, 30), weight) ?? pickRandom(available(pools.random));
-    if (!video) continue;
-    used.add(video.dmm_content_id);
-    picks.push({ slot, video });
-  }
-
-  // 出演者名をまとめて取得
-  const actressIds = [...new Set(picks.flatMap((p) => p.video.actress_ids ?? []))];
-  const actressNameById = new Map<string, string>();
-  if (actressIds.length > 0) {
-    const { data, error } = await supabase.from('actresses').select('id, name').in('id', actressIds);
-    if (error) throw error;
-    for (const a of data ?? []) actressNameById.set(a.id, a.name);
-  }
-
-  const rows = picks.map(({ slot, video }) => ({
-    slot_at: slot.slotAt.toISOString(),
-    slot_type: slot.type,
-    dmm_content_id: video.dmm_content_id,
-    title: video.title,
-    thumbnail_url: video.thumbnail_url,
-    text: buildPostText(
-      video,
-      (video.actress_ids ?? []).map((id) => actressNameById.get(id)).filter(Boolean) as string[],
-      slot.type,
-    ),
-  }));
-
-  if (rows.length > 0) {
-    const { error } = await supabase.from('x_posts').insert(rows);
-    if (error) throw error;
-  }
-
-  return { created: rows.length, slots: slots.length };
 }
 
 /**

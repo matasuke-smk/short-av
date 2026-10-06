@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 「紹介済みにする」: 予約済みの投稿として記録し、毎週の自動作成で選ばれないようにする
+// 「紹介済みにする」: 予約済みの投稿として記録し、「投稿すると効果的な作品」に出ないようにする
 // POST { contentId, text }
 export async function POST(request: NextRequest) {
   const { contentId, text } = await request.json().catch(() => ({}));

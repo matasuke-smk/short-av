@@ -60,7 +60,7 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
     setBusy(false);
     if (response.ok) {
       setAlreadyPosted(true);
-      setStatus('紹介済みとして記録しました（毎週の自動作成で選ばれなくなります）');
+      setStatus('紹介済みとして記録しました（「投稿すると効果的な作品」に出なくなります）');
     } else {
       setStatus('記録できませんでした');
     }
