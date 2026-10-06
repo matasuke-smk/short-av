@@ -60,7 +60,7 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
     setBusy(false);
     if (response.ok) {
       setAlreadyPosted(true);
-      setStatus('紹介済みとして記録しました（「投稿すると効果的な作品」に出なくなります）');
+      setStatus('紹介済みとして記録しました（2週間は「投稿すると効果的な作品」に出なくなります）');
     } else {
       setStatus('記録できませんでした');
     }
@@ -85,7 +85,7 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
               <button onClick={() => setOpen(false)} className="text-gray-400 text-sm">閉じる</button>
             </div>
             {alreadyPosted && (
-              <p className="text-xs text-yellow-300 mb-2">この作品はすでに紹介済み（またはストックに入っています）</p>
+              <p className="text-xs text-yellow-300 mb-2">この作品は直近2週間以内に紹介済み（またはストックに入っています）</p>
             )}
             <textarea
               value={text}
