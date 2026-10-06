@@ -245,6 +245,10 @@ type RecommendedVideo = {
   clicks: number;
   likes: number;
   rank: number | null;
+  xPlays: number;
+  xClicks: number;
+  postedCount: number;
+  lastPostedAt: string | null;
 };
 
 async function copyToClipboard(text: string) {
@@ -300,6 +304,8 @@ function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPoste
   }
 
   const reasons = [
+    video.xClicks > 0 && `X から FANZA へ ${video.xClicks}回`,
+    video.xPlays > 0 && `X から来て再生 ${video.xPlays}回`,
     video.clicks > 0 && `FANZA へ ${video.clicks}回`,
     video.swipePlays > 0 && `スワイプ後に再生 ${video.swipePlays}回`,
     video.plays > 0 && `再生 ${video.plays}回`,
@@ -316,6 +322,12 @@ function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPoste
           <img src={video.thumbnail_url} alt="" className="w-24 md:w-32 rounded object-cover self-start" loading="lazy" />
         )}
         <div className="flex-1 min-w-0">
+          {video.postedCount > 0 && (
+            <p className="text-[11px] text-orange-300 mb-0.5">
+              再紹介（{video.postedCount}回紹介済み・前回{' '}
+              {video.lastPostedAt ? new Date(video.lastPostedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }) : '-'}）
+            </p>
+          )}
           <p className="text-sm font-bold line-clamp-2">{video.title}</p>
           <div className="flex flex-wrap gap-1 mt-1.5">
             {reasons.map((reason) => (
@@ -497,8 +509,8 @@ export default function XPostsAdminPage() {
         <section className="mb-10">
           <h2 className="text-xl font-bold mb-1">投稿すると効果的な作品</h2>
           <p className="text-gray-400 text-sm mb-4">
-            直近{recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、まだ紹介していない作品を反応の大きい順に表示しています。
-            「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。紹介済みにした作品は、この一覧に出なくなります。
+            直近{recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキング、前回 X で紹介したときの反応から、作品を反応の大きい順に表示しています。
+            「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。紹介済みにした作品は2週間この一覧に出ず、その後は「再紹介」として見出しを変えた文面で出ます（X で同じ文面を繰り返すと表示が落ちるため、文面は少し変えて投稿してください）。
           </p>
           {recommendError ? (
             <div className="text-red-400 text-sm">{recommendError}</div>
