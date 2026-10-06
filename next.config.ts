@@ -32,11 +32,20 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['embla-carousel-react', '@supabase/supabase-js'],
   },
 
-  // 削除した記事は記事一覧へ転送する（検索エンジンや外部リンクからの流入を 404 にしない）
+  // www 付きのアクセスの統一と、削除した記事の転送（検索エンジンや外部リンクからの流入を 404 にしない）
   async redirects() {
-    return ['penis-traction-complete-guide', 'japanese-men-condom-size-data', 'av-industry-trends-2024'].map(
-      (slug) => ({ source: `/articles/${slug}`, destination: '/articles', permanent: true }),
-    );
+    return [
+      // www 付きで来たアクセスは short-av.com に統一する（同じページが2つの URL で評価されるのを防ぐ）
+      {
+        source: '/:path*',
+        has: [{ type: 'host' as const, value: 'www.short-av.com' }],
+        destination: 'https://short-av.com/:path*',
+        permanent: true,
+      },
+      ...['penis-traction-complete-guide', 'japanese-men-condom-size-data', 'av-industry-trends-2024'].map(
+        (slug) => ({ source: `/articles/${slug}`, destination: '/articles', permanent: true }),
+      ),
+    ];
   },
 
   // ヘッダーの最適化（キャッシュ制御）
