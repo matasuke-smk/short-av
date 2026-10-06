@@ -32,39 +32,42 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. 個人情報の収集</h2>
-            <p className="mb-2">当サイトでは、以下の情報を自動的に収集する場合があります：</p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. 収集する情報</h2>
+            <p className="mb-2">当サイトは会員登録の機能がなく、氏名・メールアドレス等の入力を求めることはありません。当サイトでは、以下の情報を取得します：</p>
             <ul className="list-disc list-inside space-y-1 ml-4">
-              <li>Cookie情報</li>
               <li>アクセスログ（IPアドレス、ブラウザ情報、アクセス日時など）</li>
-              <li>閲覧履歴やいいね情報（LocalStorageに保存）</li>
+              <li>ユーザー識別用の匿名ID（ブラウザ内で自動生成されるランダムな文字列）</li>
+              <li>いいねした作品と日時（匿名IDに紐づけてサーバーに保存）</li>
+              <li>
+                サイズ比較ツールで統計への登録を行った場合の入力値（長さ・太さ・年代）、匿名ID、登録日時、
+                および送信元IPアドレスから生成した変換値（重複登録の防止に使用し、IPアドレスそのものは保存しません）
+              </li>
+              <li>Google Analyticsによるアクセス解析データ（下記4.）</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Cookieの使用について</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. Cookie・LocalStorageの使用について</h2>
             <p className="mb-2">
-              当サイトでは、ユーザーの利便性向上のためにCookieおよびLocalStorageを使用しています。
-              これらの技術により、以下の情報を保存する場合があります：
+              当サイトでは、ユーザーの利便性向上のためにブラウザのLocalStorageを使用し、以下の情報をお使いのブラウザ内に保存します：
             </p>
             <ul className="list-disc list-inside space-y-1 ml-4">
-              <li>年齢確認の記録</li>
-              <li>閲覧した動画の履歴</li>
-              <li>いいねした動画の情報</li>
+              <li>年齢確認をした日付</li>
+              <li>閲覧した動画の履歴（サーバーには送信しません）</li>
               <li>ユーザー識別用の匿名ID</li>
             </ul>
             <p className="mt-3">
-              ブラウザの設定により、Cookieの受け入れを拒否することも可能ですが、
-              その場合、一部機能が正常に動作しない可能性があります。
+              Cookieは、下記のGoogle Analyticsおよびアフィリエイトプログラムで使用されます。
+              ブラウザの設定によりCookieやサイトデータを拒否・削除することも可能ですが、その場合、一部機能が正常に動作しない可能性があります。
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. アクセス解析ツールについて</h2>
             <p className="mb-2">
-              当サイトでは、サービス向上のためにGoogle Analyticsを使用する場合があります。
-              Google Analyticsはトラフィックデータの収集のためにCookieを使用します。
-              このトラフィックデータは匿名で収集されており、個人を特定するものではありません。
+              当サイトでは、サービス向上のためにGoogle Analyticsを使用しています。
+              Google AnalyticsはCookieを使用して、ページの閲覧や動画の再生・いいねなどの操作に関するデータを収集します。
+              当サイトからGoogleに氏名やメールアドレスを送信することはありません。
             </p>
             <p className="mt-3">
               Google Analyticsの詳細については、
@@ -76,14 +79,24 @@ export default function PrivacyPage() {
               >
                 Googleのポリシーと規約
               </a>
-              をご確認ください。
+              をご確認ください。データ収集を無効にしたい場合は、
+              <a
+                href="https://tools.google.com/dlpage/gaoptout"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Google アナリティクス オプトアウト アドオン
+              </a>
+              をご利用ください。
             </p>
           </section>
 
           <section>
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. アフィリエイトプログラムについて</h2>
             <p>
-              当サイトは、DMMアフィリエイトプログラムに参加しています。
+              当サイトは、DMMアフィリエイトプログラムに参加しており、作品ページへのリンクはアフィリエイトリンクです。
+              また、サンプル動画のプレイヤーとバナー広告はDMMのサーバーから表示されます。
               アフィリエイトリンクをクリックした際、Cookieにより成果を測定する場合があります。
               この情報は個人を特定するものではありません。
             </p>
@@ -111,6 +124,8 @@ export default function PrivacyPage() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. 個人情報の開示・訂正・削除</h2>
             <p>
               ユーザーは、ブラウザの設定からCookieやLocalStorageに保存された情報を削除することができます。
+              いいねは、いいねを解除するとサーバー上の記録も削除されます。ブラウザのサイトデータを先に削除すると匿名IDが失われ、
+              サーバー上のいいねの記録を当該ブラウザから削除できなくなるため、先にいいねを解除してください。
             </p>
           </section>
 
@@ -137,7 +152,7 @@ export default function PrivacyPage() {
           <div className="mt-8 pt-4 border-t border-gray-300">
             <p className="text-sm text-gray-600">
               制定日：2025年10月28日<br />
-              最終更新日：2025年10月28日
+              最終更新日：2026年10月6日
             </p>
           </div>
         </div>

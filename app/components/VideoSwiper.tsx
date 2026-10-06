@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
@@ -45,8 +45,6 @@ type Video = Database['public']['Tables']['videos']['Row'];
 
 interface VideoSwiperProps {
   videos: Video[];
-  initialOffset: number;
-  totalVideos: number;
   startIndex?: number; // 配列内の開始位置（デフォルト0）
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
   videoPool: Video[]; // 動画プール（全データ）
@@ -62,7 +60,7 @@ function removeAffiliateIdFromUrl(url: string | null): string {
 
 const SWIPED_KEY = 'short-av-has-swiped';
 
-export default function VideoSwiper({ videos: initialVideos, initialOffset, totalVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -239,8 +237,11 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
   }, []);
 
   // 追加の動画を読み込む関数（プール方式）
+  // 補充に失敗したら、しばらく再試行しない（失敗→即再試行の繰り返しでリクエストが止まらなくなるのを防ぐ）
+  const refillBlockedUntilRef = useRef(0);
+
   const loadMoreVideos = useCallback(async () => {
-    if (isLoadingMore) return;
+    if (isLoadingMore || Date.now() < refillBlockedUntilRef.current) return;
 
     setIsLoadingMore(true);
     try {
@@ -253,6 +254,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         // プールが尽きた場合、新規取得
         console.log('プール尽きた：新規取得を実行');
         const response = await fetch(`/api/videos?limit=200`);
+        if (!response.ok) throw new Error(`補充の取得に失敗: ${response.status}`);
         const data = await response.json();
 
         // 表示済みの動画は除く（以前は補充のたびに見た動画が約2割混ざっていた）
@@ -268,14 +270,38 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           // 最初の20件を追加
           const nextVideos = nextPool.slice(0, 20);
           setVideos(prev => [...prev, ...nextVideos]);
+        } else {
+          refillBlockedUntilRef.current = Date.now() + 30_000;
         }
       }
     } catch (error) {
       console.error('追加動画の読み込みエラー:', error);
+      refillBlockedUntilRef.current = Date.now() + 30_000;
     } finally {
       setIsLoadingMore(false);
     }
   }, [videos, isLoadingMore, videoPool, poolIndex]);
+
+  // 検索・ランキング・いいね・履歴・女優の一覧に切り替える
+  // 以前は古いスライドのまま reInit し、150ms 後にアニメーション付きで移動していたため、一瞬別の動画が見えていた。
+  // スライドが新しい一覧に描き変わった直後（useLayoutEffect）に、アニメーションなしで目的の位置へ移動する。
+  const pendingScrollRef = useRef<number | null>(null);
+  const replaceVideos = useCallback((newVideos: Video[], selectedVideoId: string) => {
+    const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
+    if (targetIndex === -1) return;
+    pendingScrollRef.current = targetIndex;
+    setVideos(newVideos);
+    setCurrentIndex(targetIndex);
+    setIsFiniteList(true);
+  }, []);
+
+  useLayoutEffect(() => {
+    const target = pendingScrollRef.current;
+    if (!emblaApi || target === null) return;
+    pendingScrollRef.current = null;
+    emblaApi.reInit();
+    emblaApi.scrollTo(target, true); // 第2引数 true = アニメーションなしで即座に移動
+  }, [emblaApi, videos]);
 
   // いいねを切り替える関数（いいねは dmm_content_id で管理する）
   const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
@@ -389,11 +415,6 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         const url = new URL(window.location.href);
         url.searchParams.set('v', currentVideo.dmm_content_id);
 
-        // 有限リストの場合は、indexも更新
-        if (isFiniteList) {
-          url.searchParams.set('index', index.toString());
-        }
-
         // スワイプのたびに履歴を積むと「戻る」で何十回も押す必要があったため、置き換えにする
         if (url.toString() !== window.location.href) {
           lastHandledParamRef.current = currentVideo.dmm_content_id;
@@ -487,7 +508,8 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           <div className="flex flex-col">
             {videos.map((video, index) => (
               <div
-                key={video.id}
+                // 表示済みの作品が補充で再び入ることがあるため、位置も含めてキーにする
+                key={`${index}-${video.id}`}
                 className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden lg:overflow-hidden"
               >
                 {/* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */}
@@ -1070,86 +1092,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           setShowSearchModal(false);
           trackModalClose('search');
         }}
-        onVideoSelect={async (videoId) => {
-          // 選択された動画のindexを見つけてスクロール（ページリロードなし）
-          const targetIndex = videos.findIndex(v => v.dmm_content_id === videoId);
-          if (targetIndex !== -1 && emblaApi) {
-            // 現在のvideosに動画が存在する場合
-            emblaApi.scrollTo(targetIndex, false); // 即座にスクロール（アニメーションなし）
-            // URLを更新（履歴に追加）
-            const url = new URL(window.location.href);
-            url.searchParams.set('v', videoId);
-            window.history.pushState({}, '', url.toString());
-          } else {
-            // 現在のvideosに動画が存在しない場合、プールから探す
-            const poolTargetIndex = videoPool.findIndex(v => v.dmm_content_id === videoId);
-
-            if (poolTargetIndex !== -1) {
-              // プールに存在する場合、プール全体を表示用に設定
-              console.log(`動画がプールの${poolTargetIndex}番目に見つかりました`);
-              setVideos(videoPool);
-              setIsFiniteList(true);
-              requestAnimationFrame(() => {
-                if (emblaApi) {
-                  emblaApi.reInit();
-                  emblaApi.scrollTo(poolTargetIndex, false);
-                  setCurrentIndex(poolTargetIndex);
-                  // URLを更新
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('v', videoId);
-                  window.history.pushState({}, '', url.toString());
-                }
-              });
-            } else {
-              // プールに存在しない場合、データベースから直接取得
-              console.log('動画がプールに存在しないため、データベースから取得します');
-              const { data: targetVideo } = await supabase
-                .from('videos')
-                .select('*')
-                .eq('dmm_content_id', videoId)
-                .single();
-
-              if (targetVideo) {
-                // 取得した動画を現在のプールの先頭に追加
-                const updatedVideos = [targetVideo, ...videos];
-                setVideos(updatedVideos);
-                requestAnimationFrame(() => {
-                  if (emblaApi) {
-                    emblaApi.reInit();
-                    emblaApi.scrollTo(0, false); // 先頭（追加した動画）に移動
-                    setCurrentIndex(0);
-                    // URLを更新
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('v', videoId);
-                    window.history.pushState({}, '', url.toString());
-                  }
-                });
-              }
-            }
-          }
-        }}
-        onReplaceVideos={(newVideos, selectedVideoId) => {
-          console.log('VideoSwiper: 動画リストを置き換え', { count: newVideos.length, selectedVideoId });
-          // 選択された動画のindexを見つける
-          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
-          console.log('VideoSwiper: targetIndex =', targetIndex);
-          if (targetIndex !== -1) {
-            // 動画リストを置き換え
-            setVideos(newVideos);
-            // インデックスを即座にリセット
-            setCurrentIndex(targetIndex);
-            // 有限リストとしてマーク（検索結果は有限）
-            setIsFiniteList(true);
-            // スクロール位置をリセット
-            if (emblaApi) {
-              // reInitとscrollToを確実に実行
-              emblaApi.reInit();
-              setTimeout(() => {
-                emblaApi.scrollTo(targetIndex, false);
-              }, 150);
-            }
-          }
-        }}
+        onReplaceVideos={replaceVideos}
         currentVideoId={videos[currentIndex]?.dmm_content_id}
       />
 
@@ -1167,31 +1110,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         lastSelectedRanking={lastSelectedRanking}
         setLastSelectedRanking={setLastSelectedRanking}
         videoPool={videoPool}
-        onReplaceVideos={(newVideos, selectedVideoId) => {
-          console.log('VideoSwiper: ランキングから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
-          // 選択された動画のindexを見つける
-          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
-          console.log('VideoSwiper: targetIndex =', targetIndex);
-          if (targetIndex !== -1) {
-            // 動画リストを置き換え
-            setVideos(newVideos);
-            // インデックスを即座にリセット
-            setCurrentIndex(targetIndex);
-            // 有限リストとしてマーク（ランキングは有限）
-            setIsFiniteList(true);
-            // スクロール位置をリセット
-            if (emblaApi) {
-              emblaApi.reInit();
-              setTimeout(() => {
-                emblaApi.scrollTo(targetIndex, false);
-                // URLを更新
-                const url = new URL(window.location.href);
-                url.searchParams.set('v', selectedVideoId);
-                window.history.pushState({}, '', url.toString());
-              }, 150);
-            }
-          }
-        }}
+        onReplaceVideos={replaceVideos}
       />
 
       {/* いいねモーダル */}
@@ -1203,31 +1122,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }}
         videoPool={videoPool}
         videos={videos}
-        onReplaceVideos={(newVideos, selectedVideoId) => {
-          console.log('VideoSwiper: いいね済みから動画リストを置き換え', { count: newVideos.length, selectedVideoId });
-          // 選択された動画のindexを見つける
-          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
-          console.log('VideoSwiper: targetIndex =', targetIndex);
-          if (targetIndex !== -1) {
-            // 動画リストを置き換え
-            setVideos(newVideos);
-            // インデックスを即座にリセット
-            setCurrentIndex(targetIndex);
-            // 有限リストとしてマーク
-            setIsFiniteList(true);
-            // スクロール位置をリセット
-            if (emblaApi) {
-              emblaApi.reInit();
-              setTimeout(() => {
-                emblaApi.scrollTo(targetIndex, false);
-                // URLを更新
-                const url = new URL(window.location.href);
-                url.searchParams.set('v', selectedVideoId);
-                window.history.pushState({}, '', url.toString());
-              }, 150);
-            }
-          }
-        }}
+        onReplaceVideos={replaceVideos}
       />
 
       {/* 履歴モーダル */}
@@ -1239,31 +1134,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
         }}
         videoPool={videoPool}
         videos={videos}
-        onReplaceVideos={(newVideos, selectedVideoId) => {
-          console.log('VideoSwiper: 履歴から動画リストを置き換え', { count: newVideos.length, selectedVideoId });
-          // 選択された動画のindexを見つける
-          const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
-          console.log('VideoSwiper: targetIndex =', targetIndex);
-          if (targetIndex !== -1) {
-            // 動画リストを置き換え
-            setVideos(newVideos);
-            // インデックスを即座にリセット
-            setCurrentIndex(targetIndex);
-            // 有限リストとしてマーク
-            setIsFiniteList(true);
-            // スクロール位置をリセット
-            if (emblaApi) {
-              emblaApi.reInit();
-              setTimeout(() => {
-                emblaApi.scrollTo(targetIndex, false);
-                // URLを更新
-                const url = new URL(window.location.href);
-                url.searchParams.set('v', selectedVideoId);
-                window.history.pushState({}, '', url.toString());
-              }, 150);
-            }
-          }
-        }}
+        onReplaceVideos={replaceVideos}
       />
 
       {/* 女優モーダル */}
@@ -1284,8 +1155,9 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
             .not('thumbnail_url', 'is', null)
             .not('sample_video_url', 'is', null)
             .contains('actress_ids', [actressId])
-            .order('release_date', { ascending: false })
-            .limit(100);
+            .order('release_date', { ascending: false, nullsFirst: false })
+            .order('id', { ascending: true })
+            .limit(300);
 
           if (error) {
             console.error('女優の動画取得エラー:', error);
@@ -1293,18 +1165,7 @@ export default function VideoSwiper({ videos: initialVideos, initialOffset, tota
           }
 
           if (actressVideos && actressVideos.length > 0) {
-            // 動画リストを置き換え
-            setVideos(actressVideos as Video[]);
-            setCurrentIndex(0);
-            setIsFiniteList(true);
-
-            // スクロール位置をリセット
-            if (emblaApi) {
-              emblaApi.reInit();
-              setTimeout(() => {
-                emblaApi.scrollTo(0, false);
-              }, 150);
-            }
+            replaceVideos(actressVideos as Video[], actressVideos[0].dmm_content_id);
 
             // GA4トラッキング
             trackModalOpen('actress_videos');

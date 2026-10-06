@@ -13,7 +13,6 @@ type FacetCounts = Record<string, number>;
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onVideoSelect: (videoId: string) => void;
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
   currentVideoId?: string;
 }

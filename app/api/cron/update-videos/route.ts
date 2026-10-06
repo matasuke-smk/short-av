@@ -222,28 +222,34 @@ export async function GET(request: Request) {
     let deletedCount = 0;
     if (saved > 0 && saveErrors === 0) {
       const threshold = new Date(Date.now() - STALE_DAYS * 86_400_000).toISOString();
+      // 1回の実行で扱うのは最大1000件（PostgREST の上限）。残りは翌日以降の実行で処理される
       const { data: oldVideos, error } = await supabase
         .from('videos')
         .select('id, dmm_content_id')
-        .lt('updated_at', threshold);
+        .lt('updated_at', threshold)
+        .order('id', { ascending: true });
       if (error) throw error;
 
-      // いいねの video_id はUUIDとcontent_idが混在しうるため、両方で照合する
-      const { data: liked, error: likesError } = await supabase.from('likes').select('video_id');
-      if (likesError) throw likesError;
-      const likedIds = new Set((liked ?? []).map((l) => String(l.video_id)));
-
-      // X で紹介した作品は、投稿のリンクが切れないよう削除しない
-      const { data: promoted, error: promotedError } = await supabase
-        .from('x_posts')
-        .select('dmm_content_id')
-        .neq('status', 'skipped');
-      if (promotedError) throw promotedError;
-      const promotedIds = new Set((promoted ?? []).map((p) => p.dmm_content_id as string));
-
-      const deletableIds = (oldVideos ?? [])
-        .filter((v) => !likedIds.has(v.id) && !likedIds.has(v.dmm_content_id) && !promotedIds.has(v.dmm_content_id))
-        .map((v) => v.id as string);
+      // いいね済み・X で紹介済みの作品は残す。
+      // likes / x_posts を丸ごと取得すると 1000 行で切れて判定漏れが起きるため、候補ごとに照合する
+      const deletableIds: string[] = [];
+      for (const candidates of chunk(oldVideos ?? [], CHUNK_SIZE)) {
+        const contentIds = candidates.map((v) => v.dmm_content_id as string);
+        // いいねの video_id はUUIDとcontent_idが混在しうるため、両方で照合する
+        const [{ data: liked, error: likesError }, { data: promoted, error: promotedError }] = await Promise.all([
+          supabase.from('likes').select('video_id').in('video_id', [...candidates.map((v) => v.id as string), ...contentIds]),
+          supabase.from('x_posts').select('dmm_content_id').in('dmm_content_id', contentIds).neq('status', 'skipped'),
+        ]);
+        if (likesError) throw likesError;
+        if (promotedError) throw promotedError;
+        const keep = new Set([
+          ...(liked ?? []).map((l) => String(l.video_id)),
+          ...(promoted ?? []).map((p) => p.dmm_content_id as string),
+        ]);
+        for (const v of candidates) {
+          if (!keep.has(v.id) && !keep.has(v.dmm_content_id)) deletableIds.push(v.id as string);
+        }
+      }
 
       for (const deletable of chunk(deletableIds, CHUNK_SIZE)) {
         const { error: deleteError } = await supabase.from('videos').delete().in('id', deletable);

@@ -18,21 +18,25 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Ranking API] Fetching ${period} ranking, limit: ${limit}`);
 
+    // サンプル動画のない作品は押しても再生できないため除く。その分を見込んで少し多めに取得する
+    const fetchCount = Math.min(limit + 10, 100);
     let dmmItems;
 
     // DMM APIから期間別ランキングを取得
     if (period === 'weekly') {
-      dmmItems = await fetchWeeklyRanking(limit);
+      dmmItems = await fetchWeeklyRanking(fetchCount);
     } else if (period === 'monthly') {
-      dmmItems = await fetchMonthlyRanking(limit);
+      dmmItems = await fetchMonthlyRanking(fetchCount);
     } else {
-      dmmItems = await fetchAllTimeRanking(limit);
+      dmmItems = await fetchAllTimeRanking(fetchCount);
     }
 
-    // DMMItemをVideo形式に変換
-    const videos = dmmItems.map((item, index) =>
-      convertDMMItemToVideo(item, index + 1)
-    );
+    // DMMItemをVideo形式に変換（順位は除外前の DMM の順位のまま）
+    const videos = dmmItems
+      .map((item, index) => ({ item, rank: index + 1 }))
+      .filter(({ item }) => item.imageURL?.large && item.sampleMovieURL?.size_560_360)
+      .slice(0, limit)
+      .map(({ item, rank }) => convertDMMItemToVideo(item, rank));
 
     console.log(`[Ranking API] Success: ${videos.length} videos for ${period}`);
 

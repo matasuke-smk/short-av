@@ -685,30 +685,9 @@ function recommendCondomSize(diameter) {
         return;
       }
 
-      var cls = 'class';
-      var html = '';
-      html += '<div ' + cls + '="stats-item">';
-      html += '<div ' + cls + '="stats-label">データ件数</div>';
-      html += '<div ' + cls + '="stats-value">' + data.count + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">人</div>';
-      html += '</div>';
-
-      html += '<div ' + cls + '="stats-item-wide">';
-      html += '<div ' + cls + '="stats-double-container">';
-      html += '<div ' + cls + '="stats-half-item">';
-      html += '<div ' + cls + '="stats-label">平均長さ</div>';
-      html += '<div ' + cls + '="stats-value">' + data.statistics.avgLength + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + data.statistics.stdLength + 'mm）</div>';
-      html += '</div>';
-      html += '<div ' + cls + '="stats-half-item">';
-      html += '<div ' + cls + '="stats-label">平均直径</div>';
-      html += '<div ' + cls + '="stats-value">' + data.statistics.avgDiameter + '</div>';
-      html += '<div ' + cls + '="stats-subvalue">mm（標準偏差: ' + data.statistics.stdDiameter + 'mm）</div>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div>';
-
-      statsContent.innerHTML = html;
+      // 表示用の HTML はサーバー側（lib/sizeStats.ts の generateStatsHTML）で組み立てたものを使う
+      statsContent.className = 'stats-content';
+      statsContent.innerHTML = data.html;
     } catch (error) {
       console.error('Error loading collected statistics:', error);
       const statsContent = document.getElementById('statsContent');
@@ -812,10 +791,11 @@ function recommendCondomSize(diameter) {
     <li>状態（このツールでは常に「勃起時」）</li>
     <li>年齢層（選んだ場合のみ）</li>
     <li>ブラウザごとの匿名ID（ブラウザ内で自動生成されるランダムな文字列。同じブラウザからの重複登録を防ぐために使用）</li>
+    <li>送信元IPアドレスを元に戻せない形に変換した値（同じ回線からの重複登録を防ぐために使用。IPアドレスそのものは保存しません）</li>
     <li>登録日時</li>
   </ul>
 
-  <p class="mb-4 text-gray-300">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけです。詳しくは<a href="/privacy" class="text-blue-400 hover:text-blue-300 underline">プライバシーポリシー</a>をご覧ください。</p>
+  <p class="mb-4 text-gray-300">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけで、同じ回線からの登録も30日に1件までです。集計では長さ10〜17cmの入力のみを使い、自己申告は大きめに出やすいため長さから5mm差し引いています。詳しくは<a href="/privacy" class="text-blue-400 hover:text-blue-300 underline">プライバシーポリシー</a>をご覧ください。</p>
 
   <p class="mb-6 text-gray-300">ページ上部の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
 

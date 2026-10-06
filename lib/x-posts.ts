@@ -124,7 +124,8 @@ export async function generateUpcomingWeek(now = new Date()) {
   const [newRes, rankingRes, randomRes] = await Promise.all([
     base().order('release_date', { ascending: false, nullsFirst: false }).limit(CANDIDATE_POOL),
     base().not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(CANDIDATE_POOL),
-    base().limit(CANDIDATE_POOL * 5),
+    // 並び順を指定しない limit だと毎回ほぼ同じ行が返るため、全作品からランダムに取る RPC を使う
+    supabase.rpc('get_random_videos_all', { p_limit: CANDIDATE_POOL * 5 }),
   ]);
   for (const res of [newRes, rankingRes, randomRes]) {
     if (res.error) throw res.error;
