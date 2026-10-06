@@ -39,7 +39,12 @@ export default function RankingModal({
   onReplaceVideos
 }: RankingModalProps) {
   const [period, setPeriod] = useState<RankingPeriod>(lastSelectedRanking);
-  const [loading, setLoading] = useState(false);
+  // タブごとの読み込み中フラグ（3つを並列で読むため、1つの loading を共有すると先に終わった方が消してしまう）
+  const [loadingPeriods, setLoadingPeriods] = useState<Record<RankingPeriod, boolean>>({
+    weekly: false,
+    monthly: false,
+    all: false
+  });
   const videoListRef = useRef<HTMLDivElement>(null);
   const currentVideoRef = useRef<HTMLButtonElement>(null);
   const hasScrolledRef = useRef<Record<RankingPeriod, boolean>>({
@@ -94,7 +99,7 @@ export default function RankingModal({
   }, [isOpen, period, rankingVideos[period]]);
 
   const loadRanking = async (targetPeriod: RankingPeriod) => {
-    setLoading(true);
+    setLoadingPeriods(prev => ({ ...prev, [targetPeriod]: true }));
     try {
       console.log(`[RankingModal] Loading ${targetPeriod} ranking from DMM API`);
 
@@ -120,7 +125,7 @@ export default function RankingModal({
     } catch (error) {
       console.error('[RankingModal] ランキング読み込みエラー:', error);
     } finally {
-      setLoading(false);
+      setLoadingPeriods(prev => ({ ...prev, [targetPeriod]: false }));
     }
   };
 
@@ -207,7 +212,7 @@ export default function RankingModal({
           {/* コンテンツ */}
           <div ref={videoListRef} className="flex-1 overflow-y-auto landscape:pb-0 lg:pb-0 pb-20">
           <div className="px-4 py-6">
-            {loading ? (
+            {loadingPeriods[period] ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                 <p className="text-gray-400">読み込み中...</p>
@@ -220,9 +225,9 @@ export default function RankingModal({
               <>
                 <div className="mb-4">
                   <p className="text-gray-400 text-sm">
-                    {period === 'weekly' && '週間ランキング'}
-                    {period === 'monthly' && '月間ランキング'}
-                    {period === 'all' && '全期間ランキング'}
+                    {period === 'weekly' && '直近7日間に発売された作品の人気順'}
+                    {period === 'monthly' && '直近30日間に発売された作品の人気順'}
+                    {period === 'all' && '全期間の人気順'}
                     {' '}TOP {displayVideos.length}
                   </p>
                 </div>

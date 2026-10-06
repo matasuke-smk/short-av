@@ -207,6 +207,17 @@ export async function GET(request: Request) {
     const saved = videoRows.length - saveErrors;
     console.info(`[Cron] 新規${newRows.length}件 / 更新${updateRows.length}件 / エラー${saveErrors}件 (${elapsed()})`);
 
+    // 今回のランキングから外れた動画の順位を消す（残すと古い順位が重複して表示される）
+    if (rankMap.size > 0 && saveErrors === 0) {
+      const rankedIds = [...rankMap.keys()].map((id) => `"${id}"`).join(',');
+      const { error } = await supabase
+        .from('videos')
+        .update({ rank_position: null })
+        .not('rank_position', 'is', null)
+        .not('dmm_content_id', 'in', `(${rankedIds})`);
+      if (error) console.error('[Cron] 順位のリセットに失敗:', error);
+    }
+
     // 6. 保存が成功した場合のみ、古い動画（いいね無し）を削除
     let deletedCount = 0;
     if (saved > 0 && saveErrors === 0) {

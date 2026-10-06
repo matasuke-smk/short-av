@@ -53,6 +53,22 @@ export async function POST(request: NextRequest) {
       if (error && error.code !== '23505') throw error;
     }
 
+    // 作品ごとのいいね数（/liked のバッジや構造化データで使う）を数え直す
+    // 失敗してもいいね自体は保存できているので、ログだけ残して成功を返す
+    if (shouldLike !== isLiked) {
+      const { count, error: countError } = await supabase
+        .from('likes')
+        .select('id', { count: 'exact', head: true })
+        .in('video_id', candidates);
+      const { error: updateError } = countError
+        ? { error: countError }
+        : await supabase
+            .from('videos')
+            .update({ likes_count: count ?? 0 })
+            .eq('dmm_content_id', contentId);
+      if (updateError) console.error('likes_count 更新エラー:', updateError);
+    }
+
     return NextResponse.json({ liked: shouldLike, videoId: contentId });
   } catch (error) {
     console.error('Toggle like error:', error);
