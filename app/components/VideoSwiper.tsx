@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
+import InlineSamplePlayer from './InlineSamplePlayer';
 import { CONTACT_FORM_URL } from '@/config/site';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
@@ -496,6 +497,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
   }, [currentVideo, addToHistory, getViewContext]);
 
+  // サムネイルの中央の▶から再生中の作品（再生バーと重ならないよう、いいね・PR 表示を上に移す）
+  const [inlinePlayingId, setInlinePlayingId] = useState<string | null>(null);
+
+  // サムネイルの中央の▶から再生したとき（再生画面は開かない）
+  const recordInlineView = useCallback(() => {
+    if (!currentVideo) return;
+    setInlinePlayingId(currentVideo.dmm_content_id);
+    addToHistory(currentVideo.dmm_content_id);
+    trackVideoView(currentVideo.id, currentVideo.dmm_content_id || '', currentVideo.title || '', getViewContext());
+  }, [currentVideo, addToHistory, getViewContext]);
+
   const closeModal = useCallback(() => {
     setShowVideoModal(false);
     setModalVideoUrl('');
@@ -583,6 +595,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
+                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
+                    {index === currentIndex && video.sample_video_url ? (
+                      <InlineSamplePlayer
+                        key={video.dmm_content_id}
+                        playerUrl={(size) => getSamplePlayerUrl(video.sample_video_url!, size)}
+                        thumbnailUrl={video.thumbnail_url}
+                        title={video.title}
+                        priority
+                        onStart={recordInlineView}
+                      />
+                    ) : (
                     <Image
                       src={video.thumbnail_url}
                       alt={video.title}
@@ -594,11 +617,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       unoptimized={true}
                       {...(index === 0 && { fetchPriority: 'high' } as any)}
                     />
+                    )}
 
                     {/* いいねボタン - サムネイル左下 */}
                     <button
                       onClick={(e) => toggleLike(video, e)}
-                      className="absolute bottom-6 left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
+                      className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
                       aria-label="いいね"
                     >
                       {likedVideos.has(video.dmm_content_id) ? (
@@ -626,7 +650,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     )}
 
                     {/* PRバッジ - サムネイル右下 */}
-                    <div className="absolute bottom-6 right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg">
+                    <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
                       PR
                     </div>
                     </div>
@@ -711,13 +735,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* メーカー・発売日 - 1行固定 */}
-        <p className="h-5 text-sm text-gray-400 truncate flex-shrink-0">
-          {currentVideo?.maker && <>メーカー: {currentVideo.maker}</>}
-          {currentVideo?.maker && currentVideo?.release_date && '　'}
-          {currentVideo?.release_date && <>発売日: {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}</>}
-        </p>
-
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
         <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0">
           {isLandscape && currentVideo && (
@@ -729,26 +746,42 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* 女優ボタン（女優情報がある動画のみ押せる。ない場合も枠は残してボタンの位置を揃える） */}
-        {(() => {
-          const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
-          return (
-          <button
-            disabled={!hasActress}
-            aria-hidden={!hasActress}
-            onClick={() => {
-              setShowActressModal(true);
-              trackModalOpen('actress');
-            }}
-            className={`bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2 flex items-center justify-center gap-1 transition-colors active:scale-95 flex-shrink-0 ${hasActress ? '' : 'invisible'}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="text-xs font-medium">この作品の女優</span>
-          </button>
-        );
-        })()}
+        {/* 女優ボタンと、価格・作品ページへのボタン（1行・高さ固定。ない場合も枠は残してボタンの位置を揃える） */}
+        <div className="grid grid-cols-2 gap-2 h-11 flex-shrink-0">
+          {(() => {
+            const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
+            return (
+              <button
+                disabled={!hasActress}
+                aria-hidden={!hasActress}
+                onClick={() => {
+                  setShowActressModal(true);
+                  trackModalOpen('actress');
+                }}
+                className={`bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center justify-center gap-1 transition-colors active:scale-95 ${hasActress ? '' : 'invisible'}`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-xs font-medium">この作品の女優</span>
+              </button>
+            );
+          })()}
+          {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
+            <a
+              href={currentVideo.dmm_product_url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
+            >
+              {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              <span className="text-xs font-medium">詳細はこちら</span>
+            </a>
+          ) : (
+            <div />
+          )}
+        </div>
 
         {/* ボタンエリア - 3列グリッド */}
         <div className="grid grid-cols-3 gap-2">
@@ -838,35 +871,35 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
       <div className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
-          {/* 動画情報 - 高さ固定（2行分） */}
-          <div className="text-white text-sm md:text-base mb-3 md:mb-4 h-[3.5rem] flex items-end justify-between gap-3">
-            <div className="flex-1 flex flex-col justify-end min-w-0">
-              {currentVideo?.maker && (
-                <p className="text-gray-300 truncate">
-                  <span className="text-gray-400">メーカー:</span> {currentVideo.maker}
-                </p>
-              )}
-              {currentVideo?.release_date && (
-                <p className="text-gray-300 truncate">
-                  <span className="text-gray-400">リリース:</span>{' '}
-                  {new Date(currentVideo.release_date).toLocaleDateString('ja-JP')}
-                </p>
-              )}
-            </div>
-            {/* 女優ボタン */}
+          {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
+              メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
+          <div className="mb-3 md:mb-4 h-12 flex items-stretch gap-3">
             {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
               <button
                 onClick={() => {
                   setShowActressModal(true);
                   trackModalOpen('actress');
                 }}
-                className="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-3 py-2 flex items-center gap-1 transition-colors active:scale-95 h-fit"
+                className="w-1/3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl flex items-center justify-center gap-1 transition-colors active:scale-95"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-xs font-medium">女優</span>
+                <span className="text-sm font-medium">女優</span>
               </button>
+            )}
+            {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
+            {enableAffiliateLinks && currentVideo?.dmm_product_url && (
+              <a
+                href={currentVideo.dmm_product_url}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
+              >
+                {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+                <span className="text-sm font-medium">詳細はこちら</span>
+              </a>
             )}
           </div>
 
