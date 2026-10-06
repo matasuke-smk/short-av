@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import type { Database } from '@/lib/supabase';
+import { CONTACT_FORM_URL } from '@/config/site';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -189,6 +190,9 @@ export default function RankingPage() {
             <Link href="/terms" className="hover:text-gray-400 transition-colors underline">
               利用規約
             </Link>
+            <a href={CONTACT_FORM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors underline">
+              お問い合わせ
+            </a>
           </div>
           <p className="text-center text-xs text-gray-600 mt-4">
             Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400">FANZA Webサービス</a>
