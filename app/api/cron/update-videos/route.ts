@@ -20,7 +20,7 @@ import {
   type DMMItem,
 } from '@/lib/dmm-api';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getSampleSeconds } from '@/lib/sample-player';
+import { measureSampleLengths } from '@/lib/sample-player';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,16 +28,13 @@ export const maxDuration = 60;
 // 1回の実行で取得するジャンル数（100ジャンル ÷ 15 ≒ 7日で一巡）
 const GENRES_PER_RUN = 15;
 // ジャンル取得に使う時間の上限（DB保存の時間を残すため）
-const GENRE_FETCH_BUDGET_MS = 25_000;
+const GENRE_FETCH_BUDGET_MS = 18_000;
 // この日数以上更新されず、いいねもされていない動画を削除する（ジャンル一巡の期間より十分長くする）
 const STALE_DAYS = 30;
-// サンプル動画の長さを調べるのに使える時間（関数の上限 60 秒に収める）と、同時に調べる本数
-const SAMPLE_LENGTH_DEADLINE_MS = 50_000;
-const SAMPLE_LENGTH_CONCURRENCY = 8;
+// サンプル動画の長さを調べ終える時刻（開始からの経過。関数の上限 60 秒に収める）
+const SAMPLE_LENGTH_DEADLINE_MS = 52_000;
 // .in() / バルク書き込み1回あたりの件数
 const CHUNK_SIZE = 200;
-// 既存動画の更新を並列実行する件数
-const UPDATE_CONCURRENCY = 20;
 
 function verifyCronRequest(request: Request): boolean {
   const authHeader = request.headers.get('authorization');
@@ -195,17 +192,15 @@ export async function GET(request: Request) {
         saveErrors += rows.length;
       }
     }
-    for (const rows of chunk(updateRows, UPDATE_CONCURRENCY)) {
-      const results = await Promise.all(
-        rows.map((row) =>
-          supabase.from('videos').update(row).eq('id', existingIdMap.get(row.dmm_content_id)!),
-        ),
-      );
-      for (const { error } of results) {
-        if (error) {
-          console.error('[Cron] 更新エラー:', error);
-          saveErrors++;
-        }
+    // 既存動画は id を付けて 200 件ずつまとめて上書きする（1件ずつ更新していた頃は約1100件で60秒の上限を超えていた）
+    // 送った列だけが更新され、閲覧数・クリック数・サンプルの長さなどは保たれる
+    for (const rows of chunk(updateRows, CHUNK_SIZE)) {
+      const { error } = await supabase
+        .from('videos')
+        .upsert(rows.map((row) => ({ id: existingIdMap.get(row.dmm_content_id)!, ...row })), { onConflict: 'id' });
+      if (error) {
+        console.error('[Cron] 更新エラー:', error);
+        saveErrors += rows.length;
       }
     }
     const saved = videoRows.length - saveErrors;
@@ -265,30 +260,7 @@ export async function GET(request: Request) {
     }
 
     // 7. サンプル動画の長さを調べる（まだ調べていない作品を新しい順に、時間の許す限り）
-    // 既存の作品は毎日少しずつ埋まる。調べられなかった作品は -1 にして、翌日以降に同じ作品で止まらないようにする
-    let sampleMeasured = 0;
-    const { data: unmeasured, error: unmeasuredError } = await supabase
-      .from('videos')
-      .select('id, dmm_content_id, sample_video_url')
-      .is('sample_seconds', null)
-      .not('sample_video_url', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(600);
-    if (unmeasuredError) {
-      console.error('[Cron] サンプルの長さの対象取得エラー:', unmeasuredError);
-    } else {
-      const queue = [...(unmeasured ?? [])];
-      const worker = async () => {
-        while (queue.length > 0 && Date.now() - startTime < SAMPLE_LENGTH_DEADLINE_MS) {
-          const video = queue.shift()!;
-          const cid = (video.sample_video_url as string).match(/\/cid=([0-9a-z_]+)\//)?.[1] ?? video.dmm_content_id;
-          const seconds = await getSampleSeconds(cid).catch(() => null);
-          const { error } = await supabase.from('videos').update({ sample_seconds: seconds ?? -1 }).eq('id', video.id);
-          if (!error) sampleMeasured++;
-        }
-      };
-      await Promise.all(Array.from({ length: SAMPLE_LENGTH_CONCURRENCY }, worker));
-    }
+    const sampleMeasured = await measureSampleLengths(supabase, startTime + SAMPLE_LENGTH_DEADLINE_MS);
     console.info(`[Cron] サンプルの長さ ${sampleMeasured}件 (${elapsed()})`);
 
     const result = {

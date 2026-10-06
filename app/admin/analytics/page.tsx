@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { GaNotConfiguredError, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import SampleLengthStatus from './SampleLengthStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -304,6 +305,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
             </table>
           </div>
         </Section>
+
+        <SampleLengthStatus />
 
         <p className="text-xs text-gray-500">
           GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。
