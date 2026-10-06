@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { trackSearch } from '@/lib/gtag';
 import { LONG_SAMPLE_LABEL, LONG_SAMPLE_SECONDS } from '@/config/site';
 import type { Database } from '@/lib/supabase';
 
@@ -259,6 +260,22 @@ export default function SearchModal({
 
       if (searchId !== searchIdRef.current) return;
       if (error) throw error;
+
+      // アクセス解析: 検索の種類・条件・結果の件数
+      const names = (ids: string[], list: { id: string; name: string }[]) =>
+        ids.map((id) => list.find((x) => x.id === id)?.name).filter(Boolean) as string[];
+      trackSearch({
+        searchTerm:
+          by === 'keyword'
+            ? words.join(' ')
+            : [
+                ...(minSampleSeconds > 0 ? [LONG_SAMPLE_LABEL] : []),
+                ...names(selectedIds, searchMode === 'genre' ? genres : actresses),
+              ].join(' / '),
+        searchType: by === 'keyword' ? 'タイトル' : searchMode === 'genre' ? 'ジャンル' : '女優',
+        longSample: by === 'filter' && minSampleSeconds > 0,
+        resultCount: data?.length ?? 0,
+      });
 
       if (!data || data.length === 0) {
         setMessage('条件に合う動画が見つかりませんでした');
