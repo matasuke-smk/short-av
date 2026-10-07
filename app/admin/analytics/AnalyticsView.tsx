@@ -157,6 +157,9 @@ function HourlyChart({ rows, total }: { rows: ReportRow[]; total: number }) {
     return { h, users: row?.metrics[0] ?? 0, events: row?.metrics[1] ?? 0 };
   });
   const max = Math.max(...hours.map((x) => x.users), 1);
+  const maxEvents = Math.max(...hours.map((x) => x.events), 1);
+  // イベント数の折れ線（棒の中央を結ぶ。縦は右の目盛り＝イベント数の最大値で 100%）
+  const linePoints = hours.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
   if (hours.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
   const shown = active === null ? null : hours[active];
   const peak = hours.reduce((a, b) => (b.users > a.users ? b : a));
@@ -173,10 +176,28 @@ function HourlyChart({ rows, total }: { rows: ReportRow[]; total: number }) {
           合計 <span className="text-lg font-bold text-white">{fmt(total)}</span>人
         </p>
       </div>
+      <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />利用者（左の目盛り）</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />イベント数（右の目盛り）</span>
+      </div>
       <div className="relative mt-5">
-        {/* 目盛り（最大値の線） */}
+        {/* 目盛り（最大値の線）。左が利用者、右がイベント数 */}
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
-        <span className="absolute right-0 -top-4 text-[10px] text-gray-500">{fmt(max)}人</span>
+        <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt(max)}人</span>
+        <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt(maxEvents)}件</span>
+        {/* イベント数の折れ線（棒の上に重ねる。タップは下の棒に通す） */}
+        <div className="absolute inset-x-0 top-0 h-36 pointer-events-none z-10">
+          <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <polyline points={linePoints} fill="none" stroke="#fbbf24" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+          </svg>
+          {hours.map((x) => (
+            <span
+              key={x.h}
+              className={`absolute rounded-full bg-amber-400 -translate-x-1/2 translate-y-1/2 ${active === x.h ? 'w-2.5 h-2.5 ring-2 ring-amber-200' : 'w-1.5 h-1.5'}`}
+              style={{ left: `${((x.h + 0.5) / 24) * 100}%`, bottom: `${(x.events / maxEvents) * 100}%` }}
+            />
+          ))}
+        </div>
         <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
           {hours.map((x) => (
             <button
@@ -248,14 +269,65 @@ function PageList({ rows }: { rows: ReportRow[] }) {
   );
 }
 
+// 日別の表。上の期間の切り替えに関係なく、直近14日（ボタンで28日）を表示する
+function DailyTable({ daily, dailyEvents }: { daily: ReportRow[]; dailyEvents: ReportRow[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const allDays = [...new Set(daily.map((r) => r.dimensions[0]))].sort().reverse();
+  const days = showAll ? allDays : allDays.slice(0, 14);
+  const dayEvent = (date: string, event: string) =>
+    dailyEvents.find((r) => r.dimensions[0] === date && r.dimensions[1] === event)?.metrics ?? [0, 0];
+  return (
+    <Section title="日別" note={`期間の切り替えに関係なく、直近${showAll ? 28 : 14}日を表示`}>
+      <div className="overflow-x-auto">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead className="text-gray-400">
+                <tr>
+                  <th className="text-left font-normal py-1">日付</th>
+                  <th className="text-right font-normal">利用者</th>
+                  <th className="text-right font-normal">新規</th>
+                  <th className="text-right font-normal">年齢確認</th>
+                  <th className="text-right font-normal">スワイプ</th>
+                  <th className="text-right font-normal">再生</th>
+                  <th className="text-right font-normal">クリック</th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((d) => {
+                  const row = daily.find((r) => r.dimensions[0] === d)?.metrics ?? [0, 0];
+                  return (
+                    <tr key={d} className="border-t border-gray-700">
+                      <td className="py-2">{ymd(d)}</td>
+                      <td className="text-right">{fmt(row[0])}</td>
+                      <td className="text-right">{fmt(row[1])}</td>
+                      <td className="text-right">{fmt(dayEvent(d, 'age_verification')[0])}人</td>
+                      <td className="text-right">{fmt(dayEvent(d, 'swipe')[1])}回</td>
+                      <td className="text-right">{fmt(dayEvent(d, 'video_view')[1])}回</td>
+                      <td className="text-right">{fmt(dayEvent(d, 'dmm_link_click')[1])}回</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+      {allDays.length > 14 && (
+        <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs text-blue-300 hover:text-blue-200">
+          {showAll ? '直近14日だけ表示' : '28日分を表示'}
+        </button>
+      )}
+    </Section>
+  );
+}
+
 function RangeBody({
   rangeKey,
   data,
   realtime,
+  fixedDaily,
 }: {
   rangeKey: RangeKey;
   data: Extract<RangeData, { reports: ReportRow[][] }>;
   realtime: React.ReactNode; // いま見られているページ（期間によらず同じ）
+  fixedDaily: ReportRow[][] | null; // 日別の表に使う「28日間」のレポート（取得できなければ null）
 }) {
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
@@ -283,9 +355,6 @@ function RangeBody({
   const viaCount = (event: string, value: string) =>
     via.filter((r) => r.dimensions[0] === event && r.dimensions[1] === value).reduce((s, r) => s + r.metrics[0], 0);
 
-  const days = [...new Set(daily.map((r) => r.dimensions[0]))].sort().reverse();
-  const dayEvent = (date: string, event: string) =>
-    dailyEvents.find((r) => r.dimensions[0] === date && r.dimensions[1] === event)?.metrics ?? [0, 0];
 
 
   return (
@@ -329,39 +398,7 @@ function RangeBody({
           ))}
         </Section>
         {realtime}
-        <Section title="日別">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead className="text-gray-400">
-                <tr>
-                  <th className="text-left font-normal py-1">日付</th>
-                  <th className="text-right font-normal">利用者</th>
-                  <th className="text-right font-normal">新規</th>
-                  <th className="text-right font-normal">年齢確認</th>
-                  <th className="text-right font-normal">スワイプ</th>
-                  <th className="text-right font-normal">再生</th>
-                  <th className="text-right font-normal">クリック</th>
-                </tr>
-              </thead>
-              <tbody>
-                {days.map((d) => {
-                  const row = daily.find((r) => r.dimensions[0] === d)?.metrics ?? [0, 0];
-                  return (
-                    <tr key={d} className="border-t border-gray-700">
-                      <td className="py-2">{ymd(d)}</td>
-                      <td className="text-right">{fmt(row[0])}</td>
-                      <td className="text-right">{fmt(row[1])}</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'age_verification')[0])}人</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'swipe')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'video_view')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'dmm_link_click')[1])}回</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Section>
+        <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
         <Section title="スワイプで見つけた作品は見られているか" note="「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。">
           <table className="w-full text-sm">
             <thead className="text-gray-400">
@@ -549,7 +586,12 @@ export default function AnalyticsView({
             {realtimeSection}
           </>
         ) : (
-          <RangeBody rangeKey={rangeKey} data={current} realtime={realtimeSection} />
+          <RangeBody
+            rangeKey={rangeKey}
+            data={current}
+            realtime={realtimeSection}
+            fixedDaily={'reports' in data['28d'] ? data['28d'].reports : null}
+          />
         )}
 
         <SampleLengthStatus />
