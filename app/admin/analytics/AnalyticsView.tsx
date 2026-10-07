@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
 import SampleLengthStatus from './SampleLengthStatus';
-import RealtimeStrip from './RealtimeStrip';
+import { useLiveHourly, type LiveHourly } from './useLiveHourly';
 import { FUNNEL } from './funnel';
 
 /**
@@ -152,12 +152,36 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 // 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
 // total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
 // totalEvents: 期間全体のイベント数（取得できなければ時間帯ごとの合計を使う）
-function HourlyChart({ rows, total, totalEvents }: { rows: ReportRow[]; total: number; totalEvents: number }) {
+// live: 「今日」のとき、リアルタイムで補った時間帯ごとの数字（通常の集計より大きければそちらを使う）
+function HourlyChart({
+  rows,
+  total,
+  totalEvents,
+  live,
+}: {
+  rows: ReportRow[];
+  total: number;
+  totalEvents: number;
+  live: LiveHourly | null;
+}) {
   const [active, setActive] = useState<number | null>(null);
   const hours = Array.from({ length: 24 }, (_, h) => {
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
-    return { h, users: row?.metrics[0] ?? 0, events: row?.metrics[1] ?? 0 };
+    const users = row?.metrics[0] ?? 0;
+    const events = row?.metrics[1] ?? 0;
+    const liveUsers = live?.[h]?.users ?? 0;
+    const liveEvents = live?.[h]?.events ?? 0;
+    return {
+      h,
+      users: Math.max(users, liveUsers),
+      events: Math.max(events, liveEvents),
+      fromLive: liveUsers > users || liveEvents > events, // リアルタイムで補った時間帯
+    };
   });
+  // 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
+  const liveExtraEvents = hours.reduce((sum, x) => sum + x.events, 0) - rows.reduce((sum, r) => sum + (r.metrics[1] ?? 0), 0);
+  totalEvents = totalEvents + Math.max(0, liveExtraEvents);
+  total = Math.max(total, ...hours.filter((x) => x.fromLive).map((x) => x.users));
   const max = Math.max(...hours.map((x) => x.users), 1);
   const maxEvents = Math.max(...hours.map((x) => x.events), 1);
   // イベント数の折れ線（棒の中央を結ぶ。縦は右の目盛り＝イベント数の最大値で 100%）
@@ -171,7 +195,7 @@ function HourlyChart({ rows, total, totalEvents }: { rows: ReportRow[]; total: n
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm text-gray-300 min-w-0 truncate">
           {shown
-            ? `${shown.h}時台: ${fmt(shown.users)}人（イベント ${fmt(shown.events)}件）`
+            ? `${shown.h}時台: ${fmt(shown.users)}人（イベント ${fmt(shown.events)}件）${shown.fromLive ? '・リアルタイム' : ''}`
             : `いちばん多い時間帯: ${peak.h}時台（${fmt(peak.users)}人）`}
         </p>
         <p className="flex-shrink-0 text-sm text-gray-400">
@@ -181,9 +205,12 @@ function HourlyChart({ rows, total, totalEvents }: { rows: ReportRow[]; total: n
           </span>
         </p>
       </div>
-      <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />利用者（左の目盛り）</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />イベント数（右の目盛り）</span>
+        {live && (
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-sky-400/80" />リアルタイムで補った時間帯（1分ごとに更新）</span>
+        )}
       </div>
       <div className="relative mt-5">
         {/* 目盛り（最大値の線）。左が利用者、右がイベント数 */}
@@ -215,7 +242,7 @@ function HourlyChart({ rows, total, totalEvents }: { rows: ReportRow[]; total: n
               className="flex-1 h-full flex items-end group"
             >
               <span
-                className={`w-full rounded-t ${active === x.h ? 'bg-blue-300' : 'bg-blue-500 group-hover:bg-blue-400'}`}
+                className={`w-full rounded-t ${active === x.h ? 'bg-blue-300' : x.fromLive ? 'bg-sky-400/80 group-hover:bg-sky-300' : 'bg-blue-500 group-hover:bg-blue-400'}`}
                 style={{ height: `${(x.users / max) * 100}%`, minHeight: x.users > 0 ? 2 : 0 }}
               />
             </button>
@@ -337,6 +364,8 @@ function RangeBody({
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
   const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
+  // 「今日」は GA の集計が2時間ほど遅れるため、リアルタイム（直近30分）で補う
+  const live = useLiveHourly(rangeKey === 'today');
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
@@ -365,8 +394,7 @@ function RangeBody({
   return (
     <>
         <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
-          <RealtimeStrip />
-          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} />
+          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} live={live} />
         </Section>
 
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">

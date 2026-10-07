@@ -111,7 +111,9 @@ export async function runReports(requests: ReportRequest[]): Promise<ReportRow[]
 }
 
 /** リアルタイムレポート（直近30分）。dateRanges は指定しない */
-export async function runRealtimeReport(request: Omit<ReportRequest, 'dateRanges'>): Promise<ReportRow[]> {
+export async function runRealtimeReport(
+  request: Omit<ReportRequest, 'dateRanges'> & { minuteRanges?: { startMinutesAgo: number; endMinutesAgo: number }[] },
+): Promise<ReportRow[]> {
   const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
   const token = await getAccessToken();
   const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`, {
