@@ -8,6 +8,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
+import { getAdminUserIds } from '@/lib/admin-users';
 import { LONG_SAMPLE_SECONDS } from '@/config/site';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
@@ -177,6 +178,36 @@ async function getPostHistory() {
 }
 
 /**
+ * 作品ごとのいいね数（運営者＝管理画面を開いた端末のいいねを除く）。
+ * videos.likes_count は運営者のいいねも含むため、おすすめの点数にはこちらを使う。
+ */
+async function getLikeCountsExcludingAdmin(): Promise<Map<string, number>> {
+  const supabase = getSupabaseAdmin();
+  const adminIds = new Set(await getAdminUserIds());
+  const rows: { video_id: string; user_identifier: string }[] = [];
+  // 1000 行上限で切れないようページを分けて取得
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('likes')
+      .select('video_id, user_identifier')
+      .order('id', { ascending: true })
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...((data ?? []) as { video_id: string; user_identifier: string }[]));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+  const others = rows.filter((row) => !adminIds.has(row.user_identifier));
+  // 旧形式（UUID）のいいねも dmm_content_id にまとめる
+  const contentIds = await toContentIds(supabase, [...new Set(others.map((row) => row.video_id))]);
+  const counts = new Map<string, number>();
+  for (const row of others) {
+    const id = contentIds.get(row.video_id);
+    if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
  * 投稿すると効果的な作品を、反応の大きい順に返す。
  * 紹介してから REPOST_INTERVAL_DAYS 日は出さず、その後はもう一度候補に入る。
  * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
@@ -186,12 +217,14 @@ async function getPostHistory() {
 export async function getRecommendedVideos(): Promise<{ days: number; videos: RecommendedVideo[] }> {
   const supabase = getSupabaseAdmin();
 
-  const [{ history, used }, ga] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS)]);
+  const [{ history, used }, ga, likeCounts] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS), getLikeCountsExcludingAdmin()]);
+  // いいねの多い作品（運営者を除く）の上位60件も候補に入れる
+  const likedIds = [...likeCounts].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([id]) => id);
   const gaIds = [...new Set([...ga.plays.keys(), ...ga.clicks.keys(), ...ga.xPlays.keys(), ...ga.xClicks.keys()])].filter(
     (id) => !used.has(id),
   );
 
-  const columns = 'dmm_content_id, title, thumbnail_url, likes_count, rank_position';
+  const columns = 'dmm_content_id, title, thumbnail_url, rank_position';
   const base = () =>
     supabase
       .from('videos')
@@ -202,13 +235,13 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
   const [gaRes, rankingRes, likedRes] = await Promise.all([
     gaIds.length > 0 ? base().in('dmm_content_id', gaIds) : Promise.resolve({ data: [], error: null }),
     base().not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(60),
-    base().gt('likes_count', 0).order('likes_count', { ascending: false }).limit(60),
+    likedIds.length > 0 ? base().in('dmm_content_id', likedIds) : Promise.resolve({ data: [], error: null }),
   ]);
   for (const res of [gaRes, rankingRes, likedRes]) {
     if (res.error) throw res.error;
   }
 
-  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; likes_count: number | null; rank_position: number | null };
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null };
   const byId = new Map<string, Row>();
   for (const row of [...(gaRes.data ?? []), ...(rankingRes.data ?? []), ...(likedRes.data ?? [])] as Row[]) {
     if (!used.has(row.dmm_content_id)) byId.set(row.dmm_content_id, row);
@@ -218,7 +251,7 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
     const plays = ga.plays.get(row.dmm_content_id) ?? 0;
     const swipePlays = ga.swipePlays.get(row.dmm_content_id) ?? 0;
     const clicks = ga.clicks.get(row.dmm_content_id) ?? 0;
-    const likes = row.likes_count ?? 0;
+    const likes = likeCounts.get(row.dmm_content_id) ?? 0;
     const rank = row.rank_position;
     const rankBonus = rank ? Math.max(0, 31 - rank) : 0;
     const xPlays = ga.xPlays.get(row.dmm_content_id) ?? 0;
@@ -270,19 +303,19 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
   const ids = [...likedAt.keys()];
   if (ids.length === 0) return { days: RECOMMEND_DAYS, videos: [] };
 
-  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; likes_count: number | null; rank_position: number | null };
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null };
   const rows: Row[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     const { data, error: videoError } = await supabase
       .from('videos')
-      .select('dmm_content_id, title, thumbnail_url, likes_count, rank_position')
+      .select('dmm_content_id, title, thumbnail_url, rank_position')
       .eq('is_active', true)
       .in('dmm_content_id', ids.slice(i, i + 100));
     if (videoError) throw videoError;
     rows.push(...((data ?? []) as Row[]));
   }
 
-  const [{ history }, ga] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS)]);
+  const [{ history }, ga, likeCounts] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS), getLikeCountsExcludingAdmin()]);
   const videos = rows.map((row): LikedVideo => {
     const posted = history.get(row.dmm_content_id);
     return {
@@ -292,7 +325,7 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
       plays: ga.plays.get(row.dmm_content_id) ?? 0,
       swipePlays: ga.swipePlays.get(row.dmm_content_id) ?? 0,
       clicks: ga.clicks.get(row.dmm_content_id) ?? 0,
-      likes: row.likes_count ?? 0,
+      likes: likeCounts.get(row.dmm_content_id) ?? 0,
       rank: row.rank_position,
       xPlays: ga.xPlays.get(row.dmm_content_id) ?? 0,
       xClicks: ga.xClicks.get(row.dmm_content_id) ?? 0,
