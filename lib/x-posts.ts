@@ -158,6 +158,7 @@ export type RecommendedVideo = {
   xClicks: number;
   postedCount: number; // これまでに紹介した回数
   lastPostedAt: string | null; // 前回紹介した日時
+  sampleSeconds: number | null; // サンプル動画の長さ（秒。分からなければ null）
 };
 
 /**
@@ -242,7 +243,7 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
     (id) => !used.has(id),
   );
 
-  const columns = 'dmm_content_id, title, thumbnail_url, rank_position';
+  const columns = 'dmm_content_id, title, thumbnail_url, rank_position, sample_seconds';
   const base = () =>
     supabase
       .from('videos')
@@ -259,7 +260,7 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
     if (res.error) throw res.error;
   }
 
-  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null };
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null; sample_seconds: number | null };
   const byId = new Map<string, Row>();
   for (const row of [...(gaRes.data ?? []), ...(rankingRes.data ?? []), ...(likedRes.data ?? [])] as Row[]) {
     if (!used.has(row.dmm_content_id)) byId.set(row.dmm_content_id, row);
@@ -279,6 +280,7 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
       dmm_content_id: row.dmm_content_id,
       title: row.title,
       thumbnail_url: row.thumbnail_url,
+      sampleSeconds: row.sample_seconds && row.sample_seconds > 0 ? row.sample_seconds : null,
       score: clicks * 5 + swipePlays * 2 + plays + likes * 3 + rankBonus + xClicks * 10 + xPlays * 3,
       plays,
       swipePlays,
@@ -321,12 +323,12 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
   const ids = [...likedAt.keys()];
   if (ids.length === 0) return { days: RECOMMEND_DAYS, videos: [] };
 
-  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null };
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null; sample_seconds: number | null };
   const rows: Row[] = [];
   for (let i = 0; i < ids.length; i += 100) {
     const { data, error: videoError } = await supabase
       .from('videos')
-      .select('dmm_content_id, title, thumbnail_url, rank_position')
+      .select('dmm_content_id, title, thumbnail_url, rank_position, sample_seconds')
       .eq('is_active', true)
       .in('dmm_content_id', ids.slice(i, i + 100));
     if (videoError) throw videoError;
@@ -342,6 +344,7 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
       dmm_content_id: row.dmm_content_id,
       title: row.title,
       thumbnail_url: row.thumbnail_url,
+      sampleSeconds: row.sample_seconds && row.sample_seconds > 0 ? row.sample_seconds : null,
       plays: ga.plays.get(row.dmm_content_id) ?? 0,
       swipePlays: ga.swipePlays.get(row.dmm_content_id) ?? 0,
       clicks: ga.clicks.get(row.dmm_content_id) ?? 0,

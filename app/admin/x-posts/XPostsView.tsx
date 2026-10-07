@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getUserId } from '@/lib/user-id';
 import {
   countXWeightedLength,
@@ -221,6 +221,7 @@ type VideoItem = {
   dmm_content_id: string;
   title: string;
   thumbnail_url: string | null;
+  sampleSeconds: number | null; // サンプル動画の長さ（秒）
   plays: number;
   swipePlays: number;
   clicks: number;
@@ -232,6 +233,73 @@ type VideoItem = {
   lastPostedAt: string | null;
   likedAt?: string; // 「いいね」タブのみ
 };
+
+const sampleLength = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+
+/**
+ * カードのサムネイルと、その場でのサンプル再生（サイトと同じ FANZA のプレイヤーを /api/sample-player で開く）。
+ * 右下にサンプルの長さを出し、押すとサムネイルの位置で再生できる（プレイヤーの中の ▶ を押すと再生が始まる）
+ */
+function CardMedia({ video }: { video: VideoItem }) {
+  const [playing, setPlaying] = useState(false);
+  const [width, setWidth] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const update = () => setWidth(Math.round(box.getBoundingClientRect().width));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, []);
+
+  // FANZA のプレイヤーは 560x360 の比率
+  const height = Math.round((width * 360) / 560);
+  const label = video.sampleSeconds ? `サンプル ${sampleLength(video.sampleSeconds)}` : 'サンプルを再生';
+
+  return (
+    <div ref={boxRef} className="relative bg-black">
+      {playing && width > 0 ? (
+        <>
+          <iframe
+            src={`/api/sample-player?cid=${encodeURIComponent(video.dmm_content_id)}&w=${width}&h=${height}`}
+            title={`${video.title} のサンプル動画`}
+            className="block w-full border-0"
+            style={{ height }}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+          />
+          <button
+            type="button"
+            onClick={() => setPlaying(false)}
+            className="absolute top-2 right-2 rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white"
+          >
+            × 閉じる
+          </button>
+        </>
+      ) : (
+        <>
+          {video.thumbnail_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={video.thumbnail_url} alt={video.title} className="w-full h-auto" loading="lazy" />
+          )}
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/75 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-black/90"
+          >
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            {label}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 async function copyToClipboard(text: string) {
   try {
@@ -340,10 +408,7 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
 
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">
-      {video.thumbnail_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={video.thumbnail_url} alt={video.title} className="w-full h-auto bg-black" loading="lazy" />
-      )}
+      <CardMedia video={video} />
       <div className="p-3">
         <div className="flex flex-wrap gap-x-2 gap-y-1 mb-1 text-[11px]">
           {video.likedAt && <span className="text-pink-300">♥ {shortDate(video.likedAt)} にいいね</span>}
