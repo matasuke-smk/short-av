@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
 import SampleLengthStatus from './SampleLengthStatus';
+import RealtimeStrip from './RealtimeStrip';
 import { FUNNEL } from './funnel';
 
 /**
@@ -364,6 +365,7 @@ function RangeBody({
   return (
     <>
         <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
+          <RealtimeStrip />
           <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} />
         </Section>
 
