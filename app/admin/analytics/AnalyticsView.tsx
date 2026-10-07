@@ -13,6 +13,17 @@ import { FUNNEL } from './funnel';
 export const RANGE_LABELS = { today: '今日', yesterday: '昨日', '7d': '7日間', '28d': '28日間' } as const;
 export type RangeKey = keyof typeof RANGE_LABELS;
 
+// 各期間が何日前から何日前までか（日本時間）
+const RANGE_SPAN: Record<RangeKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], '7d': [6, 0], '28d': [27, 0] };
+const jstDate = (daysAgo: number) => {
+  const d = new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000);
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+};
+const rangeDates = (key: RangeKey) => {
+  const [from, to] = RANGE_SPAN[key];
+  return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
+};
+
 export type RangeData =
   | { reports: ReportRow[][]; db: { likes: number; sizes: number; titleById: Record<string, string> } }
   | { error: string };
@@ -205,6 +216,8 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
   const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
+  // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
+  const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [users = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
@@ -234,9 +247,12 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
   return (
     <>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人`} />
+          <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} />
+          <Card label="イベント数（合計）" value={fmt(totalEvents)} sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} />
+          <Card label="ページ表示" value={fmt(eventCount('page_view'))} sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} />
+          <Card label="年齢確認に回答" value={fmt(eventCount('age_verification'))} sub={`${fmt(eventUsers('age_verification'))}人`} />
           <Card label="1人あたりの滞在時間" value={seconds(users > 0 ? engagement / users : 0)} sub={`訪問回数 ${fmt(sessions)}`} />
-          <Card label="1人あたりのスワイプ数" value={swipeUsers > 0 ? (swipes / users).toFixed(1) : '0'} sub={`合計 ${fmt(swipes)}回`} />
+          <Card label="1人あたりのスワイプ数" value={swipeUsers > 0 ? (swipes / users).toFixed(1) : '0'} sub={`合計 ${fmt(swipes)}回・${fmt(swipeUsers)}人`} />
           <Card
             label="FANZA へのクリック"
             value={fmt(eventCount('dmm_link_click'))}
@@ -246,6 +262,8 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
           <Card label="1人あたりの再生本数" value={eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'} sub="再生した人の平均" />
           <Card label="いいね" value={fmt(db.likes)} sub="サイトのデータベース" />
           <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} sub="サイトのデータベース" />
+          <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} />
+          <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} sub="いいね・取り消しの合計" />
         </div>
 
         <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
@@ -461,7 +479,7 @@ export default function AnalyticsView({
           </div>
         </section>
 
-        <nav className="flex gap-2 my-6">
+        <nav className="flex flex-wrap gap-2 my-6">
           {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
             <button
               key={key}
@@ -470,9 +488,15 @@ export default function AnalyticsView({
               className={`px-4 py-2 rounded-lg text-sm ${key === rangeKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
             >
               {RANGE_LABELS[key]}
+              <span className="ml-1 text-xs opacity-70" suppressHydrationWarning>
+                {rangeDates(key)}
+              </span>
             </button>
           ))}
         </nav>
+        <p className="-mt-4 mb-6 text-xs text-gray-400" suppressHydrationWarning>
+          集計の対象: {rangeDates(rangeKey)}（日本時間の0時で区切り）
+        </p>
 
         {'error' in current ? (
           <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-6">{current.error}</div>
