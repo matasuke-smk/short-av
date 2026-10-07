@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
+import { addToHistory as saveToHistory } from '@/lib/view-history';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -251,19 +252,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
   }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
 
-  // 履歴に追加する関数
-  const addToHistory = useCallback((videoId: string) => {
-    const historyKey = 'video_history';
-    const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-
-    // 既存の履歴から同じ動画を削除（重複防止）
-    const filteredHistory = history.filter((id: string) => id !== videoId);
-
-    // 新しい動画を先頭に追加
-    const newHistory = [videoId, ...filteredHistory].slice(0, 100); // 最大100件
-
-    localStorage.setItem(historyKey, JSON.stringify(newHistory));
-  }, []);
+  // 履歴に追加する関数（lib/view-history.ts。運営者の端末ではサーバーにも保存して端末間で共有する）
+  const addToHistory = useCallback((videoId: string) => saveToHistory(videoId), []);
 
   // 追加の動画を読み込む関数（プール方式）
   // アクセス解析: このページを開いてからのスワイプ回数と、直前に表示していた位置

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { Database } from '@/lib/supabase';
 import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
+import { clearHistory as clearViewHistory, loadHistory as loadViewHistory } from '@/lib/view-history';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -28,8 +29,7 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const historyKey = 'video_history';
-      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      const history = await loadViewHistory();
 
       if (history.length === 0) {
         setHistoryVideos([]);
@@ -49,7 +49,7 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
 
   const clearHistory = () => {
     if (confirm('履歴をすべて削除しますか？')) {
-      localStorage.removeItem('video_history');
+      clearViewHistory();
       setHistoryVideos([]);
     }
   };

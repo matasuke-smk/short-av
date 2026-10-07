@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
+import { clearHistory as clearViewHistory, loadHistory as loadViewHistory } from '@/lib/view-history';
 import Link from 'next/link';
 import type { Database } from '@/lib/supabase';
 import { CONTACT_FORM_URL } from '@/config/site';
@@ -15,9 +16,8 @@ export default function HistoryPage() {
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        // localStorageから履歴を取得
-        const historyKey = 'video_history';
-        const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        // 履歴を取得（運営者の端末ではサーバーの共有の履歴）
+        const history = await loadViewHistory();
 
         if (history.length === 0) {
           setLoading(false);
@@ -38,7 +38,7 @@ export default function HistoryPage() {
 
   const clearHistory = () => {
     if (confirm('履歴をすべて削除しますか？')) {
-      localStorage.removeItem('video_history');
+      clearViewHistory();
       setVideos([]);
     }
   };
