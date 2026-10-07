@@ -14,6 +14,44 @@ const RANGES = {
   '28d': { label: '28日間', startDate: '27daysAgo', endDate: 'today', days: 28, offset: 0 },
 } as const;
 
+// GA のレポートのタイムゾーンは 2026/10/7 正午ごろまでロサンゼルス時間（日本の16時間遅れ）だったため、
+// それより前の記録はロサンゼルス時間で日時が付いている。切り替えをはさんで、ロサンゼルス時間の記録は
+// 「10/6 20時台」まで、日本時間の記録は「10/7 12時台」からになり重ならないので、その間を境に見分けて日本時間に直す。
+const TZ_SWITCH_DATE_HOUR = '2026100704';
+const LA_BEHIND_JST_HOURS = 16;
+
+function toJstDateHour(dateHour: string): string {
+  if (dateHour >= TZ_SWITCH_DATE_HOUR) return dateHour;
+  const [y, m, d, h] = [dateHour.slice(0, 4), dateHour.slice(4, 6), dateHour.slice(6, 8), dateHour.slice(8, 10)].map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d, h + LA_BEHIND_JST_HOURS));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}${pad(t.getUTCHours())}`;
+}
+
+// 期間に含まれる日（日本時間、YYYYMMDD）
+function jstDays(range: (typeof RANGES)[RangeKey]): Set<string> {
+  const days = new Set<string>();
+  for (let i = range.offset; i < range.offset + range.days; i++) {
+    const d = new Date(Date.now() + 9 * 3_600_000 - i * 86_400_000);
+    days.add(`${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`);
+  }
+  return days;
+}
+
+// 日時（dateHour）ごとの行を日本時間に直し、期間内の日だけを時間帯（0〜23時）ごとに合計する
+function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): ReportRow[] {
+  const days = jstDays(range);
+  const byHour = new Map<number, number[]>();
+  for (const row of rows) {
+    const jst = toJstDateHour(row.dimensions[0]);
+    if (!days.has(jst.slice(0, 8))) continue;
+    const hour = Number(jst.slice(8, 10));
+    const sum = byHour.get(hour) ?? [0, 0];
+    byHour.set(hour, [sum[0] + row.metrics[0], sum[1] + row.metrics[1]]);
+  }
+  return [...byHour].map(([hour, metrics]) => ({ dimensions: [String(hour)], metrics }));
+}
+
 const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFilter: { value } } });
 const eventIn = (values: readonly string[]) => ({ filter: { fieldName: 'eventName', inListFilter: { values } } });
 const byMetricDesc = { metric: { metricName: 'eventCount' }, desc: true };
@@ -42,8 +80,13 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }], metrics: [{ name: 'sessions' }, { name: 'totalUsers' }], orderBys: [{ metric: { metricName: 'sessions' }, desc: true }], limit: 10 },
     // 9: 端末
     { dateRanges, dimensions: [{ name: 'deviceCategory' }], metrics: [{ name: 'activeUsers' }], orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }] },
-    // 10: 時間帯ごと（0〜23時）
-    { dateRanges, dimensions: [{ name: 'hour' }], metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }] },
+    // 10: 時間帯ごと（日時で取得し、toJstHourly で日本時間の0〜23時に直す。ロサンゼルス時間の記録は1日前の日付になるため1日広く取る）
+    {
+      dateRanges: [{ startDate: `${range.days + range.offset}daysAgo`, endDate: range.endDate }],
+      dimensions: [{ name: 'dateHour' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }],
+      limit: 10000,
+    },
   ];
   // 開いた画面・検索（登録したばかりのカスタム定義は GA に反映されるまでエラーになることがあるため、
   // 別に取得して失敗しても他の集計は表示する）
@@ -110,11 +153,12 @@ const getRangeData = unstable_cache(
   async (key: RangeKey) => {
     const range = RANGES[key];
     const reports = await loadGa(range);
+    reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v2'],
+  ['admin-analytics-v3'],
   { revalidate: 300 },
 );
 
