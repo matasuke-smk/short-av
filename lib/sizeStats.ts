@@ -15,6 +15,9 @@ export const LENGTH_RANGE_MM = { min: 100, max: 170 } as const;
 // 自己申告は実測より大きめに出やすいため、平均の計算時に長さから一律に差し引く量（DB には入力値のまま保存）
 export const SELF_REPORT_CORRECTION_MM = 5;
 
+// 比較用の基準（Veale ら 2015年のメタ分析。サイズ比較ツールに載せている値）
+export const REFERENCE_LENGTH_MM = { erect: 131, flaccid: 92 } as const;
+
 const PAGE_SIZE = 1000;
 
 /**
@@ -69,6 +72,28 @@ export function summarizeSizeStatistics(rows: SizeStatisticsRow[]) {
       stdLength: lengthStat.std.toFixed(1),
       stdDiameter: diameterStat.std.toFixed(1),
     },
+  };
+}
+
+/**
+ * 管理画面用: 件数の内訳と、長さの補正の比較
+ * - 今の補正: 一律 SELF_REPORT_CORRECTION_MM を差し引く
+ * - 中間案: 補正前の平均と基準（REFERENCE_LENGTH_MM）の中間を平均にする（差し引く量 = 差の半分。基準より小さければ補正しない）
+ */
+export function summarizeForAdmin(rows: SizeStatisticsRow[], erectionState: string) {
+  const usable = rows.filter(d => d.length_mm >= LENGTH_RANGE_MM.min && d.length_mm <= LENGTH_RANGE_MM.max);
+  const reference = erectionState === 'flaccid' ? REFERENCE_LENGTH_MM.flaccid : REFERENCE_LENGTH_MM.erect;
+  const rawAvg = usable.length > 0 ? usable.reduce((sum, d) => sum + d.length_mm, 0) / usable.length : null;
+  const midpointCorrection = rawAvg === null ? null : Math.max(0, (rawAvg - reference) / 2);
+  return {
+    total: rows.length,
+    outOfRange: rows.length - usable.length,
+    lengthRangeMm: LENGTH_RANGE_MM,
+    correctionMm: SELF_REPORT_CORRECTION_MM,
+    referenceLengthMm: reference,
+    rawAvgLength: rawAvg === null ? null : rawAvg.toFixed(1),
+    midpointCorrectionMm: midpointCorrection === null ? null : midpointCorrection.toFixed(1),
+    midpointAvgLength: rawAvg === null || midpointCorrection === null ? null : (rawAvg - midpointCorrection).toFixed(1),
   };
 }
 
