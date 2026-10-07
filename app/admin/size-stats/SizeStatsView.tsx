@@ -10,6 +10,16 @@ interface SizeStatistics {
     stdLength: string;
     stdDiameter: string;
   } | null;
+  admin: {
+    total: number;
+    outOfRange: number;
+    lengthRangeMm: { min: number; max: number };
+    correctionMm: number;
+    referenceLengthMm: number;
+    rawAvgLength: string | null;
+    midpointCorrectionMm: string | null;
+    midpointAvgLength: string | null;
+  };
   rawData: Array<{
     id: number;
     length_mm: number;
@@ -97,14 +107,23 @@ export default function SizeStatsAdminPage() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div className="bg-gray-800 rounded-lg p-6">
-                <div className="text-gray-400 text-sm mb-2">データ件数</div>
+                <div className="text-gray-400 text-sm mb-2">平均に使った件数</div>
                 <div className="text-3xl font-bold">{stats.count}</div>
+                <div className="text-gray-500 text-sm">
+                  （{erectionState === 'flaccid' ? '通常時' : '勃起時'}・{stats.admin.lengthRangeMm.min / 10}〜{stats.admin.lengthRangeMm.max / 10}cm）
+                </div>
+                <div className="text-gray-400 text-sm mt-2">
+                  登録 全{stats.admin.total}件（範囲外 {stats.admin.outOfRange}件）
+                </div>
               </div>
 
               <div className="bg-gray-800 rounded-lg p-6">
                 <div className="text-gray-400 text-sm mb-2">平均長さ</div>
                 <div className="text-3xl font-bold">{stats.statistics.avgLength}mm</div>
                 <div className="text-gray-500 text-sm">({(parseFloat(stats.statistics.avgLength) / 10).toFixed(1)}cm)</div>
+                <div className="text-gray-400 text-sm mt-2">
+                  補正 −{stats.admin.correctionMm}mm（補正前 {stats.admin.rawAvgLength}mm）
+                </div>
               </div>
 
               <div className="bg-gray-800 rounded-lg p-6">
@@ -118,6 +137,48 @@ export default function SizeStatsAdminPage() {
                   <div>長さ: {stats.statistics.stdLength}mm</div>
                   <div>直径: {stats.statistics.stdDiameter}mm</div>
                 </div>
+              </div>
+            </div>
+
+            {/* 長さの補正の比較（公開ページはまだ「今の補正」） */}
+            <div className="bg-gray-800 rounded-lg p-6 mb-8">
+              <h2 className="text-xl font-bold mb-1">長さの補正の比較</h2>
+              <p className="text-gray-400 text-sm mb-4">
+                自己申告は大きめに出やすいため、平均の長さを補正しています。基準は Veale ら（2015年）の平均
+                {' '}{stats.admin.referenceLengthMm / 10}cm（サイズ比較ツールに載せている値）。
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-gray-400">
+                    <tr className="border-b border-gray-700">
+                      <th className="text-left py-2 pr-4 font-normal">方法</th>
+                      <th className="text-right py-2 px-4 font-normal">差し引く量</th>
+                      <th className="text-right py-2 pl-4 font-normal">平均の長さ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-700">
+                      <td className="py-2 pr-4">補正なし（入力そのまま）</td>
+                      <td className="text-right px-4">0mm</td>
+                      <td className="text-right pl-4">{stats.admin.rawAvgLength}mm</td>
+                    </tr>
+                    <tr className="border-b border-gray-700 bg-blue-900/20">
+                      <td className="py-2 pr-4">今の補正（一律）<span className="ml-1 text-xs text-blue-300">公開中</span></td>
+                      <td className="text-right px-4">{stats.admin.correctionMm}mm</td>
+                      <td className="text-right pl-4">{stats.statistics.avgLength}mm</td>
+                    </tr>
+                    <tr className="border-b border-gray-700">
+                      <td className="py-2 pr-4">中間案（集めたデータと基準 {stats.admin.referenceLengthMm / 10}cm の中間）</td>
+                      <td className="text-right px-4">{stats.admin.midpointCorrectionMm}mm</td>
+                      <td className="text-right pl-4">{stats.admin.midpointAvgLength}mm</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 pr-4 text-gray-400">基準（参考）</td>
+                      <td className="text-right px-4 text-gray-400">-</td>
+                      <td className="text-right pl-4 text-gray-400">{stats.admin.referenceLengthMm}mm</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
