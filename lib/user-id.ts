@@ -22,6 +22,12 @@ export function getUserId(): string {
   return userId;
 }
 
+/** ユーザーIDを置き換える（管理画面にログインした端末で、運営者の共通IDにそろえるときに使う） */
+export function setUserId(userId: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(USER_ID_KEY, userId);
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // crypto.randomUUID 非対応ブラウザ向けのフォールバック形式（lib/articles.ts のサイズ診断ツール）
 const FALLBACK_ID_PATTERN = /^uid-\d+-[0-9a-z]+$/;
