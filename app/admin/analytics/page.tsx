@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
+import { getTodayRealtime, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
 import { FUNNEL } from './funnel';
 
@@ -285,7 +286,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     console.error('[analytics] リアルタイムを取得できませんでした:', error);
     return null;
   });
+  // 「今日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）
+  await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
+  const todayLive = await getTodayRealtime().catch(() => null);
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} todayLive={todayLive} />;
 }
