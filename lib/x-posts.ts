@@ -334,7 +334,9 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
   }
 
   const [{ history }, ga, likeCounts] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS), getLikeCountsExcludingAdmin()]);
-  const videos = rows.map((row): LikedVideo => {
+  // 同じ作品番号の作品がデータベースに複数あっても、一覧には1回だけ出す
+  const uniqueRows = [...new Map(rows.map((row) => [row.dmm_content_id, row])).values()];
+  const videos = uniqueRows.map((row): LikedVideo => {
     const posted = history.get(row.dmm_content_id);
     return {
       dmm_content_id: row.dmm_content_id,
