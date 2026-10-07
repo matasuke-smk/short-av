@@ -4,6 +4,7 @@ import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 import GoogleAnalytics from './components/GoogleAnalytics';
 import PWAInstaller from './components/PWAInstaller';
+import AdminUserSync from './components/AdminUserSync';
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ['latin'],
@@ -95,6 +96,7 @@ export default function RootLayout({
       <body className={`${notoSansJP.className} antialiased`}>
         <GoogleAnalytics />
         <AgeVerificationGate />
+        <AdminUserSync />
         {/* <PWAInstaller /> */}
         {children}
       </body>
