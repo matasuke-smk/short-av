@@ -7,6 +7,7 @@ import type { Database } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { getUserId } from '@/lib/user-id';
 import { addToHistory as saveToHistory } from '@/lib/view-history';
+import { blendByPreference, getPreference, type Preference } from '@/lib/preferences';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -268,6 +269,26 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 補充に失敗したら、しばらく再試行しない（失敗→即再試行の繰り返しでリクエストが止まらなくなるのを防ぐ）
   const refillBlockedUntilRef = useRef(0);
 
+  // 好みの系統（いいね・履歴から割り出す。lib/preferences.ts）。分かったら、まだ表示していない作品を好みの作品が多めになるよう並べ替え、
+  // 補充のときも好みの系統の作品を多めに取ってくる
+  const preferenceRef = useRef<Preference | null>(null);
+  const poolIndexRef = useRef(poolIndex);
+  poolIndexRef.current = poolIndex;
+  useEffect(() => {
+    let cancelled = false;
+    getPreference().then((pref) => {
+      if (cancelled || !pref) return;
+      preferenceRef.current = pref;
+      setVideoPool((prev) => {
+        const start = poolIndexRef.current;
+        return [...prev.slice(0, start), ...blendByPreference(prev.slice(start), pref)];
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const loadMoreVideos = useCallback(async () => {
     if (isLoadingMore || Date.now() < refillBlockedUntilRef.current) return;
 
@@ -281,7 +302,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       } else {
         // プールが尽きた場合、新規取得
         console.log('プール尽きた：新規取得を実行');
-        const response = await fetch(`/api/videos?limit=200`);
+        const pref = preferenceRef.current;
+        const prefParams = pref
+          ? `&genres=${encodeURIComponent(pref.genres.join(','))}&actresses=${encodeURIComponent(pref.actresses.join(','))}`
+          : '';
+        const response = await fetch(`/api/videos?limit=200${prefParams}`);
         if (!response.ok) throw new Error(`補充の取得に失敗: ${response.status}`);
         const data = await response.json();
 
@@ -656,7 +681,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     {/* いいねボタン - サムネイル左下 */}
                     <button
                       onClick={(e) => toggleLike(video, e)}
-                      className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
+                      className={`lg:hidden absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
                       aria-label="いいね"
                     >
                       {likedVideos.has(video.dmm_content_id) ? (
@@ -767,11 +792,61 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
-        <div className="h-12 flex items-start overflow-hidden flex-shrink-0">
+        <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
           {currentVideo && (
-            <h2 className="text-white text-base font-bold line-clamp-2 leading-6 overflow-hidden">
+            <h2 className="text-white text-base lg:!text-xl font-bold line-clamp-2 lg:!line-clamp-3 leading-6 lg:!leading-7 overflow-hidden">
               {currentVideo.title}
             </h2>
+          )}
+        </div>
+
+        {/* PC: 主な操作（いいね・女優・作品ページ）をタイトルの直下に大きく並べる。高さは固定（作品ごとに位置がずれないように） */}
+        <div className="hidden lg:!grid grid-cols-[1fr_1fr_1.4fr] gap-3 h-12 flex-shrink-0">
+          <button
+            onClick={(e) => currentVideo && toggleLike(currentVideo, e)}
+            aria-pressed={!!currentVideo && likedVideos.has(currentVideo.dmm_content_id)}
+            className={`rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 ${
+              currentVideo && likedVideos.has(currentVideo.dmm_content_id)
+                ? 'bg-red-500/90 hover:bg-red-500 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-white'
+            }`}
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill={currentVideo && likedVideos.has(currentVideo.dmm_content_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            {currentVideo && likedVideos.has(currentVideo.dmm_content_id) ? 'いいね済み' : 'いいね'}
+          </button>
+          {(() => {
+            const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
+            return (
+              <button
+                disabled={!hasActress}
+                onClick={() => {
+                  setShowActressModal(true);
+                  trackModalOpen('actress');
+                }}
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-30 disabled:hover:bg-purple-600 text-white rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                この作品の女優
+              </button>
+            );
+          })()}
+          {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
+            <a
+              href={currentVideo.dmm_product_url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
+            >
+              {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              <span className="text-sm font-bold">詳細はこちら</span>
+            </a>
+          ) : (
+            <div />
           )}
         </div>
 
@@ -787,7 +862,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
 
         {/* 女優ボタンと、価格・作品ページへのボタン（1行・高さ固定。ない場合も枠は残してボタンの位置を揃える） */}
-        <div className="grid grid-cols-2 gap-2 h-11 flex-shrink-0">
+        <div className="grid lg:!hidden grid-cols-2 gap-2 h-11 flex-shrink-0">
           {(() => {
             const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
             return (
@@ -823,15 +898,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* ボタンエリア - 3列グリッド */}
-        <div className="grid grid-cols-3 gap-2">
+        {/* ボタンエリア - 3列グリッド（PC は1列に6個並べて小さく） */}
+        <div className="grid grid-cols-3 lg:!grid-cols-6 gap-2 lg:!mt-2">
           {/* 検索ボタン */}
           <button
             onClick={() => {
               setShowSearchModal(true);
               trackModalOpen('search');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -845,7 +920,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               setShowRankingModal(true);
               trackModalOpen('ranking');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -859,7 +934,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               // トップを読み直して通常のフィード（新しい動画セット）に戻る
               window.location.href = '/';
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -873,12 +948,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               setShowLikedModal(true);
               trackModalOpen('liked');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            <span className="text-xs">いいね</span>
+            <span className="text-xs">いいね一覧</span>
           </button>
 
           {/* 履歴ボタン */}
@@ -887,7 +962,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               setShowHistoryModal(true);
               trackModalOpen('history');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -898,7 +973,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 記事ボタン */}
           <Link
             href="/articles"
-            className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
