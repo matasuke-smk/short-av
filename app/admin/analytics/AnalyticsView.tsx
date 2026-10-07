@@ -154,27 +154,12 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 }
 
 
-// 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
-// total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
-// totalEvents: 期間全体のイベント数（取得できなければ時間帯ごとの合計を使う）
-// live: 「今日」のとき、リアルタイムで補った時間帯ごとの数字（通常の集計より大きければそちらを使う）
-function HourlyChart({
-  rows,
-  total,
-  totalEvents,
-  live,
-  days,
-  axis,
-}: {
-  rows: ReportRow[];
-  total: number;
-  totalEvents: number;
-  live: LiveHourly | null;
-  days: number; // 7日間・28日間は1日あたりの平均で描く
-  axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
-}) {
-  const [active, setActive] = useState<number | null>(null);
-  const hours = Array.from({ length: 24 }, (_, h) => {
+type HourlyPoint = { h: number; users: number; events: number; fromLive: boolean };
+
+// 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
+// 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
+function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number, totalEvents: number) {
+  const hours: HourlyPoint[] = Array.from({ length: 24 }, (_, h) => {
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
     const users = row?.metrics[0] ?? 0;
     const events = row?.metrics[1] ?? 0;
@@ -187,10 +172,31 @@ function HourlyChart({
       fromLive: liveUsers > users || liveEvents > events, // リアルタイムで補った時間帯
     };
   });
-  // 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
   const liveExtraEvents = hours.reduce((sum, x) => sum + x.events, 0) - rows.reduce((sum, r) => sum + (r.metrics[1] ?? 0), 0);
-  totalEvents = totalEvents + Math.max(0, liveExtraEvents);
-  total = Math.max(total, ...hours.filter((x) => x.fromLive).map((x) => x.users));
+  return {
+    hours,
+    users: Math.max(totalUsers, ...hours.filter((x) => x.fromLive).map((x) => x.users)),
+    events: totalEvents + Math.max(0, liveExtraEvents),
+  };
+}
+
+// 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
+// total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
+// totalEvents: 期間全体のイベント数（取得できなければ時間帯ごとの合計を使う）
+function HourlyChart({
+  hours,
+  total,
+  totalEvents,
+  days,
+  axis,
+}: {
+  hours: HourlyPoint[];
+  total: number;
+  totalEvents: number;
+  days: number; // 7日間・28日間は1日あたりの平均で描く
+  axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
+}) {
+  const [active, setActive] = useState<number | null>(null);
   const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days }));
   const max = Math.max(axis.users, ...perDay.map((x) => x.users), 1);
   const maxEvents = Math.max(axis.events, ...perDay.map((x) => x.events), 1);
@@ -363,10 +369,10 @@ function RangeBody({
   data,
   realtime,
   fixedDaily,
-  todayLive,
+  live,
   hourlyAxis,
 }: {
-  todayLive: LiveHourly | null;
+  live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」のみ）
   hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（4つの期間で共通）
   rangeKey: RangeKey;
   data: Extract<RangeData, { reports: ReportRow[][] }>;
@@ -375,14 +381,14 @@ function RangeBody({
 }) {
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
-  const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
-  // 「今日」は GA の集計が2時間ほど遅れるため、15分ごとに記録しているリアルタイムの数字で補う
-  const live = rangeKey === 'today' ? todayLive : null;
+  const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
-  const [users = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
+  const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
+  // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
+  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -406,7 +412,7 @@ function RangeBody({
   return (
     <>
         <Section title="時間帯ごとの利用者" note={`${rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均'}（日本時間）。縦軸は4つの期間で共通`}>
-          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} live={live} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} />
+          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} />
         </Section>
 
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
@@ -577,8 +583,10 @@ export default function AnalyticsView({
   fetchedAt,
   realtime,
   todayLive,
+  yesterdayLive,
 }: {
   todayLive: LiveHourly | null; // 今日の時間帯ごとのリアルタイムの記録（取得できなければ null）
+  yesterdayLive: LiveHourly | null; // 昨日の分
   data: Record<RangeKey, RangeData>;
   initialRange: RangeKey;
   fetchedAt: string;
@@ -595,7 +603,7 @@ export default function AnalyticsView({
       hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
     }
   }
-  for (const value of Object.values(todayLive ?? {})) {
+  for (const value of [...Object.values(todayLive ?? {}), ...Object.values(yesterdayLive ?? {})]) {
     hourlyAxis.users = Math.max(hourlyAxis.users, value.users);
     hourlyAxis.events = Math.max(hourlyAxis.events, value.events);
   }
@@ -657,7 +665,7 @@ export default function AnalyticsView({
             data={current}
             realtime={realtimeSection}
             fixedDaily={'reports' in data['28d'] ? data['28d'].reports : null}
-            todayLive={todayLive}
+            live={rangeKey === 'today' ? todayLive : rangeKey === 'yesterday' ? yesterdayLive : null}
             hourlyAxis={hourlyAxis}
           />
         )}

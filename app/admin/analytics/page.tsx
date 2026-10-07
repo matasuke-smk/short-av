@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
-import { getTodayRealtime, recordGaRealtime } from '@/lib/ga-realtime';
+import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
 import { FUNNEL } from './funnel';
 
@@ -241,9 +241,12 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
   };
 }
 
-// 1つの期間のデータ（GA とデータベース）。5分間は取得結果を使い回す（期間の切り替えや再読み込みを速くする）
+// 1つの期間のデータ（GA とデータベース）。5分間は取得結果を使い回す（期間の切り替えや再読み込みを速くする）。
+// unstable_cache は期限切れでも一度は古い結果を返す（裏で取り直す）ため、しばらく開いていないと
+// 何時間も前の数字（日付が変わる前の「今日」など）が出ていた。5分ごとの区切り（bucket）を引数に入れて、古い結果は使わない
 const getRangeData = unstable_cache(
-  async (key: RangeKey) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async (key: RangeKey, _bucket: number) => {
     const range = RANGES[key];
     const reports = await loadGa(range);
     reports[10] = toJstHourly(reports[10], range);
@@ -251,7 +254,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v6'],
+  ['admin-analytics-v7'],
   { revalidate: 300 },
 );
 
@@ -261,10 +264,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   // 4つの期間をまとめて取得し、画面側で切り替える
   const keys = Object.keys(RANGES) as RangeKey[];
+  const bucket = Math.floor(Date.now() / 300_000);
   const results = await Promise.all(
     keys.map(async (key): Promise<RangeData> => {
       try {
-        return await getRangeData(key);
+        return await getRangeData(key, bucket);
       } catch (error) {
         return {
           error:
@@ -286,10 +290,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     console.error('[analytics] リアルタイムを取得できませんでした:', error);
     return null;
   });
-  // 「今日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）
+  // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
+  // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う
   await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
-  const todayLive = await getTodayRealtime().catch(() => null);
+  const [todayLive, yesterdayLive] = await Promise.all([getLiveHourly(0).catch(() => null), getLiveHourly(1).catch(() => null)]);
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} todayLive={todayLive} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} todayLive={todayLive} yesterdayLive={yesterdayLive} />;
 }
