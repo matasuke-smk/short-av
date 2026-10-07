@@ -515,7 +515,7 @@ export default function XPostsAdminPage() {
               : 'いまおすすめできる作品はありません。'}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {list.map((video) => (
               <VideoCard key={`${listTab}-${video.dmm_content_id}`} video={video} onPosted={() => markPosted(video.dmm_content_id)} />
             ))}

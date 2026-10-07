@@ -395,8 +395,9 @@ function RangeBody({
         </div>
 
         {/* PC は左右2列。どの欄をどちらの列に置くかを固定し、折りたたみを開いても他の欄が移動しないようにする */}
-        <div className="grid lg:grid-cols-2 lg:gap-4 items-start">
-          <div>
+        {/* grid-cols-1 / min-w-0: 横に長い表があっても列が画面幅より広がらないようにする（スマホで横にはみ出していた） */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-4 items-start">
+          <div className="min-w-0">
         <Section title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。かっこ内は最初の訪問に対する割合、最後はイベントの回数。">
           {FUNNEL.map((f) => (
             <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）・${fmt(eventCount(f.event))}回`} />
@@ -443,7 +444,7 @@ function RangeBody({
           )}
         </Section>
           </div>
-          <div>
+          <div className="min-w-0">
         {realtime}
           <Section title="よく再生された作品">
             {topPlayed.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
@@ -488,7 +489,7 @@ function RangeBody({
             <Card label="検索を実行した" value={`${fmt(searches)}回`} sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
             <Card label="結果が0件だった検索" value={`${fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))}回`} />
           </div>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <h3 className="text-sm font-bold mb-2">開いた画面</h3>
               {screens.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : screens.map((r) => (
