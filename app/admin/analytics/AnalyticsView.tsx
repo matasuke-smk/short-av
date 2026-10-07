@@ -15,6 +15,9 @@ import { FUNNEL } from './funnel';
 export const RANGE_LABELS = { today: '今日', yesterday: '昨日', '7d': '7日間', '28d': '28日間' } as const;
 export type RangeKey = keyof typeof RANGE_LABELS;
 
+// 各期間の日数（時間帯グラフは1日あたりの平均で描く）
+const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, '7d': 7, '28d': 28 };
+
 // 各期間が何日前から何日前までか（日本時間）
 const RANGE_SPAN: Record<RangeKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], '7d': [6, 0], '28d': [27, 0] };
 const jstDate = (daysAgo: number) => {
@@ -86,6 +89,7 @@ const EVENT_LABELS: Record<string, string> = {
 const channelLabel = (v: string) => CHANNEL_LABELS[v] ?? (v === '(not set)' || v === '' ? '（記録なし）' : v);
 
 const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
+const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
 const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
 const seconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}分${Math.round(s % 60)}秒` : `${Math.round(s)}秒`);
 const ymd = (d: string) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
@@ -159,11 +163,15 @@ function HourlyChart({
   total,
   totalEvents,
   live,
+  days,
+  axis,
 }: {
   rows: ReportRow[];
   total: number;
   totalEvents: number;
   live: LiveHourly | null;
+  days: number; // 7日間・28日間は1日あたりの平均で描く
+  axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
 }) {
   const [active, setActive] = useState<number | null>(null);
   const hours = Array.from({ length: 24 }, (_, h) => {
@@ -183,21 +191,22 @@ function HourlyChart({
   const liveExtraEvents = hours.reduce((sum, x) => sum + x.events, 0) - rows.reduce((sum, r) => sum + (r.metrics[1] ?? 0), 0);
   totalEvents = totalEvents + Math.max(0, liveExtraEvents);
   total = Math.max(total, ...hours.filter((x) => x.fromLive).map((x) => x.users));
-  const max = Math.max(...hours.map((x) => x.users), 1);
-  const maxEvents = Math.max(...hours.map((x) => x.events), 1);
+  const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days }));
+  const max = Math.max(axis.users, ...perDay.map((x) => x.users), 1);
+  const maxEvents = Math.max(axis.events, ...perDay.map((x) => x.events), 1);
   // イベント数の折れ線（棒の中央を結ぶ。縦は右の目盛り＝イベント数の最大値で 100%）
-  const linePoints = hours.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
-  if (hours.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
-  const shown = active === null ? null : hours[active];
-  const peak = hours.reduce((a, b) => (b.users > a.users ? b : a));
+  const linePoints = perDay.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
+  if (perDay.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
+  const shown = active === null ? null : perDay[active];
+  const peak = perDay.reduce((a, b) => (b.users > a.users ? b : a));
 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm text-gray-300 min-w-0 truncate">
           {shown
-            ? `${shown.h}時台: ${fmt(shown.users)}人（イベント ${fmt(shown.events)}件）${shown.fromLive ? '・リアルタイム' : ''}`
-            : `いちばん多い時間帯: ${peak.h}時台（${fmt(peak.users)}人）`}
+            ? `${shown.h}時台: ${days > 1 ? '1日平均 ' : ''}${fmt1(shown.users)}人・${fmt1(shown.events)}件`
+            : `いちばん多い時間帯: ${peak.h}時台（${days > 1 ? '平均 ' : ''}${fmt1(peak.users)}人）`}
         </p>
         <p className="flex-shrink-0 text-sm text-gray-400">
           合計 <span className="text-lg font-bold text-white">{fmt(total)}</span>人
@@ -207,8 +216,8 @@ function HourlyChart({
         </p>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
-        <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />利用者（左の目盛り）</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />イベント数（右の目盛り）</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />{days > 1 ? '利用者（1日平均・左の目盛り）' : '利用者（左の目盛り）'}</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{days > 1 ? 'イベント数（1日平均・右の目盛り）' : 'イベント数（右の目盛り）'}</span>
         {live && (
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-sky-400/80" />リアルタイムの記録で補った時間帯（15分ごとに記録）</span>
         )}
@@ -216,14 +225,14 @@ function HourlyChart({
       <div className="relative mt-5">
         {/* 目盛り（最大値の線）。左が利用者、右がイベント数 */}
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
-        <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt(max)}人</span>
-        <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt(maxEvents)}件</span>
+        <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt1(max)}人</span>
+        <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt1(maxEvents)}件</span>
         {/* イベント数の折れ線（棒の上に重ねる。タップは下の棒に通す） */}
         <div className="absolute inset-x-0 top-0 h-36 pointer-events-none z-10">
           <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
             <polyline points={linePoints} fill="none" stroke="#fbbf24" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           </svg>
-          {hours.map((x) => (
+          {perDay.map((x) => (
             <span
               key={x.h}
               className={`absolute rounded-full bg-amber-400 -translate-x-1/2 translate-y-1/2 ${active === x.h ? 'w-2.5 h-2.5 ring-2 ring-amber-200' : 'w-1.5 h-1.5'}`}
@@ -232,7 +241,7 @@ function HourlyChart({
           ))}
         </div>
         <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
-          {hours.map((x) => (
+          {perDay.map((x) => (
             <button
               key={x.h}
               type="button"
@@ -250,7 +259,7 @@ function HourlyChart({
           ))}
         </div>
         <div className="flex gap-[2px] mt-1 text-[10px] text-gray-500">
-          {hours.map((x) => (
+          {perDay.map((x) => (
             <span key={x.h} className="flex-1 text-center">{x.h % 3 === 0 ? x.h : ''}</span>
           ))}
         </div>
@@ -259,11 +268,11 @@ function HourlyChart({
         <summary className="cursor-pointer">表で見る</summary>
         <table className="mt-2 w-full">
           <tbody>
-            {hours.map((x) => (
+            {perDay.map((x) => (
               <tr key={x.h} className="border-t border-gray-700">
                 <td className="py-1">{x.h}時台</td>
-                <td className="text-right">{fmt(x.users)}人</td>
-                <td className="text-right">{fmt(x.events)}件</td>
+                <td className="text-right">{fmt1(x.users)}人</td>
+                <td className="text-right">{fmt1(x.events)}件</td>
               </tr>
             ))}
           </tbody>
@@ -357,8 +366,10 @@ function RangeBody({
   realtime,
   fixedDaily,
   todayLive,
+  hourlyAxis,
 }: {
   todayLive: LiveHourly | null;
+  hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（4つの期間で共通）
   rangeKey: RangeKey;
   data: Extract<RangeData, { reports: ReportRow[][] }>;
   realtime: React.ReactNode; // いま見られているページ（期間によらず同じ）
@@ -396,8 +407,8 @@ function RangeBody({
 
   return (
     <>
-        <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
-          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} live={live} />
+        <Section title="時間帯ごとの利用者" note={`${rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均'}（日本時間）。縦軸は4つの期間で共通`}>
+          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} live={live} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} />
         </Section>
 
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
@@ -577,6 +588,19 @@ export default function AnalyticsView({
 }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>(initialRange);
   const current = data[rangeKey];
+  const hourlyAxis = { users: 0, events: 0 };
+  for (const key of Object.keys(RANGE_DAYS) as RangeKey[]) {
+    const range = data[key];
+    if (!('reports' in range)) continue;
+    for (const row of range.reports[10] ?? []) {
+      hourlyAxis.users = Math.max(hourlyAxis.users, row.metrics[0] / RANGE_DAYS[key]);
+      hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
+    }
+  }
+  for (const value of Object.values(todayLive ?? {})) {
+    hourlyAxis.users = Math.max(hourlyAxis.users, value.users);
+    hourlyAxis.events = Math.max(hourlyAxis.events, value.events);
+  }
   const realtimeSection = (
     <Section title="いま見られているページ（直近30分）" note={`${fetchedAt} 時点。最新にするには引き下げて再読み込み。`}>
       {realtime === null ? <p className="text-sm text-gray-400">取得できませんでした。</p> : <PageList rows={realtime} />}
@@ -636,6 +660,7 @@ export default function AnalyticsView({
             realtime={realtimeSection}
             fixedDaily={'reports' in data['28d'] ? data['28d'].reports : null}
             todayLive={todayLive}
+            hourlyAxis={hourlyAxis}
           />
         )}
 
