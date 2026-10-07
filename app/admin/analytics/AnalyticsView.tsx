@@ -19,6 +19,12 @@ const jstDate = (daysAgo: number) => {
   const d = new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000);
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
+// GA のタイムゾーンを日本時間に直した日（これ以前の日の合計は日付の区切りがずれている）
+const TZ_FIXED_DATE = { month: 10, day: 7 };
+const includesLaTimeData = (key: RangeKey) => {
+  const d = new Date(Date.now() + 9 * 3_600_000 - RANGE_SPAN[key][0] * 86_400_000);
+  return d.getUTCFullYear() === 2026 && (d.getUTCMonth() + 1 < TZ_FIXED_DATE.month || (d.getUTCMonth() + 1 === TZ_FIXED_DATE.month && d.getUTCDate() <= TZ_FIXED_DATE.day));
+};
 const rangeDates = (key: RangeKey) => {
   const [from, to] = RANGE_SPAN[key];
   return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
@@ -497,6 +503,12 @@ export default function AnalyticsView({
         <p className="-mt-4 mb-6 text-xs text-gray-400" suppressHydrationWarning>
           集計の対象: {rangeDates(rangeKey)}（日本時間の0時で区切り）
         </p>
+        {includesLaTimeData(rangeKey) && (
+          <p className="-mt-3 mb-6 text-xs text-yellow-300 bg-yellow-900/20 border border-yellow-800 rounded p-2" suppressHydrationWarning>
+            10/7 の正午ごろまで GA の日付がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間の利用者数などの合計は日付の区切りが最大16時間ずれています。
+            「時間帯ごとの利用者」は日本時間に直して表示しています。
+          </p>
+        )}
 
         {'error' in current ? (
           <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-6">{current.error}</div>
