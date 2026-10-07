@@ -85,7 +85,7 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
               <button onClick={() => setOpen(false)} className="text-gray-400 text-sm">閉じる</button>
             </div>
             {alreadyPosted && (
-              <p className="text-xs text-yellow-300 mb-2">この作品は直近2週間以内に紹介済み（またはストックに入っています）</p>
+              <p className="text-xs text-yellow-300 mb-2">この作品は紹介済みです</p>
             )}
             <textarea
               value={text}
