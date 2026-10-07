@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getArticleBySlug, getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 import { renderArticleMarkdown, isInteractiveArticle } from '@/lib/articles/markdown';
+import { fillLiveSections } from '@/lib/articles/live';
 import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
 import ArticleLink, { formatDate } from '../ArticleLink';
@@ -93,6 +94,8 @@ export default async function ArticlePage({ params }: Props) {
 
   // HTMLツール記事かどうかを判定（<script>や<style>が含まれている場合）
   const isInteractiveTool = isInteractiveArticle(content);
+  // 本文の <!-- live:名前 --> を最新のデータ（作品の一覧・統計）に置き換える
+  const bodyHtml = isInteractiveTool ? '' : await fillLiveSections(renderArticleMarkdown(content, article.title));
   const modifiedAt = getArticleModifiedAt(article);
 
   // Article構造化データ
@@ -218,7 +221,7 @@ export default async function ArticlePage({ params }: Props) {
               /* 通常の記事の場合はMarkdown処理 */
               <div
                 className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
-                dangerouslySetInnerHTML={{ __html: renderArticleMarkdown(content, article.title) }}
+                dangerouslySetInnerHTML={{ __html: bodyHtml }}
               />
             )}
           </div>
