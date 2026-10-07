@@ -40,6 +40,30 @@ const CHANNEL_LABELS: Record<string, string> = {
   'Mobile Push Notifications': 'プッシュ通知',
   Unassigned: '不明（分類できなかったアクセス）',
 };
+// イベント名を日本語にする（サイトが送るものと、GA が自動で送る主なもの）
+const EVENT_LABELS: Record<string, string> = {
+  page_view: 'ページ表示（スワイプごとにも1回）',
+  age_verification: '年齢確認に回答',
+  swipe: 'スワイプ',
+  video_view: 'サンプル動画の再生',
+  dmm_link_click: 'FANZA へのクリック',
+  search: '検索の実行',
+  like_action: 'いいね・取り消し',
+  modal_open: '画面を開いた（検索・人気など）',
+  modal_close: '画面を閉じた',
+  tutorial_view: '使い方の表示',
+  session_start: '訪問の開始（GA 自動）',
+  first_visit: '初めての訪問（GA 自動）',
+  user_engagement: 'ページを見ていた（GA 自動）',
+  scroll: 'ページの下までスクロール（GA 自動）',
+  click: 'ほかのサイトへのリンク（GA 自動）',
+  form_start: 'フォームの入力開始（GA 自動）',
+  form_submit: 'フォームの送信（GA 自動）',
+  file_download: 'ファイルのダウンロード（GA 自動）',
+  video_start: '埋め込み動画の再生開始（GA 自動）',
+  view_search_results: '検索結果の表示（GA 自動）',
+};
+
 const channelLabel = (v: string) => CHANNEL_LABELS[v] ?? (v === '(not set)' || v === '' ? '（記録なし）' : v);
 
 const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
@@ -179,7 +203,8 @@ function PageList({ rows }: { rows: ReportRow[] }) {
 
 function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<RangeData, { reports: ReportRow[][] }> }) {
   const { reports, db } = data;
-  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages] = reports;
+  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
+  const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [users = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
@@ -227,9 +252,9 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
           <HourlyChart rows={hourly} />
         </Section>
 
-        <Section title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。右は最初の訪問に対する割合。">
+        <Section title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。かっこ内は最初の訪問に対する割合、最後はイベントの回数。">
           {FUNNEL.map((f) => (
-            <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）`} />
+            <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）・${fmt(eventCount(f.event))}回`} />
           ))}
         </Section>
 
@@ -333,6 +358,22 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
               )}
             </div>
           </div>
+        </Section>
+
+        <Section title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`}>
+          {allEvents.length === 0 ? (
+            <p className="text-sm text-gray-400">まだデータがありません。</p>
+          ) : (
+            allEvents.map((r) => (
+              <Bar
+                key={r.dimensions[0]}
+                label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
+                value={r.metrics[0]}
+                max={allEvents[0]?.metrics[0] ?? 1}
+                right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
+              />
+            ))
+          )}
         </Section>
 
         <Section title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）">
