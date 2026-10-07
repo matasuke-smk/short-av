@@ -18,8 +18,6 @@ export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
 const RECOMMEND_DAYS = 7;
 // X から来た人の反応（前回の投稿の効果）を数える期間（日）
 const X_RESULT_DAYS = 28;
-// 同じ作品をもう一度紹介できるまでの間隔（日）
-export const REPOST_INTERVAL_DAYS = 14;
 const RECOMMEND_LIMIT = 20;
 const PAGE_SIZE = 1000;
 
@@ -43,14 +41,12 @@ const GENERIC_HEADINGS = [
   '【見逃し注意】',
   '【気になったらサンプルを】',
 ];
-const REPOST_HEADINGS = ['【再掲・反響の大きかった作品】', '【反響多数につき再紹介】', '【改めておすすめ】', '【もう一度紹介します】'];
 const NEW_RELEASE_DAYS = 14;
 
 const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
 /** 作品の情報（順位・発売日・サンプルの長さ）に合う見出しを優先しつつ、毎回ランダムに選ぶ */
-export function pickHeading(video: VideoRow, repost: boolean): string {
-  if (repost) return pick(REPOST_HEADINGS);
+export function pickHeading(video: VideoRow): string {
   const specific: string[] = [];
   if (video.rank_position && video.rank_position <= 30) specific.push(`【人気ランキング${video.rank_position}位】`);
   if (video.release_date) {
@@ -145,13 +141,12 @@ export type RecommendedVideo = {
 
 /**
  * 紹介済みの作品の履歴（作品ID → 回数・最後に紹介した日時）と、
- * 直近（REPOST_INTERVAL_DAYS 日以内）に紹介した・紹介予定の作品
+ * これまでに紹介した・紹介予定の作品（同じ作品は二度紹介しないので、おすすめから外す）
  */
 async function getPostHistory() {
   const supabase = getSupabaseAdmin();
-  const cutoff = Date.now() - REPOST_INTERVAL_DAYS * 86_400_000;
   const history = new Map<string, { count: number; lastAt: string }>();
-  const recent = new Set<string>();
+  const used = new Set<string>();
   // 1000 行上限で切れないようページを分けて取得
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data, error } = await supabase
@@ -164,8 +159,7 @@ async function getPostHistory() {
     for (const r of data ?? []) {
       const id = r.dmm_content_id as string;
       const at = r.slot_at as string;
-      // 間隔内の投稿・予約・未予約のストックがあれば、まだ出さない
-      if (new Date(at).getTime() >= cutoff) recent.add(id);
+      used.add(id);
       // 未予約のまま過ぎたストックは実際には投稿していないので、回数に数えない
       if (r.status === 'scheduled') {
         const prev = history.get(id);
@@ -175,12 +169,12 @@ async function getPostHistory() {
     }
     if (!data || data.length < PAGE_SIZE) break;
   }
-  return { history, recent };
+  return { history, used };
 }
 
 /**
  * 投稿すると効果的な作品を、反応の大きい順に返す。
- * 紹介してから REPOST_INTERVAL_DAYS 日たった作品も、もう一度候補に入る（同じ作品が続かないよう間を空ける）。
+ * 一度紹介した作品は出さない。
  * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
  *      + X から来た人の FANZA へのリンク × 10 + X から来た人の再生 × 3（前回の紹介で反応があった作品を優先）
  * リンクが押された作品は「買いたくなる」作品、スワイプ後に再生された作品は「目に留まる」作品なので重く数える。
@@ -188,7 +182,7 @@ async function getPostHistory() {
 export async function getRecommendedVideos(): Promise<{ days: number; videos: RecommendedVideo[] }> {
   const supabase = getSupabaseAdmin();
 
-  const [{ history, recent: used }, ga] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS)]);
+  const [{ history, used }, ga] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS)]);
   const gaIds = [...new Set([...ga.plays.keys(), ...ga.clicks.keys(), ...ga.xPlays.keys(), ...ga.xClicks.keys()])].filter(
     (id) => !used.has(id),
   );
@@ -307,12 +301,11 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
   return { days: RECOMMEND_DAYS, videos };
 }
 
-// repost: 以前に紹介した作品をもう一度紹介する（X で同じ文面の繰り返しにならないよう見出しを変える）
-export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType, repost = false): string {
+export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType): string {
   const url = getXPostVideoUrl(video.dmm_content_id, 'card');
   const actress = actressNames.slice(0, 2).join('・');
   const heading =
-    !repost && type === 'new' ? '【新着作品】' : !repost && type === 'ranking' ? '【人気ランキング作品】' : pickHeading(video, repost);
+    type === 'new' ? '【新着作品】' : type === 'ranking' ? '【人気ランキング作品】' : pickHeading(video);
 
   const build = (title: string) =>
     [
@@ -340,8 +333,7 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
 
 /**
  * 管理者がサイトで選んだ作品の投稿文を作る（/api/admin/x-posts/compose）
- * alreadyPosted: 直近（REPOST_INTERVAL_DAYS 日以内）に紹介済み、または紹介予定のストックがあるか
- * 以前に紹介したことがある作品は、再掲用の見出しで作る
+ * alreadyPosted: これまでに紹介済み、または紹介予定のストックがあるか
  */
 export async function composeForVideo(contentId: string) {
   const supabase = getSupabaseAdmin();
@@ -354,7 +346,6 @@ export async function composeForVideo(contentId: string) {
   if (!video) return null;
 
   const actressIds = (video.actress_ids ?? []) as string[];
-  const cutoff = new Date(Date.now() - REPOST_INTERVAL_DAYS * 86_400_000).toISOString();
   const [{ data: actresses }, { data: posts, error: postsError }] = await Promise.all([
     actressIds.length > 0
       ? supabase.from('actresses').select('id, name').in('id', actressIds)
@@ -362,14 +353,13 @@ export async function composeForVideo(contentId: string) {
     supabase.from('x_posts').select('slot_at, status').eq('dmm_content_id', contentId).neq('status', 'skipped'),
   ]);
   if (postsError) throw postsError;
-  const alreadyPosted = (posts ?? []).some((p) => new Date(p.slot_at as string).getTime() >= new Date(cutoff).getTime());
-  const postedBefore = (posts ?? []).some((p) => p.status === 'scheduled');
+  const alreadyPosted = (posts ?? []).length > 0;
   const nameById = new Map((actresses ?? []).map((a) => [a.id as string, a.name as string]));
   const names = actressIds.map((id) => nameById.get(id)).filter(Boolean) as string[];
 
   return {
     video: video as VideoRow,
-    text: buildPostText(video as VideoRow, names, 'manual', postedBefore),
+    text: buildPostText(video as VideoRow, names, 'manual'),
     alreadyPosted,
   };
 }
