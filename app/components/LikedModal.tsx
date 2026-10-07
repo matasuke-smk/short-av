@@ -62,10 +62,10 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 md:bg-black/60 z-[60] flex items-center justify-center md:p-4">
-      <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 md:bg-black/60 z-[60] flex items-center justify-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-gray-800 w-full h-full md:h-[90vh] md:max-w-4xl lg:max-w-6xl xl:max-w-7xl md:rounded-2xl flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
         {/* 左側：コンテンツ（横画面時・PC時） */}
-        <div className="flex-1 landscape:w-[55%] lg:w-[55%] flex flex-col overflow-hidden">
+        <div className="flex-1 landscape:w-[55%] lg:w-auto lg:min-w-0 flex flex-col overflow-hidden">
           {/* ヘッダー（縦画面のみ、PC時は非表示） */}
           <div className="landscape:hidden lg:hidden bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 shrink-0">
             <div className="px-4 py-4 flex items-center justify-between">
@@ -120,7 +120,7 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
                 <p className="text-gray-400 mb-6">
                   {likedVideos.length}件の動画をいいねしています
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {likedVideos.map((video) => (
                     <button
                       key={video.id}
@@ -154,7 +154,7 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
         </div>
 
         {/* 右側：固定エリア（横画面時・PC時のみ） */}
-        <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-center landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 lg:flex lg:w-[45%] lg:flex-col lg:justify-center lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50">
+        <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-center landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 lg:flex lg:w-72 lg:flex-shrink-0 lg:flex-col lg:justify-center lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50">
           <div className="flex flex-col gap-4">
             <h2 className="text-2xl font-bold text-white">いいね済み動画<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h2>
             {likedVideos.length > 0 && (

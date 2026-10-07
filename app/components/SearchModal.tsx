@@ -349,11 +349,11 @@ export default function SearchModal({
   return (
     <>
       {/* モーダルバックドロップ - 大画面では半透明背景 */}
-      <div className="fixed inset-0 z-50 bg-black/80 md:bg-black/60 flex items-center justify-center md:p-4">
+      <div className="fixed inset-0 z-50 bg-black/80 md:bg-black/60 flex items-center justify-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         {/* モーダルコンテンツ - レスポンシブ対応 */}
-        <div className="w-full h-full md:h-[90vh] md:max-w-4xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
+        <div className="w-full h-full md:h-[90vh] md:max-w-4xl lg:max-w-6xl xl:max-w-7xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row lg:flex-row overflow-hidden">
           {/* 左側：コンテンツ領域（横画面時・PC時） */}
-          <div className="flex-1 landscape:w-[55%] lg:w-[55%] flex flex-col overflow-hidden">
+          <div className="flex-1 landscape:w-[55%] lg:w-auto lg:min-w-0 flex flex-col overflow-hidden">
             {/* ヘッダー（縦画面のみ、PC時は非表示） */}
             <div className="landscape:hidden lg:hidden px-4 py-4 border-b border-gray-800">
               <div className="flex items-center justify-between mb-4">
@@ -506,7 +506,7 @@ export default function SearchModal({
                   )}
 
                   {/* ジャンル一覧 */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                     {displayGenres.map((genre) => {
                       const isSelected = selectedGenreIds.includes(genre.id);
                       return (
@@ -549,7 +549,7 @@ export default function SearchModal({
                     </div>
                   )}
                   {/* 女優一覧 */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                     {displayActresses.map((actress) => {
                       const isSelected = selectedActressIds.includes(actress.id);
                       return (
@@ -576,7 +576,7 @@ export default function SearchModal({
           </div>
 
           {/* 右側：固定エリア（横画面時・PC時のみ） */}
-          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto lg:flex lg:w-[45%] lg:flex-col lg:justify-start lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50 lg:overflow-y-auto">
+          <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-start landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 landscape:overflow-y-auto lg:flex lg:w-72 lg:flex-shrink-0 lg:flex-col lg:justify-start lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50 lg:overflow-y-auto">
             <h2 className="text-2xl font-bold text-white">検索</h2>
 
             <div className="flex flex-col gap-3">
