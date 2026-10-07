@@ -252,7 +252,7 @@ const shortDate = (iso: string) =>
 
 // 作品1件（「投稿文を作る」で本文を作り、コピー → X に貼り付け →「紹介済みにする」）
 // サムネイルは X での反応を左右するため、カードの幅いっぱいに大きく表示する
-function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void }) {
+function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: () => void; onUndone: () => void }) {
   const [text, setText] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -303,10 +303,27 @@ function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void
     setBusy(false);
     if (response.ok) {
       setText(null);
-      setStatus('紹介済みにしました');
+      setStatus('紹介済みにしました（投稿をやめたときは「取り消す」）');
       onPosted();
     } else {
       setStatus('記録できませんでした');
+    }
+  }
+
+  // 「紹介済みにする」を取り消す（投稿をやめたとき）。いちばん新しい紹介の記録だけを取り消す
+  async function undo() {
+    setBusy(true);
+    const response = await fetch('/api/admin/x-posts/undo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId: video.dmm_content_id }),
+    });
+    setBusy(false);
+    if (response.ok) {
+      setStatus('紹介済みを取り消しました');
+      onUndone();
+    } else {
+      setStatus('取り消せませんでした');
     }
   }
 
@@ -333,6 +350,9 @@ function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void
           {video.postedCount > 0 ? (
             <span className="text-orange-300">
               紹介済み {video.postedCount}回（前回 {video.lastPostedAt ? shortDate(video.lastPostedAt) : '-'}）
+              <button onClick={undo} disabled={busy} className="ml-2 underline text-gray-300 hover:text-white disabled:opacity-50">
+                取り消す
+              </button>
             </span>
           ) : (
             video.likedAt && <span className="text-gray-400">未紹介</span>
@@ -462,14 +482,20 @@ export default function XPostsAdminPage() {
     }
   };
 
-  // 紹介済みにした作品: 「効果的」からは外し、「いいね」では紹介済みの表示にする
+  // 紹介済みにした作品: どちらの一覧でも紹介済みの表示にする（「効果的」からは次に読み込んだときに外れる。
+  // その場で消さないのは、投稿をやめたときにすぐ「取り消す」を押せるようにするため）
   function markPosted(contentId: string) {
     const now = new Date().toISOString();
-    setRecommended((prev) => prev?.filter((v) => v.dmm_content_id !== contentId) ?? prev);
-    setLiked(
-      (prev) =>
-        prev?.map((v) => (v.dmm_content_id === contentId ? { ...v, postedCount: v.postedCount + 1, lastPostedAt: now } : v)) ?? prev,
-    );
+    const update = (prev: VideoItem[] | null) =>
+      prev?.map((v) => (v.dmm_content_id === contentId ? { ...v, postedCount: v.postedCount + 1, lastPostedAt: now } : v)) ?? prev;
+    setRecommended(update);
+    setLiked(update);
+  }
+
+  // 取り消したら、紹介の回数・前回の日付を正しく出すため両方の一覧を読み込み直す
+  function markUndone() {
+    fetchLiked();
+    fetchRecommended();
   }
 
   const list = listTab === 'liked' ? liked : recommended;
@@ -500,7 +526,7 @@ export default function XPostsAdminPage() {
         <p className="text-gray-400 text-sm mb-4">
           {listTab === 'liked'
             ? '「サイトを開く」でいいねした作品です（この端末でのいいね・新しい順）。紹介済みにしても一覧に残ります。'
-            : `直近${recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、反応の大きい順に表示しています。紹介済みにした作品は2週間この一覧に出ず、その後また候補に戻ります。`}
+            : `直近${recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、反応の大きい順に表示しています。紹介済みにした作品は2週間この一覧に出ず、その後また候補に戻ります（投稿をやめたときは「取り消す」）。`}
           {' '}「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。
         </p>
 
@@ -517,7 +543,12 @@ export default function XPostsAdminPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {list.map((video) => (
-              <VideoCard key={`${listTab}-${video.dmm_content_id}`} video={video} onPosted={() => markPosted(video.dmm_content_id)} />
+              <VideoCard
+                key={`${listTab}-${video.dmm_content_id}`}
+                video={video}
+                onPosted={() => markPosted(video.dmm_content_id)}
+                onUndone={markUndone}
+              />
             ))}
           </div>
         )}
