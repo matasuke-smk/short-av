@@ -7,6 +7,7 @@ import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
+import { getUserId } from '@/lib/user-id';
 
 const TABS = [
   { key: 'analytics', label: 'アクセス解析' },
@@ -46,6 +47,16 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     else url.searchParams.set('tab', key);
     window.history.replaceState(window.history.state, '', url.toString());
   };
+
+  // この端末のユーザーIDを運営者として記録する（アクセス解析で運営者自身のいいねを除くため）
+  useEffect(() => {
+    if (pathname === '/admin/login') return;
+    fetch('/api/admin/register-device', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: getUserId() }),
+    }).catch(() => {});
+  }, [pathname]);
 
   useEffect(() => {
     if (!isHome) return;
