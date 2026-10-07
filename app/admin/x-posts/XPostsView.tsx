@@ -272,6 +272,22 @@ function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void
   // 計測用パラメータ（投稿形式）を付けた本文
   const finalText = () => (text ? setPostFormat(text, getPostFormat(text)) : '');
 
+  // 1行目（【…】の見出し）だけを作り直した文面のものに差し替える
+  async function rerollHeading() {
+    if (text === null) return;
+    const current = text.split('\n')[0];
+    for (let i = 0; i < 5; i++) {
+      const response = await fetch(`/api/admin/x-posts/compose?contentId=${encodeURIComponent(video.dmm_content_id)}`);
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.text) return;
+      const heading = (data.text as string).split('\n')[0];
+      if (heading !== current || i === 4) {
+        setText((t) => (t === null ? t : [heading, ...t.split('\n').slice(1)].join('\n')));
+        return;
+      }
+    }
+  }
+
   async function copy() {
     await copyToClipboard(finalText());
     setStatus('コピーしました。X に貼り付けて投稿・予約したら「紹介済みにする」を押してください');
@@ -368,6 +384,13 @@ function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void
                 className="bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
               >
                 紹介済みにする
+              </button>
+              <button
+                onClick={rerollHeading}
+                className="ml-auto text-xs text-gray-400 hover:text-gray-200 underline"
+                title="1行目の見出しだけを別のものに変えます（編集した本文はそのまま）"
+              >
+                別の見出しにする
               </button>
             </div>
           </div>

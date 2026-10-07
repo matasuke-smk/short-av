@@ -8,6 +8,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
+import { LONG_SAMPLE_SECONDS } from '@/config/site';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
@@ -28,7 +29,40 @@ export type VideoRow = {
   thumbnail_url: string | null;
   maker: string | null;
   actress_ids: string[] | null;
+  rank_position?: number | null;
+  release_date?: string | null;
+  sample_seconds?: number | null;
 };
+
+// 見出し（1行目）。同じ見出しが続くと X で単調になるため、作品に合うものと汎用のものから毎回選ぶ
+const GENERIC_HEADINGS = [
+  '【今日のおすすめ】',
+  '【注目作品】',
+  '【運営イチオシ】',
+  '【まずはサンプルで】',
+  '【見逃し注意】',
+  '【気になったらサンプルを】',
+];
+const REPOST_HEADINGS = ['【再掲・反響の大きかった作品】', '【反響多数につき再紹介】', '【改めておすすめ】', '【もう一度紹介します】'];
+const NEW_RELEASE_DAYS = 14;
+
+const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
+
+/** 作品の情報（順位・発売日・サンプルの長さ）に合う見出しを優先しつつ、毎回ランダムに選ぶ */
+export function pickHeading(video: VideoRow, repost: boolean): string {
+  if (repost) return pick(REPOST_HEADINGS);
+  const specific: string[] = [];
+  if (video.rank_position && video.rank_position <= 30) specific.push(`【人気ランキング${video.rank_position}位】`);
+  if (video.release_date) {
+    const days = (Date.now() - new Date(video.release_date).getTime()) / 86_400_000;
+    if (days >= 0 && days <= NEW_RELEASE_DAYS) specific.push('【新作】', '【新作をチェック】');
+  }
+  if (video.sample_seconds && video.sample_seconds >= LONG_SAMPLE_SECONDS) {
+    specific.push(`【サンプル動画たっぷり${Math.floor(video.sample_seconds / 60)}分】`);
+  }
+  // 作品に合う見出しがあれば半分の確率でそちらを使う
+  return specific.length > 0 && Math.random() < 0.5 ? pick(specific) : pick(GENERIC_HEADINGS);
+}
 
 const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFilter: { value } } });
 
@@ -277,13 +311,8 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
 export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType, repost = false): string {
   const url = getXPostVideoUrl(video.dmm_content_id, 'card');
   const actress = actressNames.slice(0, 2).join('・');
-  const heading = repost
-    ? '【再掲・反響の大きかった作品】'
-    : type === 'new'
-      ? '【新着作品】'
-      : type === 'ranking'
-        ? '【人気ランキング作品】'
-        : '【今日のおすすめ】';
+  const heading =
+    !repost && type === 'new' ? '【新着作品】' : !repost && type === 'ranking' ? '【人気ランキング作品】' : pickHeading(video, repost);
 
   const build = (title: string) =>
     [
@@ -318,7 +347,7 @@ export async function composeForVideo(contentId: string) {
   const supabase = getSupabaseAdmin();
   const { data: video, error } = await supabase
     .from('videos')
-    .select('dmm_content_id, title, thumbnail_url, maker, actress_ids')
+    .select('dmm_content_id, title, thumbnail_url, maker, actress_ids, rank_position, release_date, sample_seconds')
     .eq('dmm_content_id', contentId)
     .maybeSingle();
   if (error) throw error;
