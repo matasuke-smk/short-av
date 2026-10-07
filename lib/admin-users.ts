@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
 import { getVideoIdCandidates, toContentIds } from '@/lib/likes';
+import { moveAdminHistory } from '@/lib/admin-history';
 
 /**
  * 運営者の端末のユーザーID（localStorage の short-av-user-id）を記録・取得する（サーバー専用）
@@ -49,6 +50,9 @@ export async function syncAdminUserId(currentId: string): Promise<string> {
   const canonical = ids[0] ?? currentId;
   const others = ids.filter((id) => id !== canonical);
   if (others.length === 0) return canonical;
+
+  // 閲覧履歴も共通IDにまとめる（sql/013 が未実行でも、いいねのまとめは続ける）
+  await moveAdminHistory(others, canonical).catch((error) => console.error('運営者の履歴をまとめられませんでした:', error?.message ?? error));
 
   const [{ data: mine, error: mineError }, { data: theirs, error: theirsError }] = await Promise.all([
     supabase.from('likes').select('video_id').eq('user_identifier', canonical),
