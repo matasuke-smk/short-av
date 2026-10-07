@@ -66,6 +66,23 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
     }
   }
 
+  // 「紹介済みにする」の取り消し（投稿をやめたとき）。いちばん新しい紹介の記録だけを取り消す
+  async function undo() {
+    setBusy(true);
+    const response = await fetch('/api/admin/x-posts/undo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId }),
+    });
+    setBusy(false);
+    if (response.ok) {
+      setAlreadyPosted(false);
+      setStatus('紹介済みを取り消しました');
+    } else {
+      setStatus('取り消せませんでした');
+    }
+  }
+
   const length = countXWeightedLength(text);
 
   return (
@@ -85,7 +102,12 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
               <button onClick={() => setOpen(false)} className="text-gray-400 text-sm">閉じる</button>
             </div>
             {alreadyPosted && (
-              <p className="text-xs text-yellow-300 mb-2">この作品は直近2週間以内に紹介済みです</p>
+              <p className="text-xs text-yellow-300 mb-2">
+                この作品は直近2週間以内に紹介済みです
+                <button onClick={undo} disabled={busy} className="ml-2 underline text-gray-300 hover:text-white disabled:opacity-50">
+                  取り消す
+                </button>
+              </p>
             )}
             <textarea
               value={text}
