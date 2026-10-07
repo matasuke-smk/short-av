@@ -48,12 +48,16 @@ const NEW_RELEASE_DAYS = 14;
 
 const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
+// サンプルの長さの書き方。見出しは四捨五入した「約n分」、本文は正確な「n分m秒」（切り捨てると実際より短く見えるため）
+const aboutMinutes = (seconds: number) => `約${Math.round(seconds / 60)}分`;
+const exactLength = (seconds: number) => `${Math.floor(seconds / 60)}分${seconds % 60 ? `${seconds % 60}秒` : ''}`;
+
 /** 作品の情報（順位・発売日・サンプルの長さ）に合う見出しを優先しつつ、毎回ランダムに選ぶ */
 export function pickHeading(video: VideoRow): string {
   // サンプル4分以上は長尺であることをいちばんの売りにする（見出しは必ず長尺のもの）
   if (video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS) {
-    const minutes = Math.floor(video.sample_seconds / 60);
-    return pick([`【長尺サンプル${minutes}分】`, `【サンプル動画${minutes}分の長尺】`, `【無料サンプルが${minutes}分も】`]);
+    const minutes = aboutMinutes(video.sample_seconds);
+    return pick([`【長尺サンプル${minutes}】`, `【サンプル動画${minutes}の長尺】`, `【無料サンプルが${minutes}も】`]);
   }
   const specific: string[] = [];
   if (video.rank_position && video.rank_position <= 30) specific.push(`【人気ランキング${video.rank_position}位】`);
@@ -62,7 +66,7 @@ export function pickHeading(video: VideoRow): string {
     if (days >= 0 && days <= NEW_RELEASE_DAYS) specific.push('【新作】', '【新作をチェック】');
   }
   if (video.sample_seconds && video.sample_seconds >= LONG_SAMPLE_SECONDS) {
-    specific.push(`【サンプル動画たっぷり${Math.floor(video.sample_seconds / 60)}分】`);
+    specific.push(`【サンプル動画たっぷり${aboutMinutes(video.sample_seconds)}】`);
   }
   // 作品に合う見出しがあれば半分の確率でそちらを使う
   return specific.length > 0 && Math.random() < 0.5 ? pick(specific) : pick(GENERIC_HEADINGS);
@@ -356,7 +360,7 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
       actress ? `出演: ${actress}` : video.maker ? `メーカー: ${video.maker}` : '',
       '',
       video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS
-        ? `${Math.floor(video.sample_seconds / 60)}分の長尺サンプル動画はこちら👇`
+        ? `${exactLength(video.sample_seconds)}の長尺サンプル動画はこちら👇`
         : 'サンプル動画はこちら👇',
       url,
       '',
