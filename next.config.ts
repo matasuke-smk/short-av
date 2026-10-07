@@ -1,5 +1,60 @@
 import type { NextConfig } from 'next';
 
+// 削除・統合した記事 → 転送先の記事（null は記事一覧）
+const ARTICLE_REDIRECTS: Record<string, string | null> = {
+  // 2026-10-06 に削除
+  'penis-traction-complete-guide': 'japanese-penis-size-data',
+  'japanese-men-condom-size-data': 'condom-size-guide',
+  'av-industry-trends-2024': 'adult-industry-knowledge',
+  // 使い方の記事は2本に
+  features: 'getting-started',
+  'tips-tricks': 'getting-started',
+  'smartphone-guide': 'getting-started',
+  'pc-usage-guide': 'getting-started',
+  'tablet-guide': 'getting-started',
+  'data-saving-tips': 'getting-started',
+  'best-viewing-environment': 'getting-started',
+  'privacy-security': 'faq',
+  'safe-browsing': 'faq',
+  // FANZA・作品の探し方
+  'dmm-smart-buying': 'fanza-save-money',
+  'dmm-rental-vs-purchase': 'fanza-save-money',
+  'genre-guide': 'how-to-choose-videos',
+  'series-guide': 'adult-industry-knowledge',
+  'popular-actresses': 'adult-industry-knowledge',
+  // 性の知識（まとめた記事）
+  'penis-size-satisfaction-truth': 'japanese-penis-size-data',
+  'size-matters-less-survey': 'japanese-penis-size-data',
+  'penis-enlargement-complete-analysis': 'japanese-penis-size-data',
+  'second-round-techniques': 'refractory-period-by-age',
+  'quality-over-duration-three-points': 'sex-duration-average-reality',
+  'ejaculation-control-mastery': 'premature-ejaculation-solutions',
+  'male-grooming-body-hair': 'male-vio-depilation-guide',
+  'contraception-proper-usage': 'std-risk-reduction-methods',
+  // 性の知識（削除）
+  'baldness-attractiveness': null,
+  'body-type-female-preference': null,
+  'erectile-dysfunction-mid-sex': null,
+  'erectile-strength-foods': null,
+  'female-dissatisfaction-patterns': 'sex-duration-average-reality',
+  'female-orgasm-rate-reality': 'sex-duration-average-reality',
+  'female-pleasure-points-gspot-truth': null,
+  'first-experience-age-data': null,
+  'kissing-technique-difference': null,
+  'libido-decline-causes': null,
+  'male-infertility-reality': null,
+  'male-multiple-orgasms-guide': 'refractory-period-by-age',
+  'masturbation-frequency-balance': null,
+  'mood-creation-science': null,
+  'morning-erection-health': null,
+  'morning-erections-health-indicator': null,
+  'phimosis-medical-facts': null,
+  'phimosis-surgery-truth': null,
+  'sauna-and-male-health': null,
+  'sexless-marriage-solutions': null,
+  'sexual-desire-peak-age': null,
+};
+
 const nextConfig: NextConfig = {
   // 画像最適化設定
   images: {
@@ -42,9 +97,12 @@ const nextConfig: NextConfig = {
         destination: 'https://short-av.com/:path*',
         permanent: true,
       },
-      ...['penis-traction-complete-guide', 'japanese-men-condom-size-data', 'av-industry-trends-2024'].map(
-        (slug) => ({ source: `/articles/${slug}`, destination: '/articles', permanent: true }),
-      ),
+      // 2026-10-07 の記事の整理で、まとめた記事・削除した記事は内容の近い記事へ（近いものがなければ記事一覧へ）
+      ...Object.entries(ARTICLE_REDIRECTS).map(([slug, to]) => ({
+        source: `/articles/${slug}`,
+        destination: to ? `/articles/${to}` : '/articles',
+        permanent: true,
+      })),
     ];
   },
 
