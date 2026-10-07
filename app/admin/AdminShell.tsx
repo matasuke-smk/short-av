@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
+import PullToRefresh from './PullToRefresh';
 
 const TABS = [
   { key: 'analytics', label: 'アクセス解析' },
@@ -59,6 +60,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <PullToRefresh disabled={siteOpen} />
       <nav className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-5xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto pt-[max(env(safe-area-inset-top),0.5rem)]">
           {TABS.map(({ key, label }) =>
