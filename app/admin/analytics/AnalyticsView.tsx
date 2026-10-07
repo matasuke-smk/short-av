@@ -6,6 +6,7 @@ import SampleLengthStatus from './SampleLengthStatus';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
+import type { ViewKey } from './view-keys';
 
 /**
  * アクセス解析の表示（管理画面）
@@ -14,9 +15,6 @@ import { FUNNEL } from './funnel';
 
 // サーバーで取得する期間（28d は日別の表と曜日ごとの平均に使い、ボタンはない）
 export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d';
-// 画面のボタン（上の段に3つ、下の段に2つ）
-export const VIEW_KEYS = ['today', 'yesterday', 'dayBefore', '7d', 'weekday'] as const;
-export type ViewKey = (typeof VIEW_KEYS)[number];
 type RangeKey = Exclude<ViewKey, 'weekday'>;
 const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨日', dayBefore: '一昨日', '7d': '週間平均', weekday: '曜日ごとの平均' };
 

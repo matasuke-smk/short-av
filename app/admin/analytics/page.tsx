@@ -3,7 +3,8 @@ import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
-import AnalyticsView, { type DataKey, type RangeData, type ViewKey, type WeekdayHourly, VIEW_KEYS } from './AnalyticsView';
+import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly } from './AnalyticsView';
+import { VIEW_KEYS, type ViewKey } from './view-keys';
 import { FUNNEL } from './funnel';
 
 export const dynamic = 'force-dynamic';
