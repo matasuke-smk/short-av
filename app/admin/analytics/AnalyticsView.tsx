@@ -390,14 +390,14 @@ function RangeBody({
           <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} sub="いいね・取り消しの合計" />
         </div>
 
-        {/* PC では2列に詰めて並べる（縦に長くならないように）。細かい一覧は折りたたむ */}
-        <div className="lg:columns-2 lg:gap-4">
+        {/* PC は左右2列。どの欄をどちらの列に置くかを固定し、折りたたみを開いても他の欄が移動しないようにする */}
+        <div className="grid lg:grid-cols-2 lg:gap-4 items-start">
+          <div>
         <Section title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。かっこ内は最初の訪問に対する割合、最後はイベントの回数。">
           {FUNNEL.map((f) => (
             <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）・${fmt(eventCount(f.event))}回`} />
           ))}
         </Section>
-        {realtime}
         <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
         <Section title="スワイプで見つけた作品は見られているか" note="「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。">
           <table className="w-full text-sm">
@@ -416,6 +416,31 @@ function RangeBody({
             </tbody>
           </table>
         </Section>
+        <Section collapsible title="何回目のスワイプまで進んだか" note="その回数のスワイプをした人数。急に減るところが離脱しやすい位置。">
+          {depth.length === 0 ? (
+            <p className="text-sm text-gray-400">まだデータがありません。</p>
+          ) : (
+            depth.map((d) => <Bar key={d.n} label={`${d.n}回目`} value={d.users} max={depthMax} right={`${fmt(d.users)}人`} />)
+          )}
+        </Section>
+        <Section collapsible title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`}>
+          {allEvents.length === 0 ? (
+            <p className="text-sm text-gray-400">まだデータがありません。</p>
+          ) : (
+            allEvents.map((r) => (
+              <Bar
+                key={r.dimensions[0]}
+                label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
+                value={r.metrics[0]}
+                max={allEvents[0]?.metrics[0] ?? 1}
+                right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
+              />
+            ))
+          )}
+        </Section>
+          </div>
+          <div>
+        {realtime}
           <Section title="よく再生された作品">
             {topPlayed.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
               <ol className="text-sm space-y-1 list-decimal ml-5 marker:text-gray-500">
@@ -453,13 +478,6 @@ function RangeBody({
               />
             ))}
           </Section>
-        <Section collapsible title="何回目のスワイプまで進んだか" note="その回数のスワイプをした人数。急に減るところが離脱しやすい位置。">
-          {depth.length === 0 ? (
-            <p className="text-sm text-gray-400">まだデータがありません。</p>
-          ) : (
-            depth.map((d) => <Bar key={d.n} label={`${d.n}回目`} value={d.users} max={depthMax} right={`${fmt(d.users)}人`} />)
-          )}
-        </Section>
         <Section collapsible title="画面と検索" note="開いた画面の種類と、検索の使われ方（2026/10/6 以降のみ）">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
             <Card label="検索画面を開いた" value={`${fmt(searchOpens[0])}回`} sub={`${fmt(searchOpens[1])}人`} />
@@ -497,24 +515,10 @@ function RangeBody({
             </div>
           </div>
         </Section>
-        <Section collapsible title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`}>
-          {allEvents.length === 0 ? (
-            <p className="text-sm text-gray-400">まだデータがありません。</p>
-          ) : (
-            allEvents.map((r) => (
-              <Bar
-                key={r.dimensions[0]}
-                label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
-                value={r.metrics[0]}
-                max={allEvents[0]?.metrics[0] ?? 1}
-                right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
-              />
-            ))
-          )}
-        </Section>
         <Section collapsible title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）">
           <PageList rows={pages ?? []} />
         </Section>
+          </div>
         </div>
     </>
   );

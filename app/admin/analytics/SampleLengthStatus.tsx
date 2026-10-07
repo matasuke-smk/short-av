@@ -30,8 +30,8 @@ export default function SampleLengthStatus() {
   }
 
   return (
-    <section className="bg-gray-800 rounded-lg p-4 md:p-6 mb-6">
-      <h2 className="text-lg font-bold">サンプル動画の長さ（検索の「{LONG_SAMPLE_LABEL}」用）</h2>
+    <section className="bg-gray-800 rounded-lg p-3 md:p-4 mb-4">
+      <h2 className="text-base font-bold">サンプル動画の長さ（検索の「{LONG_SAMPLE_LABEL}」用）</h2>
       {counts ? (
         <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
           <div className="bg-gray-900 rounded p-3">
