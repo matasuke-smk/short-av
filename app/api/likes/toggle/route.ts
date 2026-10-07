@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
 import { getVideoIdCandidates } from '@/lib/likes';
+import { ADMIN_SESSION_COOKIE, isValidAdminSession } from '@/lib/admin-session';
+import { registerAdminUserId } from '@/lib/admin-users';
 
 /**
  * いいねの登録・解除
@@ -24,6 +26,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // 管理画面にログイン中の端末のいいねは運営者のものとして記録しておく（アクセス解析で除くため）
+    if (await isValidAdminSession(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
+      await registerAdminUserId(userId);
+    }
 
     // 同じ作品を指す旧形式（UUID）のいいねもまとめて扱う
     const { contentId, candidates } = await getVideoIdCandidates(supabase, videoId);

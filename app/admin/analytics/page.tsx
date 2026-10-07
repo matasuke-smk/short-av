@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getAdminUserIds } from '@/lib/admin-users';
 import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
 import { FUNNEL } from './funnel';
 
@@ -218,15 +219,20 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
   const from = jstMidnight(range.days - 1 + range.offset);
   const to = jstMidnight(range.offset - 1);
 
-  const [likes, sizes, titles] = await Promise.all([
-    supabase.from('likes').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
+  // 運営者（管理画面を開いた端末）のいいねは別に数え、一般の利用者のいいねから除く
+  const adminIds = await getAdminUserIds();
+  const likesQuery = () => supabase.from('likes').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
+  const [allLikes, adminLikes, sizes, titles] = await Promise.all([
+    likesQuery(),
+    adminIds.length > 0 ? likesQuery().in('user_identifier', adminIds) : Promise.resolve({ count: 0 }),
     supabase.from('size_statistics').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
     contentIds.length > 0
       ? supabase.from('videos').select('dmm_content_id, title').in('dmm_content_id', contentIds)
       : Promise.resolve({ data: [] as { dmm_content_id: string; title: string }[] }),
   ]);
   return {
-    likes: likes.count ?? 0,
+    likes: (allLikes.count ?? 0) - (adminLikes.count ?? 0),
+    adminLikes: adminLikes.count ?? 0,
     sizes: sizes.count ?? 0,
     titleById: Object.fromEntries((titles.data ?? []).map((v) => [v.dmm_content_id as string, v.title as string])),
   };
@@ -242,7 +248,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v3'],
+  ['admin-analytics-v4'],
   { revalidate: 300 },
 );
 

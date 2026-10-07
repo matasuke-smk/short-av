@@ -31,7 +31,7 @@ const rangeDates = (key: RangeKey) => {
 };
 
 export type RangeData =
-  | { reports: ReportRow[][]; db: { likes: number; sizes: number; titleById: Record<string, string> } }
+  | { reports: ReportRow[][]; db: { likes: number; adminLikes?: number; sizes: number; titleById: Record<string, string> } }
   | { error: string };
 
 
@@ -266,7 +266,7 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
           />
           <Card label="サンプル動画の再生" value={fmt(eventCount('video_view'))} sub={`${fmt(eventUsers('video_view'))}人が再生`} />
           <Card label="1人あたりの再生本数" value={eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'} sub="再生した人の平均" />
-          <Card label="いいね" value={fmt(db.likes)} sub="サイトのデータベース" />
+          <Card label="いいね（運営者を除く）" value={fmt(db.likes)} sub={`サイトのデータベース・運営者のいいね ${fmt(db.adminLikes ?? 0)}件`} />
           <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} sub="サイトのデータベース" />
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} />
           <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} sub="いいね・取り消しの合計" />
