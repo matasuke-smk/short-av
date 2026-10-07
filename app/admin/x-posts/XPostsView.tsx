@@ -358,7 +358,7 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
             video.likedAt && <span className="text-gray-400">未紹介</span>
           )}
         </div>
-        <p className="text-sm font-bold line-clamp-2">{video.title}</p>
+        <p className="text-sm font-bold">{video.title}</p>
         {reasons.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {reasons.map((reason) => (
