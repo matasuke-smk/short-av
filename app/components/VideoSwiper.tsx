@@ -631,7 +631,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 {/* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */}
                 <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
-                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
+                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
                     {/* タイトル - 高さ固定（2行分）縦画面のみ表示 */}
                     <div className="h-16 w-full px-4 flex items-center justify-between gap-2 md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
                       <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">
@@ -651,7 +651,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 aspect-[4/3] cursor-pointer bg-black"
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-2rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
                     {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
@@ -789,7 +789,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
-      <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
+      <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
         <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
@@ -801,11 +801,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
 
         {/* PC: 主な操作（いいね・女優・作品ページ）をタイトルの直下に大きく並べる。高さは固定（作品ごとに位置がずれないように） */}
-        <div className="hidden lg:!grid grid-cols-[1fr_1fr_1.4fr] gap-3 h-12 flex-shrink-0">
+        <div className="hidden lg:!grid grid-cols-2 gap-2 flex-shrink-0">
           <button
             onClick={(e) => currentVideo && toggleLike(currentVideo, e)}
             aria-pressed={!!currentVideo && likedVideos.has(currentVideo.dmm_content_id)}
-            className={`rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 ${
+            className={`h-11 rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 ${
               currentVideo && likedVideos.has(currentVideo.dmm_content_id)
                 ? 'bg-red-500/90 hover:bg-red-500 text-white'
                 : 'bg-gray-700 hover:bg-gray-600 text-white'
@@ -825,7 +825,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   setShowActressModal(true);
                   trackModalOpen('actress');
                 }}
-                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-30 disabled:hover:bg-purple-600 text-white rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95"
+                className="h-11 bg-purple-600 hover:bg-purple-700 disabled:opacity-30 disabled:hover:bg-purple-600 text-white rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -840,9 +840,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
+              className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
-              {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
               <span className="text-sm font-bold">詳細はこちら</span>
             </a>
           ) : (
@@ -851,7 +851,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
-        <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0">
+        <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0 lg:!hidden">
           {isLandscape && currentVideo && (
             <DMMBanner
               key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
@@ -898,8 +898,19 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* ボタンエリア - 3列グリッド（PC は1列に6個並べて小さく） */}
-        <div className="grid grid-cols-3 lg:!grid-cols-6 gap-2 lg:!mt-2">
+        {/* PC: 縦長バナー（160×600）を右の欄の下に。高さに収まるよう縮める */}
+        <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2">
+          {currentVideo && (
+            <DMMBanner
+              key={`pc-portrait-banner-${currentVideo.id}-${currentIndex}`}
+              bannerId={portraitBannerIds[currentIndex % 2]}
+              className="h-full max-h-[600px]"
+            />
+          )}
+        </div>
+
+        {/* ボタンエリア - 3列グリッド（PC は画面の左端に縦1列のメニューとして固定） */}
+        <div className="grid grid-cols-3 gap-2 lg:!fixed lg:!left-0 lg:!top-0 lg:!h-full lg:!w-20 lg:!grid-cols-1 lg:!content-center lg:!gap-2 lg:!px-2 lg:!bg-gray-950/80 lg:!border-r lg:!border-gray-800 lg:!z-30">
           {/* 検索ボタン */}
           <button
             onClick={() => {
