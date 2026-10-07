@@ -151,10 +151,5 @@ export function generateStatsHTML(stats: { count: number; statistics: any } | nu
   html += '</div>';
   html += '</div>';
 
-  // 集計方法の注記（範囲は定数から出す）
-  html += '<p style="grid-column: 1 / -1; font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0;">'
-    + '※長さ ' + LENGTH_RANGE_MM.min / 10 + '〜' + LENGTH_RANGE_MM.max / 10 + 'cm の入力のみ集計しています。'
-    + '</p>';
-
   return html;
 }
