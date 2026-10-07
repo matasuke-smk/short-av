@@ -111,6 +111,8 @@ export default function SearchModal({
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // 検索結果（まず一覧で見せて、選んだ作品から見始める）。閉じても残し、次に開いたときに選び直せる
+  const [results, setResults] = useState<{ videos: Video[]; label: string } | null>(null);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
 
@@ -286,8 +288,14 @@ export default function SearchModal({
 
       // contains の列名を変数で渡すと結果の型が推論できなくなるため、ここで Video[] として扱う
       const videos = data as Video[];
-      onReplaceVideos(videos, videos[0].dmm_content_id);
-      setTimeout(() => onClose(), 200);
+      const label =
+        by === 'keyword'
+          ? `「${words.join(' ')}」`
+          : [
+              ...(minSampleSeconds > 0 ? [longSampleLabel(minSampleSeconds)] : []),
+              ...names(selectedIds, searchMode === 'genre' ? genres : actresses),
+            ].join('・');
+      setResults({ videos, label });
     } catch (error) {
       if (searchId !== searchIdRef.current) return;
       console.error('検索実行エラー:', error);
@@ -351,7 +359,63 @@ export default function SearchModal({
       {/* モーダルバックドロップ - 大画面では半透明背景 */}
       <div className="fixed inset-0 z-50 bg-black/80 md:bg-black/60 flex items-center justify-center md:p-4" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         {/* モーダルコンテンツ - レスポンシブ対応 */}
-        <div className="w-full h-full md:h-[90vh] md:max-w-4xl lg:max-w-6xl xl:max-w-7xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row lg:!flex-col overflow-hidden">
+        <div className="relative w-full h-full md:h-[90vh] md:max-w-4xl lg:max-w-6xl xl:max-w-7xl md:rounded-2xl bg-gray-900 flex flex-col landscape:flex-row lg:!flex-col overflow-hidden">
+          {/* 検索結果の一覧（条件の画面の上に重ねる）。タイルを押すと、その作品からスワイプで見始める */}
+          {results && (
+            <div className="absolute inset-0 z-30 bg-gray-900 flex flex-col">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800 pt-[max(env(safe-area-inset-top),0.75rem)] md:pt-3">
+                <button
+                  type="button"
+                  onClick={() => setResults(null)}
+                  className="flex-shrink-0 rounded-lg bg-gray-800 hover:bg-gray-700 px-3 py-2 text-sm text-white"
+                >
+                  ← 条件に戻る
+                </button>
+                <p className="min-w-0 flex-1 text-sm text-gray-300 truncate">
+                  <span className="font-bold text-white">{results.label}</span> の検索結果 {results.videos.length}件
+                </p>
+                <button type="button" onClick={onClose} aria-label="閉じる" className="flex-shrink-0 text-gray-400 hover:text-white">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-4">
+                <p className="text-xs text-gray-400 mb-3">見たい作品を選ぶと、そこからスワイプで続けて見られます。</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+                  {results.videos.map((video) => (
+                    <button
+                      key={video.id}
+                      type="button"
+                      onClick={() => {
+                        onReplaceVideos(results.videos, video.dmm_content_id);
+                        setTimeout(() => onClose(), 100);
+                      }}
+                      className="group text-left"
+                    >
+                      <div className="relative aspect-[4/3] bg-gray-800 rounded-lg overflow-hidden mb-1.5">
+                        {video.thumbnail_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={video.thumbnail_url}
+                            alt={video.title}
+                            loading="lazy"
+                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        )}
+                        {(video.sample_seconds ?? 0) > 0 && (
+                          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                            ▶ {Math.floor(video.sample_seconds! / 60)}:{String(video.sample_seconds! % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-white line-clamp-2 group-hover:text-blue-400 transition-colors">{video.title}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* 左側：コンテンツ領域（横画面時・PC時） */}
           <div className="flex-1 landscape:w-[55%] lg:!w-full lg:min-w-0 flex flex-col overflow-hidden">
             {/* ヘッダー（縦画面のみ、PC時は非表示） */}
