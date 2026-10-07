@@ -150,7 +150,8 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 
 // 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
 // total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
-function HourlyChart({ rows, total }: { rows: ReportRow[]; total: number }) {
+// totalEvents: 期間全体のイベント数（取得できなければ時間帯ごとの合計を使う）
+function HourlyChart({ rows, total, totalEvents }: { rows: ReportRow[]; total: number; totalEvents: number }) {
   const [active, setActive] = useState<number | null>(null);
   const hours = Array.from({ length: 24 }, (_, h) => {
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
@@ -174,6 +175,9 @@ function HourlyChart({ rows, total }: { rows: ReportRow[]; total: number }) {
         </p>
         <p className="flex-shrink-0 text-sm text-gray-400">
           合計 <span className="text-lg font-bold text-white">{fmt(total)}</span>人
+          <span className="ml-2">
+            <span className="text-lg font-bold text-amber-300">{fmt(totalEvents || hours.reduce((sum, x) => sum + x.events, 0))}</span>件
+          </span>
         </p>
       </div>
       <div className="flex gap-3 mt-1 text-[11px] text-gray-400">
@@ -360,7 +364,7 @@ function RangeBody({
   return (
     <>
         <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
-          <HourlyChart rows={hourly} total={users} />
+          <HourlyChart rows={hourly} total={users} totalEvents={totalEvents} />
         </Section>
 
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
