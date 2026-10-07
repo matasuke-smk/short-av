@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { trackSearch } from '@/lib/gtag';
-import { LONG_SAMPLE_LABEL, LONG_SAMPLE_SECONDS } from '@/config/site';
+import { LONG_SAMPLE_OPTIONS, longSampleLabel } from '@/config/site';
 import type { Database } from '@/lib/supabase';
 
 type Video = Database['public']['Tables']['videos']['Row'];
@@ -104,8 +104,10 @@ export default function SearchModal({
   // 検索UI状態
   const [searchMode, setSearchMode] = useState<SearchMode>('genre');
   // 「サンプル動画◯分以上」はジャンルの1つとして扱う（ジャンル検索のときだけ効く）
-  const [longOnly, setLongOnly] = useState(false);
-  const minSampleSeconds = longOnly && searchMode === 'genre' ? LONG_SAMPLE_SECONDS : 0;
+  // サンプル動画の長さの条件（0 = なし、180 = 3分以上、240 = 4分以上）
+  const [longMin, setLongMin] = useState(0);
+  const longOnly = longMin > 0;
+  const minSampleSeconds = searchMode === 'genre' ? longMin : 0;
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -168,7 +170,7 @@ export default function SearchModal({
     let cancelled = false;
     (async () => {
       const [genreCounts, actressCounts] = await Promise.all([
-        fetchFacets('genre', [], longOnly ? LONG_SAMPLE_SECONDS : 0),
+        fetchFacets('genre', [], longMin),
         fetchFacets('actress', []),
       ]);
       if (!cancelled) setOverallCounts({ genre: genreCounts, actress: actressCounts });
@@ -176,7 +178,7 @@ export default function SearchModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, longOnly]);
+  }, [isOpen, longMin]);
 
   // 選択条件での件数と、さらに絞り込めるジャンル/女優を取得
   useEffect(() => {
@@ -218,7 +220,7 @@ export default function SearchModal({
   // 条件を変えたら前回の「見つかりませんでした」等は消す
   useEffect(() => {
     setMessage(null);
-  }, [keyword, searchMode, selectedGenreIds, selectedActressIds, longOnly]);
+  }, [keyword, searchMode, selectedGenreIds, selectedActressIds, longMin]);
 
   // 検索実行
   // keyword: タイトル検索（入力欄の検索ボタン・Enter）
@@ -269,7 +271,7 @@ export default function SearchModal({
           by === 'keyword'
             ? words.join(' ')
             : [
-                ...(minSampleSeconds > 0 ? [LONG_SAMPLE_LABEL] : []),
+                ...(minSampleSeconds > 0 ? [longSampleLabel(minSampleSeconds)] : []),
                 ...names(selectedIds, searchMode === 'genre' ? genres : actresses),
               ].join(' / '),
         searchType: by === 'keyword' ? 'タイトル' : searchMode === 'genre' ? 'ジャンル' : '女優',
@@ -469,7 +471,7 @@ export default function SearchModal({
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         {longOnly && (
-                          <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs">{LONG_SAMPLE_LABEL}</span>
+                          <span className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs">{longSampleLabel(longMin)}</span>
                         )}
                         {genres
                           .filter((g: Genre) => selectedGenreIds.includes(g.id))
@@ -481,16 +483,21 @@ export default function SearchModal({
                       </div>
                     </div>
                   )}
-                  {/* サンプル動画が長い作品（ジャンルの1つとして一番上に大きく出す） */}
-                  <button
-                    onClick={() => setLongOnly((v) => !v)}
-                    className={`w-full mb-3 px-4 py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
-                      longOnly ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-200 border border-orange-500/60 hover:bg-orange-500/30'
-                    }`}
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                    {LONG_SAMPLE_LABEL}
-                  </button>
+                  {/* サンプル動画が長い作品（ジャンルの1つとして一番上に大きく出す。3分以上・4分以上のどちらか1つを選ぶ） */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {LONG_SAMPLE_OPTIONS.map((seconds) => (
+                      <button
+                        key={seconds}
+                        onClick={() => setLongMin((v) => (v === seconds ? 0 : seconds))}
+                        className={`px-2 py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-1.5 ${
+                          longMin === seconds ? 'bg-orange-500 text-white' : 'bg-orange-500/20 text-orange-200 border border-orange-500/60 hover:bg-orange-500/30'
+                        }`}
+                      >
+                        <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                        {longSampleLabel(seconds)}
+                      </button>
+                    ))}
+                  </div>
 
                   {minSampleSeconds > 0 && !countLoading && currentFilterCount === 0 && (
                     <p className="text-xs text-gray-400 mb-3">
@@ -666,7 +673,7 @@ export default function SearchModal({
                   onClick={() => {
                     if (searchMode === 'genre') {
                       setSelectedGenreIds([]);
-                      setLongOnly(false);
+                      setLongMin(0);
                     } else {
                       setSelectedActressIds([]);
                     }
@@ -710,7 +717,7 @@ export default function SearchModal({
                   onClick={() => {
                     if (searchMode === 'genre') {
                       setSelectedGenreIds([]);
-                      setLongOnly(false);
+                      setLongMin(0);
                     } else {
                       setSelectedActressIds([]);
                     }

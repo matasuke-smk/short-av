@@ -61,7 +61,7 @@ export default function RankingPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-xl font-bold">人気ランキング</h1>
+            <h1 className="text-xl font-bold">人気ランキング<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h1>
           </div>
 
           {/* ランキングタイプ切り替え */}
@@ -143,10 +143,6 @@ export default function RankingPage() {
                       alt={video.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                     />
-                    {/* PRバッジ */}
-                    <div className="absolute top-1 right-1 bg-yellow-400 text-black px-1.5 py-0.5 rounded text-xs font-bold">
-                      PR
-                    </div>
                   </div>
 
                   {/* 情報 */}

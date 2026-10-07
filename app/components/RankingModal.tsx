@@ -158,7 +158,7 @@ export default function RankingModal({
           <div className="landscape:hidden lg:hidden bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 shrink-0">
             <div className="px-4 py-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">人気ランキング</h2>
+                <h2 className="text-xl font-bold text-white">人気ランキング<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h2>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -274,10 +274,6 @@ export default function RankingModal({
                             quality={75}
                             unoptimized={true}
                           />
-                          {/* PRバッジ */}
-                          <div className="absolute top-1 right-1 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
-                            PR
-                          </div>
                         </div>
                         <h3 className="text-sm font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors text-white h-10 overflow-hidden">
                           {video.title}
@@ -296,7 +292,7 @@ export default function RankingModal({
         {/* 右側：固定エリア（横画面時・PC時のみ） */}
         <div className="hidden landscape:flex landscape:w-[45%] landscape:flex-col landscape:justify-center landscape:gap-3 landscape:py-6 landscape:px-3 landscape:bg-gray-900/50 lg:flex lg:w-[45%] lg:flex-col lg:justify-center lg:gap-3 lg:py-6 lg:px-3 lg:bg-gray-900/50">
           <div className="flex flex-col gap-4">
-            <h2 className="text-2xl font-bold text-white">人気ランキング</h2>
+            <h2 className="text-2xl font-bold text-white">人気ランキング<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h2>
 
             {/* 期間切り替え */}
             <div className="flex flex-col gap-2">
