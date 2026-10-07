@@ -18,6 +18,8 @@ export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
 const RECOMMEND_DAYS = 7;
 // X から来た人の反応（前回の投稿の効果）を数える期間（日）
 const X_RESULT_DAYS = 28;
+// 紹介した作品を「効果的」の候補に戻すまでの間隔（日）。戻ったときも見出しは通常のもの
+export const REPOST_INTERVAL_DAYS = 14;
 const RECOMMEND_LIMIT = 20;
 const PAGE_SIZE = 1000;
 
@@ -141,10 +143,11 @@ export type RecommendedVideo = {
 
 /**
  * 紹介済みの作品の履歴（作品ID → 回数・最後に紹介した日時）と、
- * これまでに紹介した・紹介予定の作品（同じ作品は二度紹介しないので、おすすめから外す）
+ * 直近（REPOST_INTERVAL_DAYS 日以内）に紹介した・紹介予定の作品（おすすめから外す）
  */
 async function getPostHistory() {
   const supabase = getSupabaseAdmin();
+  const cutoff = Date.now() - REPOST_INTERVAL_DAYS * 86_400_000;
   const history = new Map<string, { count: number; lastAt: string }>();
   const used = new Set<string>();
   // 1000 行上限で切れないようページを分けて取得
@@ -159,7 +162,8 @@ async function getPostHistory() {
     for (const r of data ?? []) {
       const id = r.dmm_content_id as string;
       const at = r.slot_at as string;
-      used.add(id);
+      // 間隔内の投稿・予約・未予約のストックがあれば、まだ出さない
+      if (new Date(at).getTime() >= cutoff) used.add(id);
       // 未予約のまま過ぎたストックは実際には投稿していないので、回数に数えない
       if (r.status === 'scheduled') {
         const prev = history.get(id);
@@ -174,7 +178,7 @@ async function getPostHistory() {
 
 /**
  * 投稿すると効果的な作品を、反応の大きい順に返す。
- * 一度紹介した作品は出さない。
+ * 紹介してから REPOST_INTERVAL_DAYS 日は出さず、その後はもう一度候補に入る。
  * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
  *      + X から来た人の FANZA へのリンク × 10 + X から来た人の再生 × 3（前回の紹介で反応があった作品を優先）
  * リンクが押された作品は「買いたくなる」作品、スワイプ後に再生された作品は「目に留まる」作品なので重く数える。
@@ -333,7 +337,7 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
 
 /**
  * 管理者がサイトで選んだ作品の投稿文を作る（/api/admin/x-posts/compose）
- * alreadyPosted: これまでに紹介済み、または紹介予定のストックがあるか
+ * alreadyPosted: 直近（REPOST_INTERVAL_DAYS 日以内）に紹介済み、または紹介予定のストックがあるか
  */
 export async function composeForVideo(contentId: string) {
   const supabase = getSupabaseAdmin();
@@ -353,7 +357,8 @@ export async function composeForVideo(contentId: string) {
     supabase.from('x_posts').select('slot_at, status').eq('dmm_content_id', contentId).neq('status', 'skipped'),
   ]);
   if (postsError) throw postsError;
-  const alreadyPosted = (posts ?? []).length > 0;
+  const cutoff = Date.now() - REPOST_INTERVAL_DAYS * 86_400_000;
+  const alreadyPosted = (posts ?? []).some((p) => new Date(p.slot_at as string).getTime() >= cutoff);
   const nameById = new Map((actresses ?? []).map((a) => [a.id as string, a.name as string]));
   const names = actressIds.map((id) => nameById.get(id)).filter(Boolean) as string[];
 
