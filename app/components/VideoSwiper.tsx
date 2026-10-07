@@ -565,7 +565,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
-        <div className="overflow-y-auto h-full snap-y snap-mandatory scrollbar-hide pt-6 landscape:pt-0 lg:pt-0" ref={emblaRef}>
+        {/* スワイプは embla が行う。ブラウザ自身の縦スクロールが始まると、スクロールしきるまでスワイプできなくなるため、
+            枠はスクロールさせず（overflow-hidden・touch-action）、フォーカス移動などでずれた場合もすぐ戻す */}
+        <div
+          className="overflow-hidden h-full scrollbar-hide pt-6 landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
+          ref={emblaRef}
+          onScroll={(e) => {
+            if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+          }}
+        >
           <div className="flex flex-col">
             {videos.map((video, index) => (
               <div
