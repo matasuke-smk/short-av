@@ -58,7 +58,7 @@ export default function ActressModal({ isOpen, onClose, actressIds, onActressSel
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 w-full sm:max-w-lg sm:rounded-t-2xl rounded-t-2xl max-h-[80vh] flex flex-col"
+        className="bg-gray-900 w-full sm:max-w-lg lg:max-w-2xl sm:rounded-t-2xl rounded-t-2xl max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ヘッダー */}
