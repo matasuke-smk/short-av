@@ -3,18 +3,21 @@ import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
-import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
+import AnalyticsView, { type DataKey, type RangeData, type ViewKey, type WeekdayHourly, VIEW_KEYS } from './AnalyticsView';
 import { FUNNEL } from './funnel';
 
 export const dynamic = 'force-dynamic';
 
 // 集計期間（GA の日付指定は日本時間＝プロパティのタイムゾーンで解釈される）
+// 7d（週間平均）は途中の今日を含めず、昨日までの7日間。28d は日別の表と曜日ごとの平均に使う（ボタンはない）
 const RANGES = {
   today: { label: '今日', startDate: 'today', endDate: 'today', days: 1, offset: 0 },
   yesterday: { label: '昨日', startDate: 'yesterday', endDate: 'yesterday', days: 1, offset: 1 },
-  '7d': { label: '7日間', startDate: '6daysAgo', endDate: 'today', days: 7, offset: 0 },
+  dayBefore: { label: '一昨日', startDate: '2daysAgo', endDate: '2daysAgo', days: 1, offset: 2 },
+  '7d': { label: '週間平均', startDate: '7daysAgo', endDate: 'yesterday', days: 7, offset: 1 },
   '28d': { label: '28日間', startDate: '27daysAgo', endDate: 'today', days: 28, offset: 0 },
 } as const;
+type RangeKey = DataKey;
 
 // GA のレポートのタイムゾーンは 2026/10/7 にロサンゼルス時間（日本の16時間遅れ）から日本時間に変えた。
 // 設定を変えたのは正午ごろだが、GA はロサンゼルス時間の日付が変わる時刻（日本時間の 10/7 16時）から日本時間で記録している
@@ -96,6 +99,26 @@ function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): Repor
     byHour.set(hour, [sum[0] + row.metrics[0], sum[1] + row.metrics[1]]);
   }
   return [...byHour].map(([hour, metrics]) => ({ dimensions: [String(hour)], metrics }));
+}
+
+// 曜日（日本時間）×時間帯ごとの合計と、その曜日の日数（記録のある日のみ。途中の今日は含めない）
+function toWeekdayHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): WeekdayHourly {
+  const days = jstDays(range);
+  const today = [...jstDays(RANGES.today)][0];
+  const result: WeekdayHourly = Array.from({ length: 7 }, () => ({ dates: [], hours: Array.from({ length: 24 }, () => [0, 0]) }));
+  for (const row of rows) {
+    const jst = toJstDateHour(row.dimensions[0]);
+    const date = jst.slice(0, 8);
+    if (!days.has(date) || date === today) continue;
+    const weekday = new Date(Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)))).getUTCDay();
+    const slot = result[weekday];
+    if (!slot.dates.includes(date)) slot.dates.push(date);
+    const sum = slot.hours[Number(jst.slice(8, 10))];
+    sum[0] += row.metrics[0];
+    sum[1] += row.metrics[1];
+  }
+  for (const slot of result) slot.dates.sort();
+  return result;
 }
 
 const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFilter: { value } } });
@@ -249,18 +272,19 @@ const getRangeData = unstable_cache(
   async (key: RangeKey, _bucket: number) => {
     const range = RANGES[key];
     const reports = await loadGa(range);
+    const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
-    return { reports, db };
+    return { reports, db, weekday };
   },
-  ['admin-analytics-v7'],
+  ['admin-analytics-v8'],
   { revalidate: 300 },
 );
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const { range: rangeParam } = await searchParams;
-  const initialRange: RangeKey = rangeParam && rangeParam in RANGES ? (rangeParam as RangeKey) : '7d';
+  const initialRange: ViewKey = VIEW_KEYS.includes(rangeParam as ViewKey) ? (rangeParam as ViewKey) : 'today';
 
   // 4つの期間をまとめて取得し、画面側で切り替える
   const keys = Object.keys(RANGES) as RangeKey[];
@@ -293,8 +317,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
   // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う
   await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
-  const [todayLive, yesterdayLive] = await Promise.all([getLiveHourly(0).catch(() => null), getLiveHourly(1).catch(() => null)]);
+  // 記録は3日分残しているので、一昨日まで補える
+  const [todayLive, yesterdayLive, dayBeforeLive] = await Promise.all([0, 1, 2].map((daysAgo) => getLiveHourly(daysAgo).catch(() => null)));
+  const live = { today: todayLive, yesterday: yesterdayLive, dayBefore: dayBeforeLive };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} todayLive={todayLive} yesterdayLive={yesterdayLive} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} />;
 }

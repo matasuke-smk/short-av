@@ -12,31 +12,33 @@ import { FUNNEL } from './funnel';
  * 4つの期間のデータはサーバーでまとめて取得して渡されるので、期間の切り替えは表示を差し替えるだけ（すぐ切り替わる）。
  */
 
-export const RANGE_LABELS = { today: '今日', yesterday: '昨日', '7d': '7日間', '28d': '28日間' } as const;
-export type RangeKey = keyof typeof RANGE_LABELS;
+// サーバーで取得する期間（28d は日別の表と曜日ごとの平均に使い、ボタンはない）
+export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d';
+// 画面のボタン（上の段に3つ、下の段に2つ）
+export const VIEW_KEYS = ['today', 'yesterday', 'dayBefore', '7d', 'weekday'] as const;
+export type ViewKey = (typeof VIEW_KEYS)[number];
+type RangeKey = Exclude<ViewKey, 'weekday'>;
+const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨日', dayBefore: '一昨日', '7d': '週間平均', weekday: '曜日ごとの平均' };
 
 // 各期間の日数（時間帯グラフは1日あたりの平均で描く）
-const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, '7d': 7, '28d': 28 };
+const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, dayBefore: 1, '7d': 7 };
 
-// 各期間が何日前から何日前までか（日本時間）
-const RANGE_SPAN: Record<RangeKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], '7d': [6, 0], '28d': [27, 0] };
+// 各期間が何日前から何日前までか（日本時間）。週間平均は途中の今日を含めない。曜日ごとの平均は昨日までの4週間
+const VIEW_SPAN: Record<ViewKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], dayBefore: [2, 2], '7d': [7, 1], weekday: [27, 1] };
 const jstDate = (daysAgo: number) => {
   const d = new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000);
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
-// GA のタイムゾーンを日本時間に直した日（これ以前の日の合計は日付の区切りがずれている）
-const TZ_FIXED_DATE = { month: 10, day: 7 };
-const includesLaTimeData = (key: RangeKey) => {
-  const d = new Date(Date.now() + 9 * 3_600_000 - RANGE_SPAN[key][0] * 86_400_000);
-  return d.getUTCFullYear() === 2026 && (d.getUTCMonth() + 1 < TZ_FIXED_DATE.month || (d.getUTCMonth() + 1 === TZ_FIXED_DATE.month && d.getUTCDate() <= TZ_FIXED_DATE.day));
-};
-const rangeDates = (key: RangeKey) => {
-  const [from, to] = RANGE_SPAN[key];
+const rangeDates = (key: ViewKey) => {
+  const [from, to] = VIEW_SPAN[key];
   return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
 };
 
+// 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, イベント数] × 24）と集計した日（YYYYMMDD）
+export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
+
 export type RangeData =
-  | { reports: ReportRow[][]; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
+  | { reports: ReportRow[][]; weekday?: WeekdayHourly; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
   | { error: string };
 
 
@@ -189,7 +191,9 @@ function HourlyChart({
   totalEvents,
   days,
   axis,
+  totalLabel = '合計',
 }: {
+  totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
   totalEvents: number;
@@ -215,7 +219,7 @@ function HourlyChart({
             : `いちばん多い時間帯: ${peak.h}時台（${days > 1 ? '平均 ' : ''}${fmt1(peak.users)}人）`}
         </p>
         <p className="flex-shrink-0 text-sm text-gray-400">
-          合計 <span className="text-lg font-bold text-white">{fmt(total)}</span>人
+          {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
           <span className="ml-2">
             <span className="text-lg font-bold text-amber-300">{fmt(totalEvents || hours.reduce((sum, x) => sum + x.events, 0))}</span>件
           </span>
@@ -372,8 +376,8 @@ function RangeBody({
   live,
   hourlyAxis,
 }: {
-  live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」のみ）
-  hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（4つの期間で共通）
+  live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」「一昨日」のみ）
+  hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（すべての期間で共通）
   rangeKey: RangeKey;
   data: Extract<RangeData, { reports: ReportRow[][] }>;
   realtime: React.ReactNode; // いま見られているページ（期間によらず同じ）
@@ -411,7 +415,7 @@ function RangeBody({
 
   return (
     <>
-        <Section title="時間帯ごとの利用者" note={`${rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均'}（日本時間）。縦軸は4つの期間で共通`}>
+        <Section title="時間帯ごとの利用者" note={`${RANGE_DAYS[rangeKey] === 1 ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}（日本時間）。縦軸はすべての期間で共通`}>
           <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} />
         </Section>
 
@@ -577,23 +581,79 @@ function RangeBody({
   );
 }
 
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 月曜から
+const WEEKDAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
+const mdOf = (date: string) => `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}`;
+
+// 曜日ごとの平均: 曜日のボタン（1日平均の人数つき）で選び、その曜日の24時間を時間帯グラフで見る
+function WeekdayView({
+  weekday,
+  daily,
+  hourlyAxis,
+}: {
+  weekday: WeekdayHourly;
+  daily: ReportRow[]; // 28日間の日別（日付ごとの重複を除いた人数を、曜日の1日平均に使う）
+  hourlyAxis: { users: number; events: number };
+}) {
+  const [selected, setSelected] = useState(() => new Date(Date.now() + 9 * 3_600_000).getUTCDay());
+  const summary = (wd: number) => {
+    const { dates, hours } = weekday[wd];
+    const n = dates.length;
+    const users = dates.reduce((sum, date) => sum + (daily.find((r) => r.dimensions[0] === date)?.metrics[0] ?? 0), 0);
+    const events = hours.reduce((sum, h) => sum + h[1], 0);
+    return { n, users: n > 0 ? users / n : 0, events: n > 0 ? events / n : 0 };
+  };
+  const current = weekday[selected];
+  const s = summary(selected);
+  const hours: HourlyPoint[] = current.hours.map(([users, events], h) => ({ h, users, events, fromLive: false }));
+  return (
+    <Section title="曜日ごとの時間帯別の利用者" note="昨日までの4週間のうち、記録のある日の1日あたりの平均（日本時間）。縦軸はすべての期間で共通">
+      <div className="grid grid-cols-7 gap-1 mb-3">
+        {WEEKDAY_ORDER.map((wd) => {
+          const x = summary(wd);
+          return (
+            <button
+              key={wd}
+              type="button"
+              onClick={() => setSelected(wd)}
+              className={`rounded-lg py-1.5 leading-tight ${wd === selected ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'} ${wd === 0 ? 'text-red-300' : wd === 6 ? 'text-sky-300' : ''}`}
+            >
+              <span className="block text-sm font-bold">{WEEKDAY_NAMES[wd]}</span>
+              <span className="block text-[10px] text-gray-300">{x.n > 0 ? `${fmt1(x.users)}人` : '—'}</span>
+            </button>
+          );
+        })}
+      </div>
+      {s.n === 0 ? (
+        <p className="text-sm text-gray-400">{WEEKDAY_NAMES[selected]}曜日のデータはまだありません。</p>
+      ) : (
+        <>
+          <p className="text-xs text-gray-400 mb-2">
+            {WEEKDAY_NAMES[selected]}曜日 {s.n}日分の平均（{current.dates.map(mdOf).join('・')}）
+          </p>
+          <HourlyChart hours={hours} total={Math.round(s.users)} totalEvents={Math.round(s.events)} days={s.n} axis={hourlyAxis} totalLabel="1日平均" />
+        </>
+      )}
+    </Section>
+  );
+}
+
 export default function AnalyticsView({
   data,
   initialRange,
   fetchedAt,
   realtime,
-  todayLive,
-  yesterdayLive,
+  live,
 }: {
-  todayLive: LiveHourly | null; // 今日の時間帯ごとのリアルタイムの記録（取得できなければ null）
-  yesterdayLive: LiveHourly | null; // 昨日の分
-  data: Record<RangeKey, RangeData>;
-  initialRange: RangeKey;
+  live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
+  data: Record<DataKey, RangeData>;
+  initialRange: ViewKey;
   fetchedAt: string;
   realtime: ReportRow[] | null; // いま見られているページ（直近30分）。取得できなければ null
 }) {
-  const [rangeKey, setRangeKey] = useState<RangeKey>(initialRange);
-  const current = data[rangeKey];
+  const [viewKey, setViewKey] = useState<ViewKey>(initialRange);
+  const month = data['28d'];
+  const weekday = 'reports' in month ? month.weekday : undefined;
   const hourlyAxis = { users: 0, events: 0 };
   for (const key of Object.keys(RANGE_DAYS) as RangeKey[]) {
     const range = data[key];
@@ -603,23 +663,50 @@ export default function AnalyticsView({
       hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
     }
   }
-  for (const value of [...Object.values(todayLive ?? {}), ...Object.values(yesterdayLive ?? {})]) {
+  for (const value of Object.values(live).flatMap((x) => Object.values(x ?? {}))) {
     hourlyAxis.users = Math.max(hourlyAxis.users, value.users);
     hourlyAxis.events = Math.max(hourlyAxis.events, value.events);
+  }
+  for (const { dates, hours } of weekday ?? []) {
+    if (dates.length === 0) continue;
+    for (const [users, events] of hours) {
+      hourlyAxis.users = Math.max(hourlyAxis.users, users / dates.length);
+      hourlyAxis.events = Math.max(hourlyAxis.events, events / dates.length);
+    }
   }
   const realtimeSection = (
     <Section title="いま見られているページ（直近30分）" note={`${fetchedAt} 時点。最新にするには引き下げて再読み込み。`}>
       {realtime === null ? <p className="text-sm text-gray-400">取得できませんでした。</p> : <PageList rows={realtime} />}
     </Section>
   );
+  const errorBox = (message: string) => (
+    <>
+      <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{message}</div>
+      {realtimeSection}
+    </>
+  );
 
-  const select = (key: RangeKey) => {
-    setRangeKey(key);
+  const select = (key: ViewKey) => {
+    setViewKey(key);
     // 再読み込みしても同じ期間が開くよう、URL だけ書き換える
     const url = new URL(window.location.href);
     url.searchParams.set('range', key);
     window.history.replaceState(window.history.state, '', url.toString());
   };
+  const button = (key: ViewKey) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => select(key)}
+      className={`px-2 py-1.5 md:py-2 rounded-lg text-sm leading-tight ${key === viewKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+    >
+      {VIEW_LABELS[key]}
+      <span className="block md:inline md:ml-1 text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
+        {rangeDates(key)}
+      </span>
+    </button>
+  );
+  const current = viewKey === 'weekday' ? null : data[viewKey];
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-3 md:p-6">
@@ -630,42 +717,35 @@ export default function AnalyticsView({
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
 
-        <nav className="grid grid-cols-4 md:flex gap-1.5 md:gap-2 mt-3 mb-4">
-          {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => select(key)}
-              className={`px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-sm leading-tight ${key === rangeKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
-            >
-              {RANGE_LABELS[key]}
-              <span className="block md:inline md:ml-1 text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
-                {rangeDates(key)}
-              </span>
-            </button>
-          ))}
+        <nav className="mt-3 mb-4 space-y-1.5 md:max-w-xl">
+          <div className="grid grid-cols-3 gap-1.5">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
+          <div className="grid grid-cols-2 gap-1.5">{(['7d', 'weekday'] as const).map(button)}</div>
         </nav>
         <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
-          集計の対象: {rangeDates(rangeKey)}（日本時間の0時で区切り）
+          集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）
         </p>
-        {includesLaTimeData(rangeKey) && (
-          <p className="-mt-1 mb-3 text-xs text-gray-400 bg-gray-800 rounded p-2" suppressHydrationWarning>
-            10/7 の15時台まで GA の日時がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間は日時を日本時間に読み替えて集計し直しています。
-          </p>
-        )}
 
-        {'error' in current ? (
-          <>
-            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{current.error}</div>
-            {realtimeSection}
-          </>
+        {current === null ? (
+          'error' in month ? (
+            errorBox(month.error)
+          ) : weekday ? (
+            <>
+              <WeekdayView weekday={weekday} daily={month.reports[2]} hourlyAxis={hourlyAxis} />
+              <DailyTable daily={month.reports[2]} dailyEvents={month.reports[3]} />
+              {realtimeSection}
+            </>
+          ) : (
+            errorBox('曜日ごとのデータを取得できませんでした。')
+          )
+        ) : 'error' in current ? (
+          errorBox(current.error)
         ) : (
           <RangeBody
-            rangeKey={rangeKey}
+            rangeKey={viewKey as RangeKey}
             data={current}
             realtime={realtimeSection}
-            fixedDaily={'reports' in data['28d'] ? data['28d'].reports : null}
-            live={rangeKey === 'today' ? todayLive : rangeKey === 'yesterday' ? yesterdayLive : null}
+            fixedDaily={'reports' in month ? month.reports : null}
+            live={viewKey === 'today' || viewKey === 'yesterday' || viewKey === 'dayBefore' ? live[viewKey] : null}
             hourlyAxis={hourlyAxis}
           />
         )}
