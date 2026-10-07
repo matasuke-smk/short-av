@@ -5,6 +5,7 @@ import {
   fetchAllTimeRanking,
   convertDMMItemToVideo,
 } from '@/lib/dmm-api';
+import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,11 +39,29 @@ export async function GET(request: NextRequest) {
       .slice(0, limit)
       .map(({ item, rank }) => convertDMMItemToVideo(item, rank));
 
+    // DMM の API の作品には女優（actress_ids）やサンプルの長さがないため、サイトのデータベースにある作品はそちらの情報を使う
+    // （女優ボタンやサンプルの長さが出るように。順位は DMM のランキングのまま）
+    let data: Record<string, unknown>[] = videos;
+    try {
+      const { data: rows, error } = await supabase
+        .from('videos')
+        .select('*')
+        .in('dmm_content_id', videos.map((v) => v.dmm_content_id));
+      if (error) throw error;
+      const byId = new Map((rows ?? []).map((row) => [row.dmm_content_id as string, row]));
+      data = videos.map((video) => {
+        const row = byId.get(video.dmm_content_id);
+        return row ? { ...row, rank_position: video.rank_position } : video;
+      });
+    } catch (dbError) {
+      console.error('[Ranking API] データベースの作品情報で補えませんでした:', dbError);
+    }
+
     console.log(`[Ranking API] Success: ${videos.length} videos for ${period}`);
 
     return NextResponse.json({
       success: true,
-      data: videos,
+      data,
       period,
       count: videos.length,
     });
