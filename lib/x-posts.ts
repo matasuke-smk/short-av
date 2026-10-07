@@ -48,8 +48,17 @@ const NEW_RELEASE_DAYS = 14;
 
 const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
-// サンプルの長さの書き方。見出しは四捨五入した「約n分」、本文は正確な「n分m秒」（切り捨てると実際より短く見えるため）
-const aboutMinutes = (seconds: number) => `約${Math.round(seconds / 60)}分`;
+// サンプルの長さの書き方。見出しは端数を「超え・半・近く」で表し、本文は正確な「n分m秒」
+// 見出し用のサンプルの長さ。四捨五入すると実際より長く見えることがあるため、端数は自然な言い方にする
+// 例: 4:05 → 4分 / 4:12 → 4分超え / 4:31 → 4分半 / 9:58 → 10分近く
+const aboutMinutes = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  if (rest < 10) return `${minutes}分`;
+  if (rest < 25) return `${minutes}分超え`;
+  if (rest < 45) return `${minutes}分半`;
+  return `${minutes + 1}分近く`;
+};
 const exactLength = (seconds: number) => `${Math.floor(seconds / 60)}分${seconds % 60 ? `${seconds % 60}秒` : ''}`;
 
 /** 作品の情報（順位・発売日・サンプルの長さ）に合う見出しを優先しつつ、毎回ランダムに選ぶ */
@@ -57,7 +66,7 @@ export function pickHeading(video: VideoRow): string {
   // サンプル4分以上は長尺であることをいちばんの売りにする（見出しは必ず長尺のもの）
   if (video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS) {
     const minutes = aboutMinutes(video.sample_seconds);
-    return pick([`【長尺サンプル${minutes}】`, `【サンプル動画${minutes}の長尺】`, `【無料サンプルが${minutes}も】`]);
+    return pick([`【サンプル${minutes}】`, `【サンプル動画 ${minutes}】`, `【無料サンプル${minutes}】`]);
   }
   const specific: string[] = [];
   if (video.rank_position && video.rank_position <= 30) specific.push(`【人気ランキング${video.rank_position}位】`);
@@ -66,7 +75,7 @@ export function pickHeading(video: VideoRow): string {
     if (days >= 0 && days <= NEW_RELEASE_DAYS) specific.push('【新作】', '【新作をチェック】');
   }
   if (video.sample_seconds && video.sample_seconds >= LONG_SAMPLE_SECONDS) {
-    specific.push(`【サンプル動画たっぷり${aboutMinutes(video.sample_seconds)}】`);
+    specific.push(`【サンプル動画 ${aboutMinutes(video.sample_seconds)}】`);
   }
   // 作品に合う見出しがあれば半分の確率でそちらを使う
   return specific.length > 0 && Math.random() < 0.5 ? pick(specific) : pick(GENERIC_HEADINGS);
