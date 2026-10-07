@@ -55,7 +55,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId: getUserId() }),
-    }).catch(() => {});
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data?.error) console.error('[admin] 運営者の端末として記録できませんでした:', data.error);
+      })
+      .catch(() => {});
   }, [pathname]);
 
   useEffect(() => {
