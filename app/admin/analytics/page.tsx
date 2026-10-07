@@ -16,9 +16,10 @@ const RANGES = {
   '28d': { label: '28日間', startDate: '27daysAgo', endDate: 'today', days: 28, offset: 0 },
 } as const;
 
-// GA のレポートのタイムゾーンは 2026/10/7 正午ごろまでロサンゼルス時間（日本の16時間遅れ）だったため、
-// それより前の記録はロサンゼルス時間で日時が付いている。切り替えをはさんで、ロサンゼルス時間の記録は
-// 「10/6 20時台」まで、日本時間の記録は「10/7 12時台」からになり重ならないので、その間を境に見分けて日本時間に直す。
+// GA のレポートのタイムゾーンは 2026/10/7 にロサンゼルス時間（日本の16時間遅れ）から日本時間に変えた。
+// 設定を変えたのは正午ごろだが、GA はロサンゼルス時間の日付が変わる時刻（日本時間の 10/7 16時）から日本時間で記録している
+// （GA のデータ探索で確認）。ロサンゼルス時間の記録は「10/6 23時台」まで、日本時間の記録は「10/7 16時台」からで重ならないので、
+// その間を境に見分けて日本時間に直す。
 const TZ_SWITCH_DATE_HOUR = '2026100704';
 const LA_BEHIND_JST_HOURS = 16;
 
@@ -37,10 +38,9 @@ function jstDays(range: (typeof RANGES)[RangeKey]): Set<string> {
 }
 
 // 日本時間で何時の記録が、GA ではどの日時（dateHour）で付いているか。
-// 切り替え（10/7 正午ごろ）より前はロサンゼルス時間の日時（16時間前）、後は日本時間のまま。
-// 切り替えた正確な時刻は分からないので、前後の数時間は両方の日時を含める（両者は重ならないので二重には数えない）
-const JST_LABEL_FROM = '2026100711';
-const LA_LABEL_UNTIL = '2026100713';
+// 日本時間の 10/7 15時台まではロサンゼルス時間の日時（16時間前）、16時台からは日本時間のまま
+const JST_LABEL_FROM = '2026100716';
+const LA_LABEL_UNTIL = '2026100715';
 // これ以前の日（日本時間）はロサンゼルス時間の記録を含むため、日時で絞り込んで数え直す
 const LAST_AFFECTED_DAY = '20261007';
 
@@ -251,7 +251,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v5'],
+  ['admin-analytics-v6'],
   { revalidate: 300 },
 );
 

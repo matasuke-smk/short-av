@@ -642,7 +642,7 @@ export default function AnalyticsView({
         </p>
         {includesLaTimeData(rangeKey) && (
           <p className="-mt-1 mb-3 text-xs text-gray-400 bg-gray-800 rounded p-2" suppressHydrationWarning>
-            10/7 の正午ごろまで GA の日時がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間は日時を日本時間に読み替えて集計し直しています。
+            10/7 の15時台まで GA の日時がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間は日時を日本時間に読み替えて集計し直しています。
           </p>
         )}
 
