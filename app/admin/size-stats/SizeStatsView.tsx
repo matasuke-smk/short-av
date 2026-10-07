@@ -17,6 +17,9 @@ interface SizeStatistics {
     correctionMm: string;
     referenceLengthMm: number;
     rawAvgLength: string;
+    diameterCorrectionMm: string;
+    referenceDiameterMm: number;
+    rawAvgDiameter: string;
   };
   rawData: Array<{
     id: number;
@@ -127,6 +130,9 @@ export default function SizeStatsAdminPage() {
               <div className="bg-gray-800 rounded-lg p-6">
                 <div className="text-gray-400 text-sm mb-2">平均直径</div>
                 <div className="text-3xl font-bold">{stats.statistics.avgDiameter}mm</div>
+                <div className="text-gray-400 text-sm mt-2">
+                  補正 −{stats.admin.diameterCorrectionMm}mm（補正前 {stats.admin.rawAvgDiameter}mm と基準 {stats.admin.referenceDiameterMm}mm の中間）
+                </div>
               </div>
 
               <div className="bg-gray-800 rounded-lg p-6">
@@ -138,37 +144,42 @@ export default function SizeStatsAdminPage() {
               </div>
             </div>
 
-            {/* 長さの補正の比較（公開ページはまだ「今の補正」） */}
+            {/* 長さ・直径の補正 */}
             <div className="bg-gray-800 rounded-lg p-6 mb-8">
-              <h2 className="text-xl font-bold mb-1">長さの補正</h2>
+              <h2 className="text-xl font-bold mb-1">長さ・直径の補正</h2>
               <p className="text-gray-400 text-sm mb-4">
-                自己申告は大きめに出やすいため、平均の長さを「集めたデータの平均と基準の中間」にしています（差し引く量 = 差の半分。補正前が基準以下なら補正なし）。
-                基準は Veale ら（2015年）の平均 {stats.admin.referenceLengthMm / 10}cm（サイズ比較ツールに載せている値）。サイトには補正の説明は出していません。
+                自己申告は大きめに出やすいため、平均を「集めたデータの平均と基準の中間」にしています（差し引く量 = 差の半分。補正前が基準以下なら補正なし）。
+                基準は Veale ら（2015年）の平均（サイズ比較ツールに載せている値。直径は周囲から換算）。サイトには補正の説明は出していません。
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm whitespace-nowrap">
                   <thead className="text-gray-400">
                     <tr className="border-b border-gray-700">
-                      <th className="text-left py-2 pr-4 font-normal">方法</th>
-                      <th className="text-right py-2 px-4 font-normal">差し引く量</th>
-                      <th className="text-right py-2 pl-4 font-normal">平均の長さ</th>
+                      <th className="text-left py-2 pr-4 font-normal"></th>
+                      <th className="text-right py-2 px-4 font-normal">長さ</th>
+                      <th className="text-right py-2 pl-4 font-normal">直径</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b border-gray-700">
-                      <td className="py-2 pr-4">補正なし（入力そのまま）</td>
-                      <td className="text-right px-4">0mm</td>
-                      <td className="text-right pl-4">{stats.admin.rawAvgLength}mm</td>
+                      <td className="py-2 pr-4">補正前の平均</td>
+                      <td className="text-right px-4">{stats.admin.rawAvgLength}mm</td>
+                      <td className="text-right pl-4">{stats.admin.rawAvgDiameter}mm</td>
                     </tr>
-                    <tr className="border-b border-gray-700 bg-blue-900/20">
-                      <td className="py-2 pr-4">補正後（基準 {stats.admin.referenceLengthMm / 10}cm との中間）<span className="ml-1 text-xs text-blue-300">公開中</span></td>
+                    <tr className="border-b border-gray-700">
+                      <td className="py-2 pr-4 text-gray-400">基準</td>
+                      <td className="text-right px-4 text-gray-400">{stats.admin.referenceLengthMm}mm</td>
+                      <td className="text-right pl-4 text-gray-400">{stats.admin.referenceDiameterMm}mm</td>
+                    </tr>
+                    <tr className="border-b border-gray-700">
+                      <td className="py-2 pr-4">差し引く量</td>
                       <td className="text-right px-4">{stats.admin.correctionMm}mm</td>
-                      <td className="text-right pl-4">{stats.statistics.avgLength}mm</td>
+                      <td className="text-right pl-4">{stats.admin.diameterCorrectionMm}mm</td>
                     </tr>
-                    <tr>
-                      <td className="py-2 pr-4 text-gray-400">基準（参考）</td>
-                      <td className="text-right px-4 text-gray-400">-</td>
-                      <td className="text-right pl-4 text-gray-400">{stats.admin.referenceLengthMm}mm</td>
+                    <tr className="bg-blue-900/20">
+                      <td className="py-2 pr-4">補正後の平均<span className="ml-1 text-xs text-blue-300">公開中</span></td>
+                      <td className="text-right px-4">{stats.statistics.avgLength}mm</td>
+                      <td className="text-right pl-4">{stats.statistics.avgDiameter}mm</td>
                     </tr>
                   </tbody>
                 </table>
