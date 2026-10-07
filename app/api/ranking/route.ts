@@ -5,7 +5,7 @@ import {
   fetchAllTimeRanking,
   convertDMMItemToVideo,
 } from '@/lib/dmm-api';
-import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { supabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     // （女優ボタンやサンプルの長さが出るように。順位は DMM のランキングのまま）
     let data: Record<string, unknown>[] = videos;
     try {
-      const { data: rows, error } = await getSupabaseAdmin()
+      const { data: rows, error } = await supabase
         .from('videos')
         .select('*')
         .in('dmm_content_id', videos.map((v) => v.dmm_content_id));
