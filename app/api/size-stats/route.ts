@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     const ageGroup = searchParams.get('ageGroup');
 
     const rows = await getSizeStatisticsRows(erectionState, ageGroup);
-    const summary = summarizeSizeStatistics(rows);
+    const summary = summarizeSizeStatistics(rows, erectionState);
     return NextResponse.json({ ...summary, html: generateStatsHTML(summary) });
   } catch (error) {
     console.error('Size stats GET error:', error);

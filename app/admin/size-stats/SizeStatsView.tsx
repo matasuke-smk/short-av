@@ -14,11 +14,9 @@ interface SizeStatistics {
     total: number;
     outOfRange: number;
     lengthRangeMm: { min: number; max: number };
-    correctionMm: number;
+    correctionMm: string;
     referenceLengthMm: number;
-    rawAvgLength: string | null;
-    midpointCorrectionMm: string | null;
-    midpointAvgLength: string | null;
+    rawAvgLength: string;
   };
   rawData: Array<{
     id: number;
@@ -122,7 +120,7 @@ export default function SizeStatsAdminPage() {
                 <div className="text-3xl font-bold">{stats.statistics.avgLength}mm</div>
                 <div className="text-gray-500 text-sm">({(parseFloat(stats.statistics.avgLength) / 10).toFixed(1)}cm)</div>
                 <div className="text-gray-400 text-sm mt-2">
-                  補正 −{stats.admin.correctionMm}mm（補正前 {stats.admin.rawAvgLength}mm）
+                  補正 −{stats.admin.correctionMm}mm（補正前 {stats.admin.rawAvgLength}mm と基準 {stats.admin.referenceLengthMm}mm の中間）
                 </div>
               </div>
 
@@ -142,10 +140,10 @@ export default function SizeStatsAdminPage() {
 
             {/* 長さの補正の比較（公開ページはまだ「今の補正」） */}
             <div className="bg-gray-800 rounded-lg p-6 mb-8">
-              <h2 className="text-xl font-bold mb-1">長さの補正の比較</h2>
+              <h2 className="text-xl font-bold mb-1">長さの補正</h2>
               <p className="text-gray-400 text-sm mb-4">
-                自己申告は大きめに出やすいため、平均の長さを補正しています。基準は Veale ら（2015年）の平均
-                {' '}{stats.admin.referenceLengthMm / 10}cm（サイズ比較ツールに載せている値）。
+                自己申告は大きめに出やすいため、平均の長さを「集めたデータの平均と基準の中間」にしています（差し引く量 = 差の半分。補正前が基準以下なら補正なし）。
+                基準は Veale ら（2015年）の平均 {stats.admin.referenceLengthMm / 10}cm（サイズ比較ツールに載せている値）。サイトには補正の説明は出していません。
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -163,14 +161,9 @@ export default function SizeStatsAdminPage() {
                       <td className="text-right pl-4">{stats.admin.rawAvgLength}mm</td>
                     </tr>
                     <tr className="border-b border-gray-700 bg-blue-900/20">
-                      <td className="py-2 pr-4">今の補正（一律）<span className="ml-1 text-xs text-blue-300">公開中</span></td>
+                      <td className="py-2 pr-4">補正後（基準 {stats.admin.referenceLengthMm / 10}cm との中間）<span className="ml-1 text-xs text-blue-300">公開中</span></td>
                       <td className="text-right px-4">{stats.admin.correctionMm}mm</td>
                       <td className="text-right pl-4">{stats.statistics.avgLength}mm</td>
-                    </tr>
-                    <tr className="border-b border-gray-700">
-                      <td className="py-2 pr-4">中間案（集めたデータと基準 {stats.admin.referenceLengthMm / 10}cm の中間）</td>
-                      <td className="text-right px-4">{stats.admin.midpointCorrectionMm}mm</td>
-                      <td className="text-right pl-4">{stats.admin.midpointAvgLength}mm</td>
                     </tr>
                     <tr>
                       <td className="py-2 pr-4 text-gray-400">基準（参考）</td>

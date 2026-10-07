@@ -12,11 +12,19 @@ export type SizeStatisticsRow = {
 
 // 平均の計算に含める長さの範囲（入力値そのもので判定）。この範囲外は測り方の誤りや冗談の可能性が高い
 export const LENGTH_RANGE_MM = { min: 100, max: 170 } as const;
-// 自己申告は実測より大きめに出やすいため、平均の計算時に長さから一律に差し引く量（DB には入力値のまま保存）
-export const SELF_REPORT_CORRECTION_MM = 5;
 
-// 比較用の基準（Veale ら 2015年のメタ分析。サイズ比較ツールに載せている値）
+// 長さの補正の基準（Veale ら 2015年のメタ分析。サイズ比較ツールに載せている値）
 export const REFERENCE_LENGTH_MM = { erect: 131, flaccid: 92 } as const;
+
+/**
+ * 自己申告は実測より大きめに出やすいため、長さの平均を「集めたデータの平均と基準の中間」にする。
+ * 差し引く量 = (補正前の平均 − 基準) ÷ 2。補正前の平均が基準以下なら補正しない。DB には入力値のまま保存。
+ */
+function lengthCorrection(usable: SizeStatisticsRow[], erectionState: string) {
+  const reference = erectionState === 'flaccid' ? REFERENCE_LENGTH_MM.flaccid : REFERENCE_LENGTH_MM.erect;
+  const rawAvg = usable.length > 0 ? usable.reduce((sum, d) => sum + d.length_mm, 0) / usable.length : 0;
+  return { reference, rawAvg, correction: Math.max(0, (rawAvg - reference) / 2) };
+}
 
 const PAGE_SIZE = 1000;
 
@@ -51,17 +59,18 @@ export async function getSizeStatisticsRows(
 
 /**
  * 生データから集計値を計算
- * - 長さ: 入力値が LENGTH_RANGE_MM の範囲内のものだけを使い、自己申告分を補正（SELF_REPORT_CORRECTION_MM を差し引く）
+ * - 長さ: 入力値が LENGTH_RANGE_MM の範囲内のものだけを使い、自己申告分を補正（lengthCorrection）
  * - 直径: IQR法で外れ値を除外
  * count は長さの平均の計算に使った件数
  */
-export function summarizeSizeStatistics(rows: SizeStatisticsRow[]) {
+export function summarizeSizeStatistics(rows: SizeStatisticsRow[], erectionState: string = 'erect') {
   const usable = rows.filter(d => d.length_mm >= LENGTH_RANGE_MM.min && d.length_mm <= LENGTH_RANGE_MM.max);
   if (usable.length === 0) {
     return { count: 0, statistics: null };
   }
 
-  const lengthStat = computeMeanStd(usable.map(d => d.length_mm - SELF_REPORT_CORRECTION_MM));
+  const { correction } = lengthCorrection(usable, erectionState);
+  const lengthStat = computeMeanStd(usable.map(d => d.length_mm - correction));
   const diameterStat = computeRobustStat(usable.map(d => d.diameter_mm));
 
   return {
@@ -75,31 +84,23 @@ export function summarizeSizeStatistics(rows: SizeStatisticsRow[]) {
   };
 }
 
-/**
- * 管理画面用: 件数の内訳と、長さの補正の比較
- * - 今の補正: 一律 SELF_REPORT_CORRECTION_MM を差し引く
- * - 中間案: 補正前の平均と基準（REFERENCE_LENGTH_MM）の中間を平均にする（差し引く量 = 差の半分。基準より小さければ補正しない）
- */
+/** 管理画面用: 件数の内訳と、長さの補正の中身 */
 export function summarizeForAdmin(rows: SizeStatisticsRow[], erectionState: string) {
   const usable = rows.filter(d => d.length_mm >= LENGTH_RANGE_MM.min && d.length_mm <= LENGTH_RANGE_MM.max);
-  const reference = erectionState === 'flaccid' ? REFERENCE_LENGTH_MM.flaccid : REFERENCE_LENGTH_MM.erect;
-  const rawAvg = usable.length > 0 ? usable.reduce((sum, d) => sum + d.length_mm, 0) / usable.length : null;
-  const midpointCorrection = rawAvg === null ? null : Math.max(0, (rawAvg - reference) / 2);
+  const { reference, rawAvg, correction } = lengthCorrection(usable, erectionState);
   return {
     total: rows.length,
     outOfRange: rows.length - usable.length,
     lengthRangeMm: LENGTH_RANGE_MM,
-    correctionMm: SELF_REPORT_CORRECTION_MM,
+    correctionMm: correction.toFixed(1),
     referenceLengthMm: reference,
-    rawAvgLength: rawAvg === null ? null : rawAvg.toFixed(1),
-    midpointCorrectionMm: midpointCorrection === null ? null : midpointCorrection.toFixed(1),
-    midpointAvgLength: rawAvg === null || midpointCorrection === null ? null : (rawAvg - midpointCorrection).toFixed(1),
+    rawAvgLength: rawAvg.toFixed(1),
   };
 }
 
 export async function getSizeStatistics(erectionState: 'erect' | 'flaccid' = 'erect') {
   try {
-    return summarizeSizeStatistics(await getSizeStatisticsRows(erectionState));
+    return summarizeSizeStatistics(await getSizeStatisticsRows(erectionState), erectionState);
   } catch (error) {
     console.error('Size stats query error:', error);
     return null;
@@ -134,10 +135,9 @@ export function generateStatsHTML(stats: { count: number; statistics: any } | nu
   html += '</div>';
   html += '</div>';
 
-  // 集計方法の注記（範囲と補正量は定数から出す）
+  // 集計方法の注記（範囲は定数から出す）
   html += '<p style="grid-column: 1 / -1; font-size: 0.75rem; color: #9ca3af; margin: 0.5rem 0 0;">'
-    + '※長さ ' + LENGTH_RANGE_MM.min / 10 + '〜' + LENGTH_RANGE_MM.max / 10 + 'cm の入力のみ集計し、'
-    + '自己申告は大きめに出やすいため長さから ' + SELF_REPORT_CORRECTION_MM + 'mm 差し引いています。'
+    + '※長さ ' + LENGTH_RANGE_MM.min / 10 + '〜' + LENGTH_RANGE_MM.max / 10 + 'cm の入力のみ集計しています。'
     + '</p>';
 
   return html;
