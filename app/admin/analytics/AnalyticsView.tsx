@@ -91,20 +91,44 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 
 function Card({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-gray-800 rounded-lg p-4">
-      <div className="text-xs text-gray-400">{label}</div>
-      <div className="text-2xl font-bold mt-1">{value}</div>
-      {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
+    <div className="bg-gray-800 rounded-lg p-2.5 md:p-3 min-w-0">
+      <div className="text-[11px] leading-tight text-gray-400 line-clamp-2">{label}</div>
+      <div className="text-lg md:text-2xl font-bold mt-0.5">{value}</div>
+      {sub && <div className="text-[10px] md:text-xs leading-tight text-gray-500 mt-0.5 line-clamp-2">{sub}</div>}
     </div>
   );
 }
 
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+// collapsible: 見出しを押すと開閉（最初は閉じている）。細かい一覧で画面が長くならないようにする
+function Section({
+  title,
+  note,
+  children,
+  collapsible,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+  collapsible?: boolean;
+}) {
+  const box = 'bg-gray-800 rounded-lg p-3 md:p-4 mb-4 break-inside-avoid';
+  if (collapsible) {
+    return (
+      <details className={`${box} group`}>
+        <summary className="cursor-pointer list-none flex items-center justify-between gap-2">
+          <h2 className="text-base font-bold">{title}</h2>
+          <span className="text-gray-400 text-xs flex-shrink-0 group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        {note && <p className="text-xs text-gray-400 mt-1">{note}</p>}
+        <div className="mt-3">{children}</div>
+      </details>
+    );
+  }
   return (
-    <section className="bg-gray-800 rounded-lg p-4 md:p-6 mb-6">
-      <h2 className="text-lg font-bold">{title}</h2>
+    <section className={box}>
+      <h2 className="text-base font-bold">{title}</h2>
       {note && <p className="text-xs text-gray-400 mt-1">{note}</p>}
-      <div className="mt-4">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
@@ -125,7 +149,8 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 
 
 // 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
-function HourlyChart({ rows }: { rows: ReportRow[] }) {
+// total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
+function HourlyChart({ rows, total }: { rows: ReportRow[]; total: number }) {
   const [active, setActive] = useState<number | null>(null);
   const hours = Array.from({ length: 24 }, (_, h) => {
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
@@ -138,11 +163,16 @@ function HourlyChart({ rows }: { rows: ReportRow[] }) {
 
   return (
     <div>
-      <p className="text-sm text-gray-300 h-5">
-        {shown
-          ? `${shown.h}時台: ${fmt(shown.users)}人（イベント ${fmt(shown.events)}件）`
-          : `いちばん多い時間帯: ${peak.h}時台（${fmt(peak.users)}人）`}
-      </p>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-sm text-gray-300 min-w-0 truncate">
+          {shown
+            ? `${shown.h}時台: ${fmt(shown.users)}人（イベント ${fmt(shown.events)}件）`
+            : `いちばん多い時間帯: ${peak.h}時台（${fmt(peak.users)}人）`}
+        </p>
+        <p className="flex-shrink-0 text-sm text-gray-400">
+          合計 <span className="text-lg font-bold text-white">{fmt(total)}</span>人
+        </p>
+      </div>
       <div className="relative mt-5">
         {/* 目盛り（最大値の線） */}
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
@@ -218,7 +248,15 @@ function PageList({ rows }: { rows: ReportRow[] }) {
   );
 }
 
-function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<RangeData, { reports: ReportRow[][] }> }) {
+function RangeBody({
+  rangeKey,
+  data,
+  realtime,
+}: {
+  rangeKey: RangeKey;
+  data: Extract<RangeData, { reports: ReportRow[][] }>;
+  realtime: React.ReactNode; // いま見られているページ（期間によらず同じ）
+}) {
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
   const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
@@ -252,7 +290,11 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
 
   return (
     <>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
+          <HourlyChart rows={hourly} total={users} />
+        </Section>
+
+        <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
           <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} />
           <Card label="イベント数（合計）" value={fmt(totalEvents)} sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} />
           <Card label="ページ表示" value={fmt(eventCount('page_view'))} sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} />
@@ -264,8 +306,11 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
             value={fmt(eventCount('dmm_link_click'))}
             sub={`再生した人の ${pct(eventUsers('dmm_link_click'), eventUsers('video_view'))} がクリック`}
           />
-          <Card label="サンプル動画の再生" value={fmt(eventCount('video_view'))} sub={`${fmt(eventUsers('video_view'))}人が再生`} />
-          <Card label="1人あたりの再生本数" value={eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'} sub="再生した人の平均" />
+          <Card
+            label="サンプル動画の再生"
+            value={fmt(eventCount('video_view'))}
+            sub={`${fmt(eventUsers('video_view'))}人が再生・1人 ${eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'}本`}
+          />
           <Card label="いいね（運営者を除く）" value={fmt(db.likes)} sub={
               db.adminError
                 ? `運営者の端末を読めませんでした: ${db.adminError}`
@@ -276,138 +321,14 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
           <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} sub="いいね・取り消しの合計" />
         </div>
 
-        <Section title="時間帯ごとの利用者" note={rangeKey === 'today' || rangeKey === 'yesterday' ? 'その日の1時間ごとの利用者数（日本時間）' : '期間内の利用者を、アクセスした時間帯（日本時間）ごとに合計'}>
-          <HourlyChart rows={hourly} />
-        </Section>
-
+        {/* PC では2列に詰めて並べる（縦に長くならないように）。細かい一覧は折りたたむ */}
+        <div className="lg:columns-2 lg:gap-4">
         <Section title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。かっこ内は最初の訪問に対する割合、最後はイベントの回数。">
           {FUNNEL.map((f) => (
             <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）・${fmt(eventCount(f.event))}回`} />
           ))}
         </Section>
-
-        <Section title="何回目のスワイプまで進んだか" note="その回数のスワイプをした人数。急に減るところが離脱しやすい位置。">
-          {depth.length === 0 ? (
-            <p className="text-sm text-gray-400">まだデータがありません。</p>
-          ) : (
-            depth.map((d) => <Bar key={d.n} label={`${d.n}回目`} value={d.users} max={depthMax} right={`${fmt(d.users)}人`} />)
-          )}
-        </Section>
-
-        <Section title="スワイプで見つけた作品は見られているか" note="「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。">
-          <table className="w-full text-sm">
-            <thead className="text-gray-400">
-              <tr><th className="text-left font-normal py-1"></th><th className="text-right font-normal">スワイプ</th><th className="text-right font-normal">直接</th><th className="text-right font-normal">記録なし</th></tr>
-            </thead>
-            <tbody>
-              {[['video_view', 'サンプル動画の再生'], ['dmm_link_click', 'FANZA へのクリック']].map(([event, label]) => (
-                <tr key={event} className="border-t border-gray-700">
-                  <td className="py-2">{label}</td>
-                  <td className="text-right">{fmt(viaCount(event, 'スワイプ'))}</td>
-                  <td className="text-right">{fmt(viaCount(event, '直接'))}</td>
-                  <td className="text-right text-gray-500">{fmt(viaCount(event, '(not set)'))}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <Section title="よく再生された作品">
-            {topPlayed.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
-              <ol className="text-sm space-y-1 list-decimal ml-5">
-                {topPlayed.map((r) => <li key={r.dimensions[0]}><span className="line-clamp-1">{notSet(r.dimensions[0])}</span><span className="text-gray-400">{fmt(r.metrics[0])}回</span></li>)}
-              </ol>
-            )}
-          </Section>
-          <Section title="よくクリックされた作品">
-            {topClicked.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
-              <ol className="text-sm space-y-1 list-decimal ml-5">
-                {topClicked.map((r) => (
-                  <li key={r.dimensions[0]}>
-                    <span className="line-clamp-1">{db.titleById[r.dimensions[0]] ?? notSet(r.dimensions[0])}</span>
-                    <span className="text-gray-400">{fmt(r.metrics[0])}回</span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Section>
-          <Section title="どこから来たか" note="訪問回数（人数）">
-            {channels.map((r) => (
-              <Bar key={r.dimensions[0]} label={channelLabel(r.dimensions[0])} value={r.metrics[0]} max={channels[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}（${fmt(r.metrics[1])}人）`} />
-            ))}
-          </Section>
-          <Section title="端末">
-            {devices.map((r) => (
-              <Bar
-                key={r.dimensions[0]}
-                label={{ mobile: 'スマホ', desktop: 'PC', tablet: 'タブレット' }[r.dimensions[0]] ?? r.dimensions[0]}
-                value={r.metrics[0]}
-                max={devices[0]?.metrics[0] ?? 1}
-                right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], users)}）`}
-              />
-            ))}
-          </Section>
-        </div>
-
-        <Section title="画面と検索" note="開いた画面の種類と、検索の使われ方（2026/10/6 以降のみ）">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-            <Card label="検索画面を開いた" value={`${fmt(searchOpens[0])}回`} sub={`${fmt(searchOpens[1])}人`} />
-            <Card label="検索を実行した" value={`${fmt(searches)}回`} sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
-            <Card label="結果が0件だった検索" value={`${fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))}回`} />
-          </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="text-sm font-bold mb-2">開いた画面</h3>
-              {screens.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : screens.map((r) => (
-                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={screens[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
-              ))}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold mb-2">検索の種類</h3>
-              {searchTypes.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : searchTypes.map((r) => (
-                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={searchTypes[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
-              ))}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold mb-2">よく検索されたもの</h3>
-              {searchTerms.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
-                <ol className="text-sm space-y-1 list-decimal ml-5">
-                  {searchTerms.map((r) => <li key={r.dimensions[0]}><span className="line-clamp-1">{notSet(r.dimensions[0])}</span><span className="text-gray-400">{fmt(r.metrics[0])}回</span></li>)}
-                </ol>
-              )}
-            </div>
-            <div>
-              <h3 className="text-sm font-bold mb-2">見つからなかった検索（0件）</h3>
-              {zeroResults.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
-                <ol className="text-sm space-y-1 list-decimal ml-5">
-                  {zeroResults.map((r) => <li key={r.dimensions[0]}><span className="line-clamp-1">{notSet(r.dimensions[0])}</span><span className="text-gray-400">{fmt(r.metrics[0])}回</span></li>)}
-                </ol>
-              )}
-            </div>
-          </div>
-        </Section>
-
-        <Section title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`}>
-          {allEvents.length === 0 ? (
-            <p className="text-sm text-gray-400">まだデータがありません。</p>
-          ) : (
-            allEvents.map((r) => (
-              <Bar
-                key={r.dimensions[0]}
-                label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
-                value={r.metrics[0]}
-                max={allEvents[0]?.metrics[0] ?? 1}
-                right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
-              />
-            ))
-          )}
-        </Section>
-
-        <Section title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）">
-          <PageList rows={pages ?? []} />
-        </Section>
-
+        {realtime}
         <Section title="日別">
           <div className="overflow-x-auto">
             <table className="w-full text-sm whitespace-nowrap">
@@ -441,7 +362,123 @@ function RangeBody({ rangeKey, data }: { rangeKey: RangeKey; data: Extract<Range
             </table>
           </div>
         </Section>
-
+        <Section title="スワイプで見つけた作品は見られているか" note="「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。">
+          <table className="w-full text-sm">
+            <thead className="text-gray-400">
+              <tr><th className="text-left font-normal py-1"></th><th className="text-right font-normal">スワイプ</th><th className="text-right font-normal">直接</th><th className="text-right font-normal">記録なし</th></tr>
+            </thead>
+            <tbody>
+              {[['video_view', 'サンプル動画の再生'], ['dmm_link_click', 'FANZA へのクリック']].map(([event, label]) => (
+                <tr key={event} className="border-t border-gray-700">
+                  <td className="py-2">{label}</td>
+                  <td className="text-right">{fmt(viaCount(event, 'スワイプ'))}</td>
+                  <td className="text-right">{fmt(viaCount(event, '直接'))}</td>
+                  <td className="text-right text-gray-500">{fmt(viaCount(event, '(not set)'))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+          <Section title="よく再生された作品">
+            {topPlayed.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+              <ol className="text-sm space-y-1 list-decimal ml-5 marker:text-gray-500">
+                {topPlayed.map((r) => <li key={r.dimensions[0]}><div className="flex gap-2"><span className="flex-1 min-w-0 truncate">{notSet(r.dimensions[0])}</span><span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回</span></div></li>)}
+              </ol>
+            )}
+          </Section>
+          <Section title="よくクリックされた作品">
+            {topClicked.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+              <ol className="text-sm space-y-1 list-decimal ml-5 marker:text-gray-500">
+                {topClicked.map((r) => (
+                  <li key={r.dimensions[0]}>
+                    <div className="flex gap-2">
+                      <span className="flex-1 min-w-0 truncate">{db.titleById[r.dimensions[0]] ?? notSet(r.dimensions[0])}</span>
+                      <span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Section>
+          <Section title="どこから来たか" note="訪問回数（人数）">
+            {channels.map((r) => (
+              <Bar key={r.dimensions[0]} label={channelLabel(r.dimensions[0])} value={r.metrics[0]} max={channels[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}（${fmt(r.metrics[1])}人）`} />
+            ))}
+          </Section>
+          <Section title="端末">
+            {devices.map((r) => (
+              <Bar
+                key={r.dimensions[0]}
+                label={{ mobile: 'スマホ', desktop: 'PC', tablet: 'タブレット' }[r.dimensions[0]] ?? r.dimensions[0]}
+                value={r.metrics[0]}
+                max={devices[0]?.metrics[0] ?? 1}
+                right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], users)}）`}
+              />
+            ))}
+          </Section>
+        <Section collapsible title="何回目のスワイプまで進んだか" note="その回数のスワイプをした人数。急に減るところが離脱しやすい位置。">
+          {depth.length === 0 ? (
+            <p className="text-sm text-gray-400">まだデータがありません。</p>
+          ) : (
+            depth.map((d) => <Bar key={d.n} label={`${d.n}回目`} value={d.users} max={depthMax} right={`${fmt(d.users)}人`} />)
+          )}
+        </Section>
+        <Section collapsible title="画面と検索" note="開いた画面の種類と、検索の使われ方（2026/10/6 以降のみ）">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+            <Card label="検索画面を開いた" value={`${fmt(searchOpens[0])}回`} sub={`${fmt(searchOpens[1])}人`} />
+            <Card label="検索を実行した" value={`${fmt(searches)}回`} sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
+            <Card label="結果が0件だった検索" value={`${fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))}回`} />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-sm font-bold mb-2">開いた画面</h3>
+              {screens.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : screens.map((r) => (
+                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={screens[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
+              ))}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">検索の種類</h3>
+              {searchTypes.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : searchTypes.map((r) => (
+                <Bar key={r.dimensions[0]} label={notSet(r.dimensions[0])} value={r.metrics[0]} max={searchTypes[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`} />
+              ))}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">よく検索されたもの</h3>
+              {searchTerms.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+                <ol className="text-sm space-y-1 list-decimal ml-5 marker:text-gray-500">
+                  {searchTerms.map((r) => <li key={r.dimensions[0]}><div className="flex gap-2"><span className="flex-1 min-w-0 truncate">{notSet(r.dimensions[0])}</span><span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回</span></div></li>)}
+                </ol>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold mb-2">見つからなかった検索（0件）</h3>
+              {zeroResults.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : (
+                <ol className="text-sm space-y-1 list-decimal ml-5 marker:text-gray-500">
+                  {zeroResults.map((r) => <li key={r.dimensions[0]}><div className="flex gap-2"><span className="flex-1 min-w-0 truncate">{notSet(r.dimensions[0])}</span><span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回</span></div></li>)}
+                </ol>
+              )}
+            </div>
+          </div>
+        </Section>
+        <Section collapsible title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`}>
+          {allEvents.length === 0 ? (
+            <p className="text-sm text-gray-400">まだデータがありません。</p>
+          ) : (
+            allEvents.map((r) => (
+              <Bar
+                key={r.dimensions[0]}
+                label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
+                value={r.metrics[0]}
+                max={allEvents[0]?.metrics[0] ?? 1}
+                right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
+              />
+            ))
+          )}
+        </Section>
+        <Section collapsible title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）">
+          <PageList rows={pages ?? []} />
+        </Section>
+        </div>
     </>
   );
 }
@@ -459,6 +496,11 @@ export default function AnalyticsView({
 }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>(initialRange);
   const current = data[rangeKey];
+  const realtimeSection = (
+    <Section title="いま見られているページ（直近30分）" note={`${fetchedAt} 時点。最新にするには引き下げて再読み込み。`}>
+      {realtime === null ? <p className="text-sm text-gray-400">取得できませんでした。</p> : <PageList rows={realtime} />}
+    </Section>
+  );
 
   const select = (key: RangeKey) => {
     setRangeKey(key);
@@ -469,54 +511,45 @@ export default function AnalyticsView({
   };
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold">アクセス解析</h1>
+    <main className="min-h-screen bg-gray-900 text-white p-3 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-xl md:text-2xl font-bold">アクセス解析</h1>
         <p className="text-xs text-gray-400 mt-1">
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。スワイプ関連の数字は 2026/10/6 以降のみ。
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
 
-        <section className="bg-gray-800 rounded-lg p-4 md:p-6 mt-6">
-          <h2 className="text-lg font-bold">いま見られているページ（直近30分）</h2>
-          <p className="text-xs text-gray-400 mt-1">{fetchedAt} 時点。最新にするにはページを再読み込みしてください。</p>
-          <div className="mt-4">
-            {realtime === null ? (
-              <p className="text-sm text-gray-400">取得できませんでした。</p>
-            ) : (
-              <PageList rows={realtime} />
-            )}
-          </div>
-        </section>
-
-        <nav className="flex flex-wrap gap-2 my-6">
+        <nav className="grid grid-cols-4 md:flex gap-1.5 md:gap-2 mt-3 mb-4">
           {(Object.keys(RANGE_LABELS) as RangeKey[]).map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => select(key)}
-              className={`px-4 py-2 rounded-lg text-sm ${key === rangeKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+              className={`px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-sm leading-tight ${key === rangeKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
             >
               {RANGE_LABELS[key]}
-              <span className="ml-1 text-xs opacity-70" suppressHydrationWarning>
+              <span className="block md:inline md:ml-1 text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
                 {rangeDates(key)}
               </span>
             </button>
           ))}
         </nav>
-        <p className="-mt-4 mb-6 text-xs text-gray-400" suppressHydrationWarning>
+        <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
           集計の対象: {rangeDates(rangeKey)}（日本時間の0時で区切り）
         </p>
         {includesLaTimeData(rangeKey) && (
-          <p className="-mt-3 mb-6 text-xs text-gray-400 bg-gray-800 rounded p-2" suppressHydrationWarning>
+          <p className="-mt-1 mb-3 text-xs text-gray-400 bg-gray-800 rounded p-2" suppressHydrationWarning>
             10/7 の正午ごろまで GA の日時がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間は日時を日本時間に読み替えて集計し直しています。
           </p>
         )}
 
         {'error' in current ? (
-          <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-6">{current.error}</div>
+          <>
+            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{current.error}</div>
+            {realtimeSection}
+          </>
         ) : (
-          <RangeBody rangeKey={rangeKey} data={current} />
+          <RangeBody rangeKey={rangeKey} data={current} realtime={realtimeSection} />
         )}
 
         <SampleLengthStatus />
