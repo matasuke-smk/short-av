@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
 import SampleLengthStatus from './SampleLengthStatus';
-import { useLiveHourly, type LiveHourly } from './useLiveHourly';
+// 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
+type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 
 /**
@@ -209,7 +210,7 @@ function HourlyChart({
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />利用者（左の目盛り）</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />イベント数（右の目盛り）</span>
         {live && (
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-sky-400/80" />リアルタイムで補った時間帯（1分ごとに更新）</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-sky-400/80" />リアルタイムの記録で補った時間帯（15分ごとに記録）</span>
         )}
       </div>
       <div className="relative mt-5">
@@ -355,7 +356,9 @@ function RangeBody({
   data,
   realtime,
   fixedDaily,
+  todayLive,
 }: {
+  todayLive: LiveHourly | null;
   rangeKey: RangeKey;
   data: Extract<RangeData, { reports: ReportRow[][] }>;
   realtime: React.ReactNode; // いま見られているページ（期間によらず同じ）
@@ -364,8 +367,8 @@ function RangeBody({
   const { reports, db } = data;
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
   const totalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
-  // 「今日」は GA の集計が2時間ほど遅れるため、リアルタイム（直近30分）で補う
-  const live = useLiveHourly(rangeKey === 'today');
+  // 「今日」は GA の集計が2時間ほど遅れるため、15分ごとに記録しているリアルタイムの数字で補う
+  const live = rangeKey === 'today' ? todayLive : null;
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
@@ -564,7 +567,9 @@ export default function AnalyticsView({
   initialRange,
   fetchedAt,
   realtime,
+  todayLive,
 }: {
+  todayLive: LiveHourly | null; // 今日の時間帯ごとのリアルタイムの記録（取得できなければ null）
   data: Record<RangeKey, RangeData>;
   initialRange: RangeKey;
   fetchedAt: string;
@@ -630,6 +635,7 @@ export default function AnalyticsView({
             data={current}
             realtime={realtimeSection}
             fixedDaily={'reports' in data['28d'] ? data['28d'].reports : null}
+            todayLive={todayLive}
           />
         )}
 
