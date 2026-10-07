@@ -48,6 +48,27 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     window.history.replaceState(window.history.state, '', url.toString());
   };
 
+  // サイトを重ねて表示している間は、後ろの管理画面がスクロールしないよう固定する。
+  // （iPhone ではサイト側で動ききれなかったスワイプが後ろのページに伝わり、見えないまま縦横に動いていた。
+  //   overflow: hidden だけでは iPhone で止まらないため、body を固定して位置を保つ）
+  useEffect(() => {
+    if (!siteOpen) return;
+    const scrollY = window.scrollY;
+    const { body, documentElement } = document;
+    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: documentElement.style.overflow };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    documentElement.style.overflow = 'hidden';
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      documentElement.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [siteOpen]);
+
   // この端末のユーザーIDを運営者として記録する（アクセス解析で運営者自身のいいねを除くため）
   useEffect(() => {
     if (pathname === '/admin/login') return;
@@ -115,7 +136,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
       {siteLoaded && (
         <div
-          className={`fixed inset-0 z-[100] bg-black flex flex-col ${siteOpen ? '' : 'hidden'}`}
+          className={`fixed inset-0 z-[100] bg-black flex flex-col overscroll-none ${siteOpen ? '' : 'hidden'}`}
           role="dialog"
           aria-label="サイト"
         >
