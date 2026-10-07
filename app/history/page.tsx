@@ -68,7 +68,7 @@ export default function HistoryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-xl font-bold">視聴履歴</h1>
+            <h1 className="text-xl font-bold">視聴履歴<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h1>
           </div>
           {videos.length > 0 && (
             <button
@@ -111,10 +111,6 @@ export default function HistoryPage() {
                     alt={video.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                   />
-                  {/* PRバッジ */}
-                  <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-0.5 rounded text-xs font-bold">
-                    PR
-                  </div>
                 </div>
                 <h3 className="text-sm font-medium line-clamp-2 mb-1 group-hover:text-blue-400 transition-colors">
                   {video.title}

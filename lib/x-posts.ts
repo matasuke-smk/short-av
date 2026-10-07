@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
 import { getAdminUserIds } from '@/lib/admin-users';
-import { LONG_SAMPLE_SECONDS } from '@/config/site';
+import { EXTRA_LONG_SAMPLE_SECONDS, LONG_SAMPLE_SECONDS } from '@/config/site';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
@@ -50,6 +50,11 @@ const pick = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.lengt
 
 /** 作品の情報（順位・発売日・サンプルの長さ）に合う見出しを優先しつつ、毎回ランダムに選ぶ */
 export function pickHeading(video: VideoRow): string {
+  // サンプル4分以上は長尺であることをいちばんの売りにする（見出しは必ず長尺のもの）
+  if (video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS) {
+    const minutes = Math.floor(video.sample_seconds / 60);
+    return pick([`【長尺サンプル${minutes}分】`, `【サンプル動画${minutes}分の長尺】`, `【無料サンプルが${minutes}分も】`]);
+  }
   const specific: string[] = [];
   if (video.rank_position && video.rank_position <= 30) specific.push(`【人気ランキング${video.rank_position}位】`);
   if (video.release_date) {
@@ -350,7 +355,9 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
       title,
       actress ? `出演: ${actress}` : video.maker ? `メーカー: ${video.maker}` : '',
       '',
-      'サンプル動画はこちら👇',
+      video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS
+        ? `${Math.floor(video.sample_seconds / 60)}分の長尺サンプル動画はこちら👇`
+        : 'サンプル動画はこちら👇',
       url,
       '',
       '#PR #FANZA',
