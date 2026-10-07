@@ -555,7 +555,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
       )}
       {/* FANZAクレジット（画面上部固定、横画面時は非表示） */}
+      {/* 広告（アフィリエイト）であることの表示（PR）も、どの作品でも常に見えるここに出す */}
       <div className="landscape:hidden fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
+        <span className="mr-2 bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
         {enableAffiliateLinks ? (
           <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
         ) : (
@@ -661,14 +663,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       </div>
                     )}
 
-                    {/* PRバッジ - サムネイル右下 */}
-                    <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 bg-yellow-400 text-black px-3 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
-                      PR
-                    </div>
+                    {/* サンプル動画の長さ - サムネイル右下（PR の表示は画面上部のクレジットの帯に移した） */}
+                    {(video.sample_seconds ?? 0) > 0 && (
+                      <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 flex items-center gap-1 bg-black/75 text-white px-2 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                        サンプル {Math.floor(video.sample_seconds! / 60)}:{String(video.sample_seconds! % 60).padStart(2, '0')}
+                      </div>
+                    )}
                     </div>
 
                     {/* FANZAクレジット - 横画面時・PC時のみ表示（サムネイルの下） */}
                     <div className="hidden landscape:flex landscape:justify-center landscape:items-center lg:flex lg:justify-center lg:items-center bg-black/50 backdrop-blur-sm text-white landscape:h-8 landscape:flex-shrink-0 lg:h-8 lg:flex-shrink-0 text-xs landscape:px-2 lg:px-2">
+                      <span className="mr-2 bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
                       {enableAffiliateLinks ? (
                         <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
                       ) : (
