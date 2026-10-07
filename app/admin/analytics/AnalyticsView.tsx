@@ -218,9 +218,7 @@ function HourlyChart({
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />{days > 1 ? '利用者（1日平均・左の目盛り）' : '利用者（左の目盛り）'}</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{days > 1 ? 'イベント数（1日平均・右の目盛り）' : 'イベント数（右の目盛り）'}</span>
-        {live && (
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-sky-400/80" />リアルタイムの記録で補った時間帯（15分ごとに記録）</span>
-        )}
+
       </div>
       <div className="relative mt-5">
         {/* 目盛り（最大値の線）。左が利用者、右がイベント数 */}
@@ -252,7 +250,7 @@ function HourlyChart({
               className="flex-1 h-full flex items-end group"
             >
               <span
-                className={`w-full rounded-t ${active === x.h ? 'bg-blue-300' : x.fromLive ? 'bg-sky-400/80 group-hover:bg-sky-300' : 'bg-blue-500 group-hover:bg-blue-400'}`}
+                className={`w-full rounded-t ${active === x.h ? 'bg-blue-300' : 'bg-blue-500 group-hover:bg-blue-400'}`}
                 style={{ height: `${(x.users / max) * 100}%`, minHeight: x.users > 0 ? 2 : 0 }}
               />
             </button>
