@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 /**
  * GA のリアルタイム（直近30分）を記録し、「今日」の時間帯グラフの遅れを補う（サーバー専用、sql/014）
- * - 15分ごとに GitHub Actions が /api/cron/ga-realtime を呼んで記録する（直近30分を取るので取りこぼさない）
+ * - サイトが使われている間は /api/videos の応答後に10分おきに記録する（maybeRecordGaRealtime）
+ * - 15分ごとに GitHub Actions も /api/cron/ga-realtime を呼ぶ（混雑時に間引かれるので補助）
  * - アクセス解析を開いたときにも記録してから読む（いちばん新しい数字になる）
  */
 
@@ -57,13 +58,18 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
   return { minutes: minuteRows.length, hours: hourRows.length };
 }
 
-/** 今日（日本時間）の時間帯ごとの記録 { [hour]: { users, events } } */
-export async function getTodayRealtime(): Promise<Record<number, { users: number; events: number }>> {
+/** 日本時間の日（daysAgo=0 が今日、1 が昨日）の時間帯ごとの記録 { [hour]: { users, events } } */
+export async function getLiveHourly(daysAgo: number): Promise<Record<number, { users: number; events: number }>> {
   const supabase = getSupabaseAdmin();
-  const { date } = jstParts(Date.now());
-  const dayStart = new Date(Date.parse(`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T00:00:00+09:00`)).toISOString();
+  const { date } = jstParts(Date.now() - daysAgo * 86_400_000);
+  const dayStart = Date.parse(`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T00:00:00+09:00`);
   const [{ data: minutes, error: minuteError }, { data: hours, error: hourError }] = await Promise.all([
-    supabase.from('ga_realtime_minutes').select('minute_at, events').gte('minute_at', dayStart).limit(1500),
+    supabase
+      .from('ga_realtime_minutes')
+      .select('minute_at, events')
+      .gte('minute_at', new Date(dayStart).toISOString())
+      .lt('minute_at', new Date(dayStart + 86_400_000).toISOString())
+      .limit(1500),
     supabase.from('ga_realtime_hours').select('hour, users').eq('date', date),
   ]);
   if (minuteError) throw minuteError;
@@ -78,4 +84,25 @@ export async function getTodayRealtime(): Promise<Record<number, { users: number
     result[h] = { users: Math.max(result[h]?.users ?? 0, row.users as number), events: result[h]?.events ?? 0 };
   }
   return result;
+}
+
+// サイトが使われている間に記録する（GitHub Actions の15分ごとの定期実行は混雑時に間引かれ、
+// 10/7 は1日に2回しか動かなかったため）。直近30分を取るので、10分おきに記録すれば取りこぼさない
+const RECORD_INTERVAL_MS = 10 * 60_000;
+let lastCheckedAt = 0;
+
+export async function maybeRecordGaRealtime(): Promise<void> {
+  const now = Date.now();
+  // 同じサーバーの中では2分に1回だけデータベースを確かめる
+  if (now - lastCheckedAt < 2 * 60_000) return;
+  lastCheckedAt = now;
+  const { data, error } = await getSupabaseAdmin()
+    .from('ga_realtime_minutes')
+    .select('minute_at')
+    .order('minute_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  const latest = data?.[0] ? Date.parse(data[0].minute_at as string) : 0;
+  if (now - latest < RECORD_INTERVAL_MS) return;
+  await recordGaRealtime();
 }
