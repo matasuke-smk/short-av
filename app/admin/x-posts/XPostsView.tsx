@@ -1,32 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { getUserId } from '@/lib/user-id';
 import {
   countXWeightedLength,
   getPostFormat,
   setPostFormat,
   X_MAX_WEIGHTED_LENGTH,
-  X_POST_FORMAT_LABEL,
-  type XPostFormat,
 } from '@/lib/x-post-text';
-
-type XPost = {
-  id: string;
-  slot_at: string;
-  slot_type: 'new' | 'ranking' | 'random' | 'manual';
-  dmm_content_id: string;
-  title: string;
-  thumbnail_url: string | null;
-  text: string;
-  status: 'pending' | 'scheduled' | 'skipped';
-};
-
-const SLOT_LABEL: Record<XPost['slot_type'], string> = {
-  new: '新着',
-  ranking: 'ランキング',
-  random: 'ランダム',
-  manual: '手動で選択',
-};
 
 const MAX_IMAGES = 4;
 
@@ -236,7 +217,7 @@ function SampleImagePicker({
   );
 }
 
-type RecommendedVideo = {
+type VideoItem = {
   dmm_content_id: string;
   title: string;
   thumbnail_url: string | null;
@@ -249,6 +230,7 @@ type RecommendedVideo = {
   xClicks: number;
   postedCount: number;
   lastPostedAt: string | null;
+  likedAt?: string; // 「いいね」タブのみ
 };
 
 async function copyToClipboard(text: string) {
@@ -265,8 +247,12 @@ async function copyToClipboard(text: string) {
   }
 }
 
-// おすすめの作品1件（「投稿文を作る」で本文を作り、コピー → X に貼り付け →「紹介済みにする」）
-function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPosted: () => void }) {
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' });
+
+// 作品1件（「投稿文を作る」で本文を作り、コピー → X に貼り付け →「紹介済みにする」）
+// サムネイルは X での反応を左右するため、カードの幅いっぱいに大きく表示する
+function VideoCard({ video, onPosted }: { video: VideoItem; onPosted: () => void }) {
   const [text, setText] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
@@ -299,8 +285,13 @@ function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPoste
       body: JSON.stringify({ contentId: video.dmm_content_id, text: finalText() }),
     });
     setBusy(false);
-    if (response.ok) onPosted();
-    else setStatus('記録できませんでした');
+    if (response.ok) {
+      setText(null);
+      setStatus('紹介済みにしました');
+      onPosted();
+    } else {
+      setStatus('記録できませんでした');
+    }
   }
 
   const reasons = [
@@ -315,107 +306,103 @@ function RecommendedCard({ video, onPosted }: { video: RecommendedVideo; onPoste
   const length = text ? countXWeightedLength(text) : 0;
 
   return (
-    <div className="bg-gray-800 rounded-lg p-3">
-      <div className="flex gap-3">
-        {video.thumbnail_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={video.thumbnail_url} alt="" className="w-24 md:w-32 rounded object-cover self-start" loading="lazy" />
-        )}
-        <div className="flex-1 min-w-0">
-          {video.postedCount > 0 && (
-            <p className="text-[11px] text-orange-300 mb-0.5">
-              再紹介（{video.postedCount}回紹介済み・前回{' '}
-              {video.lastPostedAt ? new Date(video.lastPostedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }) : '-'}）
-            </p>
+    <div className="bg-gray-800 rounded-lg overflow-hidden">
+      {video.thumbnail_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={video.thumbnail_url} alt={video.title} className="w-full h-auto bg-black" loading="lazy" />
+      )}
+      <div className="p-3">
+        <div className="flex flex-wrap gap-x-2 gap-y-1 mb-1 text-[11px]">
+          {video.likedAt && <span className="text-pink-300">♥ {shortDate(video.likedAt)} にいいね</span>}
+          {video.postedCount > 0 ? (
+            <span className="text-orange-300">
+              紹介済み {video.postedCount}回（前回 {video.lastPostedAt ? shortDate(video.lastPostedAt) : '-'}）
+            </span>
+          ) : (
+            video.likedAt && <span className="text-gray-400">未紹介</span>
           )}
-          <p className="text-sm font-bold line-clamp-2">{video.title}</p>
+        </div>
+        <p className="text-sm font-bold line-clamp-2">{video.title}</p>
+        {reasons.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {reasons.map((reason) => (
               <span key={reason} className="text-[11px] bg-gray-700 text-gray-200 rounded px-1.5 py-0.5">{reason}</span>
             ))}
           </div>
-          {text === null && (
-            <button onClick={compose} className="mt-2 bg-blue-600 hover:bg-blue-500 rounded px-3 py-1.5 text-sm font-bold">
-              投稿文を作る
-            </button>
-          )}
-        </div>
-      </div>
+        )}
+        {text === null && (
+          <button onClick={compose} className="mt-3 w-full bg-blue-600 hover:bg-blue-500 rounded px-3 py-2 text-sm font-bold">
+            投稿文を作る
+          </button>
+        )}
 
-      {text !== null && (
-        <div className="mt-3">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={8}
-            className="w-full bg-gray-900 text-white text-sm p-2 rounded border border-gray-700"
-          />
-          <div className={`text-xs mt-1 ${length > X_MAX_WEIGHTED_LENGTH ? 'text-red-400' : 'text-gray-400'}`}>
-            {length} / {X_MAX_WEIGHTED_LENGTH}
-          </div>
-          <div className="mt-2">
-            <SampleImagePicker
-              contentId={video.dmm_content_id}
-              text={text}
-              onUseImages={() => setText((t) => (t === null ? t : setPostFormat(t, 'img4')))}
+        {text !== null && (
+          <div className="mt-3">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={8}
+              className="w-full bg-gray-900 text-white text-sm p-2 rounded border border-gray-700"
             />
+            <div className={`text-xs mt-1 ${length > X_MAX_WEIGHTED_LENGTH ? 'text-red-400' : 'text-gray-400'}`}>
+              {length} / {X_MAX_WEIGHTED_LENGTH}
+            </div>
+            <div className="mt-2">
+              <SampleImagePicker
+                contentId={video.dmm_content_id}
+                text={text}
+                onUseImages={() => setText((t) => (t === null ? t : setPostFormat(t, 'img4')))}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                onClick={copy}
+                disabled={length > X_MAX_WEIGHTED_LENGTH}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
+              >
+                本文をコピー
+              </button>
+              <button
+                onClick={record}
+                disabled={busy}
+                className="bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
+              >
+                紹介済みにする
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 mt-3">
-            <button
-              onClick={copy}
-              disabled={length > X_MAX_WEIGHTED_LENGTH}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
-            >
-              本文をコピー
-            </button>
-            <button
-              onClick={record}
-              disabled={busy}
-              className="bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm"
-            >
-              紹介済みにする
-            </button>
-          </div>
-        </div>
-      )}
-      {status && <p className="text-xs text-yellow-300 mt-2">{status}</p>}
+        )}
+        {status && <p className="text-xs text-yellow-300 mt-2">{status}</p>}
+      </div>
     </div>
   );
 }
 
-function formatSlot(iso: string): string {
-  return new Date(iso).toLocaleString('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    month: 'numeric',
-    day: 'numeric',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const LIST_TABS = [
+  { key: 'liked', label: 'いいね' },
+  { key: 'recommended', label: '効果的' },
+] as const;
+type ListTab = (typeof LIST_TABS)[number]['key'];
+const LIST_TAB_KEY = 'sav_admin_x_tab';
 
 export default function XPostsAdminPage() {
-  const [posts, setPosts] = useState<XPost[]>([]);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [recommended, setRecommended] = useState<RecommendedVideo[] | null>(null);
+  const [listTab, setListTab] = useState<ListTab>('liked');
+  const [liked, setLiked] = useState<VideoItem[] | null>(null);
+  const [likedError, setLikedError] = useState('');
+  const [recommended, setRecommended] = useState<VideoItem[] | null>(null);
   const [recommendDays, setRecommendDays] = useState(7);
   const [recommendError, setRecommendError] = useState('');
 
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
+  const fetchLiked = useCallback(async () => {
+    setLikedError('');
     try {
-      const response = await fetch('/api/admin/x-posts');
+      // 「サイトを開く」で見たサイトと同じ端末のいいね（ユーザーIDは同じ localStorage を使う）
+      const response = await fetch(`/api/admin/x-posts/liked?userId=${encodeURIComponent(getUserId())}`);
       if (!response.ok) throw new Error();
       const data = await response.json();
-      setPosts(data.posts);
-      setDrafts(Object.fromEntries(data.posts.map((p: XPost) => [p.id, p.text])));
+      setLiked(data.videos);
     } catch {
-      setMessage('読み込みに失敗しました');
-    } finally {
-      setLoading(false);
+      setLikedError('いいねした作品を読み込めませんでした');
     }
   }, []);
 
@@ -433,212 +420,82 @@ export default function XPostsAdminPage() {
   }, []);
 
   useEffect(() => {
-    fetchPosts();
+    try {
+      const saved = localStorage.getItem(LIST_TAB_KEY);
+      if (saved === 'liked' || saved === 'recommended') setListTab(saved);
+    } catch {
+      // localStorage が使えなければ「いいね」を開く
+    }
+    fetchLiked();
     fetchRecommended();
-  }, [fetchPosts, fetchRecommended]);
+  }, [fetchLiked, fetchRecommended]);
 
-  // 紹介済みにした作品を一覧から外し、下の「紹介した作品」に出す
+  const selectTab = (key: ListTab) => {
+    setListTab(key);
+    try {
+      localStorage.setItem(LIST_TAB_KEY, key);
+    } catch {
+      // 保存できなくても切り替えはできる
+    }
+  };
+
+  // 紹介済みにした作品: 「効果的」からは外し、「いいね」では紹介済みの表示にする
   function markPosted(contentId: string) {
+    const now = new Date().toISOString();
     setRecommended((prev) => prev?.filter((v) => v.dmm_content_id !== contentId) ?? prev);
-    fetchPosts();
+    setLiked(
+      (prev) =>
+        prev?.map((v) => (v.dmm_content_id === contentId ? { ...v, postedCount: v.postedCount + 1, lastPostedAt: now } : v)) ?? prev,
+    );
   }
 
-  async function update(id: string, body: { text?: string; status?: XPost['status'] }) {
-    const response = await fetch(`/api/admin/x-posts/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      setMessage('保存に失敗しました');
-      return false;
-    }
-    return true;
-  }
-
-  async function saveText(post: XPost) {
-    if (drafts[post.id] === post.text) return;
-    if (await update(post.id, { text: drafts[post.id] })) {
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: drafts[post.id] } : p)));
-    }
-  }
-
-  async function setStatus(post: XPost, status: XPost['status']) {
-    if (!(await update(post.id, { status }))) return;
-    if (status === 'skipped') {
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
-    } else {
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, status } : p)));
-    }
-  }
-
-  async function changeFormat(post: XPost, format: XPostFormat) {
-    const current = drafts[post.id] ?? post.text;
-    const next = setPostFormat(current, format);
-    if (next === current) return;
-    setDrafts((prev) => ({ ...prev, [post.id]: next }));
-    if (await update(post.id, { text: next })) {
-      setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: next } : p)));
-    }
-  }
-
-  // 本文をクリップボードにコピーする（X の投稿画面に貼り付けて使う）
-  // 以前は X の投稿画面を開いていたが、スマホでは X アプリ内のブラウザで開いてうまく動かなかった
-  async function copyText(post: XPost) {
-    // 計測用パラメータが無い URL（機能追加前に作った候補）にも付けてからコピーする
-    const current = drafts[post.id] ?? post.text;
-    const finalText = setPostFormat(current, getPostFormat(current));
-    if (finalText !== post.text) {
-      setDrafts((prev) => ({ ...prev, [post.id]: finalText }));
-      if (await update(post.id, { text: finalText })) {
-        setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, text: finalText } : p)));
-      }
-    }
-    await copyToClipboard(finalText);
-    setCopiedId(post.id);
-    setTimeout(() => setCopiedId((id) => (id === post.id ? null : id)), 3000);
-  }
-
-  const pendingCount = posts.filter((p) => p.status === 'pending').length;
+  const list = listTab === 'liked' ? liked : recommended;
+  const error = listTab === 'liked' ? likedError : recommendError;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">X 投稿</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-3">X 投稿</h1>
 
-        <section className="mb-10">
-          <h2 className="text-xl font-bold mb-1">投稿すると効果的な作品</h2>
-          <p className="text-gray-400 text-sm mb-4">
-            直近{recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキング、前回 X で紹介したときの反応から、作品を反応の大きい順に表示しています。
-            「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。紹介済みにした作品は2週間この一覧に出ず、その後は「再紹介」として見出しを変えた文面で出ます（X で同じ文面を繰り返すと表示が落ちるため、文面は少し変えて投稿してください）。
-          </p>
-          {recommendError ? (
-            <div className="text-red-400 text-sm">{recommendError}</div>
-          ) : recommended === null ? (
-            <div className="text-gray-400 text-sm">読み込み中...</div>
-          ) : recommended.length === 0 ? (
-            <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400 text-sm">いまおすすめできる作品はありません。</div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-3">
-              {recommended.map((video) => (
-                <RecommendedCard key={video.dmm_content_id} video={video} onPosted={() => markPosted(video.dmm_content_id)} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <h2 className="text-xl font-bold mb-1">ストック・紹介した作品</h2>
-        <p className="text-gray-400 text-sm mb-4">
-          紹介済みにした作品と、以前の毎週の自動作成で作った候補です（前日以降の分）。
-          画像を添付する場合は、先に投稿形式を「画像4枚」にしてから「本文をコピー」を押してください（効果測定のため）。
-        </p>
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <span className="text-gray-300 text-sm">未予約: {pendingCount}件</span>
-          {message && <span className="text-yellow-300 text-sm">{message}</span>}
+        <div className="flex gap-2 mb-3">
+          {LIST_TABS.map(({ key, label }) => {
+            const count = key === 'liked' ? liked?.length : recommended?.length;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => selectTab(key)}
+                className={`flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-bold ${listTab === key ? 'bg-blue-600' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+              >
+                {label}
+                {count !== undefined && <span className="ml-1 font-normal opacity-80">{count}</span>}
+              </button>
+            );
+          })}
         </div>
 
-        {loading ? (
-          <div className="text-gray-400">読み込み中...</div>
-        ) : posts.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-8 text-center text-gray-400">
-            まだありません。
+        <p className="text-gray-400 text-sm mb-4">
+          {listTab === 'liked'
+            ? '「サイトを開く」でいいねした作品です（この端末でのいいね・新しい順）。紹介済みにしても一覧に残ります。'
+            : `直近${recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキング、前回 X で紹介したときの反応から、反応の大きい順に表示しています。紹介済みにした作品は2週間この一覧に出ず、その後は「再紹介」として見出しを変えた文面で出ます。`}
+          {' '}「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。
+        </p>
+
+        {error ? (
+          <div className="text-red-400 text-sm">{error}</div>
+        ) : list === null ? (
+          <div className="text-gray-400 text-sm">読み込み中...</div>
+        ) : list.length === 0 ? (
+          <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400 text-sm">
+            {listTab === 'liked'
+              ? 'まだいいねした作品はありません。上の「サイトを開く」で作品の ♡ を押すと、ここに並びます。'
+              : 'いまおすすめできる作品はありません。'}
           </div>
         ) : (
-          <div className="space-y-4">
-            {posts.map((post) => {
-              const text = drafts[post.id] ?? post.text;
-              const length = countXWeightedLength(text);
-              const scheduled = post.status === 'scheduled';
-              return (
-                <div
-                  key={post.id}
-                  className={`rounded-lg p-4 ${scheduled ? 'bg-gray-800/50 opacity-60' : 'bg-gray-800'}`}
-                >
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <span className="text-lg font-bold">{formatSlot(post.slot_at)}</span>
-                    <span className="text-xs bg-gray-700 px-2 py-0.5 rounded">{SLOT_LABEL[post.slot_type]}</span>
-                    {scheduled && <span className="text-xs bg-green-700 px-2 py-0.5 rounded">予約済み</span>}
-                    <div className="ml-auto flex items-center gap-1 text-xs" title="Google Analytics で効果を比べるため、リンクの utm_content に入ります">
-                      <span className="text-gray-400">投稿形式:</span>
-                      {(Object.keys(X_POST_FORMAT_LABEL) as XPostFormat[]).map((format) => (
-                        <button
-                          key={format}
-                          onClick={() => changeFormat(post, format)}
-                          disabled={scheduled}
-                          className={`px-2 py-0.5 rounded ${getPostFormat(text) === format ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-                        >
-                          {X_POST_FORMAT_LABEL[format]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col md:flex-row gap-4">
-                    {post.thumbnail_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.thumbnail_url} alt={post.title} className="w-full md:w-40 rounded object-cover" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <textarea
-                        value={text}
-                        onChange={(e) => setDrafts((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                        onBlur={() => saveText(post)}
-                        rows={8}
-                        disabled={scheduled}
-                        className="w-full bg-gray-900 text-white text-sm p-2 rounded border border-gray-700"
-                      />
-                      <div className={`text-xs mt-1 ${length > X_MAX_WEIGHTED_LENGTH ? 'text-red-400' : 'text-gray-400'}`}>
-                        {length} / {X_MAX_WEIGHTED_LENGTH}
-                      </div>
-                    </div>
-                  </div>
-
-                  {!scheduled && (
-                    <div className="mt-3">
-                      <SampleImagePicker
-                        contentId={post.dmm_content_id}
-                        text={text}
-                        onUseImages={() => changeFormat(post, 'img4')}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {scheduled ? (
-                      <button
-                        onClick={() => setStatus(post, 'pending')}
-                        className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm"
-                      >
-                        未予約に戻す
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => copyText(post)}
-                          disabled={length > X_MAX_WEIGHTED_LENGTH}
-                          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
-                        >
-                          {copiedId === post.id ? 'コピーしました' : '本文をコピー'}
-                        </button>
-                        <button
-                          onClick={() => setStatus(post, 'scheduled')}
-                          className="bg-green-700 hover:bg-green-600 px-3 py-1.5 rounded text-sm"
-                        >
-                          予約済みにする
-                        </button>
-                        <button
-                          onClick={() => setStatus(post, 'skipped')}
-                          className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm"
-                          title="この候補を外します（作品はまたおすすめに出るようになります）"
-                        >
-                          スキップ
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid sm:grid-cols-2 gap-4">
+            {list.map((video) => (
+              <VideoCard key={`${listTab}-${video.dmm_content_id}`} video={video} onPosted={() => markPosted(video.dmm_content_id)} />
+            ))}
           </div>
         )}
       </div>

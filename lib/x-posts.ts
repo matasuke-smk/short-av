@@ -7,6 +7,7 @@
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
+import { toContentIds } from '@/lib/likes';
 import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
@@ -209,6 +210,67 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
   });
   videos.sort((a, b) => b.score - a.score || (a.rank ?? 999) - (b.rank ?? 999));
   return { days: RECOMMEND_DAYS, videos: videos.filter((v) => v.score > 0).slice(0, RECOMMEND_LIMIT) };
+}
+
+export type LikedVideo = Omit<RecommendedVideo, 'score'> & { likedAt: string };
+
+/**
+ * 管理者がサイトでいいねした作品（新しい順）。いいねしたら X で紹介したい作品として一覧に出す。
+ * 紹介済みでも外さず、紹介した回数・前回の日時を付けて返す。
+ */
+export async function getLikedVideos(userId: string): Promise<{ days: number; videos: LikedVideo[] }> {
+  const supabase = getSupabaseAdmin();
+  const { data: likes, error } = await supabase
+    .from('likes')
+    .select('video_id, created_at')
+    .eq('user_identifier', userId)
+    .order('created_at', { ascending: false })
+    .limit(PAGE_SIZE);
+  if (error) throw error;
+
+  // 旧形式（UUID）のいいねも dmm_content_id に読み替え、同じ作品は新しいいいねだけ残す
+  const contentIdMap = await toContentIds(supabase, (likes ?? []).map((like) => like.video_id as string));
+  const likedAt = new Map<string, string>();
+  for (const like of likes ?? []) {
+    const id = contentIdMap.get(like.video_id as string);
+    if (id && !likedAt.has(id)) likedAt.set(id, like.created_at as string);
+  }
+  const ids = [...likedAt.keys()];
+  if (ids.length === 0) return { days: RECOMMEND_DAYS, videos: [] };
+
+  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; likes_count: number | null; rank_position: number | null };
+  const rows: Row[] = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data, error: videoError } = await supabase
+      .from('videos')
+      .select('dmm_content_id, title, thumbnail_url, likes_count, rank_position')
+      .eq('is_active', true)
+      .in('dmm_content_id', ids.slice(i, i + 100));
+    if (videoError) throw videoError;
+    rows.push(...((data ?? []) as Row[]));
+  }
+
+  const [{ history }, ga] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS)]);
+  const videos = rows.map((row): LikedVideo => {
+    const posted = history.get(row.dmm_content_id);
+    return {
+      dmm_content_id: row.dmm_content_id,
+      title: row.title,
+      thumbnail_url: row.thumbnail_url,
+      plays: ga.plays.get(row.dmm_content_id) ?? 0,
+      swipePlays: ga.swipePlays.get(row.dmm_content_id) ?? 0,
+      clicks: ga.clicks.get(row.dmm_content_id) ?? 0,
+      likes: row.likes_count ?? 0,
+      rank: row.rank_position,
+      xPlays: ga.xPlays.get(row.dmm_content_id) ?? 0,
+      xClicks: ga.xClicks.get(row.dmm_content_id) ?? 0,
+      postedCount: posted?.count ?? 0,
+      lastPostedAt: posted?.lastAt ?? null,
+      likedAt: likedAt.get(row.dmm_content_id)!,
+    };
+  });
+  videos.sort((a, b) => b.likedAt.localeCompare(a.likedAt));
+  return { days: RECOMMEND_DAYS, videos };
 }
 
 // repost: 以前に紹介した作品をもう一度紹介する（X で同じ文面の繰り返しにならないよう見出しを変える）
