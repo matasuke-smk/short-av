@@ -504,9 +504,8 @@ export default function AnalyticsView({
           集計の対象: {rangeDates(rangeKey)}（日本時間の0時で区切り）
         </p>
         {includesLaTimeData(rangeKey) && (
-          <p className="-mt-3 mb-6 text-xs text-yellow-300 bg-yellow-900/20 border border-yellow-800 rounded p-2" suppressHydrationWarning>
-            10/7 の正午ごろまで GA の日付がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間の利用者数などの合計は日付の区切りが最大16時間ずれています。
-            「時間帯ごとの利用者」は日本時間に直して表示しています。
+          <p className="-mt-3 mb-6 text-xs text-gray-400 bg-gray-800 rounded p-2" suppressHydrationWarning>
+            10/7 の正午ごろまで GA の日時がロサンゼルス時間（日本の16時間遅れ）で付いていたため、この期間は日時を日本時間に読み替えて集計し直しています。
           </p>
         )}
 
