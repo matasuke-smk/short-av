@@ -21,11 +21,7 @@ const TZ_SWITCH_DATE_HOUR = '2026100704';
 const LA_BEHIND_JST_HOURS = 16;
 
 function toJstDateHour(dateHour: string): string {
-  if (dateHour >= TZ_SWITCH_DATE_HOUR) return dateHour;
-  const [y, m, d, h] = [dateHour.slice(0, 4), dateHour.slice(4, 6), dateHour.slice(6, 8), dateHour.slice(8, 10)].map(Number);
-  const t = new Date(Date.UTC(y, m - 1, d, h + LA_BEHIND_JST_HOURS));
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}${pad(t.getUTCHours())}`;
+  return dateHour >= TZ_SWITCH_DATE_HOUR ? dateHour : shiftHours(dateHour, LA_BEHIND_JST_HOURS);
 }
 
 // 期間に含まれる日（日本時間、YYYYMMDD）
@@ -37,6 +33,54 @@ function jstDays(range: (typeof RANGES)[RangeKey]): Set<string> {
   }
   return days;
 }
+
+// 日本時間で何時の記録が、GA ではどの日時（dateHour）で付いているか。
+// 切り替え（10/7 正午ごろ）より前はロサンゼルス時間の日時（16時間前）、後は日本時間のまま。
+// 切り替えた正確な時刻は分からないので、前後の数時間は両方の日時を含める（両者は重ならないので二重には数えない）
+const JST_LABEL_FROM = '2026100711';
+const LA_LABEL_UNTIL = '2026100713';
+// これ以前の日（日本時間）はロサンゼルス時間の記録を含むため、日時で絞り込んで数え直す
+const LAST_AFFECTED_DAY = '20261007';
+
+function shiftHours(dateHour: string, hours: number): string {
+  const [y, m, d, h] = [dateHour.slice(0, 4), dateHour.slice(4, 6), dateHour.slice(6, 8), dateHour.slice(8, 10)].map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d, h + hours));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}${pad(t.getUTCHours())}`;
+}
+
+function gaLabelsForJstDays(days: Iterable<string>): string[] {
+  const labels: string[] = [];
+  for (const day of days) {
+    for (let h = 0; h < 24; h++) {
+      const jst = `${day}${String(h).padStart(2, '0')}`;
+      if (jst >= JST_LABEL_FROM) labels.push(jst);
+      if (jst <= LA_LABEL_UNTIL) labels.push(shiftHours(jst, -LA_BEHIND_JST_HOURS));
+    }
+  }
+  return labels;
+}
+
+const ymdOf = (day: string) => `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`;
+const prevDay = (day: string) => shiftHours(`${day}00`, -24).slice(0, 8);
+
+// 日本時間の連続した日（days）にあたる記録だけを残す条件と、そのための GA の日付範囲（1日前から）。
+// 値の数を抑えるため、範囲内の日時のうち「含めない日時」を除外する形にする
+function jstDaysFilter(days: string[]) {
+  const sorted = [...days].sort();
+  const from = prevDay(sorted[0]);
+  const to = sorted[sorted.length - 1];
+  const included = new Set(gaLabelsForJstDays(sorted));
+  const excluded: string[] = [];
+  for (let label = `${from}00`; label.slice(0, 8) <= to; label = shiftHours(label, 1)) {
+    if (!included.has(label)) excluded.push(label);
+  }
+  return {
+    dateRanges: [{ startDate: ymdOf(from), endDate: ymdOf(to) }],
+    filter: excluded.length > 0 ? { notExpression: { filter: { fieldName: 'dateHour', inListFilter: { values: excluded } } } } : null,
+  };
+}
+const and = (a: unknown, b: unknown) => (a && b ? { andGroup: { expressions: [a, b] } } : a || b || undefined);
 
 // 日時（dateHour）ごとの行を日本時間に直し、期間内の日だけを時間帯（0〜23時）ごとに合計する
 function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): ReportRow[] {
@@ -115,11 +159,51 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     // 5: すべてのイベントの回数・人数（GA が自動で送るものを含む）
     { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], orderBys: [byMetricDesc], limit: 50 },
   ];
+  // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
+  // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
+  const days = jstDays(range);
+  const affectedDays = [...days].filter((day) => day <= LAST_AFFECTED_DAY);
+  if (affectedDays.length > 0) {
+    const { dateRanges: wideRanges, filter } = jstDaysFilter([...days]);
+    for (const request of [...requests, ...extraRequests]) {
+      request.dateRanges = wideRanges;
+      request.dimensionFilter = and(request.dimensionFilter, filter);
+    }
+  }
+
   const extraReports = await runReports(extraRequests).catch((error) => {
     console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
     return extraRequests.map(() => [] as ReportRow[]);
   });
-  return [...(await runReports(requests)), ...extraReports];
+  const reports = [...(await runReports(requests)), ...extraReports];
+
+  // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
+  if (affectedDays.length > 0) {
+    const perDay = await runReports(
+      affectedDays.flatMap((day): ReportRequest[] => {
+        const one = jstDaysFilter([day]);
+        return [
+          { dateRanges: one.dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], dimensionFilter: one.filter ?? undefined },
+          {
+            dateRanges: one.dateRanges,
+            dimensions: [{ name: 'eventName' }],
+            metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
+            dimensionFilter: and(eventIn(funnelEvents), one.filter),
+          },
+        ];
+      }),
+    );
+    const keep = (row: ReportRow) => days.has(row.dimensions[0]) && !affectedDays.includes(row.dimensions[0]);
+    reports[2] = [
+      ...reports[2].filter(keep),
+      ...affectedDays.map((day, i) => ({ dimensions: [day], metrics: perDay[i * 2][0]?.metrics ?? [0, 0] })),
+    ].sort((a, b) => a.dimensions[0].localeCompare(b.dimensions[0]));
+    reports[3] = [
+      ...reports[3].filter(keep),
+      ...affectedDays.flatMap((day, i) => perDay[i * 2 + 1].map((row) => ({ dimensions: [day, row.dimensions[0]], metrics: row.metrics }))),
+    ];
+  }
+  return reports;
 }
 
 // サイトのデータベースから（いいね・サイズ比較ツールの登録・クリックされた作品名）
