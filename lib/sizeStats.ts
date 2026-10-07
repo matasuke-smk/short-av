@@ -15,6 +15,11 @@ export const LENGTH_RANGE_MM = { min: 100, max: 170 } as const;
 
 // 長さの補正の基準（Veale ら 2015年のメタ分析。サイズ比較ツールに載せている値）
 export const REFERENCE_LENGTH_MM = { erect: 131, flaccid: 92 } as const;
+// 直径の基準（同じメタ分析の周囲 勃起時 11.66cm・通常時 9.31cm を直径に換算）
+export const REFERENCE_DIAMETER_MM = { erect: 37.2, flaccid: 29.6 } as const;
+
+// 補正前の値を、基準との中間にするために差し引く量（基準以下なら0）
+const halfwayCorrection = (rawAvg: number, reference: number) => Math.max(0, (rawAvg - reference) / 2);
 
 /**
  * 自己申告は実測より大きめに出やすいため、長さの平均を「集めたデータの平均と基準の中間」にする。
@@ -23,7 +28,14 @@ export const REFERENCE_LENGTH_MM = { erect: 131, flaccid: 92 } as const;
 function lengthCorrection(usable: SizeStatisticsRow[], erectionState: string) {
   const reference = erectionState === 'flaccid' ? REFERENCE_LENGTH_MM.flaccid : REFERENCE_LENGTH_MM.erect;
   const rawAvg = usable.length > 0 ? usable.reduce((sum, d) => sum + d.length_mm, 0) / usable.length : 0;
-  return { reference, rawAvg, correction: Math.max(0, (rawAvg - reference) / 2) };
+  return { reference, rawAvg, correction: halfwayCorrection(rawAvg, reference) };
+}
+
+// 直径も同じく「集めたデータと基準の中間」にする（補正前の平均は IQR 法で外れ値を除いたもの）
+function diameterCorrection(usable: SizeStatisticsRow[], erectionState: string) {
+  const reference = erectionState === 'flaccid' ? REFERENCE_DIAMETER_MM.flaccid : REFERENCE_DIAMETER_MM.erect;
+  const raw = computeRobustStat(usable.map(d => d.diameter_mm));
+  return { reference, raw, correction: halfwayCorrection(raw.avg, reference) };
 }
 
 const PAGE_SIZE = 1000;
@@ -60,7 +72,7 @@ export async function getSizeStatisticsRows(
 /**
  * 生データから集計値を計算
  * - 長さ: 入力値が LENGTH_RANGE_MM の範囲内のものだけを使い、自己申告分を補正（lengthCorrection）
- * - 直径: IQR法で外れ値を除外
+ * - 直径: IQR法で外れ値を除外し、長さと同じく基準との中間に補正（diameterCorrection）
  * count は長さの平均の計算に使った件数
  */
 export function summarizeSizeStatistics(rows: SizeStatisticsRow[], erectionState: string = 'erect') {
@@ -71,15 +83,15 @@ export function summarizeSizeStatistics(rows: SizeStatisticsRow[], erectionState
 
   const { correction } = lengthCorrection(usable, erectionState);
   const lengthStat = computeMeanStd(usable.map(d => d.length_mm - correction));
-  const diameterStat = computeRobustStat(usable.map(d => d.diameter_mm));
+  const diameter = diameterCorrection(usable, erectionState);
 
   return {
     count: usable.length,
     statistics: {
       avgLength: lengthStat.avg.toFixed(1),
-      avgDiameter: diameterStat.avg.toFixed(1),
+      avgDiameter: (diameter.raw.avg - diameter.correction).toFixed(1),
       stdLength: lengthStat.std.toFixed(1),
-      stdDiameter: diameterStat.std.toFixed(1),
+      stdDiameter: diameter.raw.std.toFixed(1),
     },
   };
 }
@@ -88,7 +100,11 @@ export function summarizeSizeStatistics(rows: SizeStatisticsRow[], erectionState
 export function summarizeForAdmin(rows: SizeStatisticsRow[], erectionState: string) {
   const usable = rows.filter(d => d.length_mm >= LENGTH_RANGE_MM.min && d.length_mm <= LENGTH_RANGE_MM.max);
   const { reference, rawAvg, correction } = lengthCorrection(usable, erectionState);
+  const diameter = diameterCorrection(usable, erectionState);
   return {
+    diameterCorrectionMm: diameter.correction.toFixed(1),
+    referenceDiameterMm: diameter.reference,
+    rawAvgDiameter: diameter.raw.avg.toFixed(1),
     total: rows.length,
     outOfRange: rows.length - usable.length,
     lengthRangeMm: LENGTH_RANGE_MM,
