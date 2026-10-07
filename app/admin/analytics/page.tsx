@@ -1,7 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getAdminUserIds } from '@/lib/admin-users';
+import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import AnalyticsView, { type RangeData, type RangeKey } from './AnalyticsView';
 import { FUNNEL } from './funnel';
 
@@ -220,7 +220,7 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
   const to = jstMidnight(range.offset - 1);
 
   // 運営者（管理画面を開いた端末）のいいねは別に数え、一般の利用者のいいねから除く
-  const adminIds = await getAdminUserIds();
+  const { ids: adminIds, error: adminError } = await getAdminUserIdsWithError();
   const likesQuery = () => supabase.from('likes').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
   const [allLikes, adminLikes, sizes, titles] = await Promise.all([
     likesQuery(),
@@ -233,6 +233,8 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
   return {
     likes: (allLikes.count ?? 0) - (adminLikes.count ?? 0),
     adminLikes: adminLikes.count ?? 0,
+    adminDevices: adminIds.length,
+    adminError,
     sizes: sizes.count ?? 0,
     titleById: Object.fromEntries((titles.data ?? []).map((v) => [v.dmm_content_id as string, v.title as string])),
   };
@@ -248,7 +250,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v4'],
+  ['admin-analytics-v5'],
   { revalidate: 300 },
 );
 
