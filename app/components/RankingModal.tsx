@@ -210,7 +210,7 @@ export default function RankingModal({
           </div>
 
           {/* コンテンツ */}
-          <div ref={videoListRef} className="flex-1 overflow-y-auto landscape:pb-0 lg:!pb-24 pb-20">
+          <div ref={videoListRef} className="flex-1 overflow-y-auto landscape:pb-0 lg:!pb-6 pb-20">
           <div className="px-4 py-6">
             {loadingPeriods[period] ? (
               <div className="text-center py-12">
@@ -342,7 +342,7 @@ export default function RankingModal({
         </div>
 
         {/* 閉じるボタン - 最下部固定（縦画面のみ、PC時は非表示） */}
-        <div className="landscape:hidden lg:!block absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4 z-20">
+        <div className="landscape:hidden lg:!hidden absolute bottom-0 left-0 right-0 border-t border-gray-700 bg-gray-800 p-4 z-20">
           <button
             onPointerDown={(e) => {
               e.preventDefault();
