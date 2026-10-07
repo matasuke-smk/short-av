@@ -69,6 +69,8 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     },
     // 4: よく見られたページ（タイトル別）
     { dateRanges, dimensions: [{ name: 'pageTitle' }], metrics: [{ name: 'screenPageViews' }, { name: 'totalUsers' }], orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }], limit: 15 },
+    // 5: すべてのイベントの回数・人数（GA が自動で送るものを含む）
+    { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], orderBys: [byMetricDesc], limit: 50 },
   ];
   const extraReports = await runReports(extraRequests).catch((error) => {
     console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
@@ -112,7 +114,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db };
   },
-  ['admin-analytics-v1'],
+  ['admin-analytics-v2'],
   { revalidate: 300 },
 );
 
