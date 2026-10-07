@@ -651,7 +651,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 aspect-[4/3] cursor-pointer bg-black"
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-2rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
                       onClick={handleThumbnailClick}
                     >
                     {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
