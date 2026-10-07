@@ -108,6 +108,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     skipSnaps: false,
   });
   const [videos, setVideos] = useState<Video[]>(initialVideos);
+  // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
+  const bottomPanelRef = useRef<HTMLDivElement>(null);
+  const sidePanelRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
@@ -385,6 +388,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   useEffect(() => {
     if (!emblaApi) return;
     const root = emblaApi.rootNode();
+    // 作品の画像が動く部分の外（縦画面の下の作品情報の帯、横画面・PC の右側の欄）でも作品を切り替えられるようにする
+    const panels = [bottomPanelRef.current, sidePanelRef.current].filter((el): el is HTMLDivElement => el !== null);
     let lastWheelAt = 0;
 
     const onWheel = (e: WheelEvent) => {
@@ -410,11 +415,36 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
     };
 
+    // 帯の上で上下に払ったら次・前の作品へ（ボタンのタップはそのまま使えるよう、指が大きく動いたときだけ）
+    let touchStart: { x: number; y: number } | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      touchStart = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!touchStart || overlayOpenRef.current) return;
+      const dx = e.changedTouches[0].clientX - touchStart.x;
+      const dy = e.changedTouches[0].clientY - touchStart.y;
+      touchStart = null;
+      if (Math.abs(dy) < 50 || Math.abs(dy) < Math.abs(dx) * 1.5) return;
+      if (dy < 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+    };
+
     root.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('keydown', onKeyDown);
+    for (const panel of panels) {
+      panel.addEventListener('wheel', onWheel, { passive: true });
+      panel.addEventListener('touchstart', onTouchStart, { passive: true });
+      panel.addEventListener('touchend', onTouchEnd);
+    }
     return () => {
       root.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onKeyDown);
+      for (const panel of panels) {
+        panel.removeEventListener('wheel', onWheel);
+        panel.removeEventListener('touchstart', onTouchStart);
+        panel.removeEventListener('touchend', onTouchEnd);
+      }
     };
   }, [emblaApi]);
 
@@ -744,7 +774,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
-      <div className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
+      <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:h-full lg:flex-col lg:justify-center lg:gap-4 lg:py-6 lg:px-6 lg:z-20 lg:pointer-events-auto">
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
         <div className="h-12 flex items-start overflow-hidden flex-shrink-0">
@@ -889,7 +919,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
-      <div className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
+      <div ref={bottomPanelRef} className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
