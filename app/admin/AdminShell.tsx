@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
+import DoujinTestView from './doujin-test/DoujinTestView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'analytics', label: 'アクセス解析' },
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
+  { key: 'doujin-test', label: '同人テスト' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 
@@ -150,6 +152,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div hidden={tab !== 'analytics'}>{children}</div>
           {opened.includes('x-posts') && <div hidden={tab !== 'x-posts'}><XPostsView /></div>}
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
+          {opened.includes('doujin-test') && <div hidden={tab !== 'doujin-test'}><DoujinTestView /></div>}
         </>
       ) : (
         children
