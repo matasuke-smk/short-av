@@ -10,6 +10,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 const JST = 9 * 3_600_000;
 const KEEP_DAYS = 3;
+// 日本だけの記録に変えた時刻（本番への反映 10/8 15:27ごろ）。それより前の記録は海外を含むので使わない
+// （時間帯の人数は「これまでより大きいときだけ更新」するため、海外を含む人数が残り「日本のみ」の合計が多く出ていた）
+const JAPAN_ONLY_SINCE = Date.parse('2026-10-08T15:30:00+09:00');
 const metrics = [{ name: 'activeUsers' }, { name: 'eventCount' }];
 // アクセス解析の標準は「日本のみ」なので、記録も日本からのアクセスだけにする（2026/10/8 から。
 // 「すべて」のときは GA の集計と大きいほうを使うので、海外の分は GA の集計が追いつくまで少なめに出る）
@@ -79,11 +82,13 @@ export async function getLiveHourly(daysAgo: number): Promise<Record<number, { u
   if (hourError) throw hourError;
   const result: Record<number, { users: number; events: number }> = {};
   for (const row of minutes ?? []) {
+    if (Date.parse(row.minute_at as string) < JAPAN_ONLY_SINCE) continue;
     const h = jstParts(Date.parse(row.minute_at as string)).hour;
     result[h] = { users: result[h]?.users ?? 0, events: (result[h]?.events ?? 0) + (row.events as number) };
   }
   for (const row of hours ?? []) {
     const h = row.hour as number;
+    if (dayStart + h * 3_600_000 < JAPAN_ONLY_SINCE) continue;
     result[h] = { users: Math.max(result[h]?.users ?? 0, row.users as number), events: result[h]?.events ?? 0 };
   }
   return result;
