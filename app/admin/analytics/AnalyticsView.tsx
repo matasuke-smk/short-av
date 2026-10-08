@@ -1260,6 +1260,24 @@ export default function AnalyticsView({
     else url.searchParams.delete('country');
     startCountry(() => router.push(url.pathname + url.search, { scroll: false }));
   };
+  // 開いている間は、もう一方（日本のみ⇔すべて）の集計を2分おきに裏で取得しておく。
+  // サーバーの取得結果の使い回しは「今日」が5分で切れるため、しばらく置いてから切り替えると取り直しで待たされていた
+  // （裏で開いたページは表示後にこちら側も取得するので、両方とも新しい状態に保たれる）
+  useEffect(() => {
+    const warm = () => {
+      if (document.visibilityState !== 'visible') return;
+      const url = new URL(window.location.href);
+      if (country === 'jp') url.searchParams.set('country', 'all');
+      else url.searchParams.delete('country');
+      fetch(url.pathname + url.search, { cache: 'no-store' }).catch(() => {});
+    };
+    const timer = window.setInterval(warm, 2 * 60_000);
+    document.addEventListener('visibilitychange', warm);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', warm);
+    };
+  }, [country]);
   const month = data['28d'];
   const weekday = 'reports' in month ? month.weekday : undefined;
   const hourlyAxis = { users: 0, events: 0 };
