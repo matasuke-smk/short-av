@@ -1,21 +1,7 @@
 import { fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
+import type { Doujin, DoujinOrder } from '@/lib/doujin-types';
 
-/**
- * FANZA 同人（service=doujin, floor=digital_doujin）の作品
- * - サンプル画像は sampleImageURL.sample_l だけが返る（4〜10枚ほど。sample_s・立ち読みはない）
- * - 画像は doujin-assets.dmm.co.jp。縦長の漫画（1000x1412 など）と横長の CG 集が混ざる
- */
-export type Doujin = {
-  contentId: string;
-  title: string;
-  circle: string | null; // サークル名（API ではメーカー）
-  price: number | null; // 販売価格（セール中はセール価格）
-  listPrice: number | null; // 定価（セール中のみ price と異なる）
-  url: string; // アフィリエイトリンク
-  cover: string; // 表紙
-  samples: string[]; // サンプル画像（大）
-  genres: string[];
-};
+export { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types';
 
 const yen = (value?: string) => {
   const n = Number(String(value ?? '').replace(/[^0-9]/g, ''));
@@ -38,8 +24,19 @@ export function toDoujin(item: DMMItem): Doujin | null {
   };
 }
 
-/** 人気順の同人作品（サンプル画像のあるものだけ。API の結果は1時間キャッシュ） */
-export async function fetchPopularDoujin(hits = 30): Promise<Doujin[]> {
-  const data = await fetchDMMProducts({ service: 'doujin', floor: 'digital_doujin', sort: 'rank', hits });
-  return (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
+/** 同人作品（サンプル画像のあるものだけ。API の結果は1時間キャッシュ） */
+export async function fetchDoujin(order: DoujinOrder = 'rank', hits = 30): Promise<Doujin[]> {
+  const sort = order === 'cheap' ? '-price' : order === 'random' ? 'rank' : order;
+  const data = await fetchDMMProducts({ service: 'doujin', floor: 'digital_doujin', sort, hits: order === 'random' ? 100 : hits });
+  const list = (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
+  if (order !== 'random') return list;
+  // 人気上位100件から毎回ちがう組み合わせで選ぶ
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list.slice(0, hits);
 }
+
+/** 人気順の同人作品 */
+export const fetchPopularDoujin = (hits = 30) => fetchDoujin('rank', hits);
