@@ -196,8 +196,11 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     }
   }
 
+  // 失敗したことは画面にも出す（以前は黙って空にしていたため、イベント数の合計が少なく出ても気づけなかった）
+  let warning: string | undefined;
   const extraReports = await runReports(extraRequests).catch((error) => {
     console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
+    warning = `一部の集計（イベント別・画面と検索・よく見られたページ）を取得できませんでした: ${error instanceof Error ? error.message : String(error)}`;
     return extraRequests.map(() => [] as ReportRow[]);
   });
   const reports = [...(await runReports(requests)), ...extraReports];
@@ -228,7 +231,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       ...affectedDays.flatMap((day, i) => perDay[i * 2 + 1].map((row) => ({ dimensions: [day, row.dimensions[0]], metrics: row.metrics }))),
     ];
   }
-  return reports;
+  return { reports, warning };
 }
 
 // 昨日の0時から「昨日の今と同じ時刻」までの利用者数・イベント数・表示回数（今日の途中経過と比べる）。
@@ -302,19 +305,21 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
 
 // 1つの期間のデータ（GA とデータベース）。5分間は取得結果を使い回す（期間の切り替えや再読み込みを速くする）。
 // unstable_cache は期限切れでも一度は古い結果を返す（裏で取り直す）ため、しばらく開いていないと
-// 何時間も前の数字（日付が変わる前の「今日」など）が出ていた。5分ごとの区切り（bucket）を引数に入れて、古い結果は使わない
+// 何時間も前の数字（日付が変わる前の「今日」など）が出ていた。区切り（bucket）を引数に入れて、古い結果は使わない。
+// 「今日」は5分ごと、それ以外（昨日・一昨日・週間・28日）はほとんど変わらないので1時間ごとに取り直す
+// （開くたびに全期間を GA に問い合わせると、GA の1時間あたりの上限に近づくため）
 const getRangeData = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (key: RangeKey, _bucket: number) => {
     const range = RANGES[key];
-    const reports = await loadGa(range);
+    const { reports, warning } = await loadGa(range);
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
-    return { reports, db, weekday };
+    return { reports, db, weekday, warning };
   },
-  ['admin-analytics-v9'],
+  ['admin-analytics-v10'],
   { revalidate: 300 },
 );
 
@@ -325,10 +330,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // 4つの期間をまとめて取得し、画面側で切り替える
   const keys = Object.keys(RANGES) as RangeKey[];
   const bucket = Math.floor(Date.now() / 300_000);
+  const hourBucket = Math.floor(Date.now() / 3_600_000); // 時の区切りは日本時間の0時とそろう
   const results = await Promise.all(
     keys.map(async (key): Promise<RangeData> => {
       try {
-        return await getRangeData(key, bucket);
+        return await getRangeData(key, key === 'today' ? bucket : hourBucket);
       } catch (error) {
         return {
           error:

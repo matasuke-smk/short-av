@@ -18,6 +18,9 @@ export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d';
 type RangeKey = Exclude<ViewKey, 'weekday'>;
 const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨日', dayBefore: '一昨日', '7d': '週間平均', weekday: '曜日ごとの平均' };
 
+// 1日だけの期間が何日前か（リアルタイムで補う時間帯の判定に使う）
+const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, yesterday: 1, dayBefore: 2, '7d': 0 };
+
 // 各期間の日数（時間帯グラフは1日あたりの平均で描く）
 const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, dayBefore: 1, '7d': 7 };
 
@@ -39,7 +42,7 @@ export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 export type YesterdaySoFar = { until: string; users: number; events: number; views: number };
 
 export type RangeData =
-  | { reports: ReportRow[][]; weekday?: WeekdayHourly; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
+  | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
   | { error: string };
 
 
@@ -102,17 +105,17 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 function Card({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
   const content = (
     <>
-      <div className="text-[11px] leading-tight text-gray-400 line-clamp-2 pr-3">{label}</div>
-      <div className="text-lg md:text-2xl font-bold mt-0.5 truncate">{value}</div>
-      {sub && <div className="text-[10px] md:text-xs leading-tight text-gray-500 mt-0.5 line-clamp-2">{sub}</div>}
+      <div className="text-xs leading-snug text-gray-300 line-clamp-2 pr-3">{label}</div>
+      <div className="text-2xl font-bold mt-1 truncate">{value}</div>
+      {sub && <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-3">{sub}</div>}
     </>
   );
-  if (!onClick) return <div className="bg-gray-800 rounded-lg p-2.5 md:p-3 min-w-0">{content}</div>;
+  if (!onClick) return <div className="bg-gray-800 rounded-lg p-3 min-w-0">{content}</div>;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative bg-gray-800 hover:bg-gray-700 active:bg-gray-700 rounded-lg p-2.5 md:p-3 min-w-0 text-left ring-1 ring-gray-700"
+      className="relative bg-gray-800 hover:bg-gray-700 active:bg-gray-700 rounded-lg p-3 min-w-0 text-left ring-1 ring-gray-700"
     >
       {content}
       <span className="absolute top-1.5 right-2 text-gray-400 text-sm" aria-hidden>›</span>
@@ -176,13 +179,20 @@ type HourlyPoint = { h: number; users: number; events: number; views: number; fr
 
 // 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
 // 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
-function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number, totalEvents: number) {
+// 補うのは、GA の集計がまだ追いついていない時間帯だけ（終わってから LIVE_HOURS 時間以内か、GA がまだ0件の時間帯）。
+// リアルタイムの数字は GA の集計より多めに出ることがあり、集計済みの時間帯まで補うと合計が GA より大きくなっていた
+const LIVE_HOURS = 4;
+
+function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number, totalEvents: number, daysAgo = 0) {
+  const now = new Date(Date.now() + 9 * 3_600_000);
+  const nowHours = daysAgo * 24 + now.getUTCHours() + now.getUTCMinutes() / 60; // その日の0時から今までの時間
   const hours: HourlyPoint[] = Array.from({ length: 24 }, (_, h) => {
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
     const users = row?.metrics[0] ?? 0;
     const events = row?.metrics[1] ?? 0;
-    const liveUsers = live?.[h]?.users ?? 0;
-    const liveEvents = live?.[h]?.events ?? 0;
+    const pending = nowHours - (h + 1) < LIVE_HOURS || (users === 0 && events === 0);
+    const liveUsers = pending ? live?.[h]?.users ?? 0 : 0;
+    const liveEvents = pending ? live?.[h]?.events ?? 0 : 0;
     return {
       h,
       views: row?.metrics[2] ?? 0,
@@ -191,11 +201,12 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
       fromLive: liveUsers > users || liveEvents > events, // リアルタイムで補った時間帯
     };
   });
-  const liveExtraEvents = hours.reduce((sum, x) => sum + x.events, 0) - rows.reduce((sum, r) => sum + (r.metrics[1] ?? 0), 0);
+  // イベント数は足し合わせられるので、合計は時間帯ごとの合計にする（イベント別の一覧の合計は、その一覧が取れなかったときに0になっていた）
+  const hourlyEvents = hours.reduce((sum, x) => sum + x.events, 0);
   return {
     hours,
     users: Math.max(totalUsers, ...hours.filter((x) => x.fromLive).map((x) => x.users)),
-    events: totalEvents + Math.max(0, liveExtraEvents),
+    events: rows.length > 0 ? hourlyEvents : totalEvents,
   };
 }
 
@@ -428,7 +439,7 @@ function RangeBody({
   realtimeViews: number | null; // 直近30分のページ表示の合計（取得できなければ null）
   fixedDaily: ReportRow[][] | null; // 日別の表に使う「28日間」のレポート（取得できなければ null）
 }) {
-  const { reports, db } = data;
+  const { reports, db, warning } = data;
   // 全画面で開いている詳細（カードの種類）
   const [detail, setDetail] = useState<string | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
@@ -440,7 +451,7 @@ function RangeBody({
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
-  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents);
+  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -463,6 +474,7 @@ function RangeBody({
 
   return (
     <>
+        {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
           <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
         </Section>
@@ -475,7 +487,7 @@ function RangeBody({
         )}
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
-        <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
           <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
           <Card label="イベント数（合計）" value={fmt(totalEvents)} sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
           <Card label="ページ表示" value={fmt(eventCount('page_view'))} sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} onClick={() => setDetail('pages')} />
@@ -921,10 +933,7 @@ export default function AnalyticsView({
       hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
     }
   }
-  for (const value of Object.values(live).flatMap((x) => Object.values(x ?? {}))) {
-    hourlyAxis.users = Math.max(hourlyAxis.users, value.users);
-    hourlyAxis.events = Math.max(hourlyAxis.events, value.events);
-  }
+  // リアルタイムで補った時間帯は、グラフ側で縦軸を必要なだけ広げる（使わない古い記録で縦軸が伸びないよう、ここでは足さない）
   for (const { dates, hours } of weekday ?? []) {
     if (dates.length === 0) continue;
     for (const [users, events] of hours) {
