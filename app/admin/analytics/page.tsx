@@ -88,7 +88,7 @@ function jstDaysFilter(days: string[]) {
 }
 const and = (a: unknown, b: unknown) => (a && b ? { andGroup: { expressions: [a, b] } } : a || b || undefined);
 
-// 日時（dateHour）ごとの行を日本時間に直し、期間内の日だけを時間帯（0〜23時）ごとに合計する
+// 日時（dateHour）ごとの行（人数・イベント数・表示回数）を日本時間に直し、期間内の日だけを時間帯（0〜23時）ごとに合計する
 function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): ReportRow[] {
   const days = jstDays(range);
   const byHour = new Map<number, number[]>();
@@ -96,8 +96,8 @@ function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): Repor
     const jst = toJstDateHour(row.dimensions[0]);
     if (!days.has(jst.slice(0, 8))) continue;
     const hour = Number(jst.slice(8, 10));
-    const sum = byHour.get(hour) ?? [0, 0];
-    byHour.set(hour, [sum[0] + row.metrics[0], sum[1] + row.metrics[1]]);
+    const sum = byHour.get(hour) ?? [0, 0, 0];
+    byHour.set(hour, sum.map((v, i) => v + (row.metrics[i] ?? 0)));
   }
   return [...byHour].map(([hour, metrics]) => ({ dimensions: [String(hour)], metrics }));
 }
@@ -106,7 +106,7 @@ function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): Repor
 function toWeekdayHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): WeekdayHourly {
   const days = jstDays(range);
   const today = [...jstDays(RANGES.today)][0];
-  const result: WeekdayHourly = Array.from({ length: 7 }, () => ({ dates: [], hours: Array.from({ length: 24 }, () => [0, 0]) }));
+  const result: WeekdayHourly = Array.from({ length: 7 }, () => ({ dates: [], hours: Array.from({ length: 24 }, () => [0, 0, 0]) }));
   for (const row of rows) {
     const jst = toJstDateHour(row.dimensions[0]);
     const date = jst.slice(0, 8);
@@ -115,8 +115,7 @@ function toWeekdayHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): W
     const slot = result[weekday];
     if (!slot.dates.includes(date)) slot.dates.push(date);
     const sum = slot.hours[Number(jst.slice(8, 10))];
-    sum[0] += row.metrics[0];
-    sum[1] += row.metrics[1];
+    sum.forEach((_, i) => (sum[i] += row.metrics[i] ?? 0));
   }
   for (const slot of result) slot.dates.sort();
   return result;
@@ -154,7 +153,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     {
       dateRanges: [{ startDate: `${range.days + range.offset}daysAgo`, endDate: range.endDate }],
       dimensions: [{ name: 'dateHour' }],
-      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
       limit: 10000,
     },
   ];
@@ -279,7 +278,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db, weekday };
   },
-  ['admin-analytics-v8'],
+  ['admin-analytics-v9'],
   { revalidate: 300 },
 );
 
