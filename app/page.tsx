@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
+import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, type Doujin } from '@/lib/doujin';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
 // revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
@@ -13,9 +14,22 @@ export const revalidate = 0;
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string | string[] }>;
+  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[] }>;
 }): Promise<Metadata> {
-  const { v } = await searchParams;
+  const { v, mode, d } = await searchParams;
+  // 同人誌のリンク（X の投稿から）: リンクカードに同人誌の表紙と作品名を出す
+  if (mode === 'doujin' && typeof d === 'string' && DOUJIN_ID_PATTERN.test(d)) {
+    const doujin = await fetchDoujinById(d).catch(() => null);
+    if (!doujin) return {};
+    const title = `${doujin.title} | Short AV`;
+    const description = '同人誌のサンプルをスワイプで試し読み。Short AV';
+    return {
+      title,
+      description,
+      openGraph: { title, description, siteName: 'Short AV', images: [{ url: doujin.cover, alt: doujin.title }], locale: 'ja_JP', type: 'website' },
+      twitter: { card: 'summary_large_image', title, description, images: [doujin.cover] },
+    };
+  }
   const contentId = typeof v === 'string' ? v : undefined;
   if (!contentId || contentId.length > 64) return {};
 
@@ -54,7 +68,19 @@ export async function generateMetadata({
 // ?v= の作品IDとして受け付ける形式
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
 
-async function VideoList({ targetId }: { targetId?: string }) {
+// 同人誌（人気＋高評価からランダム）。doujinId があればその作品を先頭にする。取れなくても動画は表示する
+async function loadDoujin(doujinId?: string): Promise<Doujin[]> {
+  try {
+    const [list, target] = await Promise.all([fetchDoujin('mix', 40), doujinId ? fetchDoujinById(doujinId) : Promise.resolve(null)]);
+    return target ? [target, ...list.filter((d) => d.contentId !== target.contentId)] : list;
+  } catch (error) {
+    console.error('同人誌の取得エラー:', error);
+    return [];
+  }
+}
+
+async function VideoList({ targetId, doujinId }: { targetId?: string; doujinId?: string }) {
+  const doujinPromise = loadDoujin(doujinId);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   const poolSize = 200; // プールサイズ
   const displaySize = 20; // 初期表示件数
@@ -177,6 +203,8 @@ async function VideoList({ targetId }: { targetId?: string }) {
         startIndex={0}
         videoPool={videoPool}
         linkNotice={linkNotice}
+        doujinList={await doujinPromise}
+        doujinMode={!!doujinId}
       />
     </>
   );
@@ -185,15 +213,17 @@ async function VideoList({ targetId }: { targetId?: string }) {
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string | string[] }>;
+  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[] }>;
 }) {
-  const { v } = await searchParams;
+  const { v, mode, d } = await searchParams;
   const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
+  // ?mode=doujin&d=作品番号: 同人誌中心の画面（X の同人誌の投稿から。その回だけ）
+  const doujinId = mode === 'doujin' && typeof d === 'string' && DOUJIN_ID_PATTERN.test(d) ? d : undefined;
 
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} />
+        <VideoList targetId={targetId} doujinId={doujinId} />
       </Suspense>
     </>
   );

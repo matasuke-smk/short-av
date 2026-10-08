@@ -46,6 +46,8 @@ import {
   trackModalClose,
   trackDMMClick,
   trackTutorialView,
+  trackDoujinView,
+  trackDoujinComplete,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
 
@@ -57,6 +59,8 @@ interface VideoSwiperProps {
   isFiniteList?: boolean; // 検索結果など有限のリストの場合true
   videoPool: Video[]; // 動画プール（全データ）
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
+  doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
+  doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌中心（先頭はその作品、同人誌3冊ごとに動画1本）
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -90,11 +94,49 @@ function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: nu
 
 const SWIPED_KEY = 'short-av-has-swiped';
 
-// 同人テスト: 動画を何本見たら同人誌を1冊挟むか。挟んだ同人誌は id が doujin- で始まる動画の形で一覧に入れる
+// 同人誌: 動画を何本見たら同人誌を1冊挟むか。同人誌中心の画面（X の同人誌のリンクから）では、同人誌を何冊見たら動画を1本挟むか。
+// 挟んだ同人誌は id が doujin- で始まる動画の形で一覧に入れる（位置の番号で動く既存の処理をそのまま使うため）
 const DOUJIN_EVERY = 5;
+const DOUJIN_GROUP = 3;
 const isDoujinSlide = (video: Video | undefined) => !!video?.id.startsWith('doujin-');
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
+// 一覧に同人誌を挟む（動画の並びはそのまま。補充で動画が増えたときも同じ規則で挟み直す）。slides には各同人誌の中身を入れる
+function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean, slides: Map<string, Doujin>): Video[] {
+  const real = prev.filter((v) => !isDoujinSlide(v));
+  if (doujins.length === 0 || real.length === 0) return prev;
+  const listKey = doujins[0].contentId; // 同人誌の一覧が入れ替わったら別のスライドとして描き直す
+  const slide = (k: number, base: Video): Video => {
+    const doujin = doujins[k % doujins.length];
+    const id = `doujin-${listKey}-${k}`;
+    slides.set(id, doujin);
+    return {
+      ...base,
+      id,
+      dmm_content_id: doujin.contentId, // 同人誌の作品番号（d_123456）。GA の作品別の集計で動画と同じように数える
+      title: doujin.title,
+      thumbnail_url: doujin.cover,
+      sample_video_url: null,
+      dmm_product_url: doujin.url,
+      price: doujin.price,
+      actress_ids: null,
+      sample_seconds: null,
+    };
+  };
+  const out: Video[] = [];
+  real.forEach((video, i) => {
+    if (doujinMode) {
+      for (let j = 0; j < DOUJIN_GROUP; j++) out.push(slide(i * DOUJIN_GROUP + j, video));
+      out.push(video);
+    } else {
+      out.push(video);
+      if ((i + 1) % DOUJIN_EVERY === 0) out.push(slide((i + 1) / DOUJIN_EVERY - 1, video));
+    }
+  });
+  const same = out.length === prev.length && out.every((v, i) => v.id === prev[i].id);
+  return same ? prev : out;
+}
+
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -115,15 +157,16 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     containScroll: false,
     skipSnaps: false,
   });
-  const [videos, setVideos] = useState<Video[]>(initialVideos);
+  // 同人誌（サーバーで取得した一覧。管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときは、その並べ方の一覧に入れ替える）
+  const doujinBySlideRef = useRef(new Map<string, Doujin>());
+  const [doujinList, setDoujinList] = useState<Doujin[]>(initialDoujinList);
+  // 最初の表示から同人誌を挟んでおく（あとから挟むと、表示中の位置がずれるため）
+  const [videos, setVideos] = useState<Video[]>(() => interleaveDoujin(initialVideos, initialDoujinList, doujinMode, doujinBySlideRef.current));
   // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
-  // 同人テスト（管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときだけ。運営者の端末のみ。一般の利用者には出ない）
   const doujinOrder = searchParams.get('doujin_test');
-  const [doujinList, setDoujinList] = useState<Doujin[]>([]);
-  const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -304,7 +347,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     // 下の帯は動画が読み込まれてから表示されるので、そのときにも測り直す
   }, [isLandscape, videos.length > 0]);
 
-  // 同人テスト: 同人誌を取得し、動画5本ごとに挟む（補充で動画が増えたときも挟み直す。検索などの有限の一覧には挟まない）
+  // 同人テスト（運営者の端末のみ）: 選んだ並べ方の一覧に入れ替える
   useEffect(() => {
     if (!doujinOrder || !document.cookie.split('; ').includes('sav_admin_ui=1')) return;
     fetch(`/api/admin/doujin-test?order=${encodeURIComponent(doujinOrder)}`)
@@ -312,35 +355,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       .then((d) => d?.doujin?.length && setDoujinList(d.doujin))
       .catch(() => {});
   }, [doujinOrder]);
+  // 補充で動画が増えたとき・一覧が入れ替わったときに同人誌を挟み直す（検索などの有限の一覧には挟まない）
   useEffect(() => {
     if (doujinList.length === 0 || isFiniteList) return;
-    setVideos((prev) => {
-      const real = prev.filter((v) => !isDoujinSlide(v));
-      const out: Video[] = [];
-      real.forEach((video, i) => {
-        out.push(video);
-        if ((i + 1) % DOUJIN_EVERY !== 0) return;
-        const k = (i + 1) / DOUJIN_EVERY - 1;
-        const doujin = doujinList[k % doujinList.length];
-        const id = `doujin-${k}`;
-        doujinBySlideRef.current.set(id, doujin);
-        out.push({
-          ...video,
-          id,
-          dmm_content_id: `doujin_${doujin.contentId}`,
-          title: doujin.title,
-          thumbnail_url: doujin.cover,
-          sample_video_url: null,
-          dmm_product_url: doujin.url,
-          price: doujin.price,
-          actress_ids: null,
-          sample_seconds: null,
-        });
-      });
-      const same = out.length === prev.length && out.every((v, i) => v.id === prev[i].id);
-      return same ? prev : out;
-    });
-  }, [doujinList, videos.length, isFiniteList]);
+    setVideos((prev) => interleaveDoujin(prev, doujinList, doujinMode, doujinBySlideRef.current));
+  }, [doujinList, videos.length, isFiniteList, doujinMode]);
 
   // 履歴に追加する関数（lib/view-history.ts。運営者の端末ではサーバーにも保存して端末間で共有する）
   const addToHistory = useCallback((videoId: string) => saveToHistory(videoId), []);
@@ -591,6 +610,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
 
       const currentVideo = videos[index];
+      const shownDoujin = isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo.id) : undefined;
+      if (shownDoujin && prevIndex !== index) trackDoujinView(shownDoujin.contentId, doujinMode ? 'doujin' : 'feed', swipeCountRef.current);
       if (currentVideo && currentVideo.dmm_content_id && !isDoujinSlide(currentVideo)) {
         const url = new URL(window.location.href);
         url.searchParams.set('v', currentVideo.dmm_content_id);
@@ -613,7 +634,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     return () => {
       emblaApi.off('select', onSelect);
     };
-  }, [emblaApi, videos, loadMoreVideos, isLoadingMore, isFiniteList]);
+  }, [emblaApi, videos, loadMoreVideos, isLoadingMore, isFiniteList, doujinMode]);
 
   const currentVideo = videos[currentIndex];
 
@@ -727,7 +748,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <div
                       style={fit ? { height: fit.available } : undefined}
                       className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
-                      <DoujinReader doujin={doujinBySlideRef.current.get(video.id)!} />
+                      <DoujinReader
+                        doujin={doujinBySlideRef.current.get(video.id)!}
+                        onComplete={() => {
+                          const d = doujinBySlideRef.current.get(video.id)!;
+                          trackDoujinComplete(d.contentId, d.samples.length);
+                        }}
+                        onLinkClick={() => trackDMMClick(video.id, doujinBySlideRef.current.get(video.id)!.contentId, 'doujin', getViewContext())}
+                      />
                     </div>
                   </div>
                 ) : (
@@ -944,7 +972,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               href={currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
               {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
@@ -992,7 +1020,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               href={currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
               className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
               {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
@@ -1125,7 +1153,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 href={currentVideo.dmm_product_url}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
+                onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
                 {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}

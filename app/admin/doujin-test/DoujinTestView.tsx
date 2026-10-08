@@ -13,6 +13,7 @@ export default function DoujinTestView() {
   const [error, setError] = useState('');
   const [siteKey, setSiteKey] = useState(0);
   const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState('/');
 
   // 選んだ並べ方で、どんな同人誌が出るかを先に見せる（先頭の6冊）
   useEffect(() => {
@@ -39,8 +40,8 @@ export default function DoujinTestView() {
       <div className="max-w-3xl mx-auto">
         <h1 className="text-xl font-bold">同人テスト</h1>
         <p className="text-sm text-gray-400 mt-2">
-          本物のサイトの画面で、動画5本ごとに FANZA 同人を1冊挟んで表示します（この端末だけ。一般の利用者には出ません）。
-          同人誌は左右スワイプでサンプルを読み、最後のページの次に価格と FANZA へのボタンが出ます。
+          サイトでは動画5本ごとに FANZA 同人を1冊挟んでいます（一般公開。並べ方は「人気＋高評価からランダム」）。
+          ここでは並べ方を切り替えて、この端末だけで見比べられます。X の同人誌の投稿から来た人の画面（同人誌3冊ごとに動画1本）も確認できます。
         </p>
 
         <h2 className="text-sm font-bold mt-5 mb-2">並べ方</h2>
@@ -76,12 +77,25 @@ export default function DoujinTestView() {
           type="button"
           disabled={!preview}
           onClick={() => {
+            setTarget(`/?doujin_test=${order}`);
             setSiteKey((k) => k + 1);
             setOpen(true);
           }}
           className="mt-5 w-full rounded-xl bg-blue-600 py-3.5 font-bold disabled:opacity-40"
         >
           「{DOUJIN_ORDERS[order]}」でサイトを開く
+        </button>
+        <button
+          type="button"
+          disabled={!preview || preview.length === 0}
+          onClick={() => {
+            setTarget(`/?mode=doujin&d=${preview![0].contentId}`);
+            setSiteKey((k) => k + 1);
+            setOpen(true);
+          }}
+          className="mt-2 w-full rounded-xl bg-gray-700 py-3 text-sm font-bold disabled:opacity-40"
+        >
+          X の同人誌の投稿から来た人の画面を見る（先頭の1冊から）
         </button>
       </div>
 
@@ -91,11 +105,11 @@ export default function DoujinTestView() {
             <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white">
               × 閉じる
             </button>
-            <span className="ml-auto text-xs text-gray-400">同人テスト: {DOUJIN_ORDERS[order]}</span>
+            <span className="ml-auto text-xs text-gray-400">同人テスト</span>
           </div>
           <iframe
             key={siteKey}
-            src={`/?doujin_test=${order}`}
+            src={target}
             title="同人テスト"
             className="w-full flex-1 border-0"
             allow="autoplay; fullscreen; clipboard-write"

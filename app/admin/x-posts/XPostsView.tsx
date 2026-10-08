@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getUserId } from '@/lib/user-id';
+import DoujinPosts from './DoujinPosts';
 import {
   countXWeightedLength,
   getPostFormat,
@@ -489,6 +490,7 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
 const LIST_TABS = [
   { key: 'liked', label: 'いいね' },
   { key: 'recommended', label: '効果的' },
+  { key: 'doujin', label: '同人誌' },
 ] as const;
 type ListTab = (typeof LIST_TABS)[number]['key'];
 const LIST_TAB_KEY = 'sav_admin_x_tab';
@@ -530,7 +532,7 @@ export default function XPostsAdminPage() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LIST_TAB_KEY);
-      if (saved === 'liked' || saved === 'recommended') setListTab(saved);
+      if (saved === 'liked' || saved === 'recommended' || saved === 'doujin') setListTab(saved);
     } catch {
       // localStorage が使えなければ「いいね」を開く
     }
@@ -573,7 +575,7 @@ export default function XPostsAdminPage() {
 
         <div className="flex gap-2 mb-3">
           {LIST_TABS.map(({ key, label }) => {
-            const count = key === 'liked' ? liked?.length : recommended?.length;
+            const count = key === 'liked' ? liked?.length : key === 'recommended' ? recommended?.length : undefined;
             return (
               <button
                 key={key}
@@ -589,13 +591,17 @@ export default function XPostsAdminPage() {
         </div>
 
         <p className="text-gray-400 text-sm mb-4">
-          {listTab === 'liked'
+          {listTab === 'doujin'
+            ? 'FANZA 同人の人気作品（サンプルあり）です。投稿のリンクを開くと、その作品から始まる同人誌中心の画面（同人誌3冊ごとに動画1本）になります。'
+            : listTab === 'liked'
             ? '「サイトを開く」でいいねした作品です（この端末でのいいね・新しい順）。紹介済みにしても一覧に残ります。'
             : `直近${recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、反応の大きい順に表示しています。紹介済みにした作品は2週間この一覧に出ず、その後また候補に戻ります（投稿をやめたときは「取り消す」）。`}
           {' '}「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。
         </p>
 
-        {error ? (
+        {listTab === 'doujin' ? (
+          <DoujinPosts />
+        ) : error ? (
           <div className="text-red-400 text-sm">{error}</div>
         ) : list === null ? (
           <div className="text-gray-400 text-sm">読み込み中...</div>
