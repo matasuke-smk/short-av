@@ -243,9 +243,18 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
   });
   // イベント数は足し合わせられるので、合計は時間帯ごとの合計にする（イベント別の一覧の合計は、その一覧が取れなかったときに0になっていた）
   const hourlyEvents = hours.reduce((sum, x) => sum + x.events, 0);
+  // 人数: GA の集計（重複を除いた人数）に、まだ GA に入っていない分（リアルタイムで補った時間帯の、GA の人数を超える分）を足す。
+  // 以前は「GA の集計」と「補った時間帯のいちばん多い人数」の大きいほうにしていたため、
+  // 集計が遅れている間は1つの時間帯の人数がそのまま1日の合計に出ていた（イベント数は全時間帯の合計なのに不揃いだった）。
+  // 別の時間帯にも来た人は2回数えるので少し多めになるが、GA の集計が追いつけば正しい人数になる
+  const pendingUsers = hours.reduce((sum, x, h) => {
+    if (!x.fromLive) return sum;
+    const gaHourUsers = rows.find((r) => Number(r.dimensions[0]) === h)?.metrics[0] ?? 0;
+    return sum + Math.max(0, x.users - gaHourUsers);
+  }, 0);
   return {
     hours,
-    users: Math.max(totalUsers, ...hours.filter((x) => x.fromLive).map((x) => x.users)),
+    users: totalUsers + pendingUsers,
     events: rows.length > 0 ? hourlyEvents : totalEvents,
   };
 }
