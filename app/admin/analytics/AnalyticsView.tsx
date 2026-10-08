@@ -47,6 +47,30 @@ export type RangeData =
 
 
 // GA の流入元（デフォルト チャネル グループ）を日本語にする
+// イベント名を日本語にする（サイトが送るものと、GA が自動で送る主なもの）
+const EVENT_LABELS: Record<string, string> = {
+  page_view: 'ページ表示（スワイプごとにも1回）',
+  age_verification: '年齢確認に回答',
+  swipe: 'スワイプ',
+  video_view: 'サンプル動画の再生',
+  dmm_link_click: 'FANZA へのクリック',
+  search: '検索の実行',
+  like_action: 'いいね・取り消し',
+  modal_open: '画面を開いた（検索・人気など）',
+  modal_close: '画面を閉じた',
+  tutorial_view: '使い方の表示',
+  session_start: '訪問の開始（GA 自動）',
+  first_visit: '初めての訪問（GA 自動）',
+  user_engagement: 'ページを見ていた（GA 自動）',
+  scroll: 'ページの下までスクロール（GA 自動）',
+  click: 'ほかのサイトへのリンク（GA 自動）',
+  form_start: 'フォームの入力開始（GA 自動）',
+  form_submit: 'フォームの送信（GA 自動）',
+  file_download: 'ファイルのダウンロード（GA 自動）',
+  video_start: '埋め込み動画の再生開始（GA 自動）',
+  view_search_results: '検索結果の表示（GA 自動）',
+};
+
 const CHANNEL_LABELS: Record<string, string> = {
   Direct: '直接（ブックマーク・URL を直接入力など）',
   'Organic Search': '検索エンジン（Google・Yahoo! など）',
@@ -200,6 +224,7 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
 function HourlyChart({
   hours,
   total,
+  totalEvents,
   days,
   axis,
   totalLabel = '合計',
@@ -209,6 +234,7 @@ function HourlyChart({
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
+  totalEvents: number; // 期間全体のイベント数（時間帯ごとの合計）
   days: number; // 7日間・28日間は1日あたりの平均で描く
   axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
 }) {
@@ -226,10 +252,14 @@ function HourlyChart({
       <div className="text-right">
         <p className="text-sm text-gray-400">
           {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
+          <span className="ml-2">
+            <span className="text-lg font-bold text-amber-300">{fmt(totalEvents)}</span>件
+          </span>
         </p>
         {compareTotals && (
           <p className="text-xs text-gray-400">
             昨日の{compareTotals.until}まで <span className="font-bold text-gray-200">{fmt(compareTotals.users)}</span>人
+            <span className="ml-1.5 font-bold text-amber-200/80">{fmt(compareTotals.events)}</span>件
           </p>
         )}
       </div>
@@ -429,7 +459,7 @@ function RangeBody({
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
-  const { hours, users } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
+  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -454,12 +484,13 @@ function RangeBody({
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
-          <HourlyChart hours={hours} total={users} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
+          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
         </Section>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
           <Card label="利用者数" value={fmt(users)} unit="人" sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
+          <Card label="イベント数（合計）" value={fmt(totalEvents)} unit="件" sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
           <Card
             label="流れ（どこで離脱しているか）"
             value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
@@ -509,6 +540,23 @@ function RangeBody({
         {detail === 'daily' && (
           <DetailModal title="利用者数（日別）" onClose={closeDetail}>
             <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
+          </DetailModal>
+        )}
+        {detail === 'events' && (
+          <DetailModal title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`} onClose={closeDetail}>
+            {allEvents.length === 0 ? (
+              <p className="text-sm text-gray-400">まだデータがありません。</p>
+            ) : (
+              allEvents.map((r) => (
+                <Bar
+                  key={r.dimensions[0]}
+                  label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
+                  value={r.metrics[0]}
+                  max={allEvents[0]?.metrics[0] ?? 1}
+                  right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
+                />
+              ))
+            )}
           </DetailModal>
         )}
         {detail === 'funnel' && (
@@ -829,7 +877,7 @@ function WeekdayView({
           <p className="text-xs text-gray-400 mb-2">
             {WEEKDAY_NAMES[selected]}曜日 {s.n}日分の平均（{current.dates.map(mdOf).join('・')}）
           </p>
-          <HourlyChart hours={hours} total={Math.round(s.users)} days={s.n} axis={hourlyAxis} totalLabel="1日平均" />
+          <HourlyChart hours={hours} total={Math.round(s.users)} totalEvents={Math.round(s.events)} days={s.n} axis={hourlyAxis} totalLabel="1日平均" />
         </>
       )}
     </Section>
