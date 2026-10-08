@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { fetchPopularDoujin } from '@/lib/doujin';
+import { NextRequest, NextResponse } from 'next/server';
+import { DOUJIN_ORDERS, fetchDoujin, type DoujinOrder } from '@/lib/doujin';
 
 /**
  * 管理画面の「同人テスト」用: 人気の同人作品（サンプル画像つき）を DMM の API から直接取る
@@ -7,9 +7,11 @@ import { fetchPopularDoujin } from '@/lib/doujin';
  */
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const param = request.nextUrl.searchParams.get('order') ?? 'rank';
+  const order: DoujinOrder = param in DOUJIN_ORDERS ? (param as DoujinOrder) : 'rank';
   try {
-    return NextResponse.json({ doujin: await fetchPopularDoujin(30) });
+    return NextResponse.json({ order, doujin: await fetchDoujin(order, 30) });
   } catch (error) {
     console.error('[doujin-test]', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });

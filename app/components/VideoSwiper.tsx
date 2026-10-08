@@ -15,6 +15,8 @@ import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
 import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
+import DoujinReader from './DoujinReader';
+import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
@@ -88,6 +90,10 @@ function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: nu
 
 const SWIPED_KEY = 'short-av-has-swiped';
 
+// 同人テスト: 動画を何本見たら同人誌を1冊挟むか。挟んだ同人誌は id が doujin- で始まる動画の形で一覧に入れる
+const DOUJIN_EVERY = 5;
+const isDoujinSlide = (video: Video | undefined) => !!video?.id.startsWith('doujin-');
+
 export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
@@ -114,6 +120,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
+  // 同人テスト（管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときだけ。運営者の端末のみ。一般の利用者には出ない）
+  const doujinOrder = searchParams.get('doujin_test');
+  const [doujinList, setDoujinList] = useState<Doujin[]>([]);
+  const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -253,6 +263,44 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
   }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
 
+  // 同人テスト: 同人誌を取得し、動画5本ごとに挟む（補充で動画が増えたときも挟み直す。検索などの有限の一覧には挟まない）
+  useEffect(() => {
+    if (!doujinOrder || !document.cookie.split('; ').includes('sav_admin_ui=1')) return;
+    fetch(`/api/admin/doujin-test?order=${encodeURIComponent(doujinOrder)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.doujin?.length && setDoujinList(d.doujin))
+      .catch(() => {});
+  }, [doujinOrder]);
+  useEffect(() => {
+    if (doujinList.length === 0 || isFiniteList) return;
+    setVideos((prev) => {
+      const real = prev.filter((v) => !isDoujinSlide(v));
+      const out: Video[] = [];
+      real.forEach((video, i) => {
+        out.push(video);
+        if ((i + 1) % DOUJIN_EVERY !== 0) return;
+        const k = (i + 1) / DOUJIN_EVERY - 1;
+        const doujin = doujinList[k % doujinList.length];
+        const id = `doujin-${k}`;
+        doujinBySlideRef.current.set(id, doujin);
+        out.push({
+          ...video,
+          id,
+          dmm_content_id: `doujin_${doujin.contentId}`,
+          title: doujin.title,
+          thumbnail_url: doujin.cover,
+          sample_video_url: null,
+          dmm_product_url: doujin.url,
+          price: doujin.price,
+          actress_ids: null,
+          sample_seconds: null,
+        });
+      });
+      const same = out.length === prev.length && out.every((v, i) => v.id === prev[i].id);
+      return same ? prev : out;
+    });
+  }, [doujinList, videos.length, isFiniteList]);
+
   // 履歴に追加する関数（lib/view-history.ts。運営者の端末ではサーバーにも保存して端末間で共有する）
   const addToHistory = useCallback((videoId: string) => saveToHistory(videoId), []);
 
@@ -360,6 +408,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // いいねを切り替える関数（いいねは dmm_content_id で管理する）
   const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
     event.stopPropagation();
+    if (isDoujinSlide(video)) return; // 同人テストの同人誌はいいねの対象外
 
     if (!userId) return;
 
@@ -501,7 +550,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
 
       const currentVideo = videos[index];
-      if (currentVideo && currentVideo.dmm_content_id) {
+      if (currentVideo && currentVideo.dmm_content_id && !isDoujinSlide(currentVideo)) {
         const url = new URL(window.location.href);
         url.searchParams.set('v', currentVideo.dmm_content_id);
 
@@ -628,7 +677,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 key={`${index}-${video.id}`}
                 className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden lg:overflow-hidden"
               >
-                {/* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */}
+                {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
+                  // 同人テスト: 動画のサムネイル・広告の枠の位置に、左右スワイプで読める同人誌を置く（下の価格・ボタンは動画と同じ帯）
+                  <div className="flex h-full flex-col landscape:flex-row lg:flex-row">
+                    <div className="h-16 w-full flex-shrink-0 px-4 flex items-center md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
+                      <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">{video.title}</h2>
+                    </div>
+                    <div className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
+                      <DoujinReader doujin={doujinBySlideRef.current.get(video.id)!} />
+                    </div>
+                  </div>
+                ) : (
+                /* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */
                 <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
                   <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
@@ -741,6 +801,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     )}
                   </div>
                 </div>
+                )}
               </div>
             ))}
             {/* ローディングインジケーター */}
@@ -842,7 +903,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
-              {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
               <span className="text-sm font-bold">詳細はこちら</span>
             </a>
           ) : (
@@ -1023,7 +1084,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext())}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
-                {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+                {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
                 <span className="text-sm font-medium">詳細はこちら</span>
               </a>
             )}
