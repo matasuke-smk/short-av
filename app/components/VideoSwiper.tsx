@@ -162,9 +162,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     containScroll: false,
     skipSnaps: false,
   });
-  // 同人誌（サーバーで取得した一覧。管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときは、その並べ方の一覧に入れ替える）
+  // 同人誌（サーバーで取得した一覧）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
-  const [doujinList, setDoujinList] = useState<Doujin[]>(initialDoujinList);
+  const [doujinList] = useState<Doujin[]>(initialDoujinList);
   // 「動画｜同人誌」: 動画メイン（動画5本ごとに同人誌1冊）か、同人誌メイン（同人誌5冊ごとに動画1本）か。上の切り替えで変える
   const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
   const doujinMode = mode === 'doujin';
@@ -178,7 +178,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(startIndex);
-  const doujinOrder = searchParams.get('doujin_test');
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [modalVideoUrl, setModalVideoUrl] = useState('');
   const [likedVideos, setLikedVideos] = useState<Set<string>>(new Set());
@@ -342,8 +341,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         setTopOffset(null);
         return;
       }
-      // 上の余白 = PR の帯＋「動画｜同人誌」の帯の下端（ふつうは 24 + 44。ホーム画面アプリでは時計の分も）
-      const TOP = Math.ceil(topBarRef.current?.getBoundingClientRect().bottom ?? 24 + 44);
+      // 上の余白 = 上の帯の下端（ふつうは 44。ホーム画面アプリでは時計の分も）
+      const TOP = Math.ceil(topBarRef.current?.getBoundingClientRect().bottom ?? 44);
       setTopOffset(TOP);
       const style = window.getComputedStyle(panel);
       const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
@@ -380,18 +379,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     // 下の帯は動画が読み込まれてから表示されるので、そのときにも測り直す
   }, [isLandscape, videos.length > 0]);
 
-  // 同人テスト（運営者の端末のみ）: 選んだ並べ方の一覧に入れ替える
-  useEffect(() => {
-    if (!doujinOrder || !document.cookie.split('; ').includes('sav_admin_ui=1')) return;
-    fetch(`/api/admin/doujin-test?order=${encodeURIComponent(doujinOrder)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d?.doujin?.length) return;
-        setDoujinList(d.doujin);
-        setActiveDoujin(d.doujin);
-      })
-      .catch(() => {});
-  }, [doujinOrder]);
   // 補充で動画が増えたとき・一覧が入れ替わったときに同人誌を挟み直す（検索などの有限の一覧には挟まない）
   useEffect(() => {
     if (activeDoujin.length === 0 || isFiniteList) return;
@@ -781,7 +768,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   }, [mode, isFiniteList, videos, currentIndex, doujinList]);
 
   const modeToggle = (
-    <div className="flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label="動画と同人誌の切り替え">
+    <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label="動画と同人誌の切り替え">
       {(['video', 'doujin'] as const).map((key) => (
         <button
           key={key}
@@ -808,19 +795,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {notice}
         </div>
       )}
-      {/* FANZAクレジット（画面上部固定、横画面時は非表示） */}
-      {/* 広告（アフィリエイト）であることの表示（PR）も、どの作品でも常に見えるここに出す */}
-      <div className="landscape:hidden fixed top-[max(env(safe-area-inset-top),0)] left-0 right-0 z-40 bg-black/50 backdrop-blur-sm text-white h-6 text-xs flex items-center justify-center px-4">
-        <span className="mr-2 bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
-        {enableAffiliateLinks ? (
-          <span>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 transition-colors">FANZA Webサービス</a></span>
-        ) : (
-          <span className="text-gray-400">サイト認証後に表示</span>
-        )}
-      </div>
-
-      {/* 「動画｜同人誌」の切り替えと記事のボタン（縦画面のみ。PR の帯のすぐ下） */}
-      <div ref={topBarRef} className="landscape:hidden lg:hidden fixed left-0 right-0 z-40 top-[calc(max(env(safe-area-inset-top),0px)+1.5rem)] h-11 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      {/* 上の帯（縦画面のみ）: 広告の表示（PR）・「動画｜同人誌」の切り替え・記事のボタンを1行に。
+          ホーム画面アプリでは時計の分（safe-area）だけ上に余白を取る。FANZA のクレジットは下の帯に出す */}
+      <div ref={topBarRef} className="landscape:hidden lg:hidden fixed left-0 right-0 top-0 z-40 pt-[env(safe-area-inset-top)] bg-black/70 backdrop-blur-sm">
+        <div className="relative h-11 flex items-center justify-center">
+        <span className="absolute left-3 bg-yellow-400 text-black px-1.5 rounded-sm text-xs font-bold leading-4">PR</span>
         {modeToggle}
         <Link
           href="/articles"
@@ -831,6 +810,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
         </Link>
+        </div>
       </div>
 
       {/* 縦スクロールエリア */}
@@ -838,7 +818,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         {/* スワイプは embla が行う。ブラウザ自身の縦スクロールが始まると、スクロールしきるまでスワイプできなくなるため、
             枠はスクロールさせず（overflow-hidden・touch-action）、フォーカス移動などでずれた場合もすぐ戻す */}
         <div
-          className="overflow-hidden h-full scrollbar-hide pt-[4.25rem] landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
+          className="overflow-hidden h-full scrollbar-hide pt-11 landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
           style={topOffset !== null ? { paddingTop: topOffset } : undefined}
           ref={emblaRef}
           onScroll={(e) => {
@@ -1035,7 +1015,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
-        <div className="flex-shrink-0">{modeToggle}</div>
+        <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
         <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
@@ -1244,7 +1224,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <div
         ref={bottomPanelRef}
         style={doujinFit && isDoujinSlide(currentVideo) ? { height: doujinFit.panelHeight } : fit ? { height: fit.panelHeight } : undefined}
-        className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-4.25rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
+        className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-2.75rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
@@ -1368,6 +1348,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               お問い合わせ
             </a>
           </div>
+          {/* FANZA のクレジット（以前は画面上部の帯に出していた） */}
+          <p className="mt-1 text-center text-[10px] text-gray-500">
+            {enableAffiliateLinks ? (
+              <>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400">FANZA Webサービス</a></>
+            ) : (
+              'サイト認証後に表示'
+            )}
+          </p>
         </div>
       </div>
 

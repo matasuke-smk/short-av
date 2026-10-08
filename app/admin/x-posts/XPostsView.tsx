@@ -590,7 +590,7 @@ export default function XPostsAdminPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold mb-3">X 投稿</h1>
 
-        <div className="flex rounded-full bg-gray-800 p-1 mb-3 max-w-xs">
+        <div className="flex rounded-full bg-gray-800 p-1 mb-3 max-w-xs mx-auto">
           {KINDS.map(({ key, label }) => (
             <button
               key={key}

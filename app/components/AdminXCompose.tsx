@@ -97,7 +97,7 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
     <>
       <button
         onClick={compose}
-        className="fixed top-2 left-2 z-[70] bg-black/80 border border-gray-600 text-white text-xs font-bold rounded-full px-3 py-1.5 shadow-lg"
+        className="fixed top-[calc(env(safe-area-inset-top)+3.25rem)] left-2 z-[70] bg-black/80 border border-gray-600 text-white text-xs font-bold rounded-full px-3 py-1.5 shadow-lg"
       >
         X投稿文
       </button>
