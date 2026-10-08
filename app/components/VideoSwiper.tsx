@@ -17,6 +17,7 @@ import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
+import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
 import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
@@ -103,28 +104,29 @@ const DOUJIN_EVERY = 5;
 const DOUJIN_GROUP = 3;
 const isDoujinSlide = (video: Video | undefined) => !!video?.id.startsWith('doujin-');
 
+// 同人誌を一覧に入れるための動画の形（base は動画の1件。型を満たすために使い、表示に関わる項目は同人誌のもので上書きする）
+function makeDoujinSlide(doujin: Doujin, id: string, base: Video, slides: Map<string, Doujin>): Video {
+  slides.set(id, doujin);
+  return {
+    ...base,
+    id,
+    dmm_content_id: doujin.contentId, // 同人誌の作品番号（d_123456）。GA の作品別の集計で動画と同じように数える
+    title: doujin.title,
+    thumbnail_url: doujin.cover,
+    sample_video_url: null,
+    dmm_product_url: doujin.url,
+    price: doujin.price,
+    actress_ids: null,
+    sample_seconds: null,
+  };
+}
+
 // 一覧に同人誌を挟む（動画の並びはそのまま。補充で動画が増えたときも同じ規則で挟み直す）。slides には各同人誌の中身を入れる
 function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean, slides: Map<string, Doujin>): Video[] {
   const real = prev.filter((v) => !isDoujinSlide(v));
   if (doujins.length === 0 || real.length === 0) return prev;
   const listKey = doujins[0].contentId; // 同人誌の一覧が入れ替わったら別のスライドとして描き直す
-  const slide = (k: number, base: Video): Video => {
-    const doujin = doujins[k % doujins.length];
-    const id = `doujin-${listKey}-${k}`;
-    slides.set(id, doujin);
-    return {
-      ...base,
-      id,
-      dmm_content_id: doujin.contentId, // 同人誌の作品番号（d_123456）。GA の作品別の集計で動画と同じように数える
-      title: doujin.title,
-      thumbnail_url: doujin.cover,
-      sample_video_url: null,
-      dmm_product_url: doujin.url,
-      price: doujin.price,
-      actress_ids: null,
-      sample_seconds: null,
-    };
-  };
+  const slide = (k: number, base: Video): Video => makeDoujinSlide(doujins[k % doujins.length], `doujin-${listKey}-${k}`, base, slides);
   const out: Video[] = [];
   real.forEach((video, i) => {
     if (doujinMode) {
@@ -484,6 +486,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setIsFiniteList(true);
   }, []);
 
+  const replaceWithDoujin = useCallback((list: Doujin[], selectedId: string) => {
+    const base = videos.find((v) => !isDoujinSlide(v)) ?? videos[0];
+    if (!base || list.length === 0) return;
+    const key = `list${Date.now()}`;
+    const slides = list.map((d, k) => makeDoujinSlide(d, `doujin-${key}-${k}`, base, doujinBySlideRef.current));
+    const target = Math.max(0, list.findIndex((d) => d.contentId === selectedId));
+    pendingScrollRef.current = target;
+    setVideos(slides);
+    setCurrentIndex(target);
+    setIsFiniteList(true);
+  }, [videos]);
+
   useLayoutEffect(() => {
     const target = pendingScrollRef.current;
     if (!emblaApi || target === null) return;
@@ -830,7 +844,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 key={`${index}-${video.id}`}
                 className="h-[100dvh] w-full snap-start snap-always relative landscape:overflow-hidden lg:overflow-hidden"
               >
-                {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
+                {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) && Math.abs(index - currentIndex) > 2 ? (
+                  // 同人誌は表示中の前後2枚だけ中身を描く（検索結果など数百冊の一覧で、全部のサンプル画像を一度に読み込まないように）
+                  <div className="h-full w-full bg-black" />
+                ) : isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
                   // 同人テスト: 動画のサムネイル・広告の枠の位置に、左右スワイプで読める同人誌を置く（下の価格・ボタンは動画と同じ帯）
                   <div className="flex h-full flex-col landscape:flex-row lg:flex-row">
                     <div
@@ -993,7 +1010,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <button
                       onClick={() => {
                         // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                        window.location.href = '/';
+                        window.location.href = doujinMode ? '/?mode=doujin' : '/';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
@@ -1164,7 +1181,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           <button
             onClick={() => {
               // トップを読み直して通常のフィード（新しい動画セット）に戻る
-              window.location.href = '/';
+              window.location.href = doujinMode ? '/?mode=doujin' : '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -1289,7 +1306,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <button
               onClick={() => {
                 // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                window.location.href = '/';
+                window.location.href = doujinMode ? '/?mode=doujin' : '/';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
@@ -1575,9 +1592,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       />
 
       {/* いいねモーダル */}
-      {doujinListKind && (
+      <DoujinSearchModal
+        isOpen={doujinListKind === 'search'}
+        onClose={() => setDoujinListKind(null)}
+        onSelect={replaceWithDoujin}
+      />
+      {doujinListKind && doujinListKind !== 'search' && (
         <DoujinListModal
           kind={doujinListKind}
+          onSelect={(list, id) => {
+            replaceWithDoujin(list, id);
+            setDoujinListKind(null);
+          }}
           onClose={() => setDoujinListKind(null)}
           onShowVideoTab={
             doujinListKind === 'liked'
