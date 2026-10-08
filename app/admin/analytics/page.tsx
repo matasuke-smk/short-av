@@ -421,8 +421,8 @@ const getRangeData = unstable_cache(
   { revalidate: 300 },
 );
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string; country?: string }> }) {
-  const { range: rangeParam, country: countryParam } = await searchParams;
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string; country?: string; warm?: string }> }) {
+  const { range: rangeParam, country: countryParam, warm } = await searchParams;
   // 標準は「日本のみ」。?country=all で海外も含める
   const country: Country = countryParam === 'all' ? 'all' : 'jp';
   const initialRange: ViewKey = VIEW_KEYS.includes(rangeParam as ViewKey) ? (rangeParam as ViewKey) : 'today';
@@ -448,6 +448,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     );
   // 期間の集計・昨日の同じ時刻まで・いま見られているページ・リアルタイムの記録は互いに関係ないので、まとめて待つ
   // （以前は順番に待っていて、そのぶん開くのが遅かった）
+  // 画面から裏で呼ばれる「もう一方の集計の取得」（?warm=1）: GA の集計を取得して使い回せるようにするだけ。
+  // リアルタイムの記録・読み込み（Supabase）は行わない（2分おきに呼ばれるため、データベースの通信量を増やさない）
+  if (warm === '1') {
+    await Promise.all([loadRanges(country), getYesterdaySoFar(bucket, country).catch(() => null)]);
+    return null;
+  }
   const [results, yesterdaySoFar, realtime, live] = await Promise.all([
     loadRanges(country),
     getYesterdaySoFar(bucket, country).catch((error) => {
