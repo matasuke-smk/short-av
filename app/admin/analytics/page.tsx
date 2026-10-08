@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { after } from 'next/server';
 import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
@@ -430,42 +431,54 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const keys = Object.keys(RANGES) as RangeKey[];
   const bucket = Math.floor(Date.now() / 300_000);
   const hourBucket = Math.floor(Date.now() / 3_600_000); // 時の区切りは日本時間の0時とそろう
-  const results = await Promise.all(
-    keys.map(async (key): Promise<RangeData> => {
-      try {
-        return await getRangeData(key, key === 'today' ? bucket : hourBucket, country);
-      } catch (error) {
-        return {
-          error:
-            error instanceof GaNotConfiguredError
-              ? 'Google Analytics を読むための鍵（環境変数 GA_SERVICE_ACCOUNT_KEY）がまだ設定されていません。'
-              : `Google Analytics のデータを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`,
-        };
-      }
+  const loadRanges = (target: Country) =>
+    Promise.all(
+      keys.map(async (key): Promise<RangeData> => {
+        try {
+          return await getRangeData(key, key === 'today' ? bucket : hourBucket, target);
+        } catch (error) {
+          return {
+            error:
+              error instanceof GaNotConfiguredError
+                ? 'Google Analytics を読むための鍵（環境変数 GA_SERVICE_ACCOUNT_KEY）がまだ設定されていません。'
+                : `Google Analytics のデータを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`,
+          };
+        }
+      }),
+    );
+  // 期間の集計・昨日の同じ時刻まで・いま見られているページ・リアルタイムの記録は互いに関係ないので、まとめて待つ
+  // （以前は順番に待っていて、そのぶん開くのが遅かった）
+  const [results, yesterdaySoFar, realtime, live] = await Promise.all([
+    loadRanges(country),
+    getYesterdaySoFar(bucket, country).catch((error) => {
+      console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
+      return null;
     }),
-  );
-  const yesterdaySoFar = await getYesterdaySoFar(bucket, country).catch((error) => {
-    console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
-    return null;
-  });
+    // いま見られているページ（直近30分）。リアルタイムなので使い回さずに毎回取得する
+    runRealtimeReport({
+      dimensions: [{ name: 'unifiedScreenName' }],
+      metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
+      dimensionFilter: byCountry(country, undefined),
+      orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+      limit: 10,
+    }).catch((error) => {
+      console.error('[analytics] リアルタイムを取得できませんでした:', error);
+      return null;
+    }),
+    // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
+    // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う。記録は3日分残しているので、一昨日まで補える
+    (async () => {
+      await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
+      const [today, yesterday, dayBefore] = await Promise.all([0, 1, 2].map((daysAgo) => getLiveHourly(daysAgo).catch(() => null)));
+      return { today, yesterday, dayBefore };
+    })(),
+  ]);
   const data = Object.fromEntries(keys.map((key, i) => [key, results[i]])) as Record<RangeKey, RangeData>;
-  // いま見られているページ（直近30分）。リアルタイムなので使い回さずに毎回取得する
-  const realtime = await runRealtimeReport({
-    dimensions: [{ name: 'unifiedScreenName' }],
-    metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
-    dimensionFilter: byCountry(country, undefined),
-    orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
-    limit: 10,
-  }).catch((error) => {
-    console.error('[analytics] リアルタイムを取得できませんでした:', error);
-    return null;
+  // 「日本のみ｜すべて」を切り替えたときにすぐ開けるよう、表示し終わってから裏でもう一方も取得して使い回せるようにしておく
+  const other: Country = country === 'jp' ? 'all' : 'jp';
+  after(async () => {
+    await Promise.all([loadRanges(other), getYesterdaySoFar(bucket, other).catch(() => null)]);
   });
-  // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
-  // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う
-  await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
-  // 記録は3日分残しているので、一昨日まで補える
-  const [todayLive, yesterdayLive, dayBeforeLive] = await Promise.all([0, 1, 2].map((daysAgo) => getLiveHourly(daysAgo).catch(() => null)));
-  const live = { today: todayLive, yesterday: yesterdayLive, dayBefore: dayBeforeLive };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
   return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} />;
