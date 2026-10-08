@@ -487,16 +487,23 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
   );
 }
 
+// 上の段: 動画｜同人誌、下の段: いいね｜おすすめ（以前の「効果的」）
+const KINDS = [
+  { key: 'video', label: '動画' },
+  { key: 'doujin', label: '同人誌' },
+] as const;
+type Kind = (typeof KINDS)[number]['key'];
 const LIST_TABS = [
   { key: 'liked', label: 'いいね' },
-  { key: 'recommended', label: '効果的' },
-  { key: 'doujin', label: '同人誌' },
+  { key: 'recommended', label: 'おすすめ' },
 ] as const;
 type ListTab = (typeof LIST_TABS)[number]['key'];
 const LIST_TAB_KEY = 'sav_admin_x_tab';
+const KIND_KEY = 'sav_admin_x_kind';
 
 export default function XPostsAdminPage() {
   const [listTab, setListTab] = useState<ListTab>('liked');
+  const [kind, setKind] = useState<Kind>('video');
   const [liked, setLiked] = useState<VideoItem[] | null>(null);
   const [likedError, setLikedError] = useState('');
   const [recommended, setRecommended] = useState<VideoItem[] | null>(null);
@@ -532,7 +539,9 @@ export default function XPostsAdminPage() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LIST_TAB_KEY);
-      if (saved === 'liked' || saved === 'recommended' || saved === 'doujin') setListTab(saved);
+      if (saved === 'liked' || saved === 'recommended') setListTab(saved);
+      const savedKind = localStorage.getItem(KIND_KEY);
+      if (savedKind === 'video' || savedKind === 'doujin') setKind(savedKind);
     } catch {
       // localStorage が使えなければ「いいね」を開く
     }
@@ -548,8 +557,16 @@ export default function XPostsAdminPage() {
       // 保存できなくても切り替えはできる
     }
   };
+  const selectKind = (key: Kind) => {
+    setKind(key);
+    try {
+      localStorage.setItem(KIND_KEY, key);
+    } catch {
+      // 保存できなくても切り替えはできる
+    }
+  };
 
-  // 紹介済みにした作品: どちらの一覧でも紹介済みの表示にする（「効果的」からは次に読み込んだときに外れる。
+  // 紹介済みにした作品: どちらの一覧でも紹介済みの表示にする（「おすすめ」からは次に読み込んだときに外れる。
   // その場で消さないのは、投稿をやめたときにすぐ「取り消す」を押せるようにするため）
   function markPosted(contentId: string) {
     const now = new Date().toISOString();
@@ -573,9 +590,22 @@ export default function XPostsAdminPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl md:text-3xl font-bold mb-3">X 投稿</h1>
 
+        <div className="flex rounded-full bg-gray-800 p-1 mb-3 max-w-xs">
+          {KINDS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => selectKind(key)}
+              className={`flex-1 rounded-full py-2 text-sm font-bold ${kind === key ? (key === 'doujin' ? 'bg-pink-600' : 'bg-white text-black') : 'text-gray-300'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-2 mb-3">
           {LIST_TABS.map(({ key, label }) => {
-            const count = key === 'liked' ? liked?.length : key === 'recommended' ? recommended?.length : undefined;
+            const count = kind === 'doujin' ? undefined : key === 'liked' ? liked?.length : recommended?.length;
             return (
               <button
                 key={key}
@@ -591,16 +621,16 @@ export default function XPostsAdminPage() {
         </div>
 
         <p className="text-gray-400 text-sm mb-4">
-          {listTab === 'doujin'
-            ? 'FANZA 同人の人気作品（サンプルあり）です。投稿のリンクを開くと、その作品から始まる同人誌中心の画面（同人誌5冊ごとに動画1本）になります。'
+          {kind === 'doujin'
+            ? `${listTab === 'liked' ? '「サイトを開く」でいいねした同人誌です（新しい順）。' : '直近7日間のサイトでの反応（FANZA へのクリック・最後まで読まれた・表示）と FANZA の人気順位から、点数の高い順です。紹介済みにした同人誌は2週間この一覧に出ません。'}投稿のリンクを開くと、その作品から始まる同人誌中心の画面（同人誌5冊ごとに動画1本）になります。`
             : listTab === 'liked'
             ? '「サイトを開く」でいいねした作品です（この端末でのいいね・新しい順）。紹介済みにしても一覧に残ります。'
             : `直近${recommendDays}日間の反応（FANZA へのリンク・スワイプ後の再生・再生・いいね）とランキングから、反応の大きい順に表示しています。紹介済みにした作品は2週間この一覧に出ず、その後また候補に戻ります（投稿をやめたときは「取り消す」）。`}
           {' '}「投稿文を作る」→「本文をコピー」→ X に貼り付けて投稿・予約 →「紹介済みにする」の順で進めてください。
         </p>
 
-        {listTab === 'doujin' ? (
-          <DoujinPosts />
+        {kind === 'doujin' ? (
+          <DoujinPosts key={listTab} list={listTab} />
         ) : error ? (
           <div className="text-red-400 text-sm">{error}</div>
         ) : list === null ? (

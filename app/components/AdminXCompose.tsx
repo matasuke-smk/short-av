@@ -68,7 +68,7 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
     setBusy(false);
     if (response.ok) {
       setAlreadyPosted(true);
-      setStatus('紹介済みとして記録しました（2週間は「投稿すると効果的な作品」に出なくなります）');
+      setStatus('紹介済みとして記録しました（2週間は「おすすめ」に出なくなります）');
     } else {
       setStatus('記録できませんでした');
     }
