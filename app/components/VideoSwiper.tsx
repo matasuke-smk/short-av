@@ -191,7 +191,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
-  // 上の余白・タイトル・下の帯の中身の高さを実際に測り、残りに収まらなければ ①動画の下のバナーを出さない ②動画のサムネイルを縮める。
+  // 上の余白・タイトル・下の帯の中身の高さを実際に測り、残りに収まらなければ ①動画のサムネイルを縮める（バナーは残す）②それでも小さすぎればバナーを出さない。
   // 同人誌は残りの高さいっぱいに出す。null = 通常どおり（CSS の計算のまま）
   const [fit, setFit] = useState<{ available: number; panelHeight: number; showBanner: boolean; thumbWidth: number | null } | null>(null);
   const [modalKey, setModalKey] = useState(0);
@@ -329,11 +329,16 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         setFit(null);
         return;
       }
+      // バナー（広告）はなるべく残す: まず動画のサムネイルを縮めてバナーの場所を空け、
+      // サムネイルが画面幅の 60% より小さくなる場合だけバナーを出さない
+      const banner = w * 0.3125;
+      const thumbWithBanner = Math.floor(((available - banner) * 4) / 3);
+      const keepBanner = thumbWithBanner >= w * 0.6;
       setFit({
         available: Math.max(120, Math.floor(available)),
         panelHeight: Math.ceil(panelHeight),
-        showBanner: false,
-        thumbWidth: available >= w * 0.75 ? null : Math.max(160, Math.floor((available * 4) / 3)),
+        showBanner: keepBanner,
+        thumbWidth: keepBanner ? Math.min(w, thumbWithBanner) : available >= w * 0.75 ? null : Math.max(160, Math.floor((available * 4) / 3)),
       });
     };
     update();
