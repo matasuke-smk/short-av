@@ -118,7 +118,6 @@ export default function DoujinReader({
       {/* 上: 広告表記・ページ数・進み具合 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 to-transparent px-3 pb-6 pt-2">
         <div className="flex items-center gap-2 text-xs">
-          <span className="flex-shrink-0 rounded bg-yellow-400 px-1.5 py-0.5 font-bold text-black">同人誌・PR</span>
           <span className="min-w-0 flex-1 truncate text-gray-200">{doujin.title}</span>
           <span className="flex-shrink-0 rounded-full bg-black/60 px-2 py-0.5">{isLast ? '購入ページ' : `${page + 1} / ${doujin.samples.length}`}</span>
         </div>
@@ -138,7 +137,10 @@ export default function DoujinReader({
           }}
           className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-2xl text-white/90"
         >
-          ‹
+          {/* 文字の ‹ › は字形の位置がずれて丸の中心に来ないため、図形で描く */}
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 5l-6 7 6 7" />
+          </svg>
         </button>
       )}
       {!isLast && (
@@ -152,7 +154,11 @@ export default function DoujinReader({
           className="absolute right-1.5 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-pink-600/80 text-2xl text-white"
         >
           {/* 位置合わせの transform と重ならないよう、動きは中の文字に付ける */}
-          <span className={page === 0 ? 'doujin-nudge inline-block' : ''}>›</span>
+          <span className={page === 0 ? 'doujin-nudge inline-flex' : 'inline-flex'}>
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l6 7-6 7" />
+          </svg>
+          </span>
         </button>
       )}
 
