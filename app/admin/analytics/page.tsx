@@ -5,7 +5,7 @@ import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import { fetchDoujinByIds } from '@/lib/doujin';
 import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly, type YesterdaySoFar } from './AnalyticsView';
-import { VIEW_KEYS, type ViewKey } from './view-keys';
+import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
 import { FUNNEL } from './funnel';
 
 export const dynamic = 'force-dynamic';
@@ -128,6 +128,9 @@ const byMetricDesc = { metric: { metricName: 'eventCount' }, desc: true };
 // 同人誌のイベント（作品番号が d_ で始まる）。動画の集計からは除き、同人誌の集計ではこれだけを数える
 const isDoujinContent = { filter: { fieldName: 'customEvent:content_id', stringFilter: { matchType: 'BEGINS_WITH', value: 'd_' } } };
 const notDoujin = { notExpression: isDoujinContent };
+// 「日本のみ」: 国が日本のアクセスだけを数える（FANZA は日本向けで、海外からのアクセスは見込み客になりにくいため）
+const inJapan = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
+const byCountry = (country: Country, filter: unknown) => (country === 'jp' ? and(filter, inJapan) : filter);
 const doujinEvents = {
   orGroup: {
     expressions: [
@@ -137,7 +140,7 @@ const doujinEvents = {
   },
 };
 
-async function loadGa(range: (typeof RANGES)[RangeKey]) {
+async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   const dateRanges = [{ startDate: range.startDate, endDate: range.endDate }];
   const funnelEvents = FUNNEL.map((f) => f.event);
   const requests: ReportRequest[] = [
@@ -240,7 +243,22 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
       dimensionFilter: and(eventIn(['page_view', 'doujin_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post_doujin' } } }),
     },
+    // 25: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
+    ...(country === 'all'
+      ? [
+          {
+            dateRanges,
+            dimensions: [{ name: 'country' }],
+            metrics: [{ name: 'activeUsers' }, { name: 'engagedSessions' }, { name: 'userEngagementDuration' }],
+            orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+            limit: 20,
+          },
+        ]
+      : []),
   ];
+  for (const request of [...requests, ...extraRequests, ...answerRequests]) {
+    request.dimensionFilter = byCountry(country, request.dimensionFilter);
+  }
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
   // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
   const days = jstDays(range);
@@ -272,12 +290,12 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       affectedDays.flatMap((day): ReportRequest[] => {
         const one = jstDaysFilter([day]);
         return [
-          { dateRanges: one.dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], dimensionFilter: one.filter ?? undefined },
+          { dateRanges: one.dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], dimensionFilter: byCountry(country, one.filter ?? undefined) },
           {
             dateRanges: one.dateRanges,
             dimensions: [{ name: 'eventName' }],
             metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
-            dimensionFilter: and(eventIn(funnelEvents), one.filter),
+            dimensionFilter: byCountry(country, and(eventIn(funnelEvents), one.filter)),
           },
         ];
       }),
@@ -299,7 +317,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
 // 人数は重複を除くため、時間帯ごとの合計ではなく、今の時刻より前の時間帯（dateHour）と今の時間帯の分（dateHourMinute）で絞り込んで GA に数えさせる
 const gaLabelOf = (jstDateHour: string) => (jstDateHour >= JST_LABEL_FROM ? jstDateHour : shiftHours(jstDateHour, -LA_BEHIND_JST_HOURS));
 
-async function loadYesterdaySoFar(): Promise<YesterdaySoFar> {
+async function loadYesterdaySoFar(country: Country): Promise<YesterdaySoFar> {
   const now = new Date(Date.now() + 9 * 3_600_000);
   const hour = now.getUTCHours();
   const minute = now.getUTCMinutes();
@@ -317,7 +335,7 @@ async function loadYesterdaySoFar(): Promise<YesterdaySoFar> {
       // ロサンゼルス時間の記録（10/7 15時台まで）は1日前の日付で付いているので、1日前から取る
       dateRanges: [{ startDate: ymdOf(prevDay(day)), endDate: ymdOf(day) }],
       metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
-      dimensionFilter: { orGroup: { expressions } },
+      dimensionFilter: byCountry(country, { orGroup: { expressions } }),
     },
   ]);
   const [users = 0, events = 0, views = 0] = rows[0]?.metrics ?? [];
@@ -326,8 +344,8 @@ async function loadYesterdaySoFar(): Promise<YesterdaySoFar> {
 
 const getYesterdaySoFar = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async (_bucket: number) => loadYesterdaySoFar(),
-  ['admin-analytics-yesterday-so-far-v1'],
+  async (_bucket: number, country: Country) => loadYesterdaySoFar(country),
+  ['admin-analytics-yesterday-so-far-v2'],
   { revalidate: 300 },
 );
 
@@ -371,9 +389,9 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
 // （開くたびに全期間を GA に問い合わせると、GA の1時間あたりの上限に近づくため）
 const getRangeData = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async (key: RangeKey, _bucket: number) => {
+  async (key: RangeKey, _bucket: number, country: Country) => {
     const range = RANGES[key];
-    const { reports, warning } = await loadGa(range);
+    const { reports, warning } = await loadGa(range, country);
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
@@ -388,12 +406,14 @@ const getRangeData = unstable_cache(
     );
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v13'],
+  ['admin-analytics-v14'],
   { revalidate: 300 },
 );
 
-export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
-  const { range: rangeParam } = await searchParams;
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string; country?: string }> }) {
+  const { range: rangeParam, country: countryParam } = await searchParams;
+  // 標準は「日本のみ」。?country=all で海外も含める
+  const country: Country = countryParam === 'all' ? 'all' : 'jp';
   const initialRange: ViewKey = VIEW_KEYS.includes(rangeParam as ViewKey) ? (rangeParam as ViewKey) : 'today';
 
   // 4つの期間をまとめて取得し、画面側で切り替える
@@ -403,7 +423,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const results = await Promise.all(
     keys.map(async (key): Promise<RangeData> => {
       try {
-        return await getRangeData(key, key === 'today' ? bucket : hourBucket);
+        return await getRangeData(key, key === 'today' ? bucket : hourBucket, country);
       } catch (error) {
         return {
           error:
@@ -414,7 +434,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       }
     }),
   );
-  const yesterdaySoFar = await getYesterdaySoFar(bucket).catch((error) => {
+  const yesterdaySoFar = await getYesterdaySoFar(bucket, country).catch((error) => {
     console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
     return null;
   });
@@ -423,6 +443,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const realtime = await runRealtimeReport({
     dimensions: [{ name: 'unifiedScreenName' }],
     metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
+    dimensionFilter: byCountry(country, undefined),
     orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
     limit: 10,
   }).catch((error) => {
@@ -437,5 +458,5 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const live = { today: todayLive, yesterday: yesterdayLive, dayBefore: dayBeforeLive };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} />;
 }
