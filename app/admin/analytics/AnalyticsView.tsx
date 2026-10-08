@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
 import SampleLengthStatus from './SampleLengthStatus';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
@@ -680,33 +680,116 @@ function ViaTable({ viaCount }: { viaCount: (event: string, value: string) => nu
   );
 }
 
-// カードを押したときの全画面の詳細（× か Esc で閉じる。開いている間は後ろの画面をスクロールさせない）
+// カードを押したときの全画面の詳細。下から出てきて、下の「閉じる」・Esc・いちばん上で下に引き下げると下へ消える。
+// 開いている間は後ろの画面をスクロールさせない。ホーム画面に追加したアプリでは上下の安全領域（時計・ホームバー）を空ける
+const DISMISS_DISTANCE = 100; // これ以上引き下げて離すと閉じる（px）
+const SLIDE_MS = 220;
+
 function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    const panel = panelRef.current;
+    const scroller = scrollRef.current;
+    if (!panel || !scroller) return;
+    const moveTo = (y: number | string, animate: boolean) => {
+      panel.style.transition = animate ? `transform ${SLIDE_MS}ms ease-out` : 'none';
+      panel.style.transform = `translateY(${typeof y === 'number' ? `${y}px` : y})`;
+    };
+    let closing = false;
+    const dismiss = () => {
+      if (closing) return;
+      closing = true;
+      moveTo('100%', true);
+      window.setTimeout(onClose, SLIDE_MS);
+    };
+    // 下から出す（位置を確定させてから動かす。requestAnimationFrame は裏のタブで止まるので使わない）
+    moveTo('100%', false);
+    panel.getBoundingClientRect();
+    moveTo(0, true);
+
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') dismiss();
+    };
+    const onCloseButton = () => dismiss();
+    panel.addEventListener('sav:close', onCloseButton);
+
+    // いちばん上までスクロールしている状態で下に引くと、画面ごと下に動き、離したときに一定以上なら閉じる
+    let startY: number | null = null;
+    let pulled = 0;
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches.length === 1 && scroller.scrollTop <= 0 ? e.touches[0].clientY : null;
+      pulled = 0;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (startY === null) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy <= 0 || (pulled === 0 && scroller.scrollTop > 0)) {
+        // 上に動かしたときは通常のスクロール
+        if (pulled > 0) moveTo(0, false);
+        pulled = 0;
+        if (scroller.scrollTop > 0) startY = null;
+        return;
+      }
+      if (e.cancelable) e.preventDefault();
+      pulled = dy;
+      moveTo(dy, false);
+    };
+    const onEnd = () => {
+      if (startY === null) return;
+      startY = null;
+      if (pulled >= DISMISS_DISTANCE) dismiss();
+      else if (pulled > 0) moveTo(0, true);
+      pulled = 0;
     };
     window.addEventListener('keydown', onKey);
+    panel.addEventListener('touchstart', onStart, { passive: true });
+    panel.addEventListener('touchmove', onMove, { passive: false });
+    panel.addEventListener('touchend', onEnd);
+    panel.addEventListener('touchcancel', onEnd);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener('keydown', onKey);
+      panel.removeEventListener('sav:close', onCloseButton);
+      panel.removeEventListener('touchstart', onStart);
+      panel.removeEventListener('touchmove', onMove);
+      panel.removeEventListener('touchend', onEnd);
+      panel.removeEventListener('touchcancel', onEnd);
     };
   }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-[60] bg-gray-900 flex flex-col" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="flex items-center gap-2 px-3 md:px-6 py-2.5 border-b border-gray-700">
-        <h2 className="flex-1 min-w-0 text-lg font-bold truncate">{title}</h2>
-        <button type="button" onClick={onClose} aria-label="閉じる" className="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-xl leading-none">
-          ×
-        </button>
+    <div
+      ref={panelRef}
+      data-no-pull-refresh
+      className="fixed inset-0 z-[60] bg-gray-900 flex flex-col"
+      style={{ transform: 'translateY(100%)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div className="flex-shrink-0 border-b border-gray-700 px-3 md:px-6 pb-2.5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}>
+        {/* 引き下げられることの目印 */}
+        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-600" aria-hidden />
+        <h2 className="max-w-3xl mx-auto text-lg font-bold truncate">{title}</h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 md:p-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-3 md:p-6">
         <div className="max-w-3xl mx-auto">
           {note && <p className="text-xs text-gray-400 mb-4">{note}</p>}
           {children}
         </div>
+      </div>
+      <div className="flex-shrink-0 border-t border-gray-700 px-3 md:px-6 pt-2.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.625rem)' }}>
+        <button
+          type="button"
+          onClick={() => panelRef.current?.dispatchEvent(new Event('sav:close'))}
+          className="block w-full max-w-3xl mx-auto py-3 rounded-lg bg-gray-800 hover:bg-gray-700 active:bg-gray-700 font-bold"
+        >
+          閉じる
+        </button>
       </div>
     </div>
   );
