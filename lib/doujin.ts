@@ -25,8 +25,23 @@ export function toDoujin(item: DMMItem): Doujin | null {
 }
 
 /** 同人作品（サンプル画像のあるものだけ。API の結果は1時間キャッシュ） */
-export async function fetchDoujin(order: DoujinOrder = 'rank', hits = 30): Promise<Doujin[]> {
-  const sort = order === 'cheap' ? '-price' : order === 'random' ? 'rank' : order;
+export async function fetchDoujin(order: DoujinOrder = 'mix', hits = 30): Promise<Doujin[]> {
+  // 人気＋評価: 人気順と評価順を1冊ずつ交互に並べる（同じ作品は1回だけ）
+  if (order === 'mix') {
+    const [rank, review] = await Promise.all([fetchDoujin('rank', hits), fetchDoujin('review', hits)]);
+    const seen = new Set<string>();
+    const mixed: Doujin[] = [];
+    for (let i = 0; i < Math.max(rank.length, review.length); i++) {
+      for (const d of [rank[i], review[i]]) {
+        if (d && !seen.has(d.contentId)) {
+          seen.add(d.contentId);
+          mixed.push(d);
+        }
+      }
+    }
+    return mixed.slice(0, hits);
+  }
+  const sort = order === 'cheap' ? '-price' : order === 'random' ? 'rank' : (order as 'rank' | 'date' | 'review');
   const data = await fetchDMMProducts({ service: 'doujin', floor: 'digital_doujin', sort, hits: order === 'random' ? 100 : hits });
   const list = (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
   if (order !== 'random') return list;

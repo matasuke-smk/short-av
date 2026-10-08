@@ -8,8 +8,8 @@ import { DOUJIN_ORDERS, fetchDoujin, type DoujinOrder } from '@/lib/doujin';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const param = request.nextUrl.searchParams.get('order') ?? 'rank';
-  const order: DoujinOrder = param in DOUJIN_ORDERS ? (param as DoujinOrder) : 'rank';
+  const param = request.nextUrl.searchParams.get('order') ?? 'mix';
+  const order: DoujinOrder = param in DOUJIN_ORDERS ? (param as DoujinOrder) : 'mix';
   try {
     return NextResponse.json({ order, doujin: await fetchDoujin(order, 30) });
   } catch (error) {

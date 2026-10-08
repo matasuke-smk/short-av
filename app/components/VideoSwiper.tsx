@@ -147,6 +147,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [showActressModal, setShowActressModal] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
   const [isLandscape, setIsLandscape] = useState(false);
+  // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
+  // 上の余白・タイトル・下の帯の中身の高さを実際に測り、残りに収まらなければ ①動画の下のバナーを出さない ②動画のサムネイルを縮める。
+  // 同人誌は残りの高さいっぱいに出す。null = 通常どおり（CSS の計算のまま）
+  const [fit, setFit] = useState<{ available: number; panelHeight: number; showBanner: boolean; thumbWidth: number | null } | null>(null);
   const [modalKey, setModalKey] = useState(0);
 
   // プール管理
@@ -262,6 +266,43 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       setTimeout(() => emblaApi.scrollTo(newIndex, false), 100);
     }
   }, [emblaApi, searchParams, videos, videoPool, poolIndex]);
+
+  useEffect(() => {
+    const panel = bottomPanelRef.current;
+    const content = panel?.firstElementChild as HTMLElement | null;
+    if (!panel || !content) return;
+    const TOP = 24 + 64; // 上の余白（pt-6）+ タイトル（h-16）
+    const update = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (isLandscape || w >= 768) {
+        setFit(null);
+        return;
+      }
+      const style = window.getComputedStyle(panel);
+      const panelHeight = content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const available = h - TOP - panelHeight;
+      if (available >= w * (0.75 + 0.3125)) {
+        setFit(null);
+        return;
+      }
+      setFit({
+        available: Math.max(120, Math.floor(available)),
+        panelHeight: Math.ceil(panelHeight),
+        showBanner: false,
+        thumbWidth: available >= w * 0.75 ? null : Math.max(160, Math.floor((available * 4) / 3)),
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    const observer = new ResizeObserver(update);
+    observer.observe(content);
+    return () => {
+      window.removeEventListener('resize', update);
+      observer.disconnect();
+    };
+    // 下の帯は動画が読み込まれてから表示されるので、そのときにも測り直す
+  }, [isLandscape, videos.length > 0]);
 
   // 同人テスト: 同人誌を取得し、動画5本ごとに挟む（補充で動画が増えたときも挟み直す。検索などの有限の一覧には挟まない）
   useEffect(() => {
@@ -683,7 +724,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <div className="h-16 w-full flex-shrink-0 px-4 flex items-center md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
                       <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">{video.title}</h2>
                     </div>
-                    <div className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
+                    <div
+                      style={fit ? { height: fit.available } : undefined}
+                      className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
                       <DoujinReader doujin={doujinBySlideRef.current.get(video.id)!} />
                     </div>
                   </div>
@@ -712,6 +755,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
                       className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-2rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
+                      style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
                       onClick={handleThumbnailClick}
                     >
                     {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
@@ -790,7 +834,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     </div>
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
-                    {index === currentIndex && !isLandscape && (
+                    {index === currentIndex && !isLandscape && (fit?.showBanner ?? true) && (
                       <div className="w-full md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0">
                         <DMMBanner
                           key={`thumbnail-banner-${video.id}-${currentIndex}`}
@@ -1056,7 +1100,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
-      <div ref={bottomPanelRef} className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
+      <div ref={bottomPanelRef} style={fit ? { height: fit.panelHeight } : undefined} className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}

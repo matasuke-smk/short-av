@@ -8,7 +8,7 @@ import { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types
  * 動画5本ごとに同人誌を挟んだ表示を試す。サイトを ?doujin_test=並べ方 で開き、運営者の端末にだけ同人誌が出る
  */
 export default function DoujinTestView() {
-  const [order, setOrder] = useState<DoujinOrder>('rank');
+  const [order, setOrder] = useState<DoujinOrder>('mix');
   const [preview, setPreview] = useState<Doujin[] | null>(null);
   const [error, setError] = useState('');
   const [siteKey, setSiteKey] = useState(0);
