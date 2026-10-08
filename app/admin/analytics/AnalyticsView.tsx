@@ -104,6 +104,25 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 
 // onClick があるカードは押すと詳細（全画面）を開く。右上の「›」が目印
 // どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
+// 収益の指標（いちばん上の3つ）。ほかのカードより大きく、緑の枠で目立たせる
+function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: string; unit: string; sub: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative flex flex-col justify-start h-full rounded-lg p-3 min-w-0 text-left bg-emerald-950/40 hover:bg-emerald-900/40 ring-1 ring-emerald-700"
+    >
+      <div className="text-xs leading-snug text-emerald-200 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
+      <div className="text-2xl md:text-3xl leading-tight font-bold mt-1 truncate">
+        {value}
+        <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>
+      </div>
+      <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
+      <span className="absolute top-1.5 right-2 text-emerald-300 text-sm" aria-hidden>›</span>
+    </button>
+  );
+}
+
 // unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
 function Card({ label, value, unit, sub, onClick }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void }) {
   const content = (
@@ -184,6 +203,16 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 
 
 // views: ページの表示回数（GA の集計のみ。リアルタイムの記録にはないので、補った時間帯は少なく出る）
+// グラフの合計の数字。押せるときは下線を付ける（カードを減らしたため、詳細はここから開く）
+function TotalButton({ onClick, className = '', children }: { onClick?: () => void; className?: string; children: React.ReactNode }) {
+  if (!onClick) return <span className={className}>{children}</span>;
+  return (
+    <button type="button" onClick={onClick} className={`${className} underline decoration-dotted decoration-gray-500 underline-offset-4 hover:decoration-gray-300`}>
+      {children}
+    </button>
+  );
+}
+
 type HourlyPoint = { h: number; users: number; events: number; views: number; fromLive: boolean };
 
 // 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
@@ -229,7 +258,11 @@ function HourlyChart({
   axis,
   totalLabel = '合計',
   compareTotals,
+  onUsersClick,
+  onEventsClick,
 }: {
+  onUsersClick?: () => void; // 合計の人数を押したとき（日別の表を開く）
+  onEventsClick?: () => void; // 合計のイベント数を押したとき（イベント別の回数を開く）
   compareTotals?: YesterdaySoFar | null; // 「今日」のとき、合計の下に出す昨日の同じ時刻までの数字
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
@@ -251,10 +284,13 @@ function HourlyChart({
     <div>
       <div className="text-right">
         <p className="text-sm text-gray-400">
-          {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
-          <span className="ml-2">
+          {totalLabel}{' '}
+          <TotalButton onClick={onUsersClick}>
+            <span className="text-lg font-bold text-white">{fmt(total)}</span>人
+          </TotalButton>
+          <TotalButton onClick={onEventsClick} className="ml-2">
             <span className="text-lg font-bold text-amber-300">{fmt(totalEvents)}</span>件
-          </span>
+          </TotalButton>
         </p>
         {compareTotals && (
           <p className="text-xs text-gray-400">
@@ -451,7 +487,7 @@ function RangeBody({
   // 全画面で開いている詳細（カードの種類）
   const [detail, setDetail] = useState<string | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
-  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = [], answers = []] = reports;
+  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = [], answers = [], channelEvents = [], workEvents = []] = reports;
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
@@ -463,6 +499,26 @@ function RangeBody({
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
+
+  // 流入元ごとの訪問・再生・クリック（人数）とクリック率
+  const channelRows = channels
+    .map((r) => {
+      const of = (event: string) => channelEvents.find((e) => e.dimensions[0] === r.dimensions[0] && e.dimensions[1] === event)?.metrics[1] ?? 0;
+      return { channel: r.dimensions[0], sessions: r.metrics[0], users: r.metrics[1], playUsers: of('video_view'), clickUsers: of('dmm_link_click') };
+    })
+    .sort((a, b) => b.clickUsers - a.clickUsers || b.users - a.users);
+  const topClickChannel = channelRows.find((r) => r.clickUsers > 0);
+  // 作品ごとの再生・クリック（回数）
+  const workMap = new Map<string, { id: string; plays: number; clicks: number }>();
+  for (const r of workEvents) {
+    const id = r.dimensions[0];
+    if (!id || id === '(not set)') continue;
+    const w = workMap.get(id) ?? { id, plays: 0, clicks: 0 };
+    if (r.dimensions[1] === 'video_view') w.plays += r.metrics[0];
+    if (r.dimensions[1] === 'dmm_link_click') w.clicks += r.metrics[0];
+    workMap.set(id, w);
+  }
+  const works = [...workMap.values()];
 
   const funnelMax = Math.max(...FUNNEL.map((f) => eventUsers(f.event)), 1);
   const swipes = eventCount('swipe');
@@ -483,14 +539,36 @@ function RangeBody({
   return (
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
+        {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <KpiCard
+            label="FANZA へのクリック"
+            value={fmt(eventCount('dmm_link_click'))}
+            unit="回"
+            sub={`${fmt(eventUsers('dmm_link_click'))}人がクリック`}
+            onClick={() => setDetail('clicked')}
+          />
+          <KpiCard
+            label="訪問→クリック率"
+            value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
+            unit="%"
+            sub={`訪問 ${fmt(eventUsers('page_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
+            onClick={() => setDetail('channels')}
+          />
+          <KpiCard
+            label="再生→クリック率"
+            value={share(eventUsers('dmm_link_click'), eventUsers('video_view'))}
+            unit="%"
+            sub={`再生 ${fmt(eventUsers('video_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
+            onClick={() => setDetail('played')}
+          />
+        </div>
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
+          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('events')} />
         </Section>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
-          <Card label="利用者数" value={fmt(users)} unit="人" sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
-          <Card label="イベント数（合計）" value={fmt(totalEvents)} unit="件" sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
           <Card
             label="流れ（どこで離脱しているか）"
             value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
@@ -514,17 +592,10 @@ function RangeBody({
             onClick={() => setDetail('played')}
           />
           <Card
-            label="FANZA へのクリック"
-            value={fmt(eventCount('dmm_link_click'))}
-            unit="回"
-            sub={`再生した人の ${pct(eventUsers('dmm_link_click'), eventUsers('video_view'))} がクリック`}
-            onClick={() => setDetail('clicked')}
-          />
-          <Card
-            label="どこから来たか（いちばん多い流入元）"
-            value={channels[0] ? share(channels[0].metrics[0], sumOf(channels)) : '—'}
-            unit={channels[0] ? '%' : undefined}
-            sub={channels[0] ? `${channelLabel(channels[0].dimensions[0]).split('（')[0]}・訪問 ${fmt(channels[0].metrics[0])}回` : 'まだデータがありません'}
+            label="どこから来たか（流入元ごとのクリック率）"
+            value={fmt(channels.length)}
+            unit="種類"
+            sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
             onClick={() => setDetail('channels')}
           />
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
@@ -587,31 +658,50 @@ function RangeBody({
           </DetailModal>
         )}
         {(detail === 'played' || detail === 'clicked') && (
-          <DetailModal title={detail === 'played' ? 'よく再生された作品' : 'よくクリックされた作品'} onClose={closeDetail}>
-            {(detail === 'played' ? topPlayed : topClicked).length === 0 ? (
-              <p className="text-sm text-gray-400">まだデータがありません。</p>
-            ) : (
-              <ol className="text-sm space-y-2 list-decimal ml-5 marker:text-gray-500">
-                {(detail === 'played' ? topPlayed : topClicked).map((r) => (
-                  <li key={r.dimensions[0]}>
-                    <div className="flex gap-2">
-                      <span className="flex-1 min-w-0">{detail === 'played' ? notSet(r.dimensions[0]) : db.titleById[r.dimensions[0]] ?? notSet(r.dimensions[0])}</span>
-                      <span className="text-gray-400 flex-shrink-0">{fmt(r.metrics[0])}回</span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
+          <DetailModal title={detail === 'played' ? '作品ごとの再生とクリック（再生の多い順）' : '作品ごとの再生とクリック（クリックの多い順）'} onClose={closeDetail}>
+            <p className="text-xs text-gray-400 mb-3">
+              作品ごとの再生とクリックの回数。クリック率 = 再生に対するクリックの割合。{detail === 'played' ? '再生の多い順（再生が多いのにクリックされない作品は、価格や内容が合っていない可能性）。' : 'クリックの多い順。'}
+            </p>
+            <WorkTable works={works} sortBy={detail === 'played' ? 'plays' : 'clicks'} titleById={db.titleById} />
             <h3 className="text-sm font-bold mt-6 mb-1">スワイプで見つけた作品か</h3>
             <p className="text-xs text-gray-400 mb-2">「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。</p>
             <ViaTable viaCount={viaCount} />
           </DetailModal>
         )}
         {detail === 'channels' && (
-          <DetailModal title="どこから来たか・端末" note="流入元ごとの訪問回数（人数）" onClose={closeDetail}>
-            {channels.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : channels.map((r) => (
-              <Bar key={r.dimensions[0]} label={channelLabel(r.dimensions[0])} value={r.metrics[0]} max={channels[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}（${fmt(r.metrics[1])}人）`} />
-            ))}
+          <DetailModal
+            title="どこから来たか・端末"
+            note="流入元ごとの人数。クリック率 = その流入元から来た人のうち FANZA へのクリックをした人の割合。クリックの多い順。"
+            onClose={closeDetail}
+          >
+            {channelRows.length === 0 ? (
+              <p className="text-sm text-gray-400">まだデータがありません。</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead className="text-gray-400">
+                    <tr>
+                      <th className="text-left font-normal py-1">流入元</th>
+                      <th className="text-right font-normal">訪問</th>
+                      <th className="text-right font-normal">再生</th>
+                      <th className="text-right font-normal">クリック</th>
+                      <th className="text-right font-normal">クリック率</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {channelRows.map((r) => (
+                      <tr key={r.channel} className="border-t border-gray-700">
+                        <td className="py-2 pr-2">{channelLabel(r.channel).split('（')[0]}</td>
+                        <td className="text-right">{fmt(r.users)}人</td>
+                        <td className="text-right">{fmt(r.playUsers)}人</td>
+                        <td className="text-right">{fmt(r.clickUsers)}人</td>
+                        <td className={`text-right font-bold ${r.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(r.clickUsers, r.users)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             <h3 className="text-sm font-bold mt-6 mb-3">端末</h3>
             {devices.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : devices.map((r) => (
               <Bar key={r.dimensions[0]} label={deviceLabel(r.dimensions[0])} value={r.metrics[0]} max={devices[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], sumOf(devices))}）`} />
@@ -688,6 +778,44 @@ function AnswerBars({ event, rows }: { event: string; rows: ReportRow[] }) {
         />
       ))}
     </>
+  );
+}
+
+// 作品ごとの再生・クリック・クリック率（上位30）。作品名はサイトのデータベースから（なければ作品番号）
+function WorkTable({
+  works,
+  sortBy,
+  titleById,
+}: {
+  works: { id: string; plays: number; clicks: number }[];
+  sortBy: 'plays' | 'clicks';
+  titleById: Record<string, string>;
+}) {
+  const rows = [...works].sort((a, b) => b[sortBy] - a[sortBy] || b.plays - a.plays).filter((w) => w[sortBy] > 0).slice(0, 30);
+  if (rows.length === 0) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
+  return (
+    <table className="w-full text-sm">
+      <thead className="text-gray-400">
+        <tr>
+          <th className="text-left font-normal py-1">作品</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">再生</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">クリック</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((w) => (
+          <tr key={w.id} className="border-t border-gray-700 align-top">
+            <td className="py-2">
+              <span className="line-clamp-2">{titleById[w.id] ?? w.id}</span>
+            </td>
+            <td className="text-right pl-2 py-2">{fmt(w.plays)}</td>
+            <td className="text-right pl-2 py-2">{fmt(w.clicks)}</td>
+            <td className={`text-right pl-2 py-2 font-bold ${w.clicks > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{w.plays > 0 ? pct(w.clicks, w.plays) : '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

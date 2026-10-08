@@ -186,12 +186,31 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
   ];
   // 年齢確認（はい / いいえ）・いいねの操作（いいね / いいね解除）の内訳。カスタム定義「年齢確認の回答」（action）は
   // 2026/10/8 に登録したばかりで、反映前はエラーになることがあるため、さらに別に取得して失敗しても他は表示する
+  // 収益につながる内訳（流入元ごと・作品ごとの再生とクリック）もここで取る（失敗しても他の表示は残す）
   const answerRequests: ReportRequest[] = [
+    // 17: 年齢確認・いいねの操作の内訳
     {
       dateRanges,
       dimensions: [{ name: 'eventName' }, { name: 'customEvent:action' }],
       metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
       dimensionFilter: eventIn(['age_verification', 'like_action']),
+    },
+    // 18: 流入元ごとの再生・クリック（回数・人数）
+    {
+      dateRanges,
+      dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'eventName' }],
+      metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
+      dimensionFilter: eventIn(['video_view', 'dmm_link_click']),
+      limit: 100,
+    },
+    // 19: 作品ごとの再生・クリック（回数）。再生が多いのにクリックされない作品を見つける
+    {
+      dateRanges,
+      dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: eventIn(['video_view', 'dmm_link_click']),
+      orderBys: [byMetricDesc],
+      limit: 300,
     },
   ];
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
@@ -214,7 +233,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     return extraRequests.map(() => [] as ReportRow[]);
   });
   const answerReports = await runReports(answerRequests).catch((error) => {
-    console.error('[analytics] 年齢確認・いいねの内訳を取得できませんでした:', error);
+    console.error('[analytics] 年齢確認・流入元・作品ごとの内訳を取得できませんでした:', error);
     return answerRequests.map(() => [] as ReportRow[]);
   });
   const reports = [...(await runReports(requests)), ...extraReports, ...answerReports];
@@ -330,10 +349,13 @@ const getRangeData = unstable_cache(
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
-    const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
+    // 作品名を引く作品: よくクリックされた作品と、再生の多い作品（上位30）
+    const playedIds = (reports[19] ?? []).filter((r) => r.dimensions[1] === 'video_view').slice(0, 30).map((r) => r.dimensions[0]);
+    const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds])].filter((id) => id && id !== '(not set)');
+    const db = await loadDb(range, ids);
     return { reports, db, weekday, warning };
   },
-  ['admin-analytics-v11'],
+  ['admin-analytics-v12'],
   { revalidate: 300 },
 );
 
