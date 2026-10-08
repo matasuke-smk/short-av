@@ -23,14 +23,19 @@
     <rect x="1020" y="440" width="150" height="230" rx="20" fill="#374151"/>
     <path d="M995 330 L995 260 M975 280 L995 260 L1015 280" stroke="#f9fafb" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.75"/>
   </g>
-  <!-- いちばん右: 横に並ぶ同人誌のページ（左右スワイプ） -->
-  <g opacity="0.95" transform="translate(75 0)">
-    <rect x="1205" y="205" width="130" height="180" rx="16" fill="url(#book)" stroke="#f9fafb" stroke-width="4"/>
-    <path d="M1225 240 H1315 M1225 265 H1315 M1225 290 H1295 M1225 315 H1315 M1225 340 H1285" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
-    <rect x="1355" y="205" width="130" height="180" rx="16" fill="#374151"/>
-    <path d="M1240 420 L1222 438 L1240 456 M1300 420 L1318 438 L1300 456" stroke="#f9fafb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
-    <path d="M1222 438 H1318" stroke="#f9fafb" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <!-- いちばん右: 横に並ぶ漫画のページ（同人誌の試し読み。コマ割りと吹き出し、左右スワイプ） -->
+  <g opacity="0.97" transform="translate(1275 200)">
+    <rect x="0" y="0" width="140" height="190" rx="14" fill="url(#book)" stroke="#f9fafb" stroke-width="4"/>
+    <rect x="10" y="10" width="120" height="170" rx="4" fill="#ffffff"/>
+    <path d="M10 70 H130 M70 10 V70 M10 128 L130 112 M86 120 V180" stroke="#111827" stroke-width="5"/>
+    <ellipse cx="42" cy="38" rx="24" ry="17" fill="#ffffff" stroke="#111827" stroke-width="4"/>
+    <path d="M48 53 L56 64 L56 51" fill="#ffffff" stroke="#111827" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M42 29 V40 M42 46 V47" stroke="#db2777" stroke-width="6" stroke-linecap="round"/>
+    <path d="M24 92 L40 86 M28 102 L50 92 M96 82 L118 96" stroke="#9ca3af" stroke-width="4" stroke-linecap="round"/>
   </g>
+  <rect x="1430" y="200" width="140" height="190" rx="14" fill="#374151" opacity="0.95"/>
+  <path d="M1330 420 L1312 438 L1330 456 M1390 420 L1408 438 L1390 456" stroke="#f9fafb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  <path d="M1312 438 H1408" stroke="#f9fafb" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
   <!-- 左側: サイト名とキャッチコピー（左下はアイコンと重なるため上寄せ） -->
   <text x="430" y="170" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="104" fill="#ffffff">Short AV</text>
   <text x="434" y="240" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#e5e7eb">サンプル動画も、同人誌の試し読みも。</text>
