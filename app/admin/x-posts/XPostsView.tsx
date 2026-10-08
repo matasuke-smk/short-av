@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getUserId } from '@/lib/user-id';
-import SampleLengthStatus from './SampleLengthStatus';
 import {
   countXWeightedLength,
   getPostFormat,
@@ -618,10 +617,6 @@ export default function XPostsAdminPage() {
             ))}
           </div>
         )}
-      </div>
-      {/* サンプル動画の長さ（検索の「サンプル動画◯分以上」と、X 投稿文の長尺サンプルの強調に使う。アクセス解析から移した） */}
-      <div className="mt-6">
-        <SampleLengthStatus />
       </div>
     </div>
   );
