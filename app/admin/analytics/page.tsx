@@ -3,7 +3,7 @@ import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
-import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly } from './AnalyticsView';
+import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly, type YesterdaySoFar } from './AnalyticsView';
 import { VIEW_KEYS, type ViewKey } from './view-keys';
 import { FUNNEL } from './funnel';
 
@@ -231,6 +231,42 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
   return reports;
 }
 
+// 昨日の0時から「昨日の今と同じ時刻」までの利用者数・イベント数・表示回数（今日の途中経過と比べる）。
+// 人数は重複を除くため、時間帯ごとの合計ではなく、今の時刻より前の時間帯（dateHour）と今の時間帯の分（dateHourMinute）で絞り込んで GA に数えさせる
+const gaLabelOf = (jstDateHour: string) => (jstDateHour >= JST_LABEL_FROM ? jstDateHour : shiftHours(jstDateHour, -LA_BEHIND_JST_HOURS));
+
+async function loadYesterdaySoFar(): Promise<YesterdaySoFar> {
+  const now = new Date(Date.now() + 9 * 3_600_000);
+  const hour = now.getUTCHours();
+  const minute = now.getUTCMinutes();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const day = [...jstDays(RANGES.yesterday)][0];
+  const fullHours = Array.from({ length: hour }, (_, h) => gaLabelOf(`${day}${pad(h)}`));
+  const currentHour = gaLabelOf(`${day}${pad(hour)}`);
+  const minutes = Array.from({ length: minute + 1 }, (_, m) => `${currentHour}${pad(m)}`);
+  const expressions = [
+    ...(fullHours.length > 0 ? [{ filter: { fieldName: 'dateHour', inListFilter: { values: fullHours } } }] : []),
+    { filter: { fieldName: 'dateHourMinute', inListFilter: { values: minutes } } },
+  ];
+  const [rows] = await runReports([
+    {
+      // ロサンゼルス時間の記録（10/7 15時台まで）は1日前の日付で付いているので、1日前から取る
+      dateRanges: [{ startDate: ymdOf(prevDay(day)), endDate: ymdOf(day) }],
+      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
+      dimensionFilter: { orGroup: { expressions } },
+    },
+  ]);
+  const [users = 0, events = 0, views = 0] = rows[0]?.metrics ?? [];
+  return { until: `${hour}:${pad(minute)}`, users, events, views };
+}
+
+const getYesterdaySoFar = unstable_cache(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async (_bucket: number) => loadYesterdaySoFar(),
+  ['admin-analytics-yesterday-so-far-v1'],
+  { revalidate: 300 },
+);
+
 // サイトのデータベースから（いいね・サイズ比較ツールの登録・クリックされた作品名）
 async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
   const supabase = getSupabaseAdmin();
@@ -303,6 +339,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       }
     }),
   );
+  const yesterdaySoFar = await getYesterdaySoFar(bucket).catch((error) => {
+    console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
+    return null;
+  });
   const data = Object.fromEntries(keys.map((key, i) => [key, results[i]])) as Record<RangeKey, RangeData>;
   // いま見られているページ（直近30分）。リアルタイムなので使い回さずに毎回取得する
   const realtime = await runRealtimeReport({
@@ -322,5 +362,5 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const live = { today: todayLive, yesterday: yesterdayLive, dayBefore: dayBeforeLive };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} />;
 }

@@ -35,6 +35,9 @@ const rangeDates = (key: ViewKey) => {
 // 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, イベント数, 表示回数] × 24）と集計した日（YYYYMMDD）
 export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 
+// 昨日の0時から、昨日の今と同じ時刻（until、日本時間 H:MM）までの数字
+export type YesterdaySoFar = { until: string; users: number; events: number; views: number };
+
 export type RangeData =
   | { reports: ReportRow[][]; weekday?: WeekdayHourly; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
   | { error: string };
@@ -192,7 +195,9 @@ function HourlyChart({
   days,
   axis,
   totalLabel = '合計',
+  compareHours,
 }: {
+  compareHours?: HourlyPoint[]; // 「今日」のとき、同じ時間帯の昨日の数字（枠に並べて出す）
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
@@ -265,6 +270,11 @@ function HourlyChart({
               <span className="text-gray-300">表示回数</span> {fmt1(shown.views)}回
               {shown.fromLive && <span className="text-gray-500">（集計待ち）</span>}
             </p>
+            {compareHours?.[shown.h] && (
+              <p className="mt-0.5 pt-0.5 border-t border-gray-700 text-gray-400">
+                昨日 {fmt1(compareHours[shown.h].users)}人・{fmt1(compareHours[shown.h].events)}件・{fmt1(compareHours[shown.h].views)}回
+              </p>
+            )}
           </div>
         )}
         <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
@@ -395,7 +405,9 @@ function RangeBody({
   fixedDaily,
   live,
   hourlyAxis,
+  compare,
 }: {
+  compare: { soFar: YesterdaySoFar | null; hours: HourlyPoint[] } | null; // 「今日」のとき、昨日の同じ時刻までの数字
   live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」「一昨日」のみ）
   hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（すべての期間で共通）
   rangeKey: RangeKey;
@@ -436,8 +448,15 @@ function RangeBody({
   return (
     <>
         <Section title="時間帯ごとの利用者" note={`${RANGE_DAYS[rangeKey] === 1 ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}（日本時間）。縦軸はすべての期間で共通`}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} />
+          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareHours={compare?.hours} />
         </Section>
+        {compare?.soFar && (
+          <CompareSoFar
+            soFar={compare.soFar}
+            today={{ users, events: totalEvents, views: eventCount('page_view') }}
+            viewsPending={hours.some((x) => x.fromLive)}
+          />
+        )}
 
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
           <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} />
@@ -601,6 +620,48 @@ function RangeBody({
   );
 }
 
+// 今日の途中経過と、昨日の同じ時刻までの比較
+function CompareSoFar({
+  soFar,
+  today,
+  viewsPending,
+}: {
+  soFar: YesterdaySoFar;
+  today: { users: number; events: number; views: number };
+  viewsPending: boolean; // GA の集計待ちの時間帯がある（今日の表示回数は少なめに出る）
+}) {
+  const rows: [string, string, number, number][] = [
+    ['利用者', '人', today.users, soFar.users],
+    ['イベント', '件', today.events, soFar.events],
+    ['表示回数', '回', today.views, soFar.views],
+  ];
+  return (
+    <Section title={`昨日の同じ時刻（${soFar.until}）までとの比較`} note={`今日の0時〜今と、昨日の0時〜${soFar.until}。${viewsPending ? '今日の表示回数は GA の集計待ちの時間帯があるため少なめに出ます。' : ''}`}>
+      <div className="grid grid-cols-3 gap-2">
+        {rows.map(([label, unit, now, before]) => {
+          const diff = now - before;
+          const ratio = before > 0 ? Math.round((diff / before) * 100) : null;
+          return (
+            <div key={label} className="bg-gray-900/60 rounded-lg p-2.5">
+              <p className="text-xs text-gray-400">{label}</p>
+              <p className="text-xl font-bold">
+                {fmt(now)}
+                <span className="text-xs font-normal text-gray-400">{unit}</span>
+              </p>
+              <p className="text-xs text-gray-400">昨日 {fmt(before)}{unit}</p>
+              <p className={`text-sm font-bold ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                {diff > 0 ? '+' : ''}
+                {fmt(diff)}
+                {ratio !== null && <span className="ml-1 text-xs font-normal">（{ratio > 0 ? '+' : ''}{ratio}%）</span>}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 月曜から
 const WEEKDAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
 const mdOf = (date: string) => `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}`;
@@ -664,7 +725,9 @@ export default function AnalyticsView({
   fetchedAt,
   realtime,
   live,
+  yesterdaySoFar,
 }: {
+  yesterdaySoFar: YesterdaySoFar | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
   data: Record<DataKey, RangeData>;
   initialRange: ViewKey;
@@ -727,6 +790,15 @@ export default function AnalyticsView({
     </button>
   );
   const current = viewKey === 'weekday' ? null : data[viewKey];
+  // 「今日」は昨日の同じ時刻までと比べる（時間帯ごとの昨日の数字も、リアルタイムの記録で補う）
+  const yesterday = data.yesterday;
+  const compare =
+    viewKey === 'today'
+      ? {
+          soFar: yesterdaySoFar,
+          hours: 'reports' in yesterday ? withLive(yesterday.reports[10] ?? [], live.yesterday, 0, 0).hours : [],
+        }
+      : null;
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-3 md:p-6">
@@ -769,6 +841,7 @@ export default function AnalyticsView({
             fixedDaily={'reports' in month ? month.reports : null}
             live={viewKey === 'today' || viewKey === 'yesterday' || viewKey === 'dayBefore' ? live[viewKey] : null}
             hourlyAxis={hourlyAxis}
+            compare={compare}
           />
         )}
 
