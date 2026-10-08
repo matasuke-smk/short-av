@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
-import SampleLengthStatus from './SampleLengthStatus';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
@@ -67,29 +66,6 @@ const CHANNEL_LABELS: Record<string, string> = {
   SMS: 'SMS',
   'Mobile Push Notifications': 'プッシュ通知',
   Unassigned: '不明（分類できなかったアクセス）',
-};
-// イベント名を日本語にする（サイトが送るものと、GA が自動で送る主なもの）
-const EVENT_LABELS: Record<string, string> = {
-  page_view: 'ページ表示（スワイプごとにも1回）',
-  age_verification: '年齢確認に回答',
-  swipe: 'スワイプ',
-  video_view: 'サンプル動画の再生',
-  dmm_link_click: 'FANZA へのクリック',
-  search: '検索の実行',
-  like_action: 'いいね・取り消し',
-  modal_open: '画面を開いた（検索・人気など）',
-  modal_close: '画面を閉じた',
-  tutorial_view: '使い方の表示',
-  session_start: '訪問の開始（GA 自動）',
-  first_visit: '初めての訪問（GA 自動）',
-  user_engagement: 'ページを見ていた（GA 自動）',
-  scroll: 'ページの下までスクロール（GA 自動）',
-  click: 'ほかのサイトへのリンク（GA 自動）',
-  form_start: 'フォームの入力開始（GA 自動）',
-  form_submit: 'フォームの送信（GA 自動）',
-  file_download: 'ファイルのダウンロード（GA 自動）',
-  video_start: '埋め込み動画の再生開始（GA 自動）',
-  view_search_results: '検索結果の表示（GA 自動）',
 };
 
 const channelLabel = (v: string) => CHANNEL_LABELS[v] ?? (v === '(not set)' || v === '' ? '（記録なし）' : v);
@@ -220,11 +196,9 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
 
 // 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
 // total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
-// totalEvents: 期間全体のイベント数（取得できなければ時間帯ごとの合計を使う）
 function HourlyChart({
   hours,
   total,
-  totalEvents,
   days,
   axis,
   totalLabel = '合計',
@@ -234,7 +208,6 @@ function HourlyChart({
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
-  totalEvents: number;
   days: number; // 7日間・28日間は1日あたりの平均で描く
   axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
 }) {
@@ -252,14 +225,10 @@ function HourlyChart({
       <div className="text-right">
         <p className="text-sm text-gray-400">
           {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
-          <span className="ml-2">
-            <span className="text-lg font-bold text-amber-300">{fmt(totalEvents || hours.reduce((sum, x) => sum + x.events, 0))}</span>件
-          </span>
         </p>
         {compareTotals && (
           <p className="text-xs text-gray-400">
             昨日の{compareTotals.until}まで <span className="font-bold text-gray-200">{fmt(compareTotals.users)}</span>人
-            <span className="ml-1.5 font-bold text-amber-200/80">{fmt(compareTotals.events)}</span>件
           </p>
         )}
       </div>
@@ -459,7 +428,7 @@ function RangeBody({
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
-  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
+  const { hours, users } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -484,34 +453,18 @@ function RangeBody({
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
+          <HourlyChart hours={hours} total={users} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
         </Section>
-        {compare?.soFar && (
-          <CompareSoFar
-            soFar={compare.soFar}
-            today={{ users, events: totalEvents, views: eventCount('page_view') }}
-            viewsPending={hours.some((x) => x.fromLive)}
-          />
-        )}
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
           <Card label="利用者数" value={fmt(users)} unit="人" sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
-          <Card label="イベント数（合計）" value={fmt(totalEvents)} unit="件" sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
-          <Card label="ページ表示" value={fmt(eventCount('page_view'))} unit="回" sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} onClick={() => setDetail('pages')} />
           <Card
             label="流れ（どこで離脱しているか）"
             value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
             unit="%"
             sub="訪問した人のうち FANZA へのクリックまで進んだ割合"
             onClick={() => setDetail('funnel')}
-          />
-          <Card
-            label="年齢確認に回答した人"
-            value={fmt(eventUsers('age_verification'))}
-            unit="人"
-            sub={`回答 ${fmt(eventCount('age_verification'))}回（同じ人が2回以上答えた分を含む）`}
-            onClick={() => setDetail('age')}
           />
           <Card label="1人あたりの滞在時間" value={seconds(users > 0 ? engagement / users : 0)} sub={`訪問回数 ${fmt(sessions)}`} />
           <Card
@@ -542,21 +495,13 @@ function RangeBody({
             sub={channels[0] ? `${channelLabel(channels[0].dimensions[0]).split('（')[0]}・訪問 ${fmt(channels[0].metrics[0])}回` : 'まだデータがありません'}
             onClick={() => setDetail('channels')}
           />
-          <Card
-            label="端末（いちばん多い端末）"
-            value={devices[0] ? share(devices[0].metrics[0], sumOf(devices)) : '—'}
-            unit={devices[0] ? '%' : undefined}
-            sub={devices[0] ? `${deviceLabel(devices[0].dimensions[0])}・${fmt(devices[0].metrics[0])}人` : 'まだデータがありません'}
-            onClick={() => setDetail('devices')}
-          />
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
           <Card label="いま見られているページ" value={realtimeViews === null ? '—' : fmt(realtimeViews)} unit={realtimeViews === null ? undefined : '回'} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
           <Card label="いいね（運営者を除く）" value={fmt(db.likes)} unit="件" sub={
               db.adminError
                 ? `運営者の端末を読めませんでした: ${db.adminError}`
                 : `運営者のいいね ${fmt(db.adminLikes ?? 0)}件（登録端末 ${fmt(db.adminDevices ?? 0)}台）`
-            } />
-          <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} unit="回" sub="いいね・取り消しの合計" onClick={() => setDetail('like')} />
+            } onClick={() => setDetail('like')} />
           <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} unit="件" sub="サイトのデータベース" />
         </div>
 
@@ -565,33 +510,14 @@ function RangeBody({
             <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
           </DetailModal>
         )}
-        {detail === 'events' && (
-          <DetailModal title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`} onClose={closeDetail}>
-            {allEvents.length === 0 ? (
-              <p className="text-sm text-gray-400">まだデータがありません。</p>
-            ) : (
-              allEvents.map((r) => (
-                <Bar
-                  key={r.dimensions[0]}
-                  label={EVENT_LABELS[r.dimensions[0]] ? `${EVENT_LABELS[r.dimensions[0]]}  ${r.dimensions[0]}` : r.dimensions[0]}
-                  value={r.metrics[0]}
-                  max={allEvents[0]?.metrics[0] ?? 1}
-                  right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
-                />
-              ))
-            )}
-          </DetailModal>
-        )}
-        {detail === 'pages' && (
-          <DetailModal title="よく見られたページ" note="表示回数の多い順（作品はスワイプで切り替わるたびに1回）" onClose={closeDetail}>
-            <PageList rows={pages ?? []} />
-          </DetailModal>
-        )}
         {detail === 'funnel' && (
           <DetailModal title="流れ（どこで離脱しているか）" note="各段階に進んだ人数。かっこ内は最初の訪問に対する割合、最後はイベントの回数。" onClose={closeDetail}>
             {FUNNEL.map((f) => (
               <Bar key={f.event} label={f.label} value={eventUsers(f.event)} max={funnelMax} right={`${fmt(eventUsers(f.event))}人（${pct(eventUsers(f.event), eventUsers('page_view'))}）・${fmt(eventCount(f.event))}回`} />
             ))}
+            <h3 className="text-sm font-bold mt-6 mb-1">年齢確認の回答</h3>
+            <p className="text-xs text-gray-400 mb-3">回数（人数）。同じ人が日を変えて、または別のタブで答えると2回以上になる。</p>
+            <AnswerBars event="age_verification" rows={answers} />
           </DetailModal>
         )}
         {detail === 'swipe' && (
@@ -606,6 +532,9 @@ function RangeBody({
             <h3 className="text-sm font-bold mt-6 mb-1">スワイプで見つけた作品は見られているか</h3>
             <p className="text-xs text-gray-400 mb-2">「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。</p>
             <ViaTable viaCount={viaCount} />
+            <h3 className="text-sm font-bold mt-6 mb-1">よく見られたページ</h3>
+            <p className="text-xs text-gray-400 mb-3">表示回数（PV）の多い順。作品はスワイプで切り替わるたびに1回。</p>
+            <PageList rows={pages ?? []} />
           </DetailModal>
         )}
         {(detail === 'played' || detail === 'clicked') && (
@@ -630,14 +559,11 @@ function RangeBody({
           </DetailModal>
         )}
         {detail === 'channels' && (
-          <DetailModal title="どこから来たか" note="訪問回数（人数）" onClose={closeDetail}>
+          <DetailModal title="どこから来たか・端末" note="流入元ごとの訪問回数（人数）" onClose={closeDetail}>
             {channels.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : channels.map((r) => (
               <Bar key={r.dimensions[0]} label={channelLabel(r.dimensions[0])} value={r.metrics[0]} max={channels[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}（${fmt(r.metrics[1])}人）`} />
             ))}
-          </DetailModal>
-        )}
-        {detail === 'devices' && (
-          <DetailModal title="端末" onClose={closeDetail}>
+            <h3 className="text-sm font-bold mt-6 mb-3">端末</h3>
             {devices.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : devices.map((r) => (
               <Bar key={r.dimensions[0]} label={deviceLabel(r.dimensions[0])} value={r.metrics[0]} max={devices[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], sumOf(devices))}）`} />
             ))}
@@ -682,13 +608,10 @@ function RangeBody({
             </div>
           </DetailModal>
         )}
-        {(detail === 'age' || detail === 'like') && (
-          <AnswerDetail
-            event={detail === 'age' ? 'age_verification' : 'like_action'}
-            title={detail === 'age' ? '年齢確認の回答' : 'いいねの操作'}
-            rows={answers}
-            onClose={closeDetail}
-          />
+        {detail === 'like' && (
+          <DetailModal title="いいね" note="カードの数はサイトのデータベースのいいね（運営者を除く）。下は GA に記録された操作の回数（人数）で、取り消しも含む。" onClose={closeDetail}>
+            <AnswerBars event="like_action" rows={answers} />
+          </DetailModal>
         )}
         {detail === 'realtime' && (
           <DetailModal title="いま見られているページ（直近30分）" onClose={closeDetail}>
@@ -699,30 +622,23 @@ function RangeBody({
   );
 }
 
-// 年齢確認（はい / いいえ）・いいねの操作（いいね / いいね解除）の内訳
-function AnswerDetail({ event, title, rows, onClose }: { event: string; title: string; rows: ReportRow[]; onClose: () => void }) {
+// 年齢確認（はい / いいえ）・いいねの操作（いいね / いいね解除）の内訳（GA のカスタム定義「年齢確認の回答」= action）
+function AnswerBars({ event, rows }: { event: string; rows: ReportRow[] }) {
   const mine = rows.filter((r) => r.dimensions[0] === event).sort((a, b) => b.metrics[0] - a.metrics[0]);
   const max = Math.max(...mine.map((r) => r.metrics[0]), 1);
+  if (mine.length === 0) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
   return (
-    <DetailModal
-      title={title}
-      note="回数（人数）。「記録なし」は、GA に項目を登録した 2026/10/8 より前の回答や、登録の反映前の回答です。"
-      onClose={onClose}
-    >
-      {mine.length === 0 ? (
-        <p className="text-sm text-gray-400">まだデータがありません（GA に項目を登録したばかりの場合、反映まで時間がかかります）。</p>
-      ) : (
-        mine.map((r) => (
-          <Bar
-            key={r.dimensions[1]}
-            label={r.dimensions[1] === '(not set)' || r.dimensions[1] === '' ? '記録なし' : r.dimensions[1]}
-            value={r.metrics[0]}
-            max={max}
-            right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`}
-          />
-        ))
-      )}
-    </DetailModal>
+    <>
+      {mine.map((r) => (
+        <Bar
+          key={r.dimensions[1]}
+          label={r.dimensions[1] === '(not set)' || r.dimensions[1] === '' ? '記録なし（2026/10/8 に項目を登録する前の分）' : r.dimensions[1]}
+          value={r.metrics[0]}
+          max={max}
+          right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`}
+        />
+      ))}
+    </>
   );
 }
 
@@ -862,48 +778,6 @@ function DetailModal({ title, note, onClose, children }: { title: string; note?:
   );
 }
 
-// 今日の途中経過と、昨日の同じ時刻までの比較
-function CompareSoFar({
-  soFar,
-  today,
-  viewsPending,
-}: {
-  soFar: YesterdaySoFar;
-  today: { users: number; events: number; views: number };
-  viewsPending: boolean; // GA の集計待ちの時間帯がある（今日の表示回数は少なめに出る）
-}) {
-  const rows: [string, string, number, number][] = [
-    ['利用者', '人', today.users, soFar.users],
-    ['イベント', '件', today.events, soFar.events],
-    ['表示回数', '回', today.views, soFar.views],
-  ];
-  return (
-    <Section title={`昨日の同じ時刻（${soFar.until}）までとの比較`} note={`今日の0時〜今と、昨日の0時〜${soFar.until}。${viewsPending ? '今日の表示回数は GA の集計待ちの時間帯があるため少なめに出ます。' : ''}`}>
-      <div className="grid grid-cols-3 gap-2">
-        {rows.map(([label, unit, now, before]) => {
-          const diff = now - before;
-          const ratio = before > 0 ? Math.round((diff / before) * 100) : null;
-          return (
-            <div key={label} className="bg-gray-900/60 rounded-lg p-2.5">
-              <p className="text-xs text-gray-400">{label}</p>
-              <p className="text-2xl leading-tight font-bold">
-                {fmt(now)}
-                <span className="text-xs font-normal text-gray-400">{unit}</span>
-              </p>
-              <p className="text-xs text-gray-400">昨日 {fmt(before)}{unit}</p>
-              <p className={`text-sm font-bold ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
-                {diff > 0 ? '+' : ''}
-                {fmt(diff)}
-                {ratio !== null && <span className="ml-1 text-xs font-normal">（{ratio > 0 ? '+' : ''}{ratio}%）</span>}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-    </Section>
-  );
-}
-
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // 月曜から
 const WEEKDAY_NAMES = ['日', '月', '火', '水', '木', '金', '土'];
 const mdOf = (date: string) => `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}`;
@@ -954,7 +828,7 @@ function WeekdayView({
           <p className="text-xs text-gray-400 mb-2">
             {WEEKDAY_NAMES[selected]}曜日 {s.n}日分の平均（{current.dates.map(mdOf).join('・')}）
           </p>
-          <HourlyChart hours={hours} total={Math.round(s.users)} totalEvents={Math.round(s.events)} days={s.n} axis={hourlyAxis} totalLabel="1日平均" />
+          <HourlyChart hours={hours} total={Math.round(s.users)} days={s.n} axis={hourlyAxis} totalLabel="1日平均" />
         </>
       )}
     </Section>
@@ -1083,7 +957,6 @@ export default function AnalyticsView({
           />
         )}
 
-        <SampleLengthStatus />
 
         <p className="text-xs text-gray-500">
           GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。

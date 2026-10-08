@@ -79,6 +79,44 @@ export type ReportRequest = {
 
 export type ReportRow = { dimensions: string[]; metrics: number[] };
 
+// GA Data API は1つのプロパティに同時に送れるリクエストが10件まで（超えると「Exhausted concurrent requests quota」）。
+// アクセス解析は期間ごとの集計を並行して取るうえ、リアルタイムの記録なども同時に走るため、
+// このサーバーから同時に送るのを MAX_CONCURRENT 件までに抑え、それでも上限に当たったら少し待って送り直す
+const MAX_CONCURRENT = 4;
+let running = 0;
+const waiting: (() => void)[] = [];
+
+async function withSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (running >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
+  running++;
+  try {
+    return await task();
+  } finally {
+    running--;
+    waiting.shift()?.();
+  }
+}
+
+// 同時リクエストの上限・1時間あたりの上限などで断られたときは、待ってから最大 RETRIES 回送り直す
+const RETRIES = 3;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- GA の応答（reports / rows / error）をそのまま扱う
+async function gaFetch(url: string, body: unknown, token: string): Promise<{ ok: boolean; status: number; data: any }> {
+  for (let attempt = 0; ; attempt++) {
+    const result = await withSlot(async () => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+      });
+      return { ok: response.ok, status: response.status, data: await response.json() };
+    });
+    const retryable = result.status === 429 || /concurrent requests/i.test(result.data?.error?.message ?? '');
+    if (result.ok || !retryable || attempt >= RETRIES) return result;
+    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+  }
+}
+
 /** 複数のレポートをまとめて取得する（1回のリクエストで最大5件） */
 export async function runReports(requests: ReportRequest[]): Promise<ReportRow[][]> {
   const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
@@ -86,17 +124,12 @@ export async function runReports(requests: ReportRequest[]): Promise<ReportRow[]
   const results: ReportRow[][] = [];
 
   for (let i = 0; i < requests.length; i += 5) {
-    const response = await fetch(
+    const { ok, status, data } = await gaFetch(
       `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:batchRunReports`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: requests.slice(i, i + 5) }),
-        cache: 'no-store',
-      },
+      { requests: requests.slice(i, i + 5) },
+      token,
     );
-    const data = await response.json();
-    if (!response.ok) throw new Error(`GA のレポート取得に失敗: ${data.error?.message ?? response.status}`);
+    if (!ok) throw new Error(`GA のレポート取得に失敗: ${data.error?.message ?? status}`);
 
     for (const report of data.reports ?? []) {
       results.push(
@@ -116,14 +149,12 @@ export async function runRealtimeReport(
 ): Promise<ReportRow[]> {
   const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
   const token = await getAccessToken();
-  const response = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-    cache: 'no-store',
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(`GA のリアルタイムの取得に失敗: ${data.error?.message ?? response.status}`);
+  const { ok, status, data } = await gaFetch(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`,
+    request,
+    token,
+  );
+  if (!ok) throw new Error(`GA のリアルタイムの取得に失敗: ${data.error?.message ?? status}`);
   return (data.rows ?? []).map((row: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }) => ({
     dimensions: (row.dimensionValues ?? []).map((v) => v.value),
     metrics: (row.metricValues ?? []).map((v) => Number(v.value)),
