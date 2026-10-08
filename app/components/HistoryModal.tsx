@@ -14,9 +14,10 @@ interface HistoryModalProps {
   videoPool: Video[];
   videos: Video[];
   onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
+  onShowDoujin?: () => void; // 「同人誌」のタブを押したとき
 }
 
-export default function HistoryModal({ isOpen, onClose, videoPool, videos, onReplaceVideos }: HistoryModalProps) {
+export default function HistoryModal({ isOpen, onClose, videoPool, videos, onReplaceVideos, onShowDoujin }: HistoryModalProps) {
   const [historyVideos, setHistoryVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -94,6 +95,18 @@ export default function HistoryModal({ isOpen, onClose, videoPool, videos, onRep
               </div>
             </div>
           </div>
+
+          {/* 動画｜同人誌 のタブ（同人誌を押すと同人誌のいいね・履歴に切り替える） */}
+          {onShowDoujin && (
+            <div className="px-4 py-2 flex gap-2 bg-gray-900/95 border-b border-gray-700 shrink-0">
+              <button className="flex-1 rounded-lg bg-white py-2 text-sm font-bold text-black" aria-pressed>
+                動画
+              </button>
+              <button onClick={onShowDoujin} className="flex-1 rounded-lg bg-gray-700 py-2 text-sm font-bold text-gray-200 hover:bg-gray-600">
+                同人誌
+              </button>
+            </div>
+          )}
 
           {/* コンテンツ */}
           <div className="flex-1 overflow-y-auto landscape:pb-0 lg:!pb-6 pb-20">
