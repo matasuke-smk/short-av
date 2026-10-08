@@ -125,6 +125,9 @@ function Card({ label, value, unit, sub, onClick }: { label: string; value: stri
   );
 }
 
+// 割合（%）の数字だけ。カードでは単位を小さく付けるので、ほかのカードと同じく数字を大きく出せる
+const share = (part: number, whole: number) => (whole > 0 ? ((part / whole) * 100).toFixed(1) : '0');
+
 const deviceLabel = (v: string) => ({ mobile: 'スマホ', desktop: 'PC', tablet: 'タブレット' } as Record<string, string>)[v] ?? v;
 
 // collapsible: 見出しを押すと開閉（最初は閉じている）。細かい一覧で画面が長くならないようにする
@@ -495,7 +498,8 @@ function RangeBody({
           <Card label="ページ表示" value={fmt(eventCount('page_view'))} unit="回" sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} onClick={() => setDetail('pages')} />
           <Card
             label="流れ（どこで離脱しているか）"
-            value={pct(eventUsers('dmm_link_click'), eventUsers('page_view'))}
+            value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
+            unit="%"
             sub="訪問した人のうち FANZA へのクリックまで進んだ割合"
             onClick={() => setDetail('funnel')}
           />
@@ -529,15 +533,17 @@ function RangeBody({
             onClick={() => setDetail('clicked')}
           />
           <Card
-            label="どこから来たか"
-            value={channels[0] ? channelLabel(channels[0].dimensions[0]).split('（')[0] : '—'}
-            sub={channels[0] ? `いちばん多い流入元・訪問 ${fmt(channels[0].metrics[0])}回` : 'まだデータがありません'}
+            label="どこから来たか（いちばん多い流入元）"
+            value={channels[0] ? share(channels[0].metrics[0], sessions) : '—'}
+            unit={channels[0] ? '%' : undefined}
+            sub={channels[0] ? `${channelLabel(channels[0].dimensions[0]).split('（')[0]}・訪問 ${fmt(channels[0].metrics[0])}回` : 'まだデータがありません'}
             onClick={() => setDetail('channels')}
           />
           <Card
-            label="端末"
-            value={devices[0] ? `${deviceLabel(devices[0].dimensions[0])} ${pct(devices[0].metrics[0], users)}` : '—'}
-            sub="いちばん多い端末の割合"
+            label="端末（いちばん多い端末）"
+            value={devices[0] ? share(devices[0].metrics[0], users) : '—'}
+            unit={devices[0] ? '%' : undefined}
+            sub={devices[0] ? `${deviceLabel(devices[0].dimensions[0])}・${fmt(devices[0].metrics[0])}人` : 'まだデータがありません'}
             onClick={() => setDetail('devices')}
           />
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
