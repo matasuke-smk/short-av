@@ -2,8 +2,9 @@ import { after, NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { maybeRecordGaRealtime } from '@/lib/ga-realtime';
 
-const DEFAULT_POOL_SIZE = 200;
-const MAX_POOL_SIZE = 500;
+// 1本あたり約1.3KB。補充1回あたりの Supabase の通信量を抑えるため少なめにする
+const DEFAULT_POOL_SIZE = 60;
+const MAX_POOL_SIZE = 100;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // 好みの系統の作品の割合（残りは全作品からランダム。好みだけにすると新しい系統に出会えなくなるため）
 const PREFERRED_SHARE = 0.6;

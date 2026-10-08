@@ -438,7 +438,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         const prefParams = pref
           ? `&genres=${encodeURIComponent(pref.genres.join(','))}&actresses=${encodeURIComponent(pref.actresses.join(','))}`
           : '';
-        const response = await fetch(`/api/videos?limit=200${prefParams}`);
+        const response = await fetch(`/api/videos?limit=60${prefParams}`);
         if (!response.ok) throw new Error(`補充の取得に失敗: ${response.status}`);
         const data = await response.json();
 

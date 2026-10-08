@@ -1,4 +1,6 @@
 import { Suspense } from 'react';
+import { after } from 'next/server';
+import { maybeRecordGaRealtime } from '@/lib/ga-realtime';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
@@ -81,8 +83,13 @@ async function loadDoujin(doujinId?: string): Promise<Doujin[]> {
 
 async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?: string; doujinId?: string; doujinMode?: boolean }) {
   const doujinPromise = loadDoujin(doujinId);
+  // サイトが使われている間、10分おきに GA のリアルタイムを記録する（アクセス解析の「今日」の遅れを補う）。
+  // 補充（/api/videos）は減らしたので、ページを開いたときにも記録する
+  after(() => maybeRecordGaRealtime().catch((error) => console.error('[page] GA realtime record:', error?.message ?? error)));
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
-  const poolSize = 200; // プールサイズ
+  // プールサイズ。1人あたりのスワイプは平均2〜3回なので、200本（約260KB）を毎回データベースから取ると
+  // Supabase の通信量（Egress）の大半になっていた。足りなくなったら /api/videos で補充する
+  const poolSize = 40;
   const displaySize = 20; // 初期表示件数
 
   let fetchError = null;
