@@ -5,7 +5,7 @@ import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import { fetchDoujinByIds } from '@/lib/doujin';
 import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly, type YesterdaySoFar } from './AnalyticsView';
-import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
+import { VIEW_KEYS, xPostContentId, type Country, type ViewKey } from './view-keys';
 import { FUNNEL } from './funnel';
 
 export const dynamic = 'force-dynamic';
@@ -131,6 +131,8 @@ const notDoujin = { notExpression: isDoujinContent };
 // 「日本のみ」: 国が日本のアクセスだけを数える（FANZA は日本向けで、海外からのアクセスは見込み客になりにくいため）
 const inJapan = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
 const byCountry = (country: Country, filter: unknown) => (country === 'jp' ? and(filter, inJapan) : filter);
+// X の動画の投稿（utm_campaign=x_post）から来た人の訪問・再生・FANZA へのクリック
+const fromXVideoPost = and(eventIn(['page_view', 'video_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post' } } });
 const doujinEvents = {
   orGroup: {
     expressions: [
@@ -243,7 +245,13 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
       dimensionFilter: and(eventIn(['page_view', 'doujin_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post_doujin' } } }),
     },
-    // 25: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
+    // 25: X の動画の投稿から来た人（回数・人数）
+    { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: fromXVideoPost },
+    // 26: 投稿の形式ごと（utm_content = card / img4）
+    { dateRanges, dimensions: [{ name: 'sessionManualAdContent' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: fromXVideoPost },
+    // 27: 投稿ごと（最初に開いた URL の ?v= が投稿した作品）
+    { dateRanges, dimensions: [{ name: 'landingPagePlusQueryString' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: fromXVideoPost, limit: 300 },
+    // 28: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
     ...(country === 'all'
       ? [
           {
@@ -397,7 +405,9 @@ const getRangeData = unstable_cache(
     const topClicked = reports[7];
     // 作品名を引く作品: よくクリックされた作品と、再生の多い作品（上位30）
     const playedIds = (reports[19] ?? []).filter((r) => r.dimensions[1] === 'video_view').slice(0, 30).map((r) => r.dimensions[0]);
-    const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds])].filter((id) => id && id !== '(not set)');
+    // X の投稿で紹介した作品（最初に開いた URL の ?v=）
+    const xPostIds = (reports[27] ?? []).map((r) => xPostContentId(r.dimensions[0])).filter((id): id is string => !!id);
+    const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds, ...xPostIds])].filter((id) => id && id !== '(not set)');
     const db = await loadDb(range, ids);
     // 同人誌の作品名・表紙（表示の多い上位30冊）
     const doujinIds = [...new Set((reports[21] ?? []).filter((r) => r.dimensions[1] === 'doujin_view').map((r) => r.dimensions[0]))].slice(0, 30);
@@ -406,7 +416,7 @@ const getRangeData = unstable_cache(
     );
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v14'],
+  ['admin-analytics-v15'],
   { revalidate: 300 },
 );
 

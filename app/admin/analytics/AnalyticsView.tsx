@@ -8,7 +8,7 @@ type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 import DoujinAnalytics from './DoujinAnalytics';
 import SampleLengthStatus from './SampleLengthStatus';
-import type { Country, ViewKey } from './view-keys';
+import { xPostContentId, type Country, type ViewKey } from './view-keys';
 
 /**
  * アクセス解析の表示（管理画面）
@@ -490,6 +490,8 @@ function RangeBody({
   const [detail, setDetail] = useState<string | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = [], answers = [], channelEvents = [], workEvents = []] = reports;
+  // X の動画の投稿から来た人（レポート 25〜27）
+  const x = summarizeXPosts(reports[25] ?? [], reports[26] ?? [], reports[27] ?? []);
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
@@ -600,6 +602,13 @@ function RangeBody({
             sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
             onClick={() => setDetail('channels')}
           />
+          <Card
+            label="X の動画の投稿から来た人"
+            value={fmt(x.users)}
+            unit="人"
+            sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
+            onClick={() => setDetail('xpost')}
+          />
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
           <Card label="いま見られているページ" value={realtimeViews === null ? '—' : fmt(realtimeViews)} unit={realtimeViews === null ? undefined : '回'} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
           <Card label="いいね（運営者を除く）" value={fmt(db.likes)} unit="件" sub={
@@ -610,6 +619,15 @@ function RangeBody({
           <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} unit="件" sub="サイトのデータベース" />
         </div>
 
+        {detail === 'xpost' && (
+          <DetailModal
+            title="X の動画の投稿から来た人"
+            note="管理画面の「X 投稿」で作った投稿の URL（目印 utm_campaign=x_post）から来た人。再生・クリックは、その人がサイトに来てから見た・押したすべての作品の分。"
+            onClose={closeDetail}
+          >
+            <XPostDetail x={x} titleById={db.titleById} />
+          </DetailModal>
+        )}
         {detail === 'daily' && (
           <DetailModal title="利用者数（日別）" onClose={closeDetail}>
             <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
@@ -784,6 +802,117 @@ function AnswerBars({ event, rows }: { event: string; rows: ReportRow[] }) {
 }
 
 // 作品ごとの再生・クリック・クリック率（上位30）。作品名はサイトのデータベースから（なければ作品番号）
+type XPostRow = { users: number; plays: number; clickUsers: number; clicks: number };
+type XPostSummary = {
+  users: number;
+  views: number;
+  playUsers: number;
+  plays: number;
+  clickUsers: number;
+  clicks: number;
+  formats: (XPostRow & { format: string })[];
+  posts: (XPostRow & { id: string })[];
+};
+
+// X の動画の投稿から来た人の数字をまとめる（全体・投稿の形式ごと・投稿ごと）
+function summarizeXPosts(totals: ReportRow[], formats: ReportRow[], landings: ReportRow[]): XPostSummary {
+  const of = (event: string) => totals.find((r) => r.dimensions[0] === event)?.metrics ?? [0, 0];
+  const [views, users] = of('page_view');
+  const [plays, playUsers] = of('video_view');
+  const [clicks, clickUsers] = of('dmm_link_click');
+  const group = (rows: ReportRow[], keyOf: (value: string) => string | null) => {
+    const map = new Map<string, XPostRow>();
+    for (const r of rows) {
+      const key = keyOf(r.dimensions[0]);
+      if (!key) continue;
+      const g = map.get(key) ?? { users: 0, plays: 0, clickUsers: 0, clicks: 0 };
+      // 来た人 = ページ表示をした人数
+      if (r.dimensions[1] === 'page_view') g.users += r.metrics[1];
+      if (r.dimensions[1] === 'video_view') g.plays += r.metrics[0];
+      if (r.dimensions[1] === 'dmm_link_click') {
+        g.clicks += r.metrics[0];
+        g.clickUsers += r.metrics[1];
+      }
+      map.set(key, g);
+    }
+    return [...map.entries()];
+  };
+  return {
+    users,
+    views,
+    playUsers,
+    plays,
+    clickUsers,
+    clicks,
+    formats: group(formats, (value) => (value && value !== '(not set)' ? value : 'その他'))
+      .map(([format, g]) => ({ format, ...g }))
+      .sort((a, b) => b.users - a.users),
+    posts: group(landings, xPostContentId)
+      .map(([id, g]) => ({ id, ...g }))
+      .sort((a, b) => b.users - a.users || b.clicks - a.clicks)
+      .slice(0, 30),
+  };
+}
+
+const X_FORMAT_LABELS: Record<string, string> = { card: 'リンクカード', img4: '画像4枚' };
+
+// 投稿ごと・形式ごとの表（来た人・クリックした人・率）
+function XPostTable({ head, rows }: { head: string; rows: (XPostRow & { key: string; label: string })[] }) {
+  if (rows.length === 0) return <p className="text-sm text-gray-400 mb-5">まだデータがありません。</p>;
+  return (
+    <table className="w-full text-sm mb-5">
+      <thead className="text-gray-400">
+        <tr>
+          <th className="text-left font-normal py-1">{head}</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">来た人</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">クリック</th>
+          <th className="text-right font-normal pl-2 whitespace-nowrap">率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.key} className="border-t border-gray-700 align-top">
+            <td className="py-2">
+              <span className="line-clamp-2">{r.label}</span>
+            </td>
+            <td className="text-right pl-2 py-2">{fmt(r.users)}人</td>
+            <td className="text-right pl-2 py-2 whitespace-nowrap">
+              {fmt(r.clickUsers)}人<span className="text-xs text-gray-400">（{fmt(r.clicks)}回）</span>
+            </td>
+            <td className={`text-right pl-2 py-2 font-bold ${r.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(r.clickUsers, r.users)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function XPostDetail({ x, titleById }: { x: XPostSummary; titleById: Record<string, string> }) {
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          ['来た人', `${fmt(x.users)}人`, `ページ表示 ${fmt(x.views)}回`],
+          ['再生', `${fmt(x.playUsers)}人`, `${fmt(x.plays)}回`],
+          ['FANZA へのクリック', `${fmt(x.clickUsers)}人`, `${fmt(x.clicks)}回・${pct(x.clickUsers, x.users)}`],
+        ].map(([label, value, sub]) => (
+          <div key={label} className="bg-gray-800 rounded-lg p-2.5 min-w-0">
+            <div className="text-xs text-gray-400 truncate">{label}</div>
+            <div className="text-xl font-bold mt-0.5">{value}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{sub}</div>
+          </div>
+        ))}
+      </div>
+      <h3 className="text-sm font-bold mb-1">投稿ごと</h3>
+      <p className="text-xs text-gray-400 mb-2">投稿した作品（最初に開いた URL の作品）ごと。来た人の多い順。率 = 来た人のうちクリックした人の割合。</p>
+      <XPostTable head="作品" rows={x.posts.map((p) => ({ ...p, key: p.id, label: titleById[p.id] ?? p.id }))} />
+      <h3 className="text-sm font-bold mb-1">投稿の形式ごと</h3>
+      <p className="text-xs text-gray-400 mb-2">リンクカード（URL のプレビュー）と画像4枚のどちらが効くか。</p>
+      <XPostTable head="形式" rows={x.formats.map((f) => ({ ...f, key: f.format, label: X_FORMAT_LABELS[f.format] ?? f.format }))} />
+    </>
+  );
+}
+
 function WorkTable({
   works,
   sortBy,
@@ -1290,7 +1419,7 @@ export default function AnalyticsView({
         {country === 'all' &&
           (() => {
             const range = viewKey === 'weekday' ? month : current!;
-            return 'reports' in range && range.reports[25] ? <CountryTable rows={range.reports[25]} /> : null;
+            return 'reports' in range && range.reports[28] ? <CountryTable rows={range.reports[28]} /> : null;
           })()}
 
 
