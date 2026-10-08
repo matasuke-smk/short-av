@@ -60,3 +60,25 @@ export const DOUJIN_ID_PATTERN = /^d_[0-9a-z_]{1,40}$/;
 
 /** 人気順の同人作品 */
 export const fetchPopularDoujin = (hits = 30) => fetchDoujin('rank', hits);
+
+/** 同人誌の検索（キーワード。並べ方は人気・新着・評価） */
+export async function searchDoujin(keyword: string, sort: 'rank' | 'date' | 'review' = 'rank', hits = 40): Promise<Doujin[]> {
+  const data = await fetchDMMProducts({ service: 'doujin', floor: 'digital_doujin', keyword, sort, hits });
+  return (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
+}
+
+/** 同人誌の人気ランキング。週間・月間は「期間内に発売された作品の人気順」（動画のランキングと同じ考え方） */
+export async function rankingDoujin(period: 'weekly' | 'monthly' | 'all', hits = 40): Promise<Doujin[]> {
+  const days = period === 'weekly' ? 7 : period === 'monthly' ? 30 : 0;
+  // 日付は日単位にして、API の結果のキャッシュが1日のあいだ効くようにする
+  const gte = days ? new Date(Date.now() + 9 * 3_600_000 - days * 86_400_000).toISOString().slice(0, 10) + 'T00:00:00' : undefined;
+  const data = await fetchDMMProducts({ service: 'doujin', floor: 'digital_doujin', sort: 'rank', hits, ...(gte ? { gte_date: gte } : {}) });
+  return (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
+}
+
+/** 作品番号の一覧から同人誌を取る（いいね・履歴の表示用。並びは渡した順、見つからないものは除く） */
+export async function fetchDoujinByIds(ids: string[]): Promise<Doujin[]> {
+  const list = await Promise.all(ids.map((id) => fetchDoujinById(id).catch(() => null)));
+  return list.filter((d): d is Doujin => d !== null);
+}
+

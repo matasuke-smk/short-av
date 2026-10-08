@@ -16,6 +16,8 @@ import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
+import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
+import { addDoujinHistory } from '@/lib/doujin-history';
 import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
 
@@ -166,6 +168,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const doujinMode = mode === 'doujin';
   // いま挟んでいる同人誌の並び（切り替えのたびに、まだ見ていない同人誌から始まるようずらす）
   const [activeDoujin, setActiveDoujin] = useState<Doujin[]>(initialDoujinList);
+  // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
+  const [doujinListKind, setDoujinListKind] = useState<DoujinListKind | null>(null);
   // 最初の表示から同人誌を挟んでおく（あとから挟むと、表示中の位置がずれるため）
   const [videos, setVideos] = useState<Video[]>(() => interleaveDoujin(initialVideos, initialDoujinList, initialDoujinMode, doujinBySlideRef.current));
   // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
@@ -492,7 +496,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // いいねを切り替える関数（いいねは dmm_content_id で管理する）
   const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
     event.stopPropagation();
-    if (isDoujinSlide(video)) return; // 同人テストの同人誌はいいねの対象外
 
     if (!userId) return;
 
@@ -635,7 +638,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       const currentVideo = videos[index];
       const shownDoujin = isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo.id) : undefined;
-      if (shownDoujin && prevIndex !== index) trackDoujinView(shownDoujin.contentId, doujinMode ? 'doujin' : 'feed', swipeCountRef.current);
+      if (shownDoujin && prevIndex !== index) {
+        trackDoujinView(shownDoujin.contentId, doujinMode ? 'doujin' : 'feed', swipeCountRef.current);
+        addDoujinHistory(shownDoujin.contentId);
+      }
       if (currentVideo && currentVideo.dmm_content_id && !isDoujinSlide(currentVideo)) {
         const url = new URL(window.location.href);
         url.searchParams.set('v', currentVideo.dmm_content_id);
@@ -830,6 +836,21 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <div
                       style={doujinFit ? { height: doujinFit.height } : undefined}
                       className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
+                      <button
+                        onClick={(e) => toggleLike(video, e)}
+                        className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90"
+                        aria-label="いいね"
+                      >
+                        {likedVideos.has(video.dmm_content_id) ? (
+                          <svg className="w-7 h-7 text-red-500 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        )}
+                      </button>
                       <DoujinReader
                         doujin={doujinBySlideRef.current.get(video.id)!}
                         onComplete={() => {
@@ -962,7 +983,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => {
-                        setShowSearchModal(true);
+                        if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
                         trackModalOpen('search');
                       }}
                       className="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
@@ -1114,7 +1135,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 検索ボタン */}
           <button
             onClick={() => {
-              setShowSearchModal(true);
+              if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
               trackModalOpen('search');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1128,7 +1149,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 人気（ランキング）ボタン */}
           <button
             onClick={() => {
-              setShowRankingModal(true);
+              if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
               trackModalOpen('ranking');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1156,7 +1177,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* いいねボタン */}
           <button
             onClick={() => {
-              setShowLikedModal(true);
+              if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
               trackModalOpen('liked');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1170,7 +1191,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 履歴ボタン */}
           <button
             onClick={() => {
-              setShowHistoryModal(true);
+              if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
               trackModalOpen('history');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1239,7 +1260,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 検索ボタン */}
             <button
               onClick={() => {
-                setShowSearchModal(true);
+                if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
                 trackModalOpen('search');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1253,7 +1274,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 人気（ランキング）ボタン */}
             <button
               onClick={() => {
-                setShowRankingModal(true);
+                if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
                 trackModalOpen('ranking');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1281,7 +1302,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* いいねボタン */}
             <button
               onClick={() => {
-                setShowLikedModal(true);
+                if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
                 trackModalOpen('liked');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1295,7 +1316,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 履歴ボタン */}
             <button
               onClick={() => {
-                setShowHistoryModal(true);
+                if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
                 trackModalOpen('history');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1554,6 +1575,26 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       />
 
       {/* いいねモーダル */}
+      {doujinListKind && (
+        <DoujinListModal
+          kind={doujinListKind}
+          onClose={() => setDoujinListKind(null)}
+          onShowVideoTab={
+            doujinListKind === 'liked'
+              ? () => {
+                  setDoujinListKind(null);
+                  setShowLikedModal(true);
+                }
+              : doujinListKind === 'history'
+                ? () => {
+                    setDoujinListKind(null);
+                    setShowHistoryModal(true);
+                  }
+                : undefined
+          }
+        />
+      )}
+
       <LikedModal
         isOpen={showLikedModal}
         onClose={() => {
@@ -1563,6 +1604,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         videoPool={videoPool}
         videos={videos}
         onReplaceVideos={replaceVideos}
+        onShowDoujin={() => {
+          setShowLikedModal(false);
+          setDoujinListKind('liked');
+        }}
       />
 
       {/* 履歴モーダル */}
@@ -1575,6 +1620,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         videoPool={videoPool}
         videos={videos}
         onReplaceVideos={replaceVideos}
+        onShowDoujin={() => {
+          setShowHistoryModal(false);
+          setDoujinListKind('history');
+        }}
       />
 
       {/* 女優モーダル */}
