@@ -32,7 +32,7 @@ const rangeDates = (key: ViewKey) => {
   return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
 };
 
-// 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, イベント数] × 24）と集計した日（YYYYMMDD）
+// 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, イベント数, 表示回数] × 24）と集計した日（YYYYMMDD）
 export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 
 export type RangeData =
@@ -154,7 +154,8 @@ function Bar({ label, value, max, right }: { label: string; value: number; max: 
 }
 
 
-type HourlyPoint = { h: number; users: number; events: number; fromLive: boolean };
+// views: ページの表示回数（GA の集計のみ。リアルタイムの記録にはないので、補った時間帯は少なく出る）
+type HourlyPoint = { h: number; users: number; events: number; views: number; fromLive: boolean };
 
 // 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
 // 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
@@ -167,6 +168,7 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
     const liveEvents = live?.[h]?.events ?? 0;
     return {
       h,
+      views: row?.metrics[2] ?? 0,
       users: Math.max(users, liveUsers),
       events: Math.max(events, liveEvents),
       fromLive: liveUsers > users || liveEvents > events, // リアルタイムで補った時間帯
@@ -199,7 +201,7 @@ function HourlyChart({
   axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
 }) {
   const [active, setActive] = useState<number | null>(null);
-  const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days }));
+  const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days, views: x.views / days }));
   const max = Math.max(axis.users, ...perDay.map((x) => x.users), 1);
   const maxEvents = Math.max(axis.events, ...perDay.map((x) => x.events), 1);
   // イベント数の折れ線（棒の中央を結ぶ。縦は右の目盛り＝イベント数の最大値で 100%）
@@ -212,9 +214,7 @@ function HourlyChart({
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm text-gray-300 min-w-0 truncate">
-          {shown
-            ? `${shown.h}時台: ${days > 1 ? '1日平均 ' : ''}${fmt1(shown.users)}人・${fmt1(shown.events)}件`
-            : `いちばん多い時間帯: ${peak.h}時台（${days > 1 ? '平均 ' : ''}${fmt1(peak.users)}人）`}
+          いちばん多い時間帯: {peak.h}時台（{days > 1 ? '平均 ' : ''}{fmt1(peak.users)}人）
         </p>
         <p className="flex-shrink-0 text-sm text-gray-400">
           {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
@@ -246,6 +246,27 @@ function HourlyChart({
             />
           ))}
         </div>
+        {/* 選んだ棒の上に数字を出す（端の時間帯は枠が画面からはみ出さないよう左右に寄せる） */}
+        {shown && (
+          <div
+            className={`absolute z-20 pointer-events-none -translate-y-full rounded-lg border border-gray-600 bg-gray-950/95 px-2.5 py-1.5 text-xs shadow-lg whitespace-nowrap ${
+              shown.h < 4 ? '' : shown.h > 19 ? '-translate-x-full' : '-translate-x-1/2'
+            }`}
+            style={{
+              left: `${((shown.h + (shown.h < 4 ? 0 : shown.h > 19 ? 1 : 0.5)) / 24) * 100}%`,
+              // 棒の先端（高さ h-36 = 9rem）の少し上
+              top: `calc(${(1 - Math.min(shown.users / max, 1)) * 9}rem - 0.375rem)`,
+            }}
+          >
+            <p className="font-bold text-white">{shown.h}時台{days > 1 ? '（1日平均）' : ''}</p>
+            <p><span className="text-blue-300">利用者</span> {fmt1(shown.users)}人</p>
+            <p><span className="text-amber-300">イベント</span> {fmt1(shown.events)}件</p>
+            <p>
+              <span className="text-gray-300">表示回数</span> {fmt1(shown.views)}回
+              {shown.fromLive && <span className="text-gray-500">（集計待ち）</span>}
+            </p>
+          </div>
+        )}
         <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
           {perDay.map((x) => (
             <button
@@ -279,6 +300,7 @@ function HourlyChart({
                 <td className="py-1">{x.h}時台</td>
                 <td className="text-right">{fmt1(x.users)}人</td>
                 <td className="text-right">{fmt1(x.events)}件</td>
+                <td className="text-right">{fmt1(x.views)}回</td>
               </tr>
             ))}
           </tbody>
@@ -603,7 +625,7 @@ function WeekdayView({
   };
   const current = weekday[selected];
   const s = summary(selected);
-  const hours: HourlyPoint[] = current.hours.map(([users, events], h) => ({ h, users, events, fromLive: false }));
+  const hours: HourlyPoint[] = current.hours.map(([users, events, views = 0], h) => ({ h, users, events, views, fromLive: false }));
   return (
     <Section title="曜日ごとの時間帯別の利用者" note="昨日までの4週間のうち、記録のある日の1日あたりの平均（日本時間）。縦軸はすべての期間で共通">
       <div className="grid grid-cols-7 gap-1 mb-3">
@@ -696,10 +718,10 @@ export default function AnalyticsView({
       key={key}
       type="button"
       onClick={() => select(key)}
-      className={`px-2 py-1.5 md:py-2 rounded-lg text-sm leading-tight ${key === viewKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+      className={`px-2 py-1.5 md:py-2 rounded-lg text-sm md:text-base leading-tight ${key === viewKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
     >
       {VIEW_LABELS[key]}
-      <span className="block md:inline md:ml-1 text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
+      <span className="block text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
         {rangeDates(key)}
       </span>
     </button>
@@ -715,9 +737,11 @@ export default function AnalyticsView({
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
 
-        <nav className="mt-3 mb-4 space-y-1.5 md:max-w-xl">
-          <div className="grid grid-cols-3 gap-1.5">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
-          <div className="grid grid-cols-2 gap-1.5">{(['7d', 'weekday'] as const).map(button)}</div>
+        {/* スマホは上に3つ・下に2つ。PC は1行に並べ、1日ごとと平均の間に区切りを入れる */}
+        <nav className="mt-3 mb-4 flex flex-col md:flex-row gap-1.5 md:gap-3">
+          <div className="grid grid-cols-3 gap-1.5 md:gap-2 md:flex-[3]">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
+          <div className="hidden md:block w-px bg-gray-700" aria-hidden />
+          <div className="grid grid-cols-2 gap-1.5 md:gap-2 md:flex-[2.4]">{(['7d', 'weekday'] as const).map(button)}</div>
         </nav>
         <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
           集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）
