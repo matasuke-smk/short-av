@@ -102,21 +102,19 @@ const ymd = (d: string) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
 const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし）' : v);
 
 // onClick があるカードは押すと詳細（全画面）を開く。右上の「›」が目印
+// どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
 function Card({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
   const content = (
     <>
-      <div className="text-xs leading-snug text-gray-300 line-clamp-2 pr-3">{label}</div>
-      <div className="text-2xl font-bold mt-1 truncate">{value}</div>
-      {sub && <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-3">{sub}</div>}
+      <div className="text-xs leading-snug text-gray-300 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
+      <div className="text-2xl leading-tight font-bold mt-1 truncate">{value}</div>
+      <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
     </>
   );
-  if (!onClick) return <div className="bg-gray-800 rounded-lg p-3 min-w-0">{content}</div>;
+  const box = 'relative flex flex-col justify-start h-full bg-gray-800 rounded-lg p-3 min-w-0 text-left';
+  if (!onClick) return <div className={box}>{content}</div>;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="relative bg-gray-800 hover:bg-gray-700 active:bg-gray-700 rounded-lg p-3 min-w-0 text-left ring-1 ring-gray-700"
-    >
+    <button type="button" onClick={onClick} className={`${box} hover:bg-gray-700 active:bg-gray-700 ring-1 ring-gray-700`}>
       {content}
       <span className="absolute top-1.5 right-2 text-gray-400 text-sm" aria-hidden>›</span>
     </button>
@@ -831,7 +829,7 @@ function CompareSoFar({
           return (
             <div key={label} className="bg-gray-900/60 rounded-lg p-2.5">
               <p className="text-xs text-gray-400">{label}</p>
-              <p className="text-xl font-bold">
+              <p className="text-2xl leading-tight font-bold">
                 {fmt(now)}
                 <span className="text-xs font-normal text-gray-400">{unit}</span>
               </p>
