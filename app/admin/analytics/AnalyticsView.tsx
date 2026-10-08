@@ -5,6 +5,7 @@ import type { ReportRow } from '@/lib/ga-data';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
+import DoujinAnalytics from './DoujinAnalytics';
 import SampleLengthStatus from './SampleLengthStatus';
 import type { ViewKey } from './view-keys';
 
@@ -42,7 +43,7 @@ export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 export type YesterdaySoFar = { until: string; users: number; events: number; views: number };
 
 export type RangeData =
-  | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
+  | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; doujinInfo?: Record<string, { title: string; cover: string }>; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
   | { error: string };
 
 
@@ -1047,6 +1048,18 @@ export default function AnalyticsView({
   realtime: ReportRow[] | null; // いま見られているページ（直近30分）。取得できなければ null
 }) {
   const [viewKey, setViewKey] = useState<ViewKey>(initialRange);
+  // 「動画｜同人誌」: どちらの数字を見るか（URL の kind に残す）
+  const [section, setSection] = useState<'video' | 'doujin'>('video');
+  useEffect(() => {
+    if (new URL(window.location.href).searchParams.get('kind') === 'doujin') setSection('doujin');
+  }, []);
+  const selectSection = (next: 'video' | 'doujin') => {
+    setSection(next);
+    const url = new URL(window.location.href);
+    if (next === 'doujin') url.searchParams.set('kind', 'doujin');
+    else url.searchParams.delete('kind');
+    window.history.replaceState(window.history.state, '', url.toString());
+  };
   const month = data['28d'];
   const weekday = 'reports' in month ? month.weekday : undefined;
   const hourlyAxis = { users: 0, events: 0 };
@@ -1111,6 +1124,20 @@ export default function AnalyticsView({
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
 
+        {/* 動画｜同人誌 */}
+        <div className="mt-3 flex rounded-full bg-gray-800 p-1 max-w-xs">
+          {(['video', 'doujin'] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => selectSection(key)}
+              className={`flex-1 rounded-full py-2 text-sm font-bold ${section === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+            >
+              {key === 'video' ? '動画' : '同人誌'}
+            </button>
+          ))}
+        </div>
+
         {/* スマホは上に3つ・下に2つ。PC は1行に並べ、1日ごとと平均の間に区切りを入れる */}
         <nav className="mt-3 mb-4 flex flex-col md:flex-row gap-1.5 md:gap-3">
           <div className="grid grid-cols-3 gap-1.5 md:gap-2 md:flex-[3]">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
@@ -1121,7 +1148,24 @@ export default function AnalyticsView({
           集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）
         </p>
 
-        {current === null ? (
+        {section === 'doujin' ? (
+          (() => {
+            // 同人誌: 曜日ごとの平均を選んでいるときは28日間の数字
+            const range = viewKey === 'weekday' ? month : current!;
+            if ('error' in range) return errorBox(range.error);
+            return (
+              <>
+                {viewKey === 'weekday' && <p className="mb-3 text-xs text-gray-400">同人誌は曜日ごとの平均がないため、28日間の合計を表示しています。</p>}
+                {range.warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{range.warning}</p>}
+                <DoujinAnalytics
+                  reports={range.reports}
+                  daily={'reports' in month ? month.reports[22] ?? null : null}
+                  info={{ ...('reports' in month ? month.doujinInfo : {}), ...range.doujinInfo }}
+                />
+              </>
+            );
+          })()
+        ) : current === null ? (
           'error' in month ? (
             errorBox(month.error)
           ) : weekday ? (
