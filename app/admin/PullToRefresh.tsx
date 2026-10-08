@@ -34,8 +34,10 @@ export default function PullToRefresh({ disabled }: { disabled?: boolean }) {
       setPull(value);
     };
     const onStart = (e: TouchEvent) => {
+      // 全画面の詳細（data-no-pull-refresh）の中では、引き下げはその画面を閉じる操作に使う
+      const inModal = e.target instanceof Element && e.target.closest('[data-no-pull-refresh]') !== null;
       startY.current =
-        e.touches.length === 1 && window.scrollY <= 0 && !insideScrolledBox(e.target) ? e.touches[0].clientY : null;
+        e.touches.length === 1 && window.scrollY <= 0 && !inModal && !insideScrolledBox(e.target) ? e.touches[0].clientY : null;
     };
     const onMove = (e: TouchEvent) => {
       if (startY.current === null) return;
