@@ -9,14 +9,23 @@
       <stop offset="0" stop-color="#ef4444"/>
       <stop offset="1" stop-color="#b91c1c"/>
     </linearGradient>
+    <linearGradient id="book" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f472b6"/>
+      <stop offset="1" stop-color="#db2777"/>
+    </linearGradient>
   </defs>
   <rect width="400" height="400" fill="url(#bg)"/>
-  <!-- スマホの縦長画面 -->
-  <rect x="128" y="78" width="144" height="244" rx="26" fill="#f9fafb"/>
-  <rect x="140" y="92" width="120" height="216" rx="16" fill="url(#screen)"/>
-  <!-- 再生ボタン -->
-  <path d="M182 168 L226 196 L182 224 Z" fill="#ffffff"/>
-  <!-- 上スワイプの矢印 -->
-  <path d="M200 276 L200 252 M188 262 L200 250 L212 262" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85"/>
-  <path d="M200 140 L200 116 M188 126 L200 114 L212 126" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
+  <!-- スマホの縦長画面（動画） -->
+  <rect x="104" y="78" width="144" height="244" rx="26" fill="#f9fafb"/>
+  <rect x="116" y="92" width="120" height="216" rx="16" fill="url(#screen)"/>
+  <path d="M158 168 L202 196 L158 224 Z" fill="#ffffff"/>
+  <path d="M176 276 L176 252 M164 262 L176 250 L188 262" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85"/>
+  <!-- 右下に重ねた本（同人誌の試し読み）。左右スワイプの矢印 -->
+  <g transform="translate(206 196)">
+    <rect x="0" y="0" width="112" height="128" rx="14" fill="#111827" opacity="0.55"/>
+    <rect x="6" y="-6" width="112" height="128" rx="14" fill="url(#book)" stroke="#f9fafb" stroke-width="5"/>
+    <path d="M62 14 L62 108" stroke="#f9fafb" stroke-width="4" opacity="0.7"/>
+    <path d="M22 34 H50 M22 50 H50 M22 66 H44 M74 34 H102 M74 50 H102 M74 66 H96" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+    <path d="M30 94 L20 104 L30 114 M94 94 L104 104 L94 114" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
 </svg>

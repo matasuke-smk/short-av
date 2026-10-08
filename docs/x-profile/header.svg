@@ -9,19 +9,32 @@
       <stop offset="0" stop-color="#ef4444"/>
       <stop offset="1" stop-color="#991b1b"/>
     </linearGradient>
+    <linearGradient id="book" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f472b6"/>
+      <stop offset="1" stop-color="#be185d"/>
+    </linearGradient>
   </defs>
   <rect width="1500" height="500" fill="url(#bg)"/>
-  <!-- 右側: 縦に並ぶ動画カード（スワイプのイメージ） -->
-  <g opacity="0.95">
-    <rect x="1110" y="-60" width="170" height="250" rx="22" fill="#374151"/>
-    <rect x="1110" y="210" width="170" height="250" rx="22" fill="url(#card)"/>
-    <path d="M1175 300 L1225 335 L1175 370 Z" fill="#ffffff"/>
-    <rect x="1110" y="480" width="170" height="250" rx="22" fill="#374151"/>
-    <path d="M1330 330 L1330 250 M1308 272 L1330 250 L1352 272" stroke="#f9fafb" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  <!-- 右側: 縦に並ぶ動画カード（縦スワイプ） -->
+  <g opacity="0.95" transform="translate(70 0)">
+    <rect x="1020" y="-60" width="150" height="230" rx="20" fill="#374151"/>
+    <rect x="1020" y="190" width="150" height="230" rx="20" fill="url(#card)"/>
+    <path d="M1078 270 L1124 302 L1078 334 Z" fill="#ffffff"/>
+    <rect x="1020" y="440" width="150" height="230" rx="20" fill="#374151"/>
+    <path d="M995 330 L995 260 M975 280 L995 260 L1015 280" stroke="#f9fafb" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.75"/>
+  </g>
+  <!-- いちばん右: 横に並ぶ同人誌のページ（左右スワイプ） -->
+  <g opacity="0.95" transform="translate(75 0)">
+    <rect x="1205" y="205" width="130" height="180" rx="16" fill="url(#book)" stroke="#f9fafb" stroke-width="4"/>
+    <path d="M1225 240 H1315 M1225 265 H1315 M1225 290 H1295 M1225 315 H1315 M1225 340 H1285" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.85"/>
+    <rect x="1355" y="205" width="130" height="180" rx="16" fill="#374151"/>
+    <path d="M1240 420 L1222 438 L1240 456 M1300 420 L1318 438 L1300 456" stroke="#f9fafb" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+    <path d="M1222 438 H1318" stroke="#f9fafb" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
   </g>
   <!-- 左側: サイト名とキャッチコピー（左下はアイコンと重なるため上寄せ） -->
-  <text x="430" y="190" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="104" fill="#ffffff">Short AV</text>
-  <text x="434" y="262" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="40" fill="#e5e7eb">サンプル動画を、縦スワイプで。</text>
-  <text x="434" y="322" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-size="30" fill="#9ca3af">FANZA の人気作・新作を毎日紹介</text>
-  <text x="434" y="400" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#f87171">short-av.com</text>
+  <text x="430" y="170" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="104" fill="#ffffff">Short AV</text>
+  <text x="434" y="240" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#e5e7eb">サンプル動画も、同人誌の試し読みも。</text>
+  <text x="434" y="288" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#e5e7eb">スワイプで次々チェック。</text>
+  <text x="434" y="346" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-size="28" fill="#9ca3af">FANZA の人気作・新作を毎日紹介</text>
+  <text x="434" y="414" font-family="Yu Gothic, Noto Sans JP, sans-serif" font-weight="700" font-size="34" fill="#f87171">short-av.com</text>
 </svg>
