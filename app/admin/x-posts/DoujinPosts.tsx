@@ -2,9 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Doujin } from '@/lib/doujin-types';
+import { getUserId } from '@/lib/user-id';
 import { buildDoujinPostText as buildText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
-type DoujinItem = Doujin & { postedCount: number; lastPostedAt: string | null };
+type DoujinItem = Doujin & {
+  postedCount: number;
+  lastPostedAt: string | null;
+  likedAt?: string | null;
+  views?: number;
+  completes?: number;
+  clicks?: number;
+  rank?: number | null;
+};
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const shortDate = (iso: string) => {
@@ -76,7 +85,25 @@ function DoujinCard({ doujin, onChanged }: { doujin: DoujinItem; onChanged: () =
               </button>
             </p>
           )}
+          {doujin.likedAt && <p className="text-[11px] text-pink-300">♥ {shortDate(doujin.likedAt)} にいいね</p>}
           <p className="text-sm font-bold line-clamp-3">{doujin.title}</p>
+          {(() => {
+            const reasons = [
+              (doujin.clicks ?? 0) > 0 && `FANZA へ ${doujin.clicks}回`,
+              (doujin.completes ?? 0) > 0 && `最後まで ${doujin.completes}回`,
+              (doujin.views ?? 0) > 0 && `表示 ${doujin.views}回`,
+              doujin.rank && `人気 ${doujin.rank}位`,
+            ].filter(Boolean) as string[];
+            return reasons.length > 0 ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {reasons.map((r) => (
+                  <span key={r} className="text-[11px] bg-gray-700 text-gray-200 rounded px-1.5 py-0.5">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            ) : null;
+          })()}
           <p className="mt-1 text-xs text-gray-400">
             {doujin.circle ?? ''} ・ サンプル {doujin.samples.length}ページ
             {doujin.price !== null && ` ・ ${yen(doujin.price)}`}
@@ -135,21 +162,27 @@ function DoujinCard({ doujin, onChanged }: { doujin: DoujinItem; onChanged: () =
   );
 }
 
-/** X 投稿の「同人誌」タブ: 人気の同人誌から投稿文を作る */
-export default function DoujinPosts() {
+/** X 投稿の「同人誌」: いいねした同人誌 / おすすめの同人誌から投稿文を作る */
+export default function DoujinPosts({ list: listKind }: { list: 'liked' | 'recommended' }) {
   const [list, setList] = useState<DoujinItem[] | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    fetch('/api/admin/x-posts/doujin')
+    fetch(listKind === 'liked' ? `/api/admin/x-posts/doujin?list=liked&userId=${encodeURIComponent(getUserId())}` : '/api/admin/x-posts/doujin?list=recommended')
       .then((r) => r.json())
       .then((d) => (d.error ? setError(d.error) : setList(d.doujin)))
       .catch(() => setError('読み込めませんでした'));
-  }, []);
+  }, [listKind]);
   useEffect(load, [load]);
 
   if (error) return <div className="text-red-400 text-sm">{error}</div>;
   if (list === null) return <div className="text-gray-400 text-sm">読み込み中...</div>;
+  if (list.length === 0)
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-400 text-sm">
+        {listKind === 'liked' ? 'まだいいねした同人誌はありません。「サイトを開く」で同人誌の ♡ を押すと、ここに並びます。' : 'いまおすすめできる同人誌はありません。'}
+      </div>
+    );
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {list.map((d) => (
