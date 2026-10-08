@@ -19,7 +19,7 @@ export type Doujin = {
 
 // 並べ方（管理画面の「同人テスト」で切り替えて比べる）
 export const DOUJIN_ORDERS = {
-  mix: '人気＋評価（交互）',
+  mix: '人気＋高評価からランダム',
   rank: '人気順',
   date: '新着順',
   review: '評価順',

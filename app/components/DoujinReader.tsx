@@ -11,10 +11,21 @@ const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
  * - サンプル画像を1枚ずつ表示し、最後のページの次に作品名・価格・FANZA へのボタンのページを出す
  * - 画像は今のページの前後だけ読み込む（一度読み込んだものは残す）
  */
-export default function DoujinReader({ doujin, onLinkClick }: { doujin: Doujin; onLinkClick?: () => void }) {
+export default function DoujinReader({
+  doujin,
+  onLinkClick,
+  onComplete,
+}: {
+  doujin: Doujin;
+  onLinkClick?: () => void;
+  onComplete?: () => void; // 最後まで読んで購入ページに来たとき（1回だけ）
+}) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
   const [page, setPage] = useState(0);
   const [loadedUntil, setLoadedUntil] = useState(1);
+  const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
   // 表示枠の高さ。スマホの画面の高さ・横幅で枠が低くなると、案内や購入ページの要素が重なるため小さい表示に切り替える
   const rootRef = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
@@ -34,6 +45,10 @@ export default function DoujinReader({ doujin, onLinkClick }: { doujin: Doujin; 
       const index = emblaApi.selectedScrollSnap();
       setPage(index);
       setLoadedUntil((prev) => Math.max(prev, index + 2));
+      if (index === emblaApi.slideNodes().length - 1 && !completedRef.current) {
+        completedRef.current = true;
+        onCompleteRef.current?.();
+      }
     };
     emblaApi.on('select', onSelect);
     return () => {

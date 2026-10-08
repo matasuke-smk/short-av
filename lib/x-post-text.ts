@@ -32,6 +32,20 @@ export function getXPostVideoUrl(dmmContentId: string, format: XPostFormat = 'ca
   return `${SITE_URL}/?${params.toString()}`;
 }
 
+/**
+ * X 投稿用の同人誌の URL。開くと同人誌中心の画面（その作品から。ときどき動画を挟む）になる
+ */
+export function getXPostDoujinUrl(contentId: string): string {
+  const params = new URLSearchParams({
+    mode: 'doujin',
+    d: contentId,
+    utm_source: 'x',
+    utm_medium: 'social',
+    utm_campaign: 'x_post_doujin',
+  });
+  return `${SITE_URL}/?${params.toString()}`;
+}
+
 export function getPostFormat(text: string): XPostFormat {
   return /[?&]utm_content=img4\b/.test(text) ? 'img4' : 'card';
 }

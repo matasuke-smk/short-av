@@ -34,7 +34,7 @@ const LABELS = {
     actress: '女優',
     actress_videos: '女優の作品一覧',
   },
-  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト' },
+  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌' },
 } as const;
 
 const contextLabels = (context?: ViewContext) =>
@@ -115,7 +115,7 @@ export const trackLike = (videoId: string, action: 'like' | 'unlike') => {
 export const trackDMMClick = (
   videoId: string,
   contentId: string,
-  linkType: 'detail' | 'affiliate',
+  linkType: 'detail' | 'affiliate' | 'doujin',
   context?: ViewContext,
 ) => {
   sendGAEvent('dmm_link_click', {
@@ -124,6 +124,16 @@ export const trackDMMClick = (
     link_type: LABELS.link_type[linkType],
     ...contextLabels(context),
   });
+};
+
+// 同人誌: 表示された（縦スワイプで同人誌の枠に来た）。mode: feed = 動画の間に挟んだもの、doujin = X の同人誌のリンクから来た画面
+export const trackDoujinView = (contentId: string, mode: 'feed' | 'doujin', swipeIndex: number) => {
+  sendGAEvent('doujin_view', { content_id: contentId, list_type: mode === 'doujin' ? '同人誌' : 'おすすめ', swipe_index: swipeIndex });
+};
+
+// 同人誌: サンプルを最後まで読んで購入ページに来た
+export const trackDoujinComplete = (contentId: string, pages: number) => {
+  sendGAEvent('doujin_complete', { content_id: contentId, pages });
 };
 
 // モーダル開閉イベント
