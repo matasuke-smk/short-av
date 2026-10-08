@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ReportRow } from '@/lib/ga-data';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 import DoujinAnalytics from './DoujinAnalytics';
 import SampleLengthStatus from './SampleLengthStatus';
-import type { ViewKey } from './view-keys';
+import type { Country, ViewKey } from './view-keys';
 
 /**
  * アクセス解析の表示（管理画面）
@@ -1032,6 +1033,64 @@ function WeekdayView({
   );
 }
 
+// 国の名前（GA は英語で返す）。ここにない国は英語のまま出す
+const COUNTRY_NAMES: Record<string, string> = {
+  Japan: '日本',
+  Thailand: 'タイ',
+  Indonesia: 'インドネシア',
+  'South Korea': '韓国',
+  China: '中国',
+  Taiwan: '台湾',
+  'Hong Kong': '香港',
+  Malaysia: 'マレーシア',
+  Singapore: 'シンガポール',
+  Vietnam: 'ベトナム',
+  Philippines: 'フィリピン',
+  India: 'インド',
+  'United States': 'アメリカ',
+  'United Kingdom': 'イギリス',
+  Brazil: 'ブラジル',
+  Germany: 'ドイツ',
+  France: 'フランス',
+  Canada: 'カナダ',
+  Australia: 'オーストラリア',
+  '(not set)': '不明',
+};
+
+/** 国ごとの利用者数（「すべて」のときだけ）。海外からのアクセスが見込み客かどうかを、滞在時間とエンゲージメントで見分ける */
+function CountryTable({ rows }: { rows: ReportRow[] }) {
+  const total = rows.reduce((sum, r) => sum + r.metrics[0], 0);
+  const japan = rows.find((r) => r.dimensions[0] === 'Japan')?.metrics[0] ?? 0;
+  return (
+    <Section title="国ごと" note={`海外 ${fmt(total - japan)}人（${total > 0 ? Math.round(((total - japan) / total) * 100) : 0}%）。平均の滞在が数秒で、しっかり見たセッションが0なら、ボットや見込みのないアクセスの可能性が高い。`}>
+      {rows.length === 0 ? (
+        <p className="text-sm text-gray-400">まだデータがありません。</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="text-gray-400">
+            <tr>
+              <th className="text-left font-normal py-1">国</th>
+              <th className="text-right font-normal pl-2 whitespace-nowrap">利用者</th>
+              <th className="text-right font-normal pl-2 whitespace-nowrap">平均の滞在</th>
+              <th className="text-right font-normal pl-2 whitespace-nowrap">しっかり見た</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.dimensions[0]} className={`border-t border-gray-700 ${r.dimensions[0] === 'Japan' ? 'font-bold' : ''}`}>
+                <td className="py-1.5">{COUNTRY_NAMES[r.dimensions[0]] ?? r.dimensions[0]}</td>
+                <td className="text-right pl-2">{fmt(r.metrics[0])}人</td>
+                <td className="text-right pl-2">{r.metrics[0] > 0 ? `${Math.round(r.metrics[2] / r.metrics[0])}秒` : '—'}</td>
+                <td className="text-right pl-2">{fmt(r.metrics[1])}回</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Section>
+  );
+}
+
 export default function AnalyticsView({
   data,
   initialRange,
@@ -1039,7 +1098,9 @@ export default function AnalyticsView({
   realtime,
   live,
   yesterdaySoFar,
+  country,
 }: {
+  country: Country; // 日本のみ（標準）か、海外も含めたすべてか
   yesterdaySoFar: YesterdaySoFar | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
   data: Record<DataKey, RangeData>;
@@ -1059,6 +1120,16 @@ export default function AnalyticsView({
     if (next === 'doujin') url.searchParams.set('kind', 'doujin');
     else url.searchParams.delete('kind');
     window.history.replaceState(window.history.state, '', url.toString());
+  };
+  // 「日本のみ｜すべて」: 集計し直すため、URL の country を変えてサーバーから取り直す
+  const router = useRouter();
+  const [countryPending, startCountry] = useTransition();
+  const selectCountry = (next: Country) => {
+    if (next === country) return;
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.set('country', 'all');
+    else url.searchParams.delete('country');
+    startCountry(() => router.push(url.pathname + url.search, { scroll: false }));
   };
   const month = data['28d'];
   const weekday = 'reports' in month ? month.weekday : undefined;
@@ -1138,6 +1209,24 @@ export default function AnalyticsView({
           ))}
         </div>
 
+        {/* 日本のみ｜すべて */}
+        <div className="mt-2 flex items-center justify-center gap-2">
+          <div className="flex rounded-full bg-gray-800 p-1">
+            {(['jp', 'all'] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => selectCountry(key)}
+                disabled={countryPending}
+                className={`rounded-full px-4 py-1 text-xs font-bold ${country === key ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
+              >
+                {key === 'jp' ? '日本のみ' : 'すべて（海外を含む）'}
+              </button>
+            ))}
+          </div>
+          {countryPending && <span className="text-xs text-gray-400">読み込み中…</span>}
+        </div>
+
         {/* スマホは上に3つ・下に2つ。PC は1行に並べ、1日ごとと平均の間に区切りを入れる */}
         <nav className="mt-3 mb-4 flex flex-col md:flex-row gap-1.5 md:gap-3">
           <div className="grid grid-cols-3 gap-1.5 md:gap-2 md:flex-[3]">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
@@ -1145,7 +1234,7 @@ export default function AnalyticsView({
           <div className="grid grid-cols-2 gap-1.5 md:gap-2 md:flex-[2.4]">{(['7d', 'weekday'] as const).map(button)}</div>
         </nav>
         <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
-          集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）
+          集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）・{country === 'jp' ? '日本からのアクセスのみ' : '海外を含むすべてのアクセス'}
         </p>
 
         {section === 'doujin' ? (
@@ -1196,6 +1285,13 @@ export default function AnalyticsView({
             compare={compare}
           />
         )}
+
+        {/* 「すべて」のときは国ごとの内訳（曜日ごとの平均では28日間） */}
+        {country === 'all' &&
+          (() => {
+            const range = viewKey === 'weekday' ? month : current!;
+            return 'reports' in range && range.reports[25] ? <CountryTable rows={range.reports[25]} /> : null;
+          })()}
 
 
         {/* サンプル動画の長さの記録状況（検索の「サンプル動画3分以上」用）。いちばん下に置く */}

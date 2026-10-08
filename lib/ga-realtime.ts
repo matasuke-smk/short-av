@@ -11,6 +11,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 const JST = 9 * 3_600_000;
 const KEEP_DAYS = 3;
 const metrics = [{ name: 'activeUsers' }, { name: 'eventCount' }];
+// アクセス解析の標準は「日本のみ」なので、記録も日本からのアクセスだけにする（2026/10/8 から。
+// 「すべて」のときは GA の集計と大きいほうを使うので、海外の分は GA の集計が追いつくまで少なめに出る）
+const dimensionFilter = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
 
 const jstParts = (ms: number) => {
   const d = new Date(ms + JST);
@@ -27,8 +30,8 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
     windows.push({ hour: prev.hour, date: prev.date, startMinutesAgo: 29, endMinutesAgo: intoHour + 1 });
   }
   const [perMinute, ...hourly] = await Promise.all([
-    runRealtimeReport({ dimensions: [{ name: 'minutesAgo' }], metrics, limit: 30 }),
-    ...windows.map((w) => runRealtimeReport({ metrics, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
+    runRealtimeReport({ dimensions: [{ name: 'minutesAgo' }], metrics, dimensionFilter, limit: 30 }),
+    ...windows.map((w) => runRealtimeReport({ metrics, dimensionFilter, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
   ]);
 
   const supabase = getSupabaseAdmin();
