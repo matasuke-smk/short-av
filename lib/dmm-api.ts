@@ -107,6 +107,7 @@ export async function fetchDMMProducts(options: {
   actress?: string;
   cid?: string;
   gte_date?: string; // この日時以降に発売された作品に絞る（YYYY-MM-DDTHH:MM:SS）
+  articles?: { type: 'genre' | 'maker' | 'author' | 'series' | 'actress'; id: string }[]; // 複数の絞り込み（すべてに当てはまる作品）
 } = {}): Promise<DMMApiResponse> {
   const apiId = process.env.DMM_API_ID;
   const affiliateId = process.env.DMM_AFFILIATE_ID;
@@ -135,6 +136,10 @@ export async function fetchDMMProducts(options: {
   if (options.actress) params.append('actress', options.actress);
   if (options.cid) params.append('cid', options.cid);
   if (options.gte_date) params.append('gte_date', options.gte_date);
+  options.articles?.forEach((a, i) => {
+    params.append(`article[${i}]`, a.type);
+    params.append(`article_id[${i}]`, a.id);
+  });
 
   const url = `${DMM_API_BASE_URL}?${params.toString()}`;
 

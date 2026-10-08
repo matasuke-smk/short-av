@@ -1,5 +1,5 @@
 import { fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
-import type { Doujin, DoujinOrder } from '@/lib/doujin-types';
+import type { Doujin, DoujinFacet, DoujinOrder } from '@/lib/doujin-types';
 
 export { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types';
 
@@ -21,6 +21,8 @@ export function toDoujin(item: DMMItem): Doujin | null {
     cover: item.imageURL?.large ?? item.imageURL?.list ?? samples[0],
     samples,
     genres: (item.iteminfo?.genre ?? []).map((g) => g.name).slice(0, 6),
+    genreList: (item.iteminfo?.genre ?? []).map((g) => ({ id: String(g.id), name: g.name })),
+    circleId: item.iteminfo?.maker?.[0]?.id !== undefined ? String(item.iteminfo.maker[0].id) : null,
   };
 }
 
@@ -80,5 +82,57 @@ export async function rankingDoujin(period: 'weekly' | 'monthly' | 'all', hits =
 export async function fetchDoujinByIds(ids: string[]): Promise<Doujin[]> {
   const list = await Promise.all(ids.map((id) => fetchDoujinById(id).catch(() => null)));
   return list.filter((d): d is Doujin => d !== null);
+}
+
+const DOUJIN_FLOOR = { service: 'doujin', floor: 'digital_doujin' } as const;
+
+/**
+ * 検索の選択肢: 人気上位500冊に付いているジャンル・サークルを、多い順に（API の結果は1時間キャッシュ）
+ * FANZA の API には「ジャンルごとの件数」がないため、人気の作品でよく使われている順に並べる
+ */
+export async function doujinFacets(): Promise<{ genres: DoujinFacet[]; circles: DoujinFacet[] }> {
+  const pages = await Promise.all([1, 101, 201, 301, 401].map((offset) => fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 100, offset }).catch(() => null)));
+  const genres = new Map<string, DoujinFacet>();
+  const circles = new Map<string, DoujinFacet>();
+  const add = (map: Map<string, DoujinFacet>, id: number | undefined, name: string | undefined) => {
+    if (id === undefined || !name) return;
+    const key = String(id);
+    const prev = map.get(key);
+    map.set(key, { id: key, name, count: (prev?.count ?? 0) + 1 });
+  };
+  for (const page of pages) {
+    for (const item of page?.result?.items ?? []) {
+      for (const g of item.iteminfo?.genre ?? []) add(genres, g.id, g.name);
+      const maker = item.iteminfo?.maker?.[0];
+      add(circles, maker?.id, maker?.name);
+    }
+  }
+  const sorted = (map: Map<string, DoujinFacet>) => [...map.values()].sort((a, b) => b.count - a.count);
+  // 「男性向け」「成人向け」のようにほぼすべての作品に付くジャンルは、絞り込みにならないので出さない
+  const itemCount = pages.reduce((sum, p) => sum + (p?.result?.items?.length ?? 0), 0);
+  return { genres: sorted(genres).filter((g) => g.count < itemCount * 0.9), circles: sorted(circles) };
+}
+
+const SEARCH_LIMIT = 300; // 動画の検索と同じく人気順の上位300件まで
+
+/**
+ * 同人誌の検索（動画の検索と同じ仕様）: タイトルのキーワード、または選んだジャンル（すべてに当てはまる）・サークル。人気順。
+ * total は条件に合う作品の総数（FANZA の API の件数）。preview のときは先頭100件だけ取る（件数と絞り込みの候補に使う）
+ */
+export async function searchDoujinBy(options: { keyword?: string; genreIds?: string[]; circleId?: string; preview?: boolean }): Promise<{ doujin: Doujin[]; total: number }> {
+  const articles = [
+    ...(options.genreIds ?? []).map((id) => ({ type: 'genre' as const, id })),
+    ...(options.circleId ? [{ type: 'maker' as const, id: options.circleId }] : []),
+  ];
+  const base = { ...DOUJIN_FLOOR, sort: 'rank' as const, hits: 100, ...(options.keyword ? { keyword: options.keyword } : {}), ...(articles.length ? { articles } : {}) };
+  const first = await fetchDMMProducts({ ...base, offset: 1 });
+  const total = first.result?.total_count ?? 0;
+  const pages = [first];
+  if (!options.preview && total > 100) {
+    const offsets = [101, 201].filter((o) => o <= Math.min(total, SEARCH_LIMIT));
+    pages.push(...(await Promise.all(offsets.map((offset) => fetchDMMProducts({ ...base, offset }).catch(() => null)))).filter((p): p is NonNullable<typeof p> => p !== null));
+  }
+  const doujin = pages.flatMap((p) => (p.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null));
+  return { doujin, total };
 }
 

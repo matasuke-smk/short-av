@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchDoujin } from '@/lib/doujin';
+import { searchDoujinBy } from '@/lib/doujin';
 
-// 同人誌の検索（同人誌メインの画面の「検索」）: GET ?keyword=...&sort=rank|date|review
+const ID_PATTERN = /^[0-9]{1,10}$/;
+
+/**
+ * 同人誌の検索（動画の検索と同じ仕様。人気順の上位300件まで）
+ * GET ?keyword=タイトルの語 / ?genres=1,2（すべてに当てはまる）/ ?circle=123、&preview=1 なら先頭100件と件数だけ
+ */
 export async function GET(request: NextRequest) {
-  const keyword = (request.nextUrl.searchParams.get('keyword') ?? '').trim().slice(0, 50);
-  const sortParam = request.nextUrl.searchParams.get('sort');
-  const sort = sortParam === 'date' || sortParam === 'review' ? sortParam : 'rank';
+  const params = request.nextUrl.searchParams;
+  const keyword = (params.get('keyword') ?? '').trim().slice(0, 50);
+  const genreIds = (params.get('genres') ?? '').split(',').filter((id) => ID_PATTERN.test(id)).slice(0, 10);
+  const circle = params.get('circle') ?? '';
+  const circleId = ID_PATTERN.test(circle) ? circle : undefined;
+  if (!keyword && genreIds.length === 0 && !circleId) return NextResponse.json({ doujin: [], total: 0 });
   try {
-    return NextResponse.json({ doujin: await searchDoujin(keyword, sort, 40) });
+    return NextResponse.json(await searchDoujinBy({ keyword: keyword || undefined, genreIds, circleId, preview: params.get('preview') === '1' }));
   } catch (error) {
     console.error('[doujin search]', error);
     return NextResponse.json({ error: '検索できませんでした' }, { status: 500 });

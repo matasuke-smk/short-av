@@ -36,10 +36,12 @@ export default function DoujinListModal({
   kind,
   onClose,
   onShowVideoTab,
+  onSelect,
 }: {
   kind: DoujinListKind;
   onClose: () => void;
   onShowVideoTab?: () => void;
+  onSelect?: (list: Doujin[], selectedId: string) => void; // 作品を選んだとき（その一覧の中をスワイプで見る）
 }) {
   const [items, setItems] = useState<Doujin[] | null>(null);
   const [error, setError] = useState('');
@@ -180,7 +182,16 @@ export default function DoujinListModal({
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
               {items.map((d, i) => (
-                <a key={`${d.contentId}-${i}`} href={`/?mode=doujin&d=${d.contentId}`} className="block min-w-0 rounded-lg bg-gray-900 overflow-hidden active:scale-95 transition-transform">
+                <a
+                  key={`${d.contentId}-${i}`}
+                  href={`/?mode=doujin&d=${d.contentId}`}
+                  onClick={(e) => {
+                    if (!onSelect) return;
+                    e.preventDefault();
+                    onSelect(items, d.contentId);
+                  }}
+                  className="block min-w-0 rounded-lg bg-gray-900 overflow-hidden active:scale-95 transition-transform"
+                >
                   <div className="relative aspect-[3/4] bg-black">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={d.cover} alt={d.title} loading="lazy" className="h-full w-full object-cover" />

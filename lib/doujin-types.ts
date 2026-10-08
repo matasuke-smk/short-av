@@ -15,7 +15,12 @@ export type Doujin = {
   cover: string; // 表紙
   samples: string[]; // サンプル画像（大）
   genres: string[];
+  genreList: { id: string; name: string }[]; // ジャンル（検索の絞り込み用）
+  circleId: string | null; // サークル（API ではメーカー）の ID
 };
+
+// 検索の選択肢（ジャンル・サークル）。count は人気上位の作品の中での件数（並び順の目安）
+export type DoujinFacet = { id: string; name: string; count: number };
 
 // 並べ方（管理画面の「同人テスト」で切り替えて比べる）
 export const DOUJIN_ORDERS = {
