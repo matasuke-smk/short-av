@@ -2,49 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Doujin } from '@/lib/doujin-types';
-import { countXWeightedLength, getXPostDoujinUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { buildDoujinPostText as buildText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 type DoujinItem = Doujin & { postedCount: number; lastPostedAt: string | null };
-
-// 見出し（「別の見出しにする」で順に切り替える）
-const HEADINGS = [(n: number) => `【同人誌・${n}ページ試し読み】`, (n: number) => `【スワイプで${n}ページ読める同人誌】`, () => '【人気の同人誌】'];
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 const shortDate = (iso: string) => {
   const d = new Date(iso);
   return `${d.getMonth() + 1}/${d.getDate()}`;
 };
-
-/**
- * 同人誌の X 投稿文。リンクを開くと、その作品から始まる同人誌中心の画面（ときどき動画）になる（?mode=doujin&d=）
- * 280 を超える場合はタイトルを切り詰める
- */
-function buildText(doujin: Doujin, headingIndex: number): string {
-  const url = getXPostDoujinUrl(doujin.contentId);
-  const onSale = doujin.price !== null && doujin.listPrice !== null && doujin.listPrice > doujin.price;
-  const price = doujin.price === null ? '' : onSale ? `セール中 ${yen(doujin.price)}（通常 ${yen(doujin.listPrice!)}）` : yen(doujin.price);
-  const build = (title: string) =>
-    [
-      HEADINGS[headingIndex % HEADINGS.length](doujin.samples.length),
-      title,
-      doujin.circle ? `サークル: ${doujin.circle}` : '',
-      price,
-      '',
-      'スワイプで試し読みはこちら👇',
-      url,
-      '',
-      '#PR #FANZA同人',
-    ]
-      .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')
-      .join('\n');
-  let title = doujin.title;
-  let text = build(title);
-  while (countXWeightedLength(text) > X_MAX_WEIGHTED_LENGTH && title.length > 10) {
-    title = `${[...title].slice(0, -5).join('')}…`;
-    text = build(title);
-  }
-  return text;
-}
 
 async function copyToClipboard(text: string) {
   try {

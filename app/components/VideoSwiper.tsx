@@ -64,7 +64,7 @@ interface VideoSwiperProps {
   videoPool: Video[]; // 動画プール（全データ）
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
-  doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌中心（先頭はその作品、同人誌3冊ごとに動画1本）
+  doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌中心（先頭はその作品、同人誌5冊ごとに動画1本）
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -101,7 +101,7 @@ const SWIPED_KEY = 'short-av-has-swiped';
 // 同人誌: 動画を何本見たら同人誌を1冊挟むか。同人誌中心の画面（X の同人誌のリンクから）では、同人誌を何冊見たら動画を1本挟むか。
 // 挟んだ同人誌は id が doujin- で始まる動画の形で一覧に入れる（位置の番号で動く既存の処理をそのまま使うため）
 const DOUJIN_EVERY = 5;
-const DOUJIN_GROUP = 3;
+const DOUJIN_GROUP = 5; // 同人誌メインでは、動画メインと同じく6枚に1枚が動画
 const isDoujinSlide = (video: Video | undefined) => !!video?.id.startsWith('doujin-');
 
 // 同人誌を一覧に入れるための動画の形（base は動画の1件。型を満たすために使い、表示に関わる項目は同人誌のもので上書きする）
@@ -165,7 +165,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌（サーバーで取得した一覧。管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときは、その並べ方の一覧に入れ替える）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList, setDoujinList] = useState<Doujin[]>(initialDoujinList);
-  // 「動画｜同人誌」: 動画メイン（動画5本ごとに同人誌1冊）か、同人誌メイン（同人誌3冊ごとに動画1本）か。上の切り替えで変える
+  // 「動画｜同人誌」: 動画メイン（動画5本ごとに同人誌1冊）か、同人誌メイン（同人誌5冊ごとに動画1本）か。上の切り替えで変える
   const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
   const doujinMode = mode === 'doujin';
   // いま挟んでいる同人誌の並び（切り替えのたびに、まだ見ていない同人誌から始まるようずらす）
@@ -209,6 +209,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌のときの下の帯の高さ（価格ボタンなし）と、同人誌の表示の高さ（縦画面のスマホのみ。それ以外は null）
   const [doujinFit, setDoujinFit] = useState<{ panelHeight: number; height: number } | null>(null);
   const priceRowRef = useRef<HTMLDivElement>(null);
+  // 「動画｜同人誌」の帯。作品はこの帯の下端から表示する（時計の分の余白がある端末でも重ならないよう、実際の位置を測る）
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const [topOffset, setTopOffset] = useState<number | null>(null);
   const [modalKey, setModalKey] = useState(0);
 
   // プール管理
@@ -329,7 +332,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     const panel = bottomPanelRef.current;
     const content = panel?.firstElementChild as HTMLElement | null;
     if (!panel || !content) return;
-    const TOP = 24 + 44; // PR の帯（1.5rem）＋「動画｜同人誌」の切り替え（2.75rem）
     const PRICE_ROW = 48 + 12; // 価格ボタンの行（h-12 + mb-3）
     const update = () => {
       const w = window.innerWidth;
@@ -337,8 +339,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       if (isLandscape || w >= 768) {
         setFit(null);
         setDoujinFit(null);
+        setTopOffset(null);
         return;
       }
+      // 上の余白 = PR の帯＋「動画｜同人誌」の帯の下端（ふつうは 24 + 44。ホーム画面アプリでは時計の分も）
+      const TOP = Math.ceil(topBarRef.current?.getBoundingClientRect().bottom ?? 24 + 44);
+      setTopOffset(TOP);
       const style = window.getComputedStyle(panel);
       const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
       // 価格ボタンの行を除いた中身（メニューなど）の高さ。同人誌のときは価格ボタンの行を出さない
@@ -347,7 +353,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       setDoujinFit({ panelHeight: Math.ceil(menu + padding), height: Math.max(160, Math.floor(h - TOP - menu - padding)) });
       const available = h - TOP - panelHeight;
       if (available >= w * (0.75 + 0.3125)) {
-        setFit(null);
+        // 収まるときは通常どおり（バナーあり・縮めない）。下の帯は残りの高さ
+        setFit({ available: Math.floor(available), panelHeight: Math.ceil(h - TOP - w * (0.75 + 0.3125)), showBanner: true, thumbWidth: null });
         return;
       }
       // バナー（広告）はなるべく残す: まず動画のサムネイルを縮めてバナーの場所を空け、
@@ -813,7 +820,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 「動画｜同人誌」の切り替えと記事のボタン（縦画面のみ。PR の帯のすぐ下） */}
-      <div className="landscape:hidden lg:hidden fixed left-0 right-0 z-40 top-[calc(max(env(safe-area-inset-top),0px)+1.5rem)] h-11 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div ref={topBarRef} className="landscape:hidden lg:hidden fixed left-0 right-0 z-40 top-[calc(max(env(safe-area-inset-top),0px)+1.5rem)] h-11 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         {modeToggle}
         <Link
           href="/articles"
@@ -832,6 +839,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             枠はスクロールさせず（overflow-hidden・touch-action）、フォーカス移動などでずれた場合もすぐ戻す */}
         <div
           className="overflow-hidden h-full scrollbar-hide pt-[4.25rem] landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
+          style={topOffset !== null ? { paddingTop: topOffset } : undefined}
           ref={emblaRef}
           onScroll={(e) => {
             if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
@@ -1561,7 +1569,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       )}
 
       {/* 管理者用: 表示中の作品の X 投稿文を作る（管理画面にログインした端末だけに表示） */}
-      <AdminXCompose contentId={isDoujinSlide(currentVideo) ? undefined : currentVideo?.dmm_content_id} />
+      <AdminXCompose contentId={currentVideo?.dmm_content_id} doujin={isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo!.id) : undefined} />
 
       {/* 検索モーダル */}
       <SearchModal

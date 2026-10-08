@@ -41,7 +41,7 @@ export default function DoujinTestView() {
         <h1 className="text-xl font-bold">同人テスト</h1>
         <p className="text-sm text-gray-400 mt-2">
           サイトでは動画5本ごとに FANZA 同人を1冊挟んでいます（一般公開。並べ方は「人気＋高評価からランダム」）。
-          ここでは並べ方を切り替えて、この端末だけで見比べられます。X の同人誌の投稿から来た人の画面（同人誌3冊ごとに動画1本）も確認できます。
+          ここでは並べ方を切り替えて、この端末だけで見比べられます。X の同人誌の投稿から来た人の画面（同人誌5冊ごとに動画1本）も確認できます。
         </p>
 
         <h2 className="text-sm font-bold mt-5 mb-2">並べ方</h2>
