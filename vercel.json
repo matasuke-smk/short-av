@@ -11,5 +11,11 @@
       "path": "/api/cron/sample-lengths",
       "schedule": "30 0 * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  }
 }
