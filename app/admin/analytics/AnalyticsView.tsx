@@ -5,6 +5,7 @@ import type { ReportRow } from '@/lib/ga-data';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
+import SampleLengthStatus from './SampleLengthStatus';
 import type { ViewKey } from './view-keys';
 
 /**
@@ -957,6 +958,9 @@ export default function AnalyticsView({
           />
         )}
 
+
+        {/* サンプル動画の長さの記録状況（検索の「サンプル動画3分以上」用）。いちばん下に置く */}
+        <SampleLengthStatus />
 
         <p className="text-xs text-gray-500">
           GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。
