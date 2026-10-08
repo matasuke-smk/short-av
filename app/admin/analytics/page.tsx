@@ -3,6 +3,7 @@ import { GaNotConfiguredError, runRealtimeReport, runReports, type ReportRequest
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
+import { fetchDoujinByIds } from '@/lib/doujin';
 import AnalyticsView, { type DataKey, type RangeData, type WeekdayHourly, type YesterdaySoFar } from './AnalyticsView';
 import { VIEW_KEYS, type ViewKey } from './view-keys';
 import { FUNNEL } from './funnel';
@@ -124,6 +125,17 @@ function toWeekdayHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): W
 const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFilter: { value } } });
 const eventIn = (values: readonly string[]) => ({ filter: { fieldName: 'eventName', inListFilter: { values } } });
 const byMetricDesc = { metric: { metricName: 'eventCount' }, desc: true };
+// 同人誌のイベント（作品番号が d_ で始まる）。動画の集計からは除き、同人誌の集計ではこれだけを数える
+const isDoujinContent = { filter: { fieldName: 'customEvent:content_id', stringFilter: { matchType: 'BEGINS_WITH', value: 'd_' } } };
+const notDoujin = { notExpression: isDoujinContent };
+const doujinEvents = {
+  orGroup: {
+    expressions: [
+      { filter: { fieldName: 'eventName', inListFilter: { values: ['doujin_view', 'doujin_complete'] } } },
+      { andGroup: { expressions: [{ filter: { fieldName: 'eventName', stringFilter: { value: 'dmm_link_click' } } }, isDoujinContent] } },
+    ],
+  },
+};
 
 async function loadGa(range: (typeof RANGES)[RangeKey]) {
   const dateRanges = [{ startDate: range.startDate, endDate: range.endDate }];
@@ -131,20 +143,20 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
   const requests: ReportRequest[] = [
     // 0: 期間全体
     { dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }, { name: 'sessions' }, { name: 'userEngagementDuration' }] },
-    // 1: イベント別の人数・回数
-    { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: eventIn(funnelEvents) },
+    // 1: イベント別の人数・回数（動画のみ。同人誌の表示・クリックは除く）
+    { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: and(eventIn(funnelEvents), notDoujin) },
     // 2: 日別
     { dateRanges, dimensions: [{ name: 'date' }], metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], orderBys: [{ dimension: { dimensionName: 'date' } }] },
     // 3: 日別×イベント
-    { dateRanges, dimensions: [{ name: 'date' }, { name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: eventIn(funnelEvents), limit: 500 },
+    { dateRanges, dimensions: [{ name: 'date' }, { name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: and(eventIn(funnelEvents), notDoujin), limit: 500 },
     // 4: 何回目のスワイプまで進んだか
     { dateRanges, dimensions: [{ name: 'customEvent:swipe_index' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIs('swipe'), limit: 200 },
     // 5: スワイプで見つけたか / 最初の1本か
-    { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'customEvent:via' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIn(['video_view', 'dmm_link_click']) },
+    { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'customEvent:via' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: and(eventIn(['video_view', 'dmm_link_click']), notDoujin) },
     // 6: よく再生された作品
     { dateRanges, dimensions: [{ name: 'customEvent:video_title' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('video_view'), orderBys: [byMetricDesc], limit: 10 },
     // 7: よくクリックされた作品
-    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('dmm_link_click'), orderBys: [byMetricDesc], limit: 10 },
+    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }], metrics: [{ name: 'eventCount' }], dimensionFilter: and(eventIs('dmm_link_click'), notDoujin), orderBys: [byMetricDesc], limit: 10 },
     // 8: 流入元
     { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }], metrics: [{ name: 'sessions' }, { name: 'totalUsers' }], orderBys: [{ metric: { metricName: 'sessions' }, desc: true }], limit: 10 },
     // 9: 端末
@@ -200,7 +212,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       dateRanges,
       dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'eventName' }],
       metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
-      dimensionFilter: eventIn(['video_view', 'dmm_link_click']),
+      dimensionFilter: and(eventIn(['video_view', 'dmm_link_click']), notDoujin),
       limit: 100,
     },
     // 19: 作品ごとの再生・クリック（回数）。再生が多いのにクリックされない作品を見つける
@@ -208,9 +220,25 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
       dateRanges,
       dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }],
       metrics: [{ name: 'eventCount' }],
-      dimensionFilter: eventIn(['video_view', 'dmm_link_click']),
+      dimensionFilter: and(eventIn(['video_view', 'dmm_link_click']), notDoujin),
       orderBys: [byMetricDesc],
       limit: 300,
+    },
+    // 20〜24: 同人誌（アクセス解析の「同人誌」）
+    // 20: 表示・最後まで読んだ・FANZA へのクリック（回数・人数）
+    { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents },
+    // 21: 作品ごと
+    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: doujinEvents, orderBys: [byMetricDesc], limit: 500 },
+    // 22: 日別
+    { dateRanges, dimensions: [{ name: 'date' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents, limit: 300 },
+    // 23: どこで表示されたか（動画の間＝おすすめ / 同人誌メイン＝同人誌）
+    { dateRanges, dimensions: [{ name: 'customEvent:list_type' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIs('doujin_view') },
+    // 24: X の同人誌の投稿（utm_campaign=x_post_doujin）から来た人
+    {
+      dateRanges,
+      dimensions: [{ name: 'eventName' }],
+      metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
+      dimensionFilter: and(eventIn(['page_view', 'doujin_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post_doujin' } } }),
     },
   ];
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
@@ -353,9 +381,14 @@ const getRangeData = unstable_cache(
     const playedIds = (reports[19] ?? []).filter((r) => r.dimensions[1] === 'video_view').slice(0, 30).map((r) => r.dimensions[0]);
     const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds])].filter((id) => id && id !== '(not set)');
     const db = await loadDb(range, ids);
-    return { reports, db, weekday, warning };
+    // 同人誌の作品名・表紙（表示の多い上位30冊）
+    const doujinIds = [...new Set((reports[21] ?? []).filter((r) => r.dimensions[1] === 'doujin_view').map((r) => r.dimensions[0]))].slice(0, 30);
+    const doujinInfo = Object.fromEntries(
+      (await fetchDoujinByIds(doujinIds).catch(() => [])).map((d) => [d.contentId, { title: d.title, cover: d.cover }]),
+    );
+    return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v12'],
+  ['admin-analytics-v13'],
   { revalidate: 300 },
 );
 
