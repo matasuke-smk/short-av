@@ -1125,7 +1125,7 @@ export default function AnalyticsView({
         </p>
 
         {/* 動画｜同人誌 */}
-        <div className="mt-3 flex rounded-full bg-gray-800 p-1 max-w-xs">
+        <div className="mt-3 flex rounded-full bg-gray-800 p-1 max-w-xs mx-auto">
           {(['video', 'doujin'] as const).map((key) => (
             <button
               key={key}
