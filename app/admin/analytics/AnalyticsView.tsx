@@ -128,6 +128,9 @@ function Card({ label, value, unit, sub, onClick }: { label: string; value: stri
 // 割合（%）の数字だけ。カードでは単位を小さく付けるので、ほかのカードと同じく数字を大きく出せる
 const share = (part: number, whole: number) => (whole > 0 ? ((part / whole) * 100).toFixed(1) : '0');
 
+// 内訳の合計（割合の分母）。全体の人数を分母にすると、GA が別々に数えた人数のずれで 100% を超えることがあった
+const sumOf = (rows: ReportRow[]) => rows.reduce((sum, r) => sum + r.metrics[0], 0);
+
 const deviceLabel = (v: string) => ({ mobile: 'スマホ', desktop: 'PC', tablet: 'タブレット' } as Record<string, string>)[v] ?? v;
 
 // collapsible: 見出しを押すと開閉（最初は閉じている）。細かい一覧で画面が長くならないようにする
@@ -534,14 +537,14 @@ function RangeBody({
           />
           <Card
             label="どこから来たか（いちばん多い流入元）"
-            value={channels[0] ? share(channels[0].metrics[0], sessions) : '—'}
+            value={channels[0] ? share(channels[0].metrics[0], sumOf(channels)) : '—'}
             unit={channels[0] ? '%' : undefined}
             sub={channels[0] ? `${channelLabel(channels[0].dimensions[0]).split('（')[0]}・訪問 ${fmt(channels[0].metrics[0])}回` : 'まだデータがありません'}
             onClick={() => setDetail('channels')}
           />
           <Card
             label="端末（いちばん多い端末）"
-            value={devices[0] ? share(devices[0].metrics[0], users) : '—'}
+            value={devices[0] ? share(devices[0].metrics[0], sumOf(devices)) : '—'}
             unit={devices[0] ? '%' : undefined}
             sub={devices[0] ? `${deviceLabel(devices[0].dimensions[0])}・${fmt(devices[0].metrics[0])}人` : 'まだデータがありません'}
             onClick={() => setDetail('devices')}
@@ -636,7 +639,7 @@ function RangeBody({
         {detail === 'devices' && (
           <DetailModal title="端末" onClose={closeDetail}>
             {devices.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : devices.map((r) => (
-              <Bar key={r.dimensions[0]} label={deviceLabel(r.dimensions[0])} value={r.metrics[0]} max={devices[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], users)}）`} />
+              <Bar key={r.dimensions[0]} label={deviceLabel(r.dimensions[0])} value={r.metrics[0]} max={devices[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], sumOf(devices))}）`} />
             ))}
           </DetailModal>
         )}
