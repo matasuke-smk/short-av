@@ -1,6 +1,7 @@
 /**
  * X 投稿文まわりの共通処理（サーバー・管理画面の両方で使用）
  */
+import type { Doujin } from '@/lib/doujin-types';
 
 export const SITE_URL = 'https://short-av.com';
 export const X_MAX_WEIGHTED_LENGTH = 280;
@@ -83,4 +84,41 @@ export function countXWeightedLength(text: string): number {
     length += isLight ? 1 : 2;
   }
   return length;
+}
+
+const yenText = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
+
+// 見出し（「別の見出しにする」で順に切り替える）
+const DOUJIN_HEADINGS = [(n: number) => `【同人誌・${n}ページ試し読み】`, (n: number) => `【スワイプで${n}ページ読める同人誌】`, () => '【人気の同人誌】'];
+
+
+/**
+ * 同人誌の X 投稿文。リンクを開くと、その作品から始まる同人誌中心の画面（ときどき動画）になる（?mode=doujin&d=）
+ * 280 を超える場合はタイトルを切り詰める
+ */
+export function buildDoujinPostText(doujin: Doujin, headingIndex: number): string {
+  const url = getXPostDoujinUrl(doujin.contentId);
+  const onSale = doujin.price !== null && doujin.listPrice !== null && doujin.listPrice > doujin.price;
+  const price = doujin.price === null ? '' : onSale ? `セール中 ${yenText(doujin.price)}（通常 ${yenText(doujin.listPrice!)}）` : yenText(doujin.price);
+  const build = (title: string) =>
+    [
+      DOUJIN_HEADINGS[headingIndex % DOUJIN_HEADINGS.length](doujin.samples.length),
+      title,
+      doujin.circle ? `サークル: ${doujin.circle}` : '',
+      price,
+      '',
+      'スワイプで試し読みはこちら👇',
+      url,
+      '',
+      '#PR #FANZA同人',
+    ]
+      .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')
+      .join('\n');
+  let title = doujin.title;
+  let text = build(title);
+  while (countXWeightedLength(text) > X_MAX_WEIGHTED_LENGTH && title.length > 10) {
+    title = `${[...title].slice(0, -5).join('')}…`;
+    text = build(title);
+  }
+  return text;
 }

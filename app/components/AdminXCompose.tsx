@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { buildDoujinPostText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import type { Doujin } from '@/lib/doujin-types';
 
 /**
  * 管理者がサイトを見ながら、表示中の作品の X 投稿文を作るボタン
  * 管理画面にログインした端末（目印の cookie がある）にだけ表示する。投稿文の作成と記録の API は管理者の認証で保護している。
  */
-export default function AdminXCompose({ contentId }: { contentId?: string }) {
+// doujin: 表示中が同人誌のとき（投稿文はその場で作り、記録は同人誌用の API）
+export default function AdminXCompose({ contentId, doujin }: { contentId?: string; doujin?: Doujin }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
@@ -23,6 +25,12 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
 
   async function compose() {
     setOpen(true);
+    if (doujin) {
+      setText(buildDoujinPostText(doujin, 0));
+      setAlreadyPosted(false);
+      setStatus('');
+      return;
+    }
     setStatus('作成中...');
     setText('');
     const response = await fetch(`/api/admin/x-posts/compose?contentId=${encodeURIComponent(contentId!)}`);
@@ -52,7 +60,7 @@ export default function AdminXCompose({ contentId }: { contentId?: string }) {
 
   async function record() {
     setBusy(true);
-    const response = await fetch('/api/admin/x-posts/compose', {
+    const response = await fetch(doujin ? '/api/admin/x-posts/doujin' : '/api/admin/x-posts/compose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contentId, text }),
