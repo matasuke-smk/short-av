@@ -48,6 +48,7 @@ import {
   trackTutorialView,
   trackDoujinView,
   trackDoujinComplete,
+  trackModeSwitch,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
 
@@ -136,7 +137,7 @@ function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean,
   return same ? prev : out;
 }
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -160,8 +161,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌（サーバーで取得した一覧。管理画面の「同人テスト」から ?doujin_test=並べ方 で開いたときは、その並べ方の一覧に入れ替える）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList, setDoujinList] = useState<Doujin[]>(initialDoujinList);
+  // 「動画｜同人誌」: 動画メイン（動画5本ごとに同人誌1冊）か、同人誌メイン（同人誌3冊ごとに動画1本）か。上の切り替えで変える
+  const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
+  const doujinMode = mode === 'doujin';
+  // いま挟んでいる同人誌の並び（切り替えのたびに、まだ見ていない同人誌から始まるようずらす）
+  const [activeDoujin, setActiveDoujin] = useState<Doujin[]>(initialDoujinList);
   // 最初の表示から同人誌を挟んでおく（あとから挟むと、表示中の位置がずれるため）
-  const [videos, setVideos] = useState<Video[]>(() => interleaveDoujin(initialVideos, initialDoujinList, doujinMode, doujinBySlideRef.current));
+  const [videos, setVideos] = useState<Video[]>(() => interleaveDoujin(initialVideos, initialDoujinList, initialDoujinMode, doujinBySlideRef.current));
   // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
@@ -194,6 +200,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 上の余白・タイトル・下の帯の中身の高さを実際に測り、残りに収まらなければ ①動画のサムネイルを縮める（バナーは残す）②それでも小さすぎればバナーを出さない。
   // 同人誌は残りの高さいっぱいに出す。null = 通常どおり（CSS の計算のまま）
   const [fit, setFit] = useState<{ available: number; panelHeight: number; showBanner: boolean; thumbWidth: number | null } | null>(null);
+  // 同人誌のときの下の帯の高さ（価格ボタンなし）と、同人誌の表示の高さ（縦画面のスマホのみ。それ以外は null）
+  const [doujinFit, setDoujinFit] = useState<{ panelHeight: number; height: number } | null>(null);
+  const priceRowRef = useRef<HTMLDivElement>(null);
   const [modalKey, setModalKey] = useState(0);
 
   // プール管理
@@ -314,16 +323,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     const panel = bottomPanelRef.current;
     const content = panel?.firstElementChild as HTMLElement | null;
     if (!panel || !content) return;
-    const TOP = 24 + 64; // 上の余白（pt-6）+ タイトル（h-16）
+    const TOP = 24 + 44; // PR の帯（1.5rem）＋「動画｜同人誌」の切り替え（2.75rem）
+    const PRICE_ROW = 48 + 12; // 価格ボタンの行（h-12 + mb-3）
     const update = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
       if (isLandscape || w >= 768) {
         setFit(null);
+        setDoujinFit(null);
         return;
       }
       const style = window.getComputedStyle(panel);
-      const panelHeight = content.offsetHeight + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+      // 価格ボタンの行を除いた中身（メニューなど）の高さ。同人誌のときは価格ボタンの行を出さない
+      const menu = content.offsetHeight - (priceRowRef.current ? priceRowRef.current.offsetHeight + 12 : 0);
+      const panelHeight = menu + PRICE_ROW + padding;
+      setDoujinFit({ panelHeight: Math.ceil(menu + padding), height: Math.max(160, Math.floor(h - TOP - menu - padding)) });
       const available = h - TOP - panelHeight;
       if (available >= w * (0.75 + 0.3125)) {
         setFit(null);
@@ -357,14 +372,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     if (!doujinOrder || !document.cookie.split('; ').includes('sav_admin_ui=1')) return;
     fetch(`/api/admin/doujin-test?order=${encodeURIComponent(doujinOrder)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.doujin?.length && setDoujinList(d.doujin))
+      .then((d) => {
+        if (!d?.doujin?.length) return;
+        setDoujinList(d.doujin);
+        setActiveDoujin(d.doujin);
+      })
       .catch(() => {});
   }, [doujinOrder]);
   // 補充で動画が増えたとき・一覧が入れ替わったときに同人誌を挟み直す（検索などの有限の一覧には挟まない）
   useEffect(() => {
-    if (doujinList.length === 0 || isFiniteList) return;
-    setVideos((prev) => interleaveDoujin(prev, doujinList, doujinMode, doujinBySlideRef.current));
-  }, [doujinList, videos.length, isFiniteList, doujinMode]);
+    if (activeDoujin.length === 0 || isFiniteList) return;
+    setVideos((prev) => interleaveDoujin(prev, activeDoujin, doujinMode, doujinBySlideRef.current));
+  }, [activeDoujin, videos.length, isFiniteList, doujinMode]);
 
   // 履歴に追加する関数（lib/view-history.ts。運営者の端末ではサーバーにも保存して端末間で共有する）
   const addToHistory = useCallback((videoId: string) => saveToHistory(videoId), []);
@@ -704,6 +723,53 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setTouchStart(null);
   }, [touchStart, closeModal]);
 
+  // 「動画｜同人誌」を切り替える。表示中の位置から先の動画を、選んだほうの並べ方で並べ直して先頭から見せる
+  // （同人誌は、これまでに挟んだぶんだけずらして、まだ見ていないものから）。URL の mode も書き換える（再読み込みしても同じほう）
+  const doujinOffsetRef = useRef(0);
+  const switchMode = useCallback((next: 'video' | 'doujin') => {
+    if (next === mode) return;
+    trackModeSwitch(next);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('d');
+    url.searchParams.delete('v');
+    if (next === 'doujin') url.searchParams.set('mode', 'doujin');
+    else url.searchParams.delete('mode');
+    // 検索などの一覧を見ているときは、通常の画面を読み直す
+    if (isFiniteList) {
+      window.location.href = url.toString();
+      return;
+    }
+    window.history.replaceState(window.history.state, '', url.toString());
+    const realBefore = videos.slice(0, currentIndex).filter((v) => !isDoujinSlide(v)).length;
+    const real = videos.filter((v) => !isDoujinSlide(v)).slice(realBefore);
+    doujinOffsetRef.current += videos.slice(0, currentIndex + 1).filter((v) => isDoujinSlide(v)).length;
+    const offset = doujinList.length > 0 ? doujinOffsetRef.current % doujinList.length : 0;
+    const rotated = [...doujinList.slice(offset), ...doujinList.slice(0, offset)];
+    const nextVideos = interleaveDoujin(real.length > 0 ? real : videos.filter((v) => !isDoujinSlide(v)), rotated, next === 'doujin', doujinBySlideRef.current);
+    setActiveDoujin(rotated);
+    setMode(next);
+    pendingScrollRef.current = 0;
+    setVideos(nextVideos);
+    setCurrentIndex(0);
+  }, [mode, isFiniteList, videos, currentIndex, doujinList]);
+
+  const modeToggle = (
+    <div className="flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label="動画と同人誌の切り替え">
+      {(['video', 'doujin'] as const).map((key) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={mode === key}
+          onClick={() => switchMode(key)}
+          className={`rounded-full px-5 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+        >
+          {key === 'video' ? '動画' : '同人誌'}
+        </button>
+      ))}
+    </div>
+  );
+
   if (!videos || videos.length === 0) {
     return <div className="text-center py-12">動画がありません</div>;
   }
@@ -726,12 +792,26 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         )}
       </div>
 
+      {/* 「動画｜同人誌」の切り替えと記事のボタン（縦画面のみ。PR の帯のすぐ下） */}
+      <div className="landscape:hidden lg:hidden fixed left-0 right-0 z-40 top-[calc(max(env(safe-area-inset-top),0px)+1.5rem)] h-11 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        {modeToggle}
+        <Link
+          href="/articles"
+          className="absolute right-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-lg p-1.5 shadow-lg active:scale-95"
+          aria-label="記事を読む"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </Link>
+      </div>
+
       {/* 縦スクロールエリア */}
       <div className="flex-1 relative">
         {/* スワイプは embla が行う。ブラウザ自身の縦スクロールが始まると、スクロールしきるまでスワイプできなくなるため、
             枠はスクロールさせず（overflow-hidden・touch-action）、フォーカス移動などでずれた場合もすぐ戻す */}
         <div
-          className="overflow-hidden h-full scrollbar-hide pt-6 landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
+          className="overflow-hidden h-full scrollbar-hide pt-[4.25rem] landscape:pt-0 lg:pt-0 [touch-action:pan-x_pinch-zoom]"
           ref={emblaRef}
           onScroll={(e) => {
             if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
@@ -747,11 +827,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
                   // 同人テスト: 動画のサムネイル・広告の枠の位置に、左右スワイプで読める同人誌を置く（下の価格・ボタンは動画と同じ帯）
                   <div className="flex h-full flex-col landscape:flex-row lg:flex-row">
-                    <div className="h-16 w-full flex-shrink-0 px-4 flex items-center md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
-                      <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">{video.title}</h2>
-                    </div>
                     <div
-                      style={fit ? { height: fit.available } : undefined}
+                      style={doujinFit ? { height: doujinFit.height } : undefined}
                       className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
                       <DoujinReader
                         doujin={doujinBySlideRef.current.get(video.id)!}
@@ -768,23 +845,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
                   <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
-                    {/* タイトル - 高さ固定（2行分）縦画面のみ表示 */}
-                    <div className="h-16 w-full px-4 flex items-center justify-between gap-2 md:max-w-4xl md:mx-auto landscape:hidden lg:hidden">
-                      <h2 className="text-white text-sm md:text-base font-bold line-clamp-2 overflow-hidden flex-1">
-                        {video.title}
-                      </h2>
-                      {/* 記事メニューアイコン */}
-                      <Link
-                        href="/articles"
-                        className="bg-blue-600/90 hover:bg-blue-500 text-white transition-all flex-shrink-0 rounded-lg p-2 shadow-lg active:scale-95"
-                        aria-label="記事を読む"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                      </Link>
-                    </div>
-
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
                       className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-2rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
@@ -928,6 +988,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
+        {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
+        <div className="flex-shrink-0">{modeToggle}</div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
         <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
@@ -1133,11 +1195,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </div>
 
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
-      <div ref={bottomPanelRef} style={fit ? { height: fit.panelHeight } : undefined} className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-1.5rem-75vw-31.25vw-4rem)] md:h-auto flex flex-col justify-end">
+      <div
+        ref={bottomPanelRef}
+        style={doujinFit && isDoujinSlide(currentVideo) ? { height: doujinFit.panelHeight } : fit ? { height: fit.panelHeight } : undefined}
+        className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-4.25rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
-          <div className="mb-3 md:mb-4 h-12 flex items-stretch gap-3">
+          {!isDoujinSlide(currentVideo) && (
+          <div ref={priceRowRef} className="mb-3 md:mb-4 h-12 flex items-stretch gap-3">
             {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
               <button
                 onClick={() => {
@@ -1166,6 +1232,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </a>
             )}
           </div>
+          )}
 
           {/* ボタンエリア - 5つに変更、レスポンシブ対応 */}
           <div className="grid grid-cols-5 gap-3 md:gap-4">
@@ -1456,7 +1523,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       )}
 
       {/* 管理者用: 表示中の作品の X 投稿文を作る（管理画面にログインした端末だけに表示） */}
-      <AdminXCompose contentId={currentVideo?.dmm_content_id} />
+      <AdminXCompose contentId={isDoujinSlide(currentVideo) ? undefined : currentVideo?.dmm_content_id} />
 
       {/* 検索モーダル */}
       <SearchModal
