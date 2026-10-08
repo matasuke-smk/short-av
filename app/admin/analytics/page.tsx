@@ -184,13 +184,23 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     // 5: すべてのイベントの回数・人数（GA が自動で送るものを含む）
     { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], orderBys: [byMetricDesc], limit: 50 },
   ];
+  // 年齢確認（はい / いいえ）・いいねの操作（いいね / いいね解除）の内訳。カスタム定義「年齢確認の回答」（action）は
+  // 2026/10/8 に登録したばかりで、反映前はエラーになることがあるため、さらに別に取得して失敗しても他は表示する
+  const answerRequests: ReportRequest[] = [
+    {
+      dateRanges,
+      dimensions: [{ name: 'eventName' }, { name: 'customEvent:action' }],
+      metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
+      dimensionFilter: eventIn(['age_verification', 'like_action']),
+    },
+  ];
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
   // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
   const days = jstDays(range);
   const affectedDays = [...days].filter((day) => day <= LAST_AFFECTED_DAY);
   if (affectedDays.length > 0) {
     const { dateRanges: wideRanges, filter } = jstDaysFilter([...days]);
-    for (const request of [...requests, ...extraRequests]) {
+    for (const request of [...requests, ...extraRequests, ...answerRequests]) {
       request.dateRanges = wideRanges;
       request.dimensionFilter = and(request.dimensionFilter, filter);
     }
@@ -203,7 +213,11 @@ async function loadGa(range: (typeof RANGES)[RangeKey]) {
     warning = `一部の集計（イベント別・画面と検索・よく見られたページ）を取得できませんでした: ${error instanceof Error ? error.message : String(error)}`;
     return extraRequests.map(() => [] as ReportRow[]);
   });
-  const reports = [...(await runReports(requests)), ...extraReports];
+  const answerReports = await runReports(answerRequests).catch((error) => {
+    console.error('[analytics] 年齢確認・いいねの内訳を取得できませんでした:', error);
+    return answerRequests.map(() => [] as ReportRow[]);
+  });
+  const reports = [...(await runReports(requests)), ...extraReports, ...answerReports];
 
   // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
   if (affectedDays.length > 0) {
@@ -319,7 +333,7 @@ const getRangeData = unstable_cache(
     const db = await loadDb(range, topClicked.map((r) => r.dimensions[0]).filter((id) => id && id !== '(not set)'));
     return { reports, db, weekday, warning };
   },
-  ['admin-analytics-v10'],
+  ['admin-analytics-v11'],
   { revalidate: 300 },
 );
 
