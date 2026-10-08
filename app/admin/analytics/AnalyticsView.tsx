@@ -195,9 +195,9 @@ function HourlyChart({
   days,
   axis,
   totalLabel = '合計',
-  compareHours,
+  compareTotals,
 }: {
-  compareHours?: HourlyPoint[]; // 「今日」のとき、同じ時間帯の昨日の数字（枠に並べて出す）
+  compareTotals?: YesterdaySoFar | null; // 「今日」のとき、合計の下に出す昨日の同じ時刻までの数字
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
@@ -213,20 +213,22 @@ function HourlyChart({
   const linePoints = perDay.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
   if (perDay.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
   const shown = active === null ? null : perDay[active];
-  const peak = perDay.reduce((a, b) => (b.users > a.users ? b : a));
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-sm text-gray-300 min-w-0 truncate">
-          いちばん多い時間帯: {peak.h}時台（{days > 1 ? '平均 ' : ''}{fmt1(peak.users)}人）
-        </p>
-        <p className="flex-shrink-0 text-sm text-gray-400">
+      <div className="text-right">
+        <p className="text-sm text-gray-400">
           {totalLabel} <span className="text-lg font-bold text-white">{fmt(total)}</span>人
           <span className="ml-2">
             <span className="text-lg font-bold text-amber-300">{fmt(totalEvents || hours.reduce((sum, x) => sum + x.events, 0))}</span>件
           </span>
         </p>
+        {compareTotals && (
+          <p className="text-xs text-gray-400">
+            昨日の{compareTotals.until}まで <span className="font-bold text-gray-200">{fmt(compareTotals.users)}</span>人
+            <span className="ml-1.5 font-bold text-amber-200/80">{fmt(compareTotals.events)}</span>件
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />{days > 1 ? '利用者（1日平均・左の目盛り）' : '利用者（左の目盛り）'}</span>
@@ -270,11 +272,6 @@ function HourlyChart({
               <span className="text-gray-300">表示回数</span> {fmt1(shown.views)}回
               {shown.fromLive && <span className="text-gray-500">（集計待ち）</span>}
             </p>
-            {compareHours?.[shown.h] && (
-              <p className="mt-0.5 pt-0.5 border-t border-gray-700 text-gray-400">
-                昨日 {fmt1(compareHours[shown.h].users)}人・{fmt1(compareHours[shown.h].events)}件・{fmt1(compareHours[shown.h].views)}回
-              </p>
-            )}
           </div>
         )}
         <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
@@ -407,7 +404,7 @@ function RangeBody({
   hourlyAxis,
   compare,
 }: {
-  compare: { soFar: YesterdaySoFar | null; hours: HourlyPoint[] } | null; // 「今日」のとき、昨日の同じ時刻までの数字
+  compare: { soFar: YesterdaySoFar | null } | null; // 「今日」のとき、昨日の同じ時刻までの数字
   live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」「一昨日」のみ）
   hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（すべての期間で共通）
   rangeKey: RangeKey;
@@ -447,8 +444,8 @@ function RangeBody({
 
   return (
     <>
-        <Section title="時間帯ごとの利用者" note={`${RANGE_DAYS[rangeKey] === 1 ? 'その日の1時間ごとの利用者数' : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}（日本時間）。縦軸はすべての期間で共通`}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareHours={compare?.hours} />
+        <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
+          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} />
         </Section>
         {compare?.soFar && (
           <CompareSoFar
@@ -790,15 +787,8 @@ export default function AnalyticsView({
     </button>
   );
   const current = viewKey === 'weekday' ? null : data[viewKey];
-  // 「今日」は昨日の同じ時刻までと比べる（時間帯ごとの昨日の数字も、リアルタイムの記録で補う）
-  const yesterday = data.yesterday;
-  const compare =
-    viewKey === 'today'
-      ? {
-          soFar: yesterdaySoFar,
-          hours: 'reports' in yesterday ? withLive(yesterday.reports[10] ?? [], live.yesterday, 0, 0).hours : [],
-        }
-      : null;
+  // 「今日」は昨日の同じ時刻までと比べる
+  const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
   return (
     <main className="min-h-screen bg-gray-900 text-white p-3 md:p-6">
