@@ -713,33 +713,49 @@ function ViaTable({ viaCount }: { viaCount: (event: string, value: string) => nu
 }
 
 // カードを押したときの全画面の詳細。下から出てきて、下の「閉じる」・Esc・いちばん上で下に引き下げると下へ消える。
-// 開いている間は後ろの画面をスクロールさせない。ホーム画面に追加したアプリでは上下の安全領域（時計・ホームバー）を空ける
+// 開いている間は後ろの画面をスクロールさせない。スマホは全画面、PC は画面中央の枠で、外側（暗くした部分）を押しても閉じる。
+// ホーム画面に追加したアプリでは上下の安全領域（時計・ホームバー）を空ける
 const DISMISS_DISTANCE = 100; // これ以上引き下げて離すと閉じる（px）
 const SLIDE_MS = 220;
 
 function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const panel = panelRef.current;
     const scroller = scrollRef.current;
-    if (!panel || !scroller) return;
+    const backdrop = backdropRef.current;
+    if (!panel || !scroller || !backdrop) return;
     const moveTo = (y: number | string, animate: boolean) => {
       panel.style.transition = animate ? `transform ${SLIDE_MS}ms ease-out` : 'none';
       panel.style.transform = `translateY(${typeof y === 'number' ? `${y}px` : y})`;
+    };
+    const fade = (opacity: number) => {
+      backdrop.style.transition = `opacity ${SLIDE_MS}ms ease-out`;
+      backdrop.style.opacity = String(opacity);
     };
     let closing = false;
     const dismiss = () => {
       if (closing) return;
       closing = true;
-      moveTo('100%', true);
+      moveTo('100vh', true);
+      fade(0);
       window.setTimeout(onClose, SLIDE_MS);
     };
     // 下から出す（位置を確定させてから動かす。requestAnimationFrame は裏のタブで止まるので使わない）
-    moveTo('100%', false);
+    moveTo('100vh', false);
     panel.getBoundingClientRect();
     moveTo(0, true);
+    fade(1);
+    const onBackdrop = () => dismiss();
+    // 外側をなぞっても後ろの画面が動かないようにする（iPhone は overflow: hidden だけでは止まらない）
+    const onBackdropMove = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+    backdrop.addEventListener('click', onBackdrop);
+    backdrop.addEventListener('touchmove', onBackdropMove, { passive: false });
 
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -786,6 +802,8 @@ function DetailModal({ title, note, onClose, children }: { title: string; note?:
       document.body.style.overflow = previous;
       window.removeEventListener('keydown', onKey);
       panel.removeEventListener('sav:close', onCloseButton);
+      backdrop.removeEventListener('click', onBackdrop);
+      backdrop.removeEventListener('touchmove', onBackdropMove);
       panel.removeEventListener('touchstart', onStart);
       panel.removeEventListener('touchmove', onMove);
       panel.removeEventListener('touchend', onEnd);
@@ -794,34 +812,35 @@ function DetailModal({ title, note, onClose, children }: { title: string; note?:
   }, [onClose]);
 
   return (
-    <div
-      ref={panelRef}
-      data-no-pull-refresh
-      className="fixed inset-0 z-[60] bg-gray-900 flex flex-col"
-      style={{ transform: 'translateY(100%)' }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div className="flex-shrink-0 border-b border-gray-700 px-3 md:px-6 pb-2.5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}>
-        {/* 引き下げられることの目印 */}
-        <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-600" aria-hidden />
-        <h2 className="max-w-3xl mx-auto text-lg font-bold truncate">{title}</h2>
-      </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-3 md:p-6">
-        <div className="max-w-3xl mx-auto">
+    <div data-no-pull-refresh className="fixed inset-0 z-[60] flex items-stretch md:items-center justify-center md:p-6">
+      {/* 外側（暗くした部分）。押すと閉じる */}
+      <div ref={backdropRef} className="absolute inset-0 bg-black/60" style={{ opacity: 0 }} aria-hidden />
+      <div
+        ref={panelRef}
+        className="relative flex flex-col w-full h-full md:h-auto md:max-w-3xl md:max-h-[85dvh] bg-gray-900 md:rounded-2xl md:border border-gray-700 md:shadow-2xl"
+        style={{ transform: 'translateY(100vh)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div className="flex-shrink-0 border-b border-gray-700 px-4 md:px-6 pb-2.5" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}>
+          {/* 引き下げられることの目印 */}
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-gray-600" aria-hidden />
+          <h2 className="text-lg font-bold truncate">{title}</h2>
+        </div>
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 md:p-6">
           {note && <p className="text-xs text-gray-400 mb-4">{note}</p>}
           {children}
         </div>
-      </div>
-      <div className="flex-shrink-0 border-t border-gray-700 px-3 md:px-6 pt-2.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.625rem)' }}>
-        <button
-          type="button"
-          onClick={() => panelRef.current?.dispatchEvent(new Event('sav:close'))}
-          className="block w-full max-w-3xl mx-auto py-3 rounded-lg bg-gray-800 hover:bg-gray-700 active:bg-gray-700 font-bold"
-        >
-          閉じる
-        </button>
+        <div className="flex-shrink-0 border-t border-gray-700 px-4 md:px-6 pt-2.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.625rem)' }}>
+          <button
+            type="button"
+            onClick={() => panelRef.current?.dispatchEvent(new Event('sav:close'))}
+            className="block w-full py-3 rounded-lg bg-gray-800 hover:bg-gray-700 active:bg-gray-700 font-bold"
+          >
+            閉じる
+          </button>
+        </div>
       </div>
     </div>
   );
