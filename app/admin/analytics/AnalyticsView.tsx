@@ -1262,13 +1262,14 @@ export default function AnalyticsView({
   };
   // 開いている間は、もう一方（日本のみ⇔すべて）の集計を2分おきに裏で取得しておく。
   // サーバーの取得結果の使い回しは「今日」が5分で切れるため、しばらく置いてから切り替えると取り直しで待たされていた
-  // （裏で開いたページは表示後にこちら側も取得するので、両方とも新しい状態に保たれる）
+  // （?warm=1 は GA の集計を取得するだけで、データベースは使わない）
   useEffect(() => {
     const warm = () => {
       if (document.visibilityState !== 'visible') return;
       const url = new URL(window.location.href);
       if (country === 'jp') url.searchParams.set('country', 'all');
       else url.searchParams.delete('country');
+      url.searchParams.set('warm', '1');
       fetch(url.pathname + url.search, { cache: 'no-store' }).catch(() => {});
     };
     const timer = window.setInterval(warm, 2 * 60_000);
