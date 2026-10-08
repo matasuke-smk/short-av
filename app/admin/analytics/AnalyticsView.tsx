@@ -103,11 +103,15 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 
 // onClick があるカードは押すと詳細（全画面）を開く。右上の「›」が目印
 // どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
-function Card({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
+// unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
+function Card({ label, value, unit, sub, onClick }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void }) {
   const content = (
     <>
       <div className="text-xs leading-snug text-gray-300 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
-      <div className="text-2xl leading-tight font-bold mt-1 truncate">{value}</div>
+      <div className="text-2xl leading-tight font-bold mt-1 truncate">
+        {value}
+        {unit && <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>}
+      </div>
       <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
     </>
   );
@@ -441,7 +445,7 @@ function RangeBody({
   // 全画面で開いている詳細（カードの種類）
   const [detail, setDetail] = useState<string | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
-  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = []] = reports;
+  const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = [], answers = []] = reports;
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
@@ -486,32 +490,41 @@ function RangeBody({
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
-          <Card label="利用者数" value={fmt(users)} sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
-          <Card label="イベント数（合計）" value={fmt(totalEvents)} sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
-          <Card label="ページ表示" value={fmt(eventCount('page_view'))} sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} onClick={() => setDetail('pages')} />
+          <Card label="利用者数" value={fmt(users)} unit="人" sub={`うち新規 ${fmt(newUsers)}人・訪問 ${fmt(sessions)}回`} onClick={() => setDetail('daily')} />
+          <Card label="イベント数（合計）" value={fmt(totalEvents)} unit="件" sub={`1人あたり ${users > 0 ? (totalEvents / users).toFixed(1) : '0'}件`} onClick={() => setDetail('events')} />
+          <Card label="ページ表示" value={fmt(eventCount('page_view'))} unit="回" sub={`1人あたり ${users > 0 ? (eventCount('page_view') / users).toFixed(1) : '0'}回`} onClick={() => setDetail('pages')} />
           <Card
             label="流れ（どこで離脱しているか）"
             value={pct(eventUsers('dmm_link_click'), eventUsers('page_view'))}
             sub="訪問した人のうち FANZA へのクリックまで進んだ割合"
             onClick={() => setDetail('funnel')}
           />
-          <Card label="年齢確認に回答" value={fmt(eventCount('age_verification'))} sub={`${fmt(eventUsers('age_verification'))}人`} />
+          <Card
+            label="年齢確認に回答した人"
+            value={fmt(eventUsers('age_verification'))}
+            unit="人"
+            sub={`回答 ${fmt(eventCount('age_verification'))}回（同じ人が2回以上答えた分を含む）`}
+            onClick={() => setDetail('age')}
+          />
           <Card label="1人あたりの滞在時間" value={seconds(users > 0 ? engagement / users : 0)} sub={`訪問回数 ${fmt(sessions)}`} />
           <Card
             label="1人あたりのスワイプ数"
             value={swipeUsers > 0 ? (swipes / users).toFixed(1) : '0'}
+            unit="回"
             sub={`合計 ${fmt(swipes)}回・${fmt(swipeUsers)}人`}
             onClick={() => setDetail('swipe')}
           />
           <Card
             label="サンプル動画の再生"
             value={fmt(eventCount('video_view'))}
+            unit="回"
             sub={`${fmt(eventUsers('video_view'))}人が再生・1人 ${eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'}本`}
             onClick={() => setDetail('played')}
           />
           <Card
             label="FANZA へのクリック"
             value={fmt(eventCount('dmm_link_click'))}
+            unit="回"
             sub={`再生した人の ${pct(eventUsers('dmm_link_click'), eventUsers('video_view'))} がクリック`}
             onClick={() => setDetail('clicked')}
           />
@@ -527,15 +540,15 @@ function RangeBody({
             sub="いちばん多い端末の割合"
             onClick={() => setDetail('devices')}
           />
-          <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
-          <Card label="いま見られているページ" value={realtimeViews === null ? '—' : `${fmt(realtimeViews)}回`} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
-          <Card label="いいね（運営者を除く）" value={fmt(db.likes)} sub={
+          <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
+          <Card label="いま見られているページ" value={realtimeViews === null ? '—' : fmt(realtimeViews)} unit={realtimeViews === null ? undefined : '回'} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
+          <Card label="いいね（運営者を除く）" value={fmt(db.likes)} unit="件" sub={
               db.adminError
                 ? `運営者の端末を読めませんでした: ${db.adminError}`
                 : `運営者のいいね ${fmt(db.adminLikes ?? 0)}件（登録端末 ${fmt(db.adminDevices ?? 0)}台）`
             } />
-          <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} sub="いいね・取り消しの合計" />
-          <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} sub="サイトのデータベース" />
+          <Card label="いいねの操作（GA）" value={fmt(anyEventCount('like_action'))} unit="回" sub="いいね・取り消しの合計" onClick={() => setDetail('like')} />
+          <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} unit="件" sub="サイトのデータベース" />
         </div>
 
         {detail === 'daily' && (
@@ -624,9 +637,9 @@ function RangeBody({
         {detail === 'screens' && (
           <DetailModal title="画面と検索" note="開いた画面の種類と、検索の使われ方（2026/10/6 以降のみ）" onClose={closeDetail}>
             <div className="grid grid-cols-3 gap-2 mb-5">
-              <Card label="検索画面を開いた" value={`${fmt(searchOpens[0])}回`} sub={`${fmt(searchOpens[1])}人`} />
-              <Card label="検索を実行した" value={`${fmt(searches)}回`} sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
-              <Card label="結果が0件だった検索" value={`${fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))}回`} />
+              <Card label="検索画面を開いた" value={fmt(searchOpens[0])} unit="回" sub={`${fmt(searchOpens[1])}人`} />
+              <Card label="検索を実行した" value={fmt(searches)} unit="回" sub={`開いた回数の ${pct(searches, searchOpens[0])}`} />
+              <Card label="結果が0件だった検索" value={fmt(zeroResults.reduce((s, r) => s + r.metrics[0], 0))} unit="回" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
@@ -660,12 +673,47 @@ function RangeBody({
             </div>
           </DetailModal>
         )}
+        {(detail === 'age' || detail === 'like') && (
+          <AnswerDetail
+            event={detail === 'age' ? 'age_verification' : 'like_action'}
+            title={detail === 'age' ? '年齢確認の回答' : 'いいねの操作'}
+            rows={answers}
+            onClose={closeDetail}
+          />
+        )}
         {detail === 'realtime' && (
           <DetailModal title="いま見られているページ（直近30分）" onClose={closeDetail}>
             {realtime}
           </DetailModal>
         )}
     </>
+  );
+}
+
+// 年齢確認（はい / いいえ）・いいねの操作（いいね / いいね解除）の内訳
+function AnswerDetail({ event, title, rows, onClose }: { event: string; title: string; rows: ReportRow[]; onClose: () => void }) {
+  const mine = rows.filter((r) => r.dimensions[0] === event).sort((a, b) => b.metrics[0] - a.metrics[0]);
+  const max = Math.max(...mine.map((r) => r.metrics[0]), 1);
+  return (
+    <DetailModal
+      title={title}
+      note="回数（人数）。「記録なし」は、GA に項目を登録した 2026/10/8 より前の回答や、登録の反映前の回答です。"
+      onClose={onClose}
+    >
+      {mine.length === 0 ? (
+        <p className="text-sm text-gray-400">まだデータがありません（GA に項目を登録したばかりの場合、反映まで時間がかかります）。</p>
+      ) : (
+        mine.map((r) => (
+          <Bar
+            key={r.dimensions[1]}
+            label={r.dimensions[1] === '(not set)' || r.dimensions[1] === '' ? '記録なし' : r.dimensions[1]}
+            value={r.metrics[0]}
+            max={max}
+            right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人）`}
+          />
+        ))
+      )}
+    </DetailModal>
   );
 }
 
