@@ -79,7 +79,7 @@ async function loadDoujin(doujinId?: string): Promise<Doujin[]> {
   }
 }
 
-async function VideoList({ targetId, doujinId }: { targetId?: string; doujinId?: string }) {
+async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?: string; doujinId?: string; doujinMode?: boolean }) {
   const doujinPromise = loadDoujin(doujinId);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   const poolSize = 200; // プールサイズ
@@ -204,7 +204,7 @@ async function VideoList({ targetId, doujinId }: { targetId?: string; doujinId?:
         videoPool={videoPool}
         linkNotice={linkNotice}
         doujinList={await doujinPromise}
-        doujinMode={!!doujinId}
+        doujinMode={doujinMode}
       />
     </>
   );
@@ -218,12 +218,13 @@ export default async function Home({
   const { v, mode, d } = await searchParams;
   const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
   // ?mode=doujin&d=作品番号: 同人誌中心の画面（X の同人誌の投稿から。その回だけ）
-  const doujinId = mode === 'doujin' && typeof d === 'string' && DOUJIN_ID_PATTERN.test(d) ? d : undefined;
+  const doujinMode = mode === 'doujin';
+  const doujinId = doujinMode && typeof d === 'string' && DOUJIN_ID_PATTERN.test(d) ? d : undefined;
 
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} doujinId={doujinId} />
+        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} />
       </Suspense>
     </>
   );

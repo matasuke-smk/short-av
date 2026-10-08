@@ -136,6 +136,11 @@ export const trackDoujinComplete = (contentId: string, pages: number) => {
   sendGAEvent('doujin_complete', { content_id: contentId, pages });
 };
 
+// 「動画｜同人誌」の切り替え
+export const trackModeSwitch = (mode: 'video' | 'doujin') => {
+  sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : '動画' });
+};
+
 // モーダル開閉イベント
 export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_open', {
