@@ -117,30 +117,30 @@ async function gaFetch(url: string, body: unknown, token: string): Promise<{ ok:
   }
 }
 
-/** 複数のレポートをまとめて取得する（1回のリクエストで最大5件） */
+/** 複数のレポートをまとめて取得する（1回のリクエストで最大5件）。5件ずつの組は同時に送る（同時に送る数は withSlot で4つまで） */
 export async function runReports(requests: ReportRequest[]): Promise<ReportRow[][]> {
   const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
   const token = await getAccessToken();
-  const results: ReportRow[][] = [];
+  const batches: ReportRequest[][] = [];
+  for (let i = 0; i < requests.length; i += 5) batches.push(requests.slice(i, i + 5));
 
-  for (let i = 0; i < requests.length; i += 5) {
-    const { ok, status, data } = await gaFetch(
-      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:batchRunReports`,
-      { requests: requests.slice(i, i + 5) },
-      token,
-    );
-    if (!ok) throw new Error(`GA のレポート取得に失敗: ${data.error?.message ?? status}`);
-
-    for (const report of data.reports ?? []) {
-      results.push(
-        (report.rows ?? []).map((row: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }) => ({
+  const responses = await Promise.all(
+    batches.map(async (batch) => {
+      const { ok, status, data } = await gaFetch(
+        `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:batchRunReports`,
+        { requests: batch },
+        token,
+      );
+      if (!ok) throw new Error(`GA のレポート取得に失敗: ${data.error?.message ?? status}`);
+      return (data.reports ?? []).map((report: { rows?: { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] }[] }) =>
+        (report.rows ?? []).map((row) => ({
           dimensions: (row.dimensionValues ?? []).map((v) => v.value),
           metrics: (row.metricValues ?? []).map((v) => Number(v.value)),
         })),
-      );
-    }
-  }
-  return results;
+      ) as ReportRow[][];
+    }),
+  );
+  return responses.flat();
 }
 
 /** リアルタイムレポート（直近30分）。dateRanges は指定しない */
