@@ -169,7 +169,7 @@ function ExtraRow({ name, right }: { name: string; right: string }) {
 }
 
 // 「ブラウザで開く」案内の記録の種類（0回のものも並べるため、表示する順に固定で持つ）
-const INAPP_ACTIONS = ['表示', 'ブラウザで開き直した', 'このまま開く', '閉じる', 'Android 自動で切り替え', 'Android 切り替えできず'] as const;
+const INAPP_ACTIONS = ['表示', 'ブラウザで開き直した', 'このまま開く', '閉じる', 'Android 切り替えを試した', 'Android 自動で切り替え', 'Android 切り替えできず'] as const;
 
 // 割合（%）の数字だけ。カードでは単位を小さく付けるので、ほかのカードと同じく数字を大きく出せる
 const share = (part: number, whole: number) => (whole > 0 ? ((part / whole) * 100).toFixed(1) : '0');
@@ -550,13 +550,18 @@ function RangeBody({
   const android = osTotal('Android');
   // 実質的な見込み客: 普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。アプリ内ブラウザ（X など）で開くと、
   // あとで普段のブラウザで買っても報酬にならないため除く。Android で intent:// により普段のブラウザへ自動で切り替わった人は
-  // GA ではアプリ内（Android Webview）のクリックとして記録されるので、「Android 自動で切り替え」の分を足す
+  // GA ではアプリ内（Android Webview）のクリックとして記録されるので、自動で切り替わった分を足す。
+  // 切り替わると「自動で切り替え」の記録は届かないことがあるため、「試した − できず」と比べて多いほうを使う（「試した」は 10/9 夕方から）
   const IN_APP_BROWSERS = ['Safari (in-app)', 'Android Webview'];
   const browserRows = osRows.filter((r) => !IN_APP_BROWSERS.includes(r.browser) && r.clicks > 0);
-  const intentOk = answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === 'Android 自動で切り替え')?.metrics ?? [0, 0];
+  const noticeMetrics = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics ?? [0, 0];
+  const intentOk = noticeMetrics('Android 自動で切り替え');
+  const intentTry = noticeMetrics('Android 切り替えを試した');
+  const intentFailed = noticeMetrics('Android 切り替えできず');
+  const intentSwitched = [0, 1].map((i) => Math.max(intentOk[i], intentTry[i] - intentFailed[i]));
   const prospects = {
-    clicks: browserRows.reduce((sum, r) => sum + r.clicks, 0) + intentOk[0],
-    users: browserRows.reduce((sum, r) => sum + r.clickUsers, 0) + intentOk[1],
+    clicks: browserRows.reduce((sum, r) => sum + r.clicks, 0) + intentSwitched[0],
+    users: browserRows.reduce((sum, r) => sum + r.clickUsers, 0) + intentSwitched[1],
     allClicks: osRows.reduce((sum, r) => sum + r.clicks, 0),
   };
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
@@ -819,7 +824,7 @@ function RangeBody({
             {(() => {
               const rows = [
                 ...browserRows.map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, clicks: r.clicks, users: r.clickUsers })),
-                { key: 'intent', label: 'Android ・ アプリ内から自動で普段のブラウザへ', clicks: intentOk[0], users: intentOk[1] },
+                { key: 'intent', label: 'Android ・ アプリ内から自動で普段のブラウザへ', clicks: intentSwitched[0], users: intentSwitched[1] },
               ].sort((a, b) => b.clicks - a.clicks);
               const max = Math.max(...rows.map((r) => r.clicks), 1);
               const inApp = osRows.filter((r) => IN_APP_BROWSERS.includes(r.browser)).reduce((sum, r) => sum + r.clicks, 0) - intentOk[0];
