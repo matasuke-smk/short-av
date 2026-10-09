@@ -37,7 +37,7 @@ const rangeDates = (key: ViewKey) => {
   return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
 };
 
-// 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, イベント数, 表示回数] × 24）と集計した日（YYYYMMDD）
+// 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, FANZA へのクリック, 表示回数] × 24）と集計した日（YYYYMMDD）
 export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 
 // 昨日の0時から、昨日の今と同じ時刻（until、日本時間 H:MM）までの数字
@@ -226,7 +226,7 @@ function TotalButton({ onClick, className = '', children }: { onClick?: () => vo
 type HourlyPoint = { h: number; users: number; events: number; views: number; fromLive: boolean };
 
 // 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
-// 合計も補った分を足す（イベント数は時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
+// 合計も補った分を足す（FANZA へのクリックは時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
 // 補うのは、GA の集計がまだ追いついていない時間帯だけ（終わってから LIVE_HOURS 時間以内か、GA がまだ0件の時間帯）。
 // リアルタイムの数字は GA の集計より多めに出ることがあり、集計済みの時間帯まで補うと合計が GA より大きくなっていた
 const LIVE_HOURS = 4;
@@ -281,12 +281,12 @@ function HourlyChart({
   onEventsClick,
 }: {
   onUsersClick?: () => void; // 合計の人数を押したとき（日別の表を開く）
-  onEventsClick?: () => void; // 合計のイベント数を押したとき（イベント別の回数を開く）
+  onEventsClick?: () => void; // 合計の FANZA へのクリックを押したとき（流れを開く）
   compareTotals?: YesterdaySoFar | null; // 「今日」のとき、合計の下に出す昨日の同じ時刻までの数字
   totalLabel?: string; // 右上の数字の見出し（曜日ごとの平均では「1日平均」）
   hours: HourlyPoint[];
   total: number;
-  totalEvents: number; // 期間全体のイベント数（時間帯ごとの合計）
+  totalEvents: number; // 期間全体の FANZA へのクリック（時間帯ごとの合計。名前は以前のイベント数のまま）
   days: number; // 7日間・28日間は1日あたりの平均で描く
   axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
 }) {
@@ -294,7 +294,7 @@ function HourlyChart({
   const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days, views: x.views / days }));
   const max = Math.max(axis.users, ...perDay.map((x) => x.users), 1);
   const maxEvents = Math.max(axis.events, ...perDay.map((x) => x.events), 1);
-  // イベント数の折れ線（棒の中央を結ぶ。縦は右の目盛り＝イベント数の最大値で 100%）
+  // FANZA へのクリックの折れ線（棒の中央を結ぶ。縦は右の目盛り＝クリックの最大値で 100%）
   const linePoints = perDay.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
   if (perDay.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
   const shown = active === null ? null : perDay[active];
@@ -308,27 +308,27 @@ function HourlyChart({
             <span className="text-lg font-bold text-white">{fmt(total)}</span>人
           </TotalButton>
           <TotalButton onClick={onEventsClick} className="ml-2">
-            <span className="text-lg font-bold text-amber-300">{fmt(totalEvents)}</span>件
+            FANZA <span className="text-lg font-bold text-amber-300">{fmt(totalEvents)}</span>回
           </TotalButton>
         </p>
         {compareTotals && (
           <p className="text-xs text-gray-400">
             昨日の{compareTotals.until}まで <span className="font-bold text-gray-200">{fmt(compareTotals.users)}</span>人
-            <span className="ml-1.5 font-bold text-amber-200/80">{fmt(compareTotals.events)}</span>件
+            <span className="ml-1.5">FANZA</span> <span className="font-bold text-amber-200/80">{fmt(compareTotals.events)}</span>回
           </p>
         )}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-blue-500" />{days > 1 ? '利用者（1日平均・左の目盛り）' : '利用者（左の目盛り）'}</span>
-        <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{days > 1 ? 'イベント数（1日平均・右の目盛り）' : 'イベント数（右の目盛り）'}</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{days > 1 ? 'FANZA へのクリック（1日平均・右の目盛り）' : 'FANZA へのクリック（右の目盛り）'}</span>
 
       </div>
       <div className="relative mt-5">
-        {/* 目盛り（最大値の線）。左が利用者、右がイベント数 */}
+        {/* 目盛り（最大値の線）。左が利用者、右が FANZA へのクリック */}
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
         <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt1(max)}人</span>
-        <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt1(maxEvents)}件</span>
-        {/* イベント数の折れ線（棒の上に重ねる。タップは下の棒に通す） */}
+        <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt1(maxEvents)}回</span>
+        {/* FANZA へのクリックの折れ線（棒の上に重ねる。タップは下の棒に通す） */}
         <div className="absolute inset-x-0 top-0 h-36 pointer-events-none z-10">
           <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
             <polyline points={linePoints} fill="none" stroke="#fbbf24" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
@@ -355,7 +355,7 @@ function HourlyChart({
           >
             <p className="font-bold text-white">{shown.h}時台{days > 1 ? '（1日平均）' : ''}</p>
             <p><span className="text-blue-300">利用者</span> {fmt1(shown.users)}人</p>
-            <p><span className="text-amber-300">イベント</span> {fmt1(shown.events)}件</p>
+            <p><span className="text-amber-300">FANZA へのクリック</span> {fmt1(shown.events)}回</p>
             <p>
               <span className="text-gray-300">表示回数</span> {fmt1(shown.views)}回
               {shown.fromLive && <span className="text-gray-500">（集計待ち）</span>}
@@ -394,7 +394,7 @@ function HourlyChart({
               <tr key={x.h} className="border-t border-gray-700">
                 <td className="py-1">{x.h}時台</td>
                 <td className="text-right">{fmt1(x.users)}人</td>
-                <td className="text-right">{fmt1(x.events)}件</td>
+                <td className="text-right">FANZA {fmt1(x.events)}回</td>
                 <td className="text-right">{fmt1(x.views)}回</td>
               </tr>
             ))}
@@ -532,13 +532,16 @@ function RangeBody({
   const ios = osTotal('iOS');
   const android = osTotal('Android');
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
+  // FANZA へのクリック（動画と同人誌の合計）。時間帯グラフの合計が取れなかったときに使う
+  const gaTotalClicks = allEvents.find((r) => r.dimensions[0] === 'dmm_link_click')?.metrics[0] ?? 0;
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
   const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
-  const { hours, users, events: totalEvents } = withLive(hourly, live, gaUsers, gaTotalEvents, RANGE_SPAN_DAYS_AGO[rangeKey]);
+  // 時間帯グラフ: 利用者と FANZA へのクリック（events。2026/10/9 まではすべてのイベントの回数だった）
+  const { hours, users, events: totalClicks } = withLive(hourly, live, gaUsers, gaTotalClicks, RANGE_SPAN_DAYS_AGO[rangeKey]);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -607,7 +610,7 @@ function RangeBody({
           />
         </div>
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalEvents} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('events')} />
+          <HourlyChart hours={hours} total={users} totalEvents={totalClicks} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('funnel')} />
         </Section>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
@@ -656,7 +659,7 @@ function RangeBody({
             onClick={() => setDetail('os')}
           />
           {(() => {
-            // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 夕方から、
+            // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
             // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
             const notice = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics[0] ?? 0;
             const shown = notice('表示');
@@ -696,7 +699,7 @@ function RangeBody({
           </DetailModal>
         )}
         {detail === 'events' && (
-          <DetailModal title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(totalEvents)}件）。GA 自動 = GA が自動で記録するもの。`} onClose={closeDetail}>
+          <DetailModal title="イベント別の回数" note={`期間内に記録されたイベントの回数と人数（合計 ${fmt(gaTotalEvents)}件）。GA 自動 = GA が自動で記録するもの。`} onClose={closeDetail}>
             {allEvents.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (
@@ -751,7 +754,7 @@ function RangeBody({
         {detail === 'inapp' && (
           <DetailModal
             title="「ブラウザで開く」案内（X の iPhone）"
-            note="X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押した人に出す案内（2026/10/9 13時ごろから）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 夕方から）。回数（人数）。"
+            note="X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押した人に出す案内（2026/10/9 13時ごろから）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 14時ごろから）。回数（人数）。"
             onClose={closeDetail}
           >
             <AnswerBars event="inapp_browser_notice" rows={answers} />
@@ -765,6 +768,10 @@ function RangeBody({
             <h3 className="text-sm font-bold mt-6 mb-1">年齢確認の回答</h3>
             <p className="text-xs text-gray-400 mb-3">回数（人数）。同じ人が日を変えて、または別のタブで答えると2回以上になる。</p>
             <AnswerBars event="age_verification" rows={answers} />
+            {/* すべてのイベントの回数（以前は時間帯グラフの合計のイベント数から開いていた） */}
+            <button type="button" onClick={() => setDetail('events')} className="mt-6 text-xs text-blue-300 underline">
+              すべてのイベントの回数を見る
+            </button>
           </DetailModal>
         )}
         {detail === 'swipe' && (

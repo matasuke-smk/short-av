@@ -13,6 +13,9 @@ const KEEP_DAYS = 3;
 // 日本だけの記録に変えた時刻（本番への反映 10/8 15:27ごろ）。それより前の記録は海外を含むので使わない
 // （時間帯の人数は「これまでより大きいときだけ更新」するため、海外を含む人数が残り「日本のみ」の合計が多く出ていた）
 const JAPAN_ONLY_SINCE = Date.parse('2026-10-08T15:30:00+09:00');
+// 分ごとの記録（ga_realtime_minutes.events）を、すべてのイベントの回数から FANZA へのクリックの回数に変えた時刻（本番への反映 10/9 14時半ごろ）。
+// それより前の分の events はイベント全体の回数なので使わない（時間帯グラフの2つ目の数字を FANZA へのクリックにしたため）
+const CLICKS_SINCE = Date.parse('2026-10-09T14:45:00+09:00');
 const metrics = [{ name: 'activeUsers' }, { name: 'eventCount' }];
 // アクセス解析の標準は「日本のみ」なので、記録も日本からのアクセスだけにする（2026/10/8 から。
 // 「すべて」のときは GA の集計と大きいほうを使うので、海外の分は GA の集計が追いつくまで少なめに出る）
@@ -32,8 +35,15 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
     const prev = jstParts(now - (intoHour + 1) * 60_000);
     windows.push({ hour: prev.hour, date: prev.date, startMinutesAgo: 29, endMinutesAgo: intoHour + 1 });
   }
-  const [perMinute, ...hourly] = await Promise.all([
+  const [perMinute, clicksPerMinute, ...hourly] = await Promise.all([
     runRealtimeReport({ dimensions: [{ name: 'minutesAgo' }], metrics, dimensionFilter, limit: 30 }),
+    // FANZA へのクリック（分ごと）。events にはこちらを記録する
+    runRealtimeReport({
+      dimensions: [{ name: 'minutesAgo' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: { andGroup: { expressions: [dimensionFilter, { filter: { fieldName: 'eventName', stringFilter: { value: 'dmm_link_click' } } }] } },
+      limit: 30,
+    }),
     ...windows.map((w) => runRealtimeReport({ metrics, dimensionFilter, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
   ]);
 
@@ -42,7 +52,8 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
   // GA が0件の分は行を返さないので、30分すべてを0で埋めてから上書きする（取り消された分も0に戻る）
   const minuteRows = Array.from({ length: 30 }, (_, ago) => {
     const row = perMinute.find((r) => Number(r.dimensions[0]) === ago);
-    return { minute_at: new Date((nowMinute - ago) * 60_000).toISOString(), events: row?.metrics[1] ?? 0, users: row?.metrics[0] ?? 0 };
+    const clicks = clicksPerMinute.find((r) => Number(r.dimensions[0]) === ago);
+    return { minute_at: new Date((nowMinute - ago) * 60_000).toISOString(), events: clicks?.metrics[0] ?? 0, users: row?.metrics[0] ?? 0 };
   });
   const { error: minuteError } = await supabase.from('ga_realtime_minutes').upsert(minuteRows, { onConflict: 'minute_at' });
   if (minuteError) throw minuteError;
@@ -82,7 +93,7 @@ export async function getLiveHourly(daysAgo: number): Promise<Record<number, { u
   if (hourError) throw hourError;
   const result: Record<number, { users: number; events: number }> = {};
   for (const row of minutes ?? []) {
-    if (Date.parse(row.minute_at as string) < JAPAN_ONLY_SINCE) continue;
+    if (Date.parse(row.minute_at as string) < Math.max(JAPAN_ONLY_SINCE, CLICKS_SINCE)) continue;
     const h = jstParts(Date.parse(row.minute_at as string)).hour;
     result[h] = { users: result[h]?.users ?? 0, events: (result[h]?.events ?? 0) + (row.events as number) };
   }

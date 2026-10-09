@@ -291,6 +291,8 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       dimensionFilter: eventIn(['page_view', 'dmm_link_click']),
       limit: 200,
     },
+    // 時間帯ごとの FANZA へのクリック（動画と同人誌の合計）。レポート 10 の2つ目の数字（以前はすべてのイベントの回数）に入れる
+    { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('dmm_link_click'), limit: 10000 },
   ];
   for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
@@ -332,6 +334,9 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   // 30: 端末×ブラウザ（国ごとの 29 は「すべて」のときだけなので、番号を固定して入れる。「日本のみ」では 29 が空になる）
   reports[29] ??= [];
   reports[30] = workActionReports[2];
+  // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]
+  const clicksByHour = new Map(workActionReports[3].map((r) => [r.dimensions[0], r.metrics[0]]));
+  reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [r.metrics[0], clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
 
   // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
   if (affectedDays.length > 0) {
@@ -379,22 +384,23 @@ async function loadYesterdaySoFar(country: Country): Promise<YesterdaySoFar> {
     ...(fullHours.length > 0 ? [{ filter: { fieldName: 'dateHour', inListFilter: { values: fullHours } } }] : []),
     { filter: { fieldName: 'dateHourMinute', inListFilter: { values: minutes } } },
   ];
-  const [rows] = await runReports([
-    {
-      // ロサンゼルス時間の記録（10/7 15時台まで）は1日前の日付で付いているので、1日前から取る
-      dateRanges: [{ startDate: ymdOf(prevDay(day)), endDate: ymdOf(day) }],
-      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
-      dimensionFilter: byCountry(country, { orGroup: { expressions } }),
-    },
+  // ロサンゼルス時間の記録（10/7 15時台まで）は1日前の日付で付いているので、1日前から取る
+  const dateRanges = [{ startDate: ymdOf(prevDay(day)), endDate: ymdOf(day) }];
+  const sameTime = { orGroup: { expressions } };
+  // events は FANZA へのクリックの回数（時間帯グラフと同じ。2026/10/9 まではすべてのイベントの回数だった）
+  const [rows, clickRows] = await runReports([
+    { dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: byCountry(country, sameTime) },
+    { dateRanges, metrics: [{ name: 'eventCount' }], dimensionFilter: byCountry(country, and(sameTime, eventIs('dmm_link_click'))) },
   ]);
-  const [users = 0, events = 0, views = 0] = rows[0]?.metrics ?? [];
+  const [users = 0, , views = 0] = rows[0]?.metrics ?? [];
+  const events = clickRows[0]?.metrics[0] ?? 0;
   return { until: `${hour}:${pad(minute)}`, users, events, views };
 }
 
 const getYesterdaySoFar = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (_bucket: number, country: Country) => loadYesterdaySoFar(country),
-  ['admin-analytics-yesterday-so-far-v2'],
+  ['admin-analytics-yesterday-so-far-v3'],
   { revalidate: 300 },
 );
 
@@ -466,7 +472,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v21'],
+  ['admin-analytics-v22'],
   { revalidate: 300 },
 );
 
