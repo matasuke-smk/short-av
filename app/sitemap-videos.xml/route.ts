@@ -12,20 +12,22 @@ const LIMIT_RECENT = 1500;
 
 const getUrls = unstable_cache(
   async () => {
-    const [ranked, recent] = await Promise.all([
+    // Supabase は1回の取得が最大1,000件なので、新着は2回に分けて取る
+    const [ranked, recent1, recent2] = await Promise.all([
       supabase.from('videos').select('dmm_content_id, updated_at').eq('is_active', true).not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(LIMIT_RANKED),
-      supabase.from('videos').select('dmm_content_id, updated_at').eq('is_active', true).order('created_at', { ascending: false }).limit(LIMIT_RECENT),
+      supabase.from('videos').select('dmm_content_id, updated_at').eq('is_active', true).order('created_at', { ascending: false }).range(0, 999),
+      supabase.from('videos').select('dmm_content_id, updated_at').eq('is_active', true).order('created_at', { ascending: false }).range(1000, LIMIT_RECENT - 1),
     ]);
     const seen = new Set<string>();
     const rows: { id: string; updated: string }[] = [];
-    for (const r of [...(ranked.data ?? []), ...(recent.data ?? [])]) {
+    for (const r of [...(ranked.data ?? []), ...(recent1.data ?? []), ...(recent2.data ?? [])]) {
       if (seen.has(r.dmm_content_id)) continue;
       seen.add(r.dmm_content_id);
       rows.push({ id: r.dmm_content_id, updated: r.updated_at });
     }
     return rows;
   },
-  ['sitemap-videos-v1'],
+  ['sitemap-videos-v2'],
   { revalidate: 3600 },
 );
 
@@ -34,7 +36,7 @@ const escapeXml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&
 export async function GET() {
   const rows = await getUrls().catch(() => []);
   const body = rows
-    .map((r) => `<url><loc>https://short-av.com/?v=${escapeXml(encodeURIComponent(r.id))}</loc><lastmod>${new Date(r.updated).toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>`)
+    .map((r) => `<url><loc>https://short-av.com/v/${escapeXml(encodeURIComponent(r.id))}</loc><lastmod>${new Date(r.updated).toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.5</priority></url>`)
     .join('');
   const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`;
   return new Response(xml, { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });

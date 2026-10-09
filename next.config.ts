@@ -88,6 +88,15 @@ const nextConfig: NextConfig = {
   },
 
   // www 付きのアクセスの統一と、削除した記事の転送（検索エンジンや外部リンクからの流入を 404 にしない）
+  // 作品ページの別名 URL（検索エンジン向けの正規 URL）。/v/作品番号 → /?v=作品番号、/d/作品番号 → 同人誌モード。
+  // Next.js は正規 URL のパスが「/」だと ?v= を捨ててトップの URL にしてしまうため、パス型の URL を正規にする。
+  // X などで告知してきた /?v= のリンクはそのまま使える
+  async rewrites() {
+    return [
+      { source: '/v/:id', destination: '/?v=:id' },
+      { source: '/d/:id', destination: '/?mode=doujin&d=:id' },
+    ];
+  },
   async redirects() {
     return [
       // www 付きで来たアクセスは short-av.com に統一する（同じページが2つの URL で評価されるのを防ぐ）

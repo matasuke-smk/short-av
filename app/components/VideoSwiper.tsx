@@ -740,6 +740,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
       if (currentVideo && currentVideo.dmm_content_id && !isDoujinSlide(currentVideo)) {
         const url = new URL(window.location.href);
+        // 別名 URL（/v/作品番号・/d/作品番号。検索エンジン向け）で開かれていたら、以降はいつもの /?v= の形にする
+        if (url.pathname.startsWith('/v/') || url.pathname.startsWith('/d/')) url.pathname = '/';
         url.searchParams.set('v', currentVideo.dmm_content_id);
 
         // ページのタイトルを見ている作品の名前にする（GA は URL の ? 以降を「ページ」に含めないため、

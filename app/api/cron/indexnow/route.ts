@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const urls = sitemap().map((entry) => entry.url);
     // 作品ページはランキング上位 200 件だけ知らせる（全作品だと多すぎる）
     const { data } = await supabase.from('videos').select('dmm_content_id').eq('is_active', true).not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(200);
-    for (const r of data ?? []) urls.push(`https://short-av.com/?v=${encodeURIComponent(r.dmm_content_id)}`);
+    for (const r of data ?? []) urls.push(`https://short-av.com/v/${encodeURIComponent(r.dmm_content_id)}`);
     const result = await notifyIndexNow(urls);
     console.info(`[Cron] IndexNow ${result.submitted}件を送信 (HTTP ${result.status})`);
     return NextResponse.json({ success: result.status >= 200 && result.status < 300, ...result });
