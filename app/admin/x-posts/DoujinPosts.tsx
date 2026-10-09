@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import PostedBar from './PostedBar';
 import type { Doujin } from '@/lib/doujin-types';
 import { getUserId } from '@/lib/user-id';
 import { buildDoujinPostText as buildText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
@@ -72,19 +73,12 @@ function DoujinCard({ doujin, onChanged }: { doujin: DoujinItem; onChanged: () =
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
+    <div className={`bg-gray-800 rounded-lg overflow-hidden ${doujin.postedCount > 0 ? 'ring-2 ring-emerald-500' : ''}`}>
+      {doujin.postedCount > 0 && <PostedBar count={doujin.postedCount} lastPostedAt={doujin.lastPostedAt} busy={busy} onUndo={undo} />}
       <div className="flex gap-3 p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={doujin.cover} alt="" className="w-24 flex-shrink-0 rounded object-contain self-start" />
         <div className="min-w-0 flex-1">
-          {doujin.postedCount > 0 && (
-            <p className="text-[11px] text-orange-300">
-              紹介済み {doujin.postedCount}回（前回 {doujin.lastPostedAt ? shortDate(doujin.lastPostedAt) : '-'}）
-              <button onClick={undo} disabled={busy} className="ml-2 underline text-gray-300 hover:text-white disabled:opacity-50">
-                取り消す
-              </button>
-            </p>
-          )}
           {doujin.likedAt && <p className="text-[11px] text-pink-300">♥ {shortDate(doujin.likedAt)} にいいね</p>}
           <p className="text-sm font-bold line-clamp-3">{doujin.title}</p>
           {(() => {
