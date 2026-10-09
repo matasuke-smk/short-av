@@ -91,6 +91,42 @@ export type DMMApiResponse = {
 
 const DMM_API_BASE_URL = 'https://api.dmm.com/affiliate/v3/ItemList';
 
+// 短時間に集中して問い合わせると、DMM の API がしばらく全部 400（"api_id": "Invalid Request Error"）で断る
+// （2026-10-09 に30冊を同時に問い合わせて発生。鍵ごとの停止なので本番も止まった）。
+// そのため、1つのサーバーからは同時に MAX_CONCURRENT 件まで・MIN_GAP_MS 以上あけて投げ、
+// 断られたら BLOCK_MS のあいだは DMM に投げずにすぐ失敗させる（叩き続けると停止が延びるため）
+const MAX_CONCURRENT = 2;
+const MIN_GAP_MS = 150;
+const BLOCK_MS = 60_000;
+
+let running = 0;
+let lastStartedAt = 0;
+let blockedUntil = 0;
+const waiting: (() => void)[] = [];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function acquire(): Promise<void> {
+  if (running >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
+  running++;
+  const gap = lastStartedAt + MIN_GAP_MS - Date.now();
+  if (gap > 0) await sleep(gap);
+  lastStartedAt = Date.now();
+}
+
+function release() {
+  running--;
+  waiting.shift()?.();
+}
+
+/** DMM の API に一時停止されているときのエラー（やり直しても無駄なので、呼ぶ側はすぐあきらめる） */
+export class DMMBlockedError extends Error {
+  constructor() {
+    super('DMM API is temporarily blocking requests');
+    this.name = 'DMMBlockedError';
+  }
+}
+
 /**
  * 商品検索API
  */
@@ -145,6 +181,9 @@ export async function fetchDMMProducts(options: {
 
   console.log('DMM API Request URL:', url.replace(apiId, 'API_ID').replace(affiliateId, 'AFFILIATE_ID'));
 
+  if (Date.now() < blockedUntil) throw new DMMBlockedError();
+
+  await acquire();
   try {
     const response = await fetch(url, {
       next: { revalidate: 3600 }, // 1時間キャッシュ
@@ -153,6 +192,11 @@ export async function fetchDMMProducts(options: {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('DMM API Error Response:', errorText);
+      if (response.status === 400 && errorText.includes('Invalid Request Error')) {
+        blockedUntil = Date.now() + BLOCK_MS;
+        console.error(`DMM API に一時停止されました。${BLOCK_MS / 1000}秒は問い合わせません`);
+        throw new DMMBlockedError();
+      }
       throw new Error(`DMM API request failed: ${response.status} ${response.statusText}`);
     }
 
@@ -162,6 +206,8 @@ export async function fetchDMMProducts(options: {
   } catch (error) {
     console.error('DMM API Error:', error);
     throw error;
+  } finally {
+    release();
   }
 }
 
