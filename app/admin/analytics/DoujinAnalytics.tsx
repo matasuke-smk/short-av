@@ -123,8 +123,9 @@ export default function DoujinAnalytics({
           </Section>
         </div>
 
-        {/* 右の列は左の列と同じ高さにし、カードで埋める（PC で右下が空かないように） */}
-        <div className="lg:relative">
+        {/* 右の列は左の列と同じ高さにし、カードで埋める（PC で右下が空かないように）。
+            「今日」でまだ記録がなく時間帯グラフが出ないときも、カードが潰れないよう最低の高さを取る */}
+        <div className="lg:relative lg:min-h-[34rem]">
           <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col lg:pb-4">
             {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
             <div className="grid grid-cols-2 gap-2 mb-2">
@@ -200,7 +201,7 @@ export default function DoujinAnalytics({
                 label="日別（直近14日）"
                 value={dayRows[0] ? fmt(dayRows[0][1].clicks) : '—'}
                 unit="回"
-                sub={dayRows[0] ? `${md(dayRows[0][0])} の FANZA へのクリック。最後まで ${fmt(dayRows[0][1].completes)}回・表示 ${fmt(dayRows[0][1].viewUsers)}人` : 'まだデータがありません'}
+                sub={dayRows[0] ? `${md(dayRows[0][0])} の FANZA へのクリック。最後まで ${fmt(dayRows[0][1].completes)}回・表示 ${fmt(dayRows[0][1].viewUsers)}人` : daily === null ? '28日間の集計を読み込み中…' : 'まだデータがありません'}
                 onClick={() => setDetail('daily')}
                 extra={dayRows.slice(0, 5).map(([date, d]) => (
                   <ExtraRow key={date} name={md(date)} right={`表示 ${fmt(d.viewUsers)}人・最後まで ${fmt(d.completes)}回・クリック ${fmt(d.clicks)}回`} />
@@ -258,7 +259,7 @@ export default function DoujinAnalytics({
       {detail === 'daily' && (
         <DetailModal title="日別（同人誌）" note="期間の切り替えに関係なく、直近14日を表示。人数は日ごとの重複を除いた数。" onClose={closeDetail}>
           {dayRows.length === 0 ? (
-            <p className="text-sm text-gray-400">まだデータがありません。</p>
+            <p className="text-sm text-gray-400">{daily === null ? '28日間の集計を読み込み中です。少し待ってから開き直してください。' : 'まだデータがありません。'}</p>
           ) : (
             <table className="w-full text-sm">
               <thead className="text-gray-400">
