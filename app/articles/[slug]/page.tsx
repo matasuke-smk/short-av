@@ -155,9 +155,23 @@ export default async function ArticlePage({ params }: Props) {
     ],
   };
 
+  // よくある質問の構造化データ（記事に faq があるときだけ）
+  const faqSchema = article.faq && article.faq.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: article.faq.map((item) => ({
+          '@type': 'Question',
+          name: item.q,
+          acceptedAnswer: { '@type': 'Answer', text: item.a },
+        })),
+      }
+    : null;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* 構造化データ */}
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
