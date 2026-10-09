@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
+import { buildVideoDescription, getVideoNames, type VideoSeoRow } from '@/lib/video-seo';
 import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
@@ -26,6 +27,7 @@ export async function generateMetadata({
     return {
       title,
       description,
+      alternates: { canonical: `/?mode=doujin&d=${encodeURIComponent(d)}` },
       openGraph: { title, description, siteName: 'Short AV', images: [{ url: doujin.cover, alt: doujin.title }], locale: 'ja_JP', type: 'website' },
       twitter: { card: 'summary_large_image', title, description, images: [doujin.cover] },
     };
@@ -35,18 +37,21 @@ export async function generateMetadata({
 
   const { data: video } = await supabase
     .from('videos')
-    .select('title, thumbnail_url')
+    .select('dmm_content_id, title, description, thumbnail_url, maker, release_date, sample_seconds, actress_ids, genre_ids')
     .eq('dmm_content_id', contentId)
     .maybeSingle();
   if (!video?.thumbnail_url) return {};
 
   const title = `${video.title} | Short AV`;
-  const description = `${video.title} のサンプル動画を、縦スワイプで次々チェック。会員登録不要。FANZA の人気作・新作をいいね・履歴・検索で探せる Short AV。`;
+  // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる
+  const description = buildVideoDescription(video as VideoSeoRow, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
     title,
     description,
+    // 作品ごとに別のページとして登録されるよう、正規の URL は自分自身にする（以前は layout の設定でトップになっていて、作品ページが登録されなかった）
+    alternates: { canonical: getVideoUrl(contentId) },
     openGraph: {
       title,
       description,
@@ -192,8 +197,16 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
     );
   }
 
-  // 最初に表示する作品の構造化データ（?v= 指定時はその作品）
+  // 最初に表示する作品の構造化データ（?v= 指定時はその作品）。説明文・出演・ジャンル・長さを足す
   const firstVideoSchema = generateVideoSchema(videos[0]);
+  if (firstVideoSchema && videos[0]) {
+    const first = videos[0];
+    const names = await getVideoNames(first);
+    firstVideoSchema.description = buildVideoDescription(first as VideoSeoRow, names);
+    if (names.actresses.length > 0) firstVideoSchema.actor = names.actresses.map((name) => ({ '@type': 'Person', name }));
+    if (names.genres.length > 0) firstVideoSchema.genre = names.genres;
+    if (first.sample_seconds && first.sample_seconds > 0) firstVideoSchema.duration = `PT${Math.floor(first.sample_seconds / 60)}M${first.sample_seconds % 60}S`;
+  }
 
   // URLパラメータの処理はクライアント側（VideoSwiper）で行う
   const doujinList = await doujinPromise;

@@ -35,6 +35,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/',                  // AI学習用のクロールを拒否
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: [`${baseUrl}/sitemap.xml`, `${baseUrl}/sitemap-videos.xml`],
   };
 }
