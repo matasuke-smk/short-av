@@ -1,11 +1,10 @@
-# GA のリアルタイム（直近30分）を15分ごとに記録する（アクセス解析の「今日」の時間帯グラフの遅れを補うため）
-# Vercel の無料プランの定期実行は1日1回までのため、GitHub Actions から記録用の URL を呼ぶ。
+# GA のリアルタイム（直近30分）を記録する（アクセス解析の「今日」の時間帯グラフの遅れを補うため）
+# 2026/10/9 に Vercel を Pro プランにしたので、定期実行は Vercel（vercel.json、10分ごと）に移した。
+# ここは手で動かすとき用に残している（Actions の画面の「Run workflow」）。
 # リポジトリの Secrets に REALTIME_CRON_SECRET（Vercel の環境変数と同じ値）が必要。
 name: GA realtime record
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:

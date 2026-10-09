@@ -3,9 +3,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 /**
  * GA のリアルタイム（直近30分）を記録し、「今日」の時間帯グラフの遅れを補う（サーバー専用、sql/014）
- * - サイトが使われている間は /api/videos の応答後に10分おきに記録する（maybeRecordGaRealtime）
- * - 15分ごとに GitHub Actions も /api/cron/ga-realtime を呼ぶ（混雑時に間引かれるので補助）
- * - アクセス解析を開いたときにも記録してから読む（いちばん新しい数字になる）
+ * - Vercel の定期実行で10分ごとに /api/cron/ga-realtime から記録する（2026/10/9〜。以前はサイトが使われている間の記録と
+ *   15分ごとの GitHub Actions だったが、間引かれて記録が抜けることがあった）
+ * - アクセス解析を開いたときにも、表示のあとに記録する
  */
 
 const JST = 9 * 3_600_000;
@@ -103,25 +103,4 @@ export async function getLiveHourly(daysAgo: number): Promise<Record<number, { u
     result[h] = { users: Math.max(result[h]?.users ?? 0, row.users as number), events: result[h]?.events ?? 0 };
   }
   return result;
-}
-
-// サイトが使われている間に記録する（GitHub Actions の15分ごとの定期実行は混雑時に間引かれ、
-// 10/7 は1日に2回しか動かなかったため）。直近30分を取るので、10分おきに記録すれば取りこぼさない
-const RECORD_INTERVAL_MS = 10 * 60_000;
-let lastCheckedAt = 0;
-
-export async function maybeRecordGaRealtime(): Promise<void> {
-  const now = Date.now();
-  // 同じサーバーの中では2分に1回だけデータベースを確かめる
-  if (now - lastCheckedAt < 2 * 60_000) return;
-  lastCheckedAt = now;
-  const { data, error } = await getSupabaseAdmin()
-    .from('ga_realtime_minutes')
-    .select('minute_at')
-    .order('minute_at', { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  const latest = data?.[0] ? Date.parse(data[0].minute_at as string) : 0;
-  if (now - latest < RECORD_INTERVAL_MS) return;
-  await recordGaRealtime();
 }
