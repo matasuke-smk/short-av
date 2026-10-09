@@ -252,7 +252,15 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
     { dateRanges, dimensions: [{ name: 'sessionManualAdContent' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: fromXVideoPost },
     // 27: 投稿ごと（最初に開いた URL の ?v= が投稿した作品）
     { dateRanges, dimensions: [{ name: 'landingPagePlusQueryString' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: fromXVideoPost, limit: 300 },
-    // 28: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
+    // 28: 来た元の内訳（参照元・メディア・キャンペーン）。X の投稿の目印（utm）が付いていない訪問がどれくらいあるかを見る
+    {
+      dateRanges,
+      dimensions: [{ name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'sessionCampaignName' }],
+      metrics: [{ name: 'totalUsers' }, { name: 'sessions' }],
+      orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
+      limit: 20,
+    },
+    // 29: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
     ...(country === 'all'
       ? [
           {
@@ -417,7 +425,7 @@ const getRangeData = unstable_cache(
     );
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v15'],
+  ['admin-analytics-v16'],
   { revalidate: 300 },
 );
 
