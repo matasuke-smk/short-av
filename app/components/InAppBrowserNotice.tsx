@@ -40,8 +40,8 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
     <div className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
         // Android の X は画面下の「short-av.com ⋮」のバーがページの上に重なる（約50px。iPhone はバーがページの外側）ので、
-        // 矢印がバーに隠れないよう下の余白を広げる（2026-10-10 Android の実機で矢印が見切れていた）
-        className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+4.5rem)]'}`}
+        // 矢印がバーに隠れないよう下の余白を広げる（2026-10-10 Android の実機で矢印が見切れていた。4.5rem では矢印1つ分あきすぎたので 3rem）
+        className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-lg font-bold">ブラウザで開くのがおすすめです</p>
@@ -79,7 +79,8 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
         {/* 画面下の中央の「short-av.com」を指す */}
         <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
           <span className="text-xs">ここをタップ</span>
-          <svg className="h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* 跳ねる動きは上に高さの25%（8px）動くので、その分の余白（mt-2）を取って文字に重ならないようにする */}
+          <svg className="mt-2 h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m0 0l-6-6m6 6l6-6" />
           </svg>
         </div>
