@@ -669,7 +669,7 @@ function RangeBody({
                 label="「ブラウザで開く」案内（アプリ内ブラウザ）"
                 value={fmt(reopened)}
                 unit="回"
-                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）・このまま開く ${fmt(notice('このまま開く'))}回`}
+                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）・このまま開く ${fmt(notice('このまま開く'))}回・Android 自動で切り替え ${fmt(notice('Android 自動で切り替え'))}回（できず ${fmt(notice('Android 切り替えできず'))}回）`}
                 onClick={() => setDetail('inapp')}
               />
             );
