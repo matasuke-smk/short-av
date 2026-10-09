@@ -444,7 +444,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     // Android: intent:// で、普段使っているブラウザ（パッケージを指定しない）で FANZA のリンクを直接開く。
     // アプリが切り替われば画面が隠れるので、そこで FANZA へのクリックとして記録する。
     // 1.5秒たっても隠れなければ（アプリ内ブラウザが intent を通さない）、「︙ → ブラウザで開く」の案内を出す
-    // （X の Android 版が通すかは実機で確かめていない。GA の「Android 自動で切り替え」「Android 切り替えできず」で確かめる）
+    // （X の Android 版が通すかは実機で確かめていない。GA の「Android 切り替えを試した」−「Android 切り替えできず」で確かめる）
+    // 切り替わると画面が裏に回り、そのあとの記録（「自動で切り替え」）は GA に届かないことがある（10/9 15〜17時に Android の記録が0件だった）。
+    // そこで「試した」を GA に送り終えてから（最大0.5秒待って）切り替える
     const u = new URL(fanzaUrl);
     const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(fanzaUrl)};end`;
     let switched = false;
@@ -452,16 +454,24 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       if (document.visibilityState !== 'hidden' || switched) return;
       switched = true;
       track();
-      trackInAppNotice('intent_ok');
+      trackInAppNotice('intent_ok', { transport_type: 'beacon' });
     };
-    document.addEventListener('visibilitychange', onHidden);
-    window.setTimeout(() => {
-      document.removeEventListener('visibilitychange', onHidden);
-      if (switched) return;
-      trackInAppNotice('intent_failed');
-      showNotice();
-    }, 1500);
-    window.location.href = intentUrl;
+    let started = false;
+    const startIntent = () => {
+      if (started) return;
+      started = true;
+      document.addEventListener('visibilitychange', onHidden);
+      window.setTimeout(() => {
+        document.removeEventListener('visibilitychange', onHidden);
+        if (switched) return;
+        trackInAppNotice('intent_failed');
+        showNotice();
+      }, 1500);
+      window.location.href = intentUrl;
+    };
+    trackInAppNotice('intent_try', { transport_type: 'beacon', event_callback: startIntent, event_timeout: 500 });
+    // GA が読み込まれていないなど、送り終わりの合図が来ないときも0.5秒で切り替える
+    window.setTimeout(startIntent, 500);
   }, []);
   const closeInAppNotice = (openAnyway: boolean) => {
     if (!inAppNotice) return;

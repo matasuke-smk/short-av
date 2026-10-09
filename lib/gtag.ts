@@ -147,17 +147,24 @@ export const trackDMMClick = (
 
 // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA へのボタンを押したときの「ブラウザで開く」案内
 // reopened: 案内のとおり「ブラウザで開く」で開き直された（開き直した先のブラウザで記録する）
-// intent_ok / intent_failed: Android で intent:// による普段のブラウザへの切り替えができた／できなかった（できなかったら案内を出す）
-export const trackInAppNotice = (action: 'show' | 'open_anyway' | 'close' | 'reopened' | 'intent_ok' | 'intent_failed') => {
+// intent_try / intent_ok / intent_failed: Android で intent:// による普段のブラウザへの切り替えを試した／できた／できなかった（できなかったら案内を出す）。
+// 切り替わると X の画面が裏に回り「できた」の記録が届かないことがあるので、「試した − できなかった」を切り替わった数とみなす
+// options: GA に送り終わったときの event_callback など（送ってから画面を移るときに使う）
+export const trackInAppNotice = (
+  action: 'show' | 'open_anyway' | 'close' | 'reopened' | 'intent_try' | 'intent_ok' | 'intent_failed',
+  options?: Record<string, any>,
+) => {
   sendGAEvent('inapp_browser_notice', {
     action: {
       show: '表示',
       open_anyway: 'このまま開く',
       close: '閉じる',
       reopened: 'ブラウザで開き直した',
+      intent_try: 'Android 切り替えを試した',
       intent_ok: 'Android 自動で切り替え',
       intent_failed: 'Android 切り替えできず',
     }[action],
+    ...options,
   });
 };
 
