@@ -367,6 +367,12 @@ export const article: Article = {
   margin: 4px 0 10px;
 }
 .rank-tag span { font-size: 1.35rem; }
+.world-compare {
+  color: #fde68a;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
 .collected-stats-card {
   margin-top: 20px;
 }
@@ -484,6 +490,7 @@ export const article: Article = {
         <div class="dev-label">総合の偏差値</div>
         <div class="dev-main" id="overallDeviation">50</div>
         <div class="rank-tag">あなたは <span id="rankTag">日本人の平均並み</span></div>
+        <div class="world-compare" id="worldCompare"></div>
         <div class="rank-badge-large" id="rankLevel">平均的</div>
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
@@ -564,6 +571,19 @@ export const article: Article = {
   var TOOL_URL = 'https://short-av.com/articles/size-comparison-tool';
   // 日本人の目安値（mm）。国内の複数の報告（勃起時の長さはおおむね12〜14cm）を参考にした目安で、単一の調査の値ではない
   var JP = { lengthMean: 124, lengthStd: 18, diameterMean: 36, diameterStd: 3.6 };
+  // 海外の研究の平均（Veale ら 2015 のメタ分析。医療者が測定）: 長さ 131mm・直径 37.1mm
+  var WORLD = { lengthMean: 131, diameterMean: 37.1 };
+
+  // 日本の目安値・海外の研究の平均と比べた一言（長さと太さの両方で超えたときだけ「超え」）
+  function compareLine(lengthMm, diameter) {
+    var overWorld = lengthMm >= WORLD.lengthMean && diameter >= WORLD.diameterMean;
+    var overJp = lengthMm >= JP.lengthMean && diameter >= JP.diameterMean;
+    if (overWorld) return { text: '海外の研究の平均（13.1cm・直径3.7cm）も超え！', share: '海外の研究の平均も超え' };
+    if (overJp) return { text: '日本の目安値（12.4cm・直径3.6cm）は超え', share: '日本の目安値は超え' };
+    var nearJp = lengthMm >= JP.lengthMean - JP.lengthStd && diameter >= JP.diameterMean - JP.diameterStd;
+    if (nearJp) return { text: '日本の目安値（12.4cm・直径3.6cm）まであと少し', share: '' };
+    return { text: '日本の目安値（12.4cm・直径3.6cm）より控えめ', share: '' };
+  }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="girthType"]').forEach(function(radio) {
@@ -699,13 +719,15 @@ export const article: Article = {
     document.getElementById('girthPercentile').textContent = '上位 ' + topPct(diameterPercentile) + '%';
     document.getElementById('lengthEcho').textContent = '（' + (lengthMm / 10).toFixed(1) + 'cm）';
     document.getElementById('girthEcho').textContent = '（直径 ' + (diameter / 10).toFixed(1) + 'cm）';
+    var compare = compareLine(lengthMm, diameter);
     document.getElementById('rankTag').textContent = rankInfo.tag;
+    document.getElementById('worldCompare').textContent = compare.text;
     document.getElementById('rankLevel').textContent = rankInfo.level;
     document.getElementById('rankDescription').textContent = rankInfo.description;
     document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
     // X に投稿する文（数字だけ。入力した mm は入れない）
-    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
     document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
     document.getElementById('resultContainer').classList.remove('result-hidden');
