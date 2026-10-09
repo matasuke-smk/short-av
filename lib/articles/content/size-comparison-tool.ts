@@ -958,7 +958,7 @@ export const article: Article = {
         </tr>
         <tr class="border-b border-gray-700">
           <td class="py-3 px-3 font-bold text-white whitespace-nowrap">出典</td>
-          <td class="py-3 px-3">国内の調査報告（<a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">日本人男性のペニスサイズ</a>の記事にまとめ）</td>
+          <td class="py-3 px-3">国内の調査報告（<a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">ちんこの平均サイズは何cm？</a>の記事にまとめ）</td>
           <td class="py-3 px-3">Veale ら（2015年）BJU International</td>
         </tr>
         <tr>
@@ -1011,7 +1011,7 @@ export const article: Article = {
   <h2 class="text-xl md:text-2xl font-bold mt-8 mb-4 text-white">関連記事</h2>
 
   <ul class="list-disc ml-6 space-y-2">
-    <li><a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">日本人男性のペニスサイズ｜データで見る平均値と正しい理解</a></li>
+    <li><a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">ちんこの平均サイズは何cm？日本人男性の長さ・太さのデータまとめ</a></li>
     <li><a href="/articles/condom-size-guide" class="text-blue-400 hover:text-blue-300 underline">コンドームのサイズ選びガイド</a></li>
     <li><a href="/articles/penis-size-satisfaction-truth" class="text-blue-400 hover:text-blue-300 underline">ペニスサイズと満足度の真実</a></li>
   </ul>

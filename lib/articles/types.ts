@@ -11,4 +11,6 @@ export interface Article {
   pinned?: boolean;
   /** この記事専用の OG 画像（X などのリンクカード）。なければサイト共通の /og-image.jpg */
   ogImage?: string;
+  /** 「よくある質問」の構造化データ（FAQPage）に出す質問と答え */
+  faq?: { q: string; a: string }[];
 }
