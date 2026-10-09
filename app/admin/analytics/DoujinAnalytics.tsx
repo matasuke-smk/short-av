@@ -88,7 +88,7 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
 
       <section className="bg-gray-800 rounded-lg p-3 md:p-4 mb-4">
         <h2 className="text-base font-bold">作品ごと</h2>
-        <p className="text-xs text-gray-400 mt-1">FANZA へのクリックの多い順（同じなら最後まで読まれた順、上位30冊）。クリック率 = 表示に対する FANZA へのクリックの割合。</p>
+        <p className="text-xs text-gray-400 mt-1">FANZA へのクリックの多い順（同じなら最後まで読まれた順、上位30冊）。クリック率 = 表示に対する FANZA へのクリックの割合。作品名を押すと、その作品をサイトで読めます（新しいタブ）。</p>
         {workRows.length === 0 ? (
           <p className="text-sm text-gray-400 mt-3">まだデータがありません。</p>
         ) : (
@@ -106,13 +106,14 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
               {workRows.map(([id, w]) => (
                 <tr key={id} className="border-t border-gray-700 align-top">
                   <td className="py-2">
-                    <div className="flex gap-2 items-start">
+                    {/* 押すとサイトの同人誌の画面（X の同人誌の投稿と同じ ?mode=doujin&d=）で、その作品を新しいタブで開いて読める */}
+                    <a href={`/?mode=doujin&d=${encodeURIComponent(id)}`} target="_blank" rel="noopener" className="flex gap-2 items-start hover:text-sky-300">
                       {info[id]?.cover && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={info[id].cover} alt="" className="w-8 h-11 object-cover rounded flex-shrink-0" />
                       )}
-                      <span className="line-clamp-2">{info[id]?.title ?? id}</span>
-                    </div>
+                      <span className="line-clamp-2 underline decoration-gray-500 underline-offset-2">{info[id]?.title ?? id}</span>
+                    </a>
                   </td>
                   <td className="text-right pl-2 py-2">{fmt(w.views)}</td>
                   <td className="text-right pl-2 py-2">{fmt(w.completes)}</td>
