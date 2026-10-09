@@ -293,6 +293,16 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
     },
     // 時間帯ごとの FANZA へのクリック（動画と同人誌の合計）。レポート 10 の2つ目の数字（以前はすべてのイベントの回数）に入れる
     { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('dmm_link_click'), limit: 10000 },
+    // 同人誌: 端末×ブラウザごとの表示・最後まで読んだ・FANZA へのクリック（レポート 31。アクセス解析の「同人誌」の iPhone / Android）
+    {
+      dateRanges,
+      dimensions: [{ name: 'operatingSystem' }, { name: 'browser' }, { name: 'eventName' }],
+      metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
+      dimensionFilter: doujinEvents,
+      limit: 300,
+    },
+    // 同人誌: 時間帯ごと（レポート 32。[表示した人数, FANZA へのクリック, 表示回数] に直して toJstHourly で日本時間にする）
+    { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents, limit: 10000 },
   ];
   for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
@@ -334,6 +344,13 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   // 30: 端末×ブラウザ（国ごとの 29 は「すべて」のときだけなので、番号を固定して入れる。「日本のみ」では 29 が空になる）
   reports[29] ??= [];
   reports[30] = workActionReports[2];
+  reports[31] = workActionReports[4];
+  // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
+  reports[32] = workActionReports[5].map((r) => {
+    const [, event] = r.dimensions;
+    const [count, users] = r.metrics;
+    return { dimensions: [r.dimensions[0]], metrics: [event === 'doujin_view' ? users : 0, event === 'dmm_link_click' ? count : 0, event === 'doujin_view' ? count : 0] };
+  });
   // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]
   const clicksByHour = new Map(workActionReports[3].map((r) => [r.dimensions[0], r.metrics[0]]));
   reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [r.metrics[0], clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
@@ -449,6 +466,7 @@ const getRangeData = unstable_cache(
     const { reports, warning } = await loadGa(range, country);
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
+    reports[32] = toJstHourly(reports[32] ?? [], range);
     const topClicked = reports[7];
     // 作品名を引く作品: よくクリックされた作品と、作品ごとの表（再生の多い順・クリックの多い順の上位30）に出る作品
     const topOf = (event: string) => {
@@ -477,7 +495,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v23'],
+  ['admin-analytics-v24'],
   { revalidate: 300 },
 );
 
