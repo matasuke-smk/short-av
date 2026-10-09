@@ -40,7 +40,7 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
   const [xPageViews, xUsers] = get(fromX, 'page_view');
   const [xClicks] = get(fromX, 'dmm_link_click');
 
-  // 作品ごと（表示の多い順、上位30冊）
+  // 作品ごと（FANZA へのクリック → 最後まで読んだ → 表示の多い順、上位30冊。表示の回数より、読まれた・クリックされたほうが大事なため）
   const works = new Map<string, { views: number; completes: number; clicks: number }>();
   for (const r of byWork) {
     const id = r.dimensions[0];
@@ -51,7 +51,9 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
     if (r.dimensions[1] === 'dmm_link_click') w.clicks += r.metrics[0];
     works.set(id, w);
   }
-  const workRows = [...works.entries()].sort((a, b) => b[1].views - a[1].views || b[1].clicks - a[1].clicks).slice(0, 30);
+  const workRows = [...works.entries()]
+    .sort((a, b) => b[1].clicks - a[1].clicks || b[1].completes - a[1].completes || b[1].views - a[1].views)
+    .slice(0, 30);
 
   // 日別（新しい順・直近14日）
   const days = new Map<string, { views: number; viewUsers: number; completes: number; clicks: number }>();
@@ -69,15 +71,16 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
 
   return (
     <>
-      {/* 収益につながる数字 */}
+      {/* 収益につながる数字（表示の回数より、最後まで読まれた・FANZA へ飛んだ回数が大事） */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <Tile accent label="同人誌の FANZA へのクリック" value={fmt(clicks)} unit="回" sub={`${fmt(clickUsers)}人がクリック`} />
-        <Tile accent label="表示→クリック率" value={pct(clickUsers, viewUsers).replace('%', '')} unit="%" sub={`表示 ${fmt(viewUsers)}人中 ${fmt(clickUsers)}人`} />
-        <Tile accent label="最後まで読んだ率" value={pct(completeUsers, viewUsers).replace('%', '')} unit="%" sub={`表示 ${fmt(viewUsers)}人中 ${fmt(completeUsers)}人`} />
+        <Tile accent label="最後まで読んだ（購入ページ）" value={fmt(completes)} unit="回" sub={`${fmt(completeUsers)}人`} />
+        <Tile accent label="最後まで読んだ人のクリック率" value={pct(clickUsers, completeUsers).replace('%', '')} unit="%" sub={`最後まで ${fmt(completeUsers)}人中 ${fmt(clickUsers)}人がクリック`} />
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
         <Tile label="同人誌の表示" value={fmt(views)} unit="回" sub={`${fmt(viewUsers)}人`} />
-        <Tile label="最後まで読んだ（購入ページ）" value={fmt(completes)} unit="回" sub={`${fmt(completeUsers)}人`} />
+        <Tile label="表示→クリック率" value={pct(clickUsers, viewUsers).replace('%', '')} unit="%" sub={`表示 ${fmt(viewUsers)}人中 ${fmt(clickUsers)}人`} />
+        <Tile label="最後まで読んだ率" value={pct(completeUsers, viewUsers).replace('%', '')} unit="%" sub={`表示 ${fmt(viewUsers)}人中 ${fmt(completeUsers)}人`} />
         <Tile label="動画の間で表示" value={fmt(feedViews)} unit="回" sub="動画メインの画面（5本ごと）" />
         <Tile label="同人誌メインで表示" value={fmt(doujinModeViews)} unit="回" sub={`${fmt(doujinModeUsers)}人（切り替え・X の投稿から）`} />
         <Tile label="X の同人誌の投稿から来た人" value={fmt(xUsers)} unit="人" sub={`ページ表示 ${fmt(xPageViews)}回・クリック ${fmt(xClicks)}回`} />
@@ -85,7 +88,7 @@ export default function DoujinAnalytics({ reports, daily, info }: { reports: Rep
 
       <section className="bg-gray-800 rounded-lg p-3 md:p-4 mb-4">
         <h2 className="text-base font-bold">作品ごと</h2>
-        <p className="text-xs text-gray-400 mt-1">表示の多い順（上位30冊）。クリック率 = 表示に対する FANZA へのクリックの割合。</p>
+        <p className="text-xs text-gray-400 mt-1">FANZA へのクリックの多い順（同じなら最後まで読まれた順、上位30冊）。クリック率 = 表示に対する FANZA へのクリックの割合。</p>
         {workRows.length === 0 ? (
           <p className="text-sm text-gray-400 mt-3">まだデータがありません。</p>
         ) : (

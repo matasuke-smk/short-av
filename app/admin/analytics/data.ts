@@ -449,13 +449,24 @@ const getRangeData = unstable_cache(
     // X の投稿で紹介した作品（最初に開いた URL の ?v=）
     const xPostIds = (reports[27] ?? []).map((r) => xPostContentId(r.dimensions[0])).filter((id): id is string => !!id);
     const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds, ...xPostIds])].filter((id) => id && id !== '(not set)');
-    // 同人誌の作品名・表紙（表示の多い上位30冊）。データベースとは関係ないので同時に取得する
-    const doujinIds = [...new Set((reports[21] ?? []).filter((r) => r.dimensions[1] === 'doujin_view').map((r) => r.dimensions[0]))].slice(0, 30);
+    // 同人誌の作品名・表紙（画面の作品ごとの表と同じく、クリック → 最後まで読んだ → 表示の多い順の上位30冊）。データベースとは関係ないので同時に取得する
+    const doujinScore = new Map<string, [number, number, number]>();
+    for (const r of reports[21] ?? []) {
+      const score = doujinScore.get(r.dimensions[0]) ?? [0, 0, 0];
+      const i = r.dimensions[1] === 'dmm_link_click' ? 0 : r.dimensions[1] === 'doujin_complete' ? 1 : 2;
+      score[i] += r.metrics[0];
+      doujinScore.set(r.dimensions[0], score);
+    }
+    const doujinIds = [...doujinScore.entries()]
+      .filter(([id]) => id?.startsWith('d_'))
+      .sort(([, a], [, b]) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])
+      .slice(0, 30)
+      .map(([id]) => id);
     const [db, doujins] = await Promise.all([loadDb(range, ids), fetchDoujinByIds(doujinIds).catch(() => [])]);
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v20'],
+  ['admin-analytics-v21'],
   { revalidate: 300 },
 );
 

@@ -8,6 +8,9 @@ import { createPortal } from 'react-dom';
 // 画面下の「short-av.com」→「ブラウザで開く」で short-av ごと開き直してもらう。
 // URL は今の作品（?v=…）になっているので、開き直した先でも同じ作品が出る。
 
+// 案内の間だけアドレスに付ける目印。「ブラウザで開く」で開き直された回数を数える（VideoSwiper）
+export const INAPP_REOPEN_PARAM = 'inapp';
+
 // X のアプリ内ブラウザ（iPhone）。UA の末尾に「Twitter for iPhone/12.32.1」が付く
 export const isXInAppBrowserIOS = () =>
   typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent) && /Twitter/i.test(navigator.userAgent);
