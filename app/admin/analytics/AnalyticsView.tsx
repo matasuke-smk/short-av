@@ -134,18 +134,21 @@ function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: s
 }
 
 // unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
-function Card({ label, value, unit, sub, onClick }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void }) {
+// extra: PC（lg 以上）だけカードの下に出す内訳（PC はカードが大きく空きが多かったため）
+function Card({ label, value, unit, sub, onClick, extra }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void; extra?: React.ReactNode }) {
   const content = (
     <>
-      <div className="text-xs leading-snug text-gray-300 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
-      <div className="text-2xl leading-tight font-bold mt-1 truncate">
+      <div className="flex-shrink-0 text-xs leading-snug text-gray-300 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
+      <div className="flex-shrink-0 text-2xl leading-tight font-bold mt-1 truncate">
         {value}
         {unit && <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>}
       </div>
-      <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
+      <div className="flex-shrink-0 text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
+      {/* 内訳はカードに入りきらない分を隠す（数字・説明は縮めない） */}
+      {extra && <div className="hidden lg:block min-h-0 mt-2 border-t border-gray-700 pt-2 text-xs text-gray-300 w-full overflow-hidden">{extra}</div>}
     </>
   );
-  const box = 'relative flex flex-col justify-start h-full bg-gray-800 rounded-lg p-3 min-w-0 text-left';
+  const box = 'relative flex flex-col justify-start h-full bg-gray-800 rounded-lg p-3 min-w-0 text-left overflow-hidden';
   if (!onClick) return <div className={box}>{content}</div>;
   return (
     <button type="button" onClick={onClick} className={`${box} hover:bg-gray-700 active:bg-gray-700 ring-1 ring-gray-700`}>
@@ -154,6 +157,19 @@ function Card({ label, value, unit, sub, onClick }: { label: string; value: stri
     </button>
   );
 }
+
+// カードの内訳の1行（左に名前、右に数字）
+function ExtraRow({ name, right }: { name: string; right: string }) {
+  return (
+    <div className="flex items-baseline gap-2 py-0.5">
+      <span className="min-w-0 flex-1 truncate">{name}</span>
+      <span className="flex-shrink-0 text-gray-400">{right}</span>
+    </div>
+  );
+}
+
+// 「ブラウザで開く」案内の記録の種類（0回のものも並べるため、表示する順に固定で持つ）
+const INAPP_ACTIONS = ['表示', 'ブラウザで開き直した', 'このまま開く', '閉じる', 'Android 自動で切り替え', 'Android 切り替えできず'] as const;
 
 // 割合（%）の数字だけ。カードでは単位を小さく付けるので、ほかのカードと同じく数字を大きく出せる
 const share = (part: number, whole: number) => (whole > 0 ? ((part / whole) * 100).toFixed(1) : '0');
@@ -611,8 +627,9 @@ function RangeBody({
         </Section>
         </div>
 
-        {/* 右の列は左の列の下端まで伸ばし、カードで埋める（PC で右下が空かないように） */}
-        <div className="lg:flex lg:flex-col lg:pb-4">
+        {/* 右の列は左の列と同じ高さにし（中身で左より長くならないよう外枠を基準に置く）、カードで埋める（PC で右下が空かないように） */}
+        <div className="lg:relative">
+        <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col lg:pb-4">
         {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
         <div className="grid grid-cols-2 gap-2 mb-2">
           {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
@@ -625,13 +642,23 @@ function RangeBody({
                 unit="人"
                 sub={`FANZA へのクリック ${fmt(total.clicks)}回（うちアプリ内 ${fmt(inAppClicks)}回）`}
                 onClick={() => setDetail('os')}
+                extra={osRows
+                  .filter((r) => r.os === (name === 'iPhone' ? 'iOS' : 'Android'))
+                  .slice(0, 4)
+                  .map((r) => (
+                    <ExtraRow
+                      key={r.browser}
+                      name={r.browser === inAppBrowser ? 'アプリ内（X など）' : r.browser}
+                      right={`${fmt(r.users)}人・クリック ${fmt(r.clicks)}回（${pct(r.clickUsers, r.users)}）`}
+                    />
+                  ))}
               />
             );
           })}
         </div>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0 lg:flex-1 lg:grid-rows-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0 lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
           {(() => {
             // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
             // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
@@ -643,8 +670,13 @@ function RangeBody({
                 label="「ブラウザで開く」案内（アプリ内ブラウザ）"
                 value={fmt(reopened)}
                 unit="回"
-                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）・このまま開く ${fmt(notice('このまま開く'))}回・Android 自動で切り替え ${fmt(notice('Android 自動で切り替え'))}回（できず ${fmt(notice('Android 切り替えできず'))}回）`}
+                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）`}
                 onClick={() => setDetail('inapp')}
+                extra={
+                  <div className="grid grid-cols-2 gap-x-4">
+                    {INAPP_ACTIONS.map((action) => <ExtraRow key={action} name={action} right={`${fmt(notice(action))}回`} />)}
+                  </div>
+                }
               />
             );
           })()}
@@ -654,6 +686,15 @@ function RangeBody({
             unit="人"
             sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
             onClick={() => setDetail('xpost')}
+            extra={
+              x.posts.length === 0 ? (
+                <p className="text-gray-500">まだデータがありません</p>
+              ) : (
+                x.posts.slice(0, 5).map((p) => (
+                  <ExtraRow key={p.id} name={db.titleById[p.id] ?? p.id} right={`${fmt(p.users)}人・クリック ${fmt(p.clicks)}回`} />
+                ))
+              )
+            }
           />
           <Card
             label="よくクリックされた作品"
@@ -661,6 +702,13 @@ function RangeBody({
             unit="作品"
             sub="作品ごとの再生・FANZA へのクリック"
             onClick={() => setDetail('clicked')}
+            extra={[...works]
+              .filter((w) => w.clicks > 0)
+              .sort((a, b) => b.clicks - a.clicks)
+              .slice(0, 5)
+              .map((w) => (
+                <ExtraRow key={w.id} name={db.titleById[w.id] ?? w.id} right={`クリック ${fmt(w.clicks)}回・再生 ${fmt(w.plays)}回`} />
+              ))}
           />
           <Card
             label="どこから来たか（流入元ごとのクリック率）"
@@ -668,7 +716,11 @@ function RangeBody({
             unit="種類"
             sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
             onClick={() => setDetail('channels')}
+            extra={channelRows.slice(0, 5).map((r) => (
+              <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
+            ))}
           />
+        </div>
         </div>
         </div>
         </div>
@@ -746,7 +798,15 @@ function RangeBody({
             note="X などのアプリ内ブラウザで FANZA へのボタンを押した人に出す案内（iPhone の X は 2026/10/9 13時ごろから、Android のアプリ内ブラウザは 10/9 15時ごろから）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 14時ごろから）。回数（人数）。"
             onClose={closeDetail}
           >
-            <AnswerBars event="inapp_browser_notice" rows={answers} />
+            {/* まだ0回の記録も並べる（以前は記録のあるものだけで、「ブラウザで開き直した」が0回のときに出なかった） */}
+            {(() => {
+              const of = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics ?? [0, 0];
+              const max = Math.max(...INAPP_ACTIONS.map((a) => of(a)[0]), 1);
+              return INAPP_ACTIONS.map((action) => {
+                const [count, people] = of(action);
+                return <Bar key={action} label={action} value={count} max={max} right={`${fmt(count)}回（${fmt(people)}人）`} />;
+              });
+            })()}
           </DetailModal>
         )}
         {detail === 'funnel' && (
