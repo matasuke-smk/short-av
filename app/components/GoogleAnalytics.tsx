@@ -1,7 +1,6 @@
-'use client';
-
-import Script from 'next/script';
-
+// GA はページの <head> で読み込む（app/layout.tsx）。以前は next/script の afterInteractive で、
+// 画面の準備（hydration）が終わってから読み込んでいたため、それより前に閉じた人（X のアプリ内ブラウザで多い）が記録されず、
+// X の投稿のリンクのクリック数より訪問が大幅に少なく出ていた（2026-10-09）
 export default function GoogleAnalytics() {
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
@@ -10,14 +9,7 @@ export default function GoogleAnalytics() {
     return null;
   }
 
-  return (
-    <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
+  const config = `
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
@@ -42,8 +34,12 @@ export default function GoogleAnalytics() {
           } catch (e) {}
 
           gtag('config', '${measurementId}', internal ? { traffic_type: 'internal' } : {});
-        `}
-      </Script>
+`;
+
+  return (
+    <>
+      <script async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`} />
+      <script id="google-analytics" dangerouslySetInnerHTML={{ __html: config }} />
     </>
   );
 }
