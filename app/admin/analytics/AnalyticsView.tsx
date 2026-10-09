@@ -23,7 +23,7 @@ const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨�
 const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, yesterday: 1, dayBefore: 2, '7d': 0 };
 
 // 各期間の日数（時間帯グラフは1日あたりの平均で描く）
-const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, dayBefore: 1, '7d': 7 };
+export const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, dayBefore: 1, '7d': 7 };
 
 // 各期間が何日前から何日前までか（日本時間）。週間平均は途中の今日を含めない。曜日ごとの平均は昨日までの4週間
 const VIEW_SPAN: Record<ViewKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], dayBefore: [2, 2], '7d': [7, 1], weekday: [27, 1] };
@@ -139,9 +139,9 @@ const CAMPAIGN_LABELS: Record<string, string> = {
   x_post: 'X の投稿',
 };
 
-const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
+export const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
 const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
-const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
+export const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
 const seconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}分${Math.round(s % 60)}秒` : `${Math.round(s)}秒`);
 const ymd = (d: string) => `${Number(d.slice(4, 6))}/${Number(d.slice(6, 8))}`;
 const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし）' : v);
@@ -149,7 +149,7 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 // onClick があるカードは押すと詳細（全画面）を開く。右上の「›」が目印
 // どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
 // 収益の指標（いちばん上の3つ）。ほかのカードより大きく、緑の枠で目立たせる
-function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: string; unit: string; sub: string; onClick: () => void }) {
+export function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: string; unit: string; sub: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -170,7 +170,7 @@ function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: s
 
 // unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
 // extra: PC（lg 以上）だけカードの下に出す内訳（PC はカードが大きく空きが多かったため）
-function Card({ label, value, unit, sub, onClick, extra }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void; extra?: React.ReactNode }) {
+export function Card({ label, value, unit, sub, onClick, extra }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void; extra?: React.ReactNode }) {
   const content = (
     <>
       <div className="flex-shrink-0 text-xs leading-snug text-gray-300 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
@@ -194,7 +194,7 @@ function Card({ label, value, unit, sub, onClick, extra }: { label: string; valu
 }
 
 // カードの内訳の1行（左に名前、右に数字）
-function ExtraRow({ name, right }: { name: string; right: string }) {
+export function ExtraRow({ name, right }: { name: string; right: string }) {
   return (
     <div className="flex items-baseline gap-2 py-0.5">
       <span className="min-w-0 flex-1 truncate">{name}</span>
@@ -216,7 +216,7 @@ const sumOf = (rows: ReportRow[]) => rows.reduce((sum, r) => sum + r.metrics[0],
 const deviceLabel = (v: string) => ({ mobile: 'スマホ', desktop: 'PC', tablet: 'タブレット' } as Record<string, string>)[v] ?? v;
 
 // collapsible: 見出しを押すと開閉（最初は閉じている）。細かい一覧で画面が長くならないようにする
-function Section({
+export function Section({
   title,
   note,
   children,
@@ -249,7 +249,7 @@ function Section({
   );
 }
 
-function Bar({ label, value, max, right }: { label: string; value: number; max: number; right: string }) {
+export function Bar({ label, value, max, right }: { label: string; value: number; max: number; right: string }) {
   return (
     <div className="mb-2">
       <div className="flex justify-between text-sm mb-1 gap-2">
@@ -275,7 +275,7 @@ function TotalButton({ onClick, className = '', children }: { onClick?: () => vo
   );
 }
 
-type HourlyPoint = { h: number; users: number; events: number; views: number; fromLive: boolean };
+export type HourlyPoint = { h: number; users: number; events: number; views: number; fromLive: boolean };
 
 // 時間帯ごとの数字をリアルタイムの記録で補う（GA の集計は数時間遅れるため、「今日」と、0時直後の「昨日」の夜の時間帯）。
 // 合計も補った分を足す（FANZA へのクリックは時間帯ごとの合計、人数は通常の集計の人数より少なくはしない）
@@ -321,7 +321,7 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
 
 // 時間帯ごとの利用者（0〜23時の縦棒。棒にカーソルを合わせる・タップすると数値を表示）
 // total: 期間全体の利用者数（重複を除いた人数。時間帯ごとの合計とは一致しない）
-function HourlyChart({
+export function HourlyChart({
   hours,
   total,
   totalEvents,
@@ -1252,7 +1252,7 @@ function ViaTable({ viaCount }: { viaCount: (event: string, value: string) => nu
 const DISMISS_DISTANCE = 100; // これ以上引き下げて離すと閉じる（px）
 const SLIDE_MS = 220;
 
-function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
+export function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -1599,6 +1599,16 @@ export default function AnalyticsView({
       hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
     }
   }
+  // 同人誌の時間帯グラフの縦軸も4つの期間で共通にする（レポート 32）
+  const doujinHourlyAxis = { users: 0, events: 0 };
+  for (const key of Object.keys(RANGE_DAYS) as RangeKey[]) {
+    const range = data[key];
+    if (!('reports' in range)) continue;
+    for (const row of range.reports[32] ?? []) {
+      doujinHourlyAxis.users = Math.max(doujinHourlyAxis.users, row.metrics[0] / RANGE_DAYS[key]);
+      doujinHourlyAxis.events = Math.max(doujinHourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
+    }
+  }
   // リアルタイムで補った時間帯は、グラフ側で縦軸を必要なだけ広げる（使わない古い記録で縦軸が伸びないよう、ここでは足さない）
   for (const { dates, hours } of weekday ?? []) {
     if (dates.length === 0) continue;
@@ -1710,6 +1720,8 @@ export default function AnalyticsView({
                   reports={range.reports}
                   daily={'reports' in month ? month.reports[22] ?? null : null}
                   info={{ ...('reports' in month ? month.doujinInfo : {}), ...range.doujinInfo }}
+                  days={viewKey === 'weekday' ? 28 : RANGE_DAYS[viewKey as RangeKey]}
+                  hourlyAxis={doujinHourlyAxis}
                 />
               </>
             );
