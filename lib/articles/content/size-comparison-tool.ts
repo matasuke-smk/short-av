@@ -2,8 +2,8 @@ import type { Article } from '../types';
 
 export const article: Article = {
   slug: 'size-comparison-tool',
-  title: 'ペニスサイズ偏差値チェッカー - 日本人の平均と比べて100人中なん位か',
-  description: '勃起時の長さと太さを入れるだけで、日本人の目安値と比べた偏差値と100人中なん位かが分かるツール（ちんこ偏差値チェッカー）。cm でも mm でも入力でき、コンドームのサイズの目安も表示。登録不要・匿名。結果は統計上の目安で、医学的な診断ではありません。',
+  title: 'ちんこ偏差値チェッカー',
+  description: 'ちんこ偏差値チェッカー: 勃起時の長さと太さを入れるだけで、日本基準と世界基準（海外の研究の平均）の両方の偏差値と、100人中なん位かが分かるツール。cm でも mm でも入力でき、コンドームのサイズの目安も表示。登録不要・匿名。結果は統計上の目安で、医学的な診断ではありません。',
   content: `
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -356,6 +356,14 @@ export const article: Article = {
   text-align: center;
   padding: 8px 0 16px;
 }
+.dev-world {
+  color: #bfdbfe;
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 10px;
+}
+.dev-world span#worldDeviation { color: #fff; font-size: 1.5rem; font-weight: 800; }
+.dev-world-sub { color: #93c5fd; font-weight: 500; font-size: 0.85rem; margin-left: 6px; }
 .rank-tag {
   display: inline-block;
   background: #fde047;
@@ -441,7 +449,7 @@ export const article: Article = {
 </style>
 
 <div class="size-tool-container">
-  <p class="tool-lead">勃起時の長さと太さを入れるだけで、日本人の目安値と比べた<strong>偏差値</strong>と、<strong>100人中なん位か</strong>、そして「AV男優並み」「日本人の平均並み」のどれにあたるかが分かります。登録不要・匿名です。結果は統計上の目安で、医学的な診断ではありません。</p>
+  <p class="tool-lead">勃起時の長さと太さを入れるだけで、<strong>日本基準と世界基準の両方の偏差値</strong>と、<strong>100人中なん位か</strong>、そして「AV男優並み」「日本人の平均並み」のどれにあたるかが分かります。登録不要・匿名です。結果は統計上の目安で、医学的な診断ではありません。</p>
 
   <div class="tool-card" id="inputCard">
     <h3>サイズを入力してください（勃起時）</h3>
@@ -493,8 +501,9 @@ export const article: Article = {
       <h3 class="result-title">あなたの結果</h3>
 
       <div class="dev-hero">
-        <div class="dev-label">総合の偏差値</div>
+        <div class="dev-label">総合の偏差値（日本基準）</div>
         <div class="dev-main" id="overallDeviation">50</div>
+        <div class="dev-world">世界基準では <span id="worldDeviation">50</span><span class="dev-world-sub">（長さ <span id="worldLengthDeviation">50</span>・太さ <span id="worldGirthDeviation">50</span>）</span></div>
         <div class="rank-tag">あなたは <span id="rankTag">日本人の平均並み</span></div>
         <div class="world-compare" id="worldCompare"></div>
         <div class="country-compare" id="countryCompare"></div>
@@ -555,7 +564,7 @@ export const article: Article = {
 
     <div class="disclaimer">
       <div class="disclaimer-text">
-        ※ 偏差値・順位は、日本人の目安値（長さ 124mm・直径 36mm）を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
+        ※ 偏差値・順位は、日本の目安値（長さ 124mm・直径 36mm）と海外の研究の平均（Veale ら 2015: 長さ 131mm・直径 37.1mm）を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
         ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください<br>
         ※ 「〇〇の平均並み」は、WorldData.info「Average penis size by country」（2023年11月時点・88か国）の勃起時の長さの平均のうち17か国と比べたものです。国によって調査方法（自己申告か医療者の測定か）が違い、国どうしの差より個人差のほうが大きいので、話のタネ程度にご覧ください
       </div>
@@ -580,7 +589,8 @@ export const article: Article = {
   // 日本人の目安値（mm）。国内の複数の報告（勃起時の長さはおおむね12〜14cm）を参考にした目安で、単一の調査の値ではない
   var JP = { lengthMean: 124, lengthStd: 18, diameterMean: 36, diameterStd: 3.6 };
   // 海外の研究の平均（Veale ら 2015 のメタ分析。医療者が測定）: 長さ 131mm・直径 37.1mm
-  var WORLD = { lengthMean: 131, diameterMean: 37.1 };
+  // 標準偏差: 長さ 1.66cm、外周 1.10cm（直径に直すと約 3.5mm）
+  var WORLD = { lengthMean: 131, lengthStd: 16.6, diameterMean: 37.1, diameterStd: 3.5 };
   // 国ごとの勃起時の長さの平均（cm）。WorldData.info「Average penis size by country」（2023年11月25日時点、88か国）のうち
   // 上位・下位5か国と目立った国。調査方法（自己申告か医療者の測定か）が国によって違うため、あくまで目安
   var COUNTRIES = [
@@ -729,6 +739,9 @@ export const article: Article = {
     var lengthDev = deviation(lengthMm, JP.lengthMean, JP.lengthStd);
     var girthDev = deviation(diameter, JP.diameterMean, JP.diameterStd);
     var overallDev = Math.round((lengthDev + girthDev) / 2);
+    var worldLengthDev = deviation(lengthMm, WORLD.lengthMean, WORLD.lengthStd);
+    var worldGirthDev = deviation(diameter, WORLD.diameterMean, WORLD.diameterStd);
+    var worldDev = Math.round((worldLengthDev + worldGirthDev) / 2);
     var lengthRank = Math.min(100, Math.max(1, Math.round(100 - lengthPercentile + 1)));
     var diameterRank = Math.min(100, Math.max(1, Math.round(100 - diameterPercentile + 1)));
     var avgPercentile = (lengthPercentile + diameterPercentile) / 2;
@@ -736,6 +749,9 @@ export const article: Article = {
     var topPct = function(p) { return Math.max(1, Math.round(100 - p)); };
 
     document.getElementById('overallDeviation').textContent = overallDev;
+    document.getElementById('worldDeviation').textContent = worldDev;
+    document.getElementById('worldLengthDeviation').textContent = worldLengthDev;
+    document.getElementById('worldGirthDeviation').textContent = worldGirthDev;
     document.getElementById('lengthDeviation').textContent = lengthDev;
     document.getElementById('girthDeviation').textContent = girthDev;
     document.getElementById('lengthRank').textContent = lengthRank + '位';
@@ -754,14 +770,14 @@ export const article: Article = {
     document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
     // X に投稿する文（数字だけ。入力した mm は入れない）
-    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '長さは' + country[0] + 'の平均並み。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    lastShareText = 'ちんこ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）、世界基準では ' + worldDev + '。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '長さは' + country[0] + 'の平均並み。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
     document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
     document.getElementById('resultContainer').classList.remove('result-hidden');
     drawChart(lengthMm, diameter);
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    track('size_tool_calculate', { deviation: overallDev, level: rankInfo.tag, girth_type: girthType });
+    track('size_tool_calculate', { deviation: overallDev, world_deviation: worldDev, level: rankInfo.tag, girth_type: girthType });
 
     // DB の列は整数のため、直径（外周から換算すると小数になる）などは四捨五入して送る
     sendStatisticsData(Math.round(lengthMm), Math.round(diameter), 'erect', document.getElementById('ageInput').value);
@@ -914,10 +930,10 @@ export const article: Article = {
   </div>
 
   <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-    <div class="font-bold text-white mb-2">■ 海外の研究データ（グラフの比較に使用）</div>
+    <div class="font-bold text-white mb-2">■ 海外の研究データ（世界基準の偏差値とグラフの比較に使用）</div>
     <ul class="list-disc ml-6 space-y-2 text-gray-300">
       <li><strong class="text-white">勃起時の長さ</strong><br>平均 約13.1cm（標準偏差 約1.7cm）</li>
-      <li><strong class="text-white">勃起時の外周</strong><br>平均 約11.7cm（直径に換算すると約37mm）</li>
+      <li><strong class="text-white">勃起時の外周</strong><br>平均 約11.7cm（標準偏差 約1.1cm。直径に換算すると約37mm・標準偏差約3.5mm）</li>
       <li><strong class="text-white">平常時の長さ（参考）</strong><br>平均 約9.2cm</li>
       <li><strong class="text-white">出典</strong><br>Veale ら（2015年）BJU International。医療者が測定した研究を集めたメタ分析</li>
     </ul>
@@ -927,7 +943,7 @@ export const article: Article = {
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">偏差値と「100人中なん位」の意味</h3>
 
-  <p class="mb-4 text-gray-300">偏差値は、平均を50、標準偏差1つぶんを10として位置を表した数字です（学校のテストの偏差値と同じ計算）。目安値どおりなら50、平均より標準偏差1つぶん大きければ60、小さければ40になります。総合の偏差値は長さと太さの偏差値の平均です。</p>
+  <p class="mb-4 text-gray-300">偏差値は、平均を50、標準偏差1つぶんを10として位置を表した数字です（学校のテストの偏差値と同じ計算）。目安値どおりなら50、平均より標準偏差1つぶん大きければ60、小さければ40になります。総合の偏差値は長さと太さの偏差値の平均です。「日本基準」は日本の目安値、「世界基準」は海外の研究の平均（Veale ら 2015）をもとに計算しています。</p>
 
   <p class="mb-6 text-gray-300">「100人中なん位」は、同じ分布の100人を大きい順に並べたときのおおよその順位です。偏差値60なら上位16%程度（100人中16位くらい）、偏差値40なら下位16%程度にあたります。</p>
 

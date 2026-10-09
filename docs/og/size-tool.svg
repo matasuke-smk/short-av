@@ -44,15 +44,15 @@
     <text x="70" y="150" font-size="44" font-weight="800">長さと太さを入れるだけ</text>
     <text x="70" y="262" font-size="92" font-weight="900" letter-spacing="-2">ちんこ偏差値</text>
     <text x="70" y="366" font-size="92" font-weight="900" letter-spacing="-2">チェッカー</text>
-    <text x="70" y="440" font-size="36" font-weight="700">日本人の平均と比べて</text>
-    <text x="70" y="500" font-size="36" font-weight="700">偏差値と「100人中なん位」がわかる</text>
+    <text x="70" y="440" font-size="36" font-weight="700">日本基準と世界基準、両方の偏差値と</text>
+    <text x="70" y="500" font-size="36" font-weight="700">「100人中なん位」がわかる</text>
   </g>
 
   <!-- 吹き出し: 〇〇並み？ -->
-  <g transform="translate(820 40)">
-    <path d="M 20 0 H 360 Q 380 0 380 20 V 120 Q 380 140 360 140 H 150 L 120 172 L 126 140 H 20 Q 0 140 0 120 V 20 Q 0 0 20 0 Z" fill="#ffffff" stroke="#1f2937" stroke-width="6"/>
-    <text x="190" y="52" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" font-weight="800" fill="#1f2937">あなたは</text>
-    <text x="190" y="112" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="40" font-weight="900" fill="#e11d48">エクアドル人並み？！</text>
+  <g transform="translate(740 36)">
+    <path d="M 20 0 H 420 Q 440 0 440 20 V 124 Q 440 144 420 144 H 200 L 170 176 L 176 144 H 20 Q 0 144 0 124 V 20 Q 0 0 20 0 Z" fill="#ffffff" stroke="#1f2937" stroke-width="6"/>
+    <text x="220" y="54" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" font-weight="800" fill="#1f2937">あなたは</text>
+    <text x="220" y="116" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="40" font-weight="900" fill="#e11d48">エクアドル人並み？！</text>
   </g>
   <!-- 下の帯 -->
   <rect x="0" y="566" width="1200" height="64" fill="#1f2937"/>
