@@ -315,7 +315,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   useEffect(() => {
     if (!emblaApi) return;
 
-    const videoParam = searchParams.get('v');
+    // v は searchParams ではなく今のアドレスから読む。onSelect の replaceState が useSearchParams に反映されるのは少し遅れるため、
+    // 一覧から選んだ直後（videos が変わってこの effect が走るとき）に古い v を「移動先」と誤認し、
+    // 再読み込み直後に人気一覧から選ぶと前に見ていた順位の動画に戻っていた（2026-10-10）
+    const videoParam = new URL(window.location.href).searchParams.get('v');
     if (!videoParam || videoParam === lastHandledParamRef.current) return;
     lastHandledParamRef.current = videoParam;
 
