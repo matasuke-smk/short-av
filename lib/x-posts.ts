@@ -6,6 +6,7 @@
  */
 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { importVideoFromDmm } from '@/lib/video-import';
 import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
 import { getAdminUserIds } from '@/lib/admin-users';
@@ -399,12 +400,20 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
  */
 export async function composeForVideo(contentId: string) {
   const supabase = getSupabaseAdmin();
-  const { data: video, error } = await supabase
-    .from('videos')
-    .select('dmm_content_id, title, thumbnail_url, maker, actress_ids, rank_position, release_date, sample_seconds')
-    .eq('dmm_content_id', contentId)
-    .maybeSingle();
+  const select = () =>
+    supabase
+      .from('videos')
+      .select('dmm_content_id, title, thumbnail_url, maker, actress_ids, rank_position, release_date, sample_seconds')
+      .eq('dmm_content_id', contentId)
+      .maybeSingle();
+  let { data: video, error } = await select();
   if (error) throw error;
+  // 人気ランキングの作品は DMM から直接表示していてデータベースに無いことがある。
+  // そのまま投稿すると URL を開いた人に「掲載が終了しました」と出るので、DMM から取得してデータベースに入れてから作る
+  if (!video && (await importVideoFromDmm(supabase, contentId))) {
+    ({ data: video, error } = await select());
+    if (error) throw error;
+  }
   if (!video) return null;
 
   const actressIds = (video.actress_ids ?? []) as string[];
