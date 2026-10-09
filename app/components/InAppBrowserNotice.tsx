@@ -22,7 +22,7 @@ export default function InAppBrowserNotice({ url, onOpenAnyway, onClose }: Props
   return (
     <div className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
-        className="mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 pb-28 text-white shadow-2xl"
+        className="mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 pb-2 text-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-lg font-bold">ブラウザで開くのがおすすめです</p>
@@ -57,7 +57,7 @@ export default function InAppBrowserNotice({ url, onOpenAnyway, onClose }: Props
         </a>
 
         {/* X の「short-av.com」の表示（画面の下の中央）を指す */}
-        <div className="pointer-events-none mt-4 flex flex-col items-center text-blue-400">
+        <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
           <span className="text-xs">ここをタップ</span>
           <svg className="h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m0 0l-6-6m6 6l6-6" />
