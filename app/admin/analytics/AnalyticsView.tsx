@@ -548,6 +548,17 @@ function RangeBody({
   const osTotal = (os: string) => osRows.filter((r) => r.os === os).reduce((sum, r) => ({ users: sum.users + r.users, clicks: sum.clicks + r.clicks }), { users: 0, clicks: 0 });
   const ios = osTotal('iOS');
   const android = osTotal('Android');
+  // 実質的な見込み客: 普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。アプリ内ブラウザ（X など）で開くと、
+  // あとで普段のブラウザで買っても報酬にならないため除く。Android で intent:// により普段のブラウザへ自動で切り替わった人は
+  // GA ではアプリ内（Android Webview）のクリックとして記録されるので、「Android 自動で切り替え」の分を足す
+  const IN_APP_BROWSERS = ['Safari (in-app)', 'Android Webview'];
+  const browserRows = osRows.filter((r) => !IN_APP_BROWSERS.includes(r.browser) && r.clicks > 0);
+  const intentOk = answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === 'Android 自動で切り替え')?.metrics ?? [0, 0];
+  const prospects = {
+    clicks: browserRows.reduce((sum, r) => sum + r.clicks, 0) + intentOk[0],
+    users: browserRows.reduce((sum, r) => sum + r.clickUsers, 0) + intentOk[1],
+    allClicks: osRows.reduce((sum, r) => sum + r.clicks, 0),
+  };
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // FANZA へのクリック（動画と同人誌の合計）。時間帯グラフの合計が取れなかったときに使う
   const gaTotalClicks = allEvents.find((r) => r.dimensions[0] === 'dmm_link_click')?.metrics[0] ?? 0;
@@ -606,16 +617,23 @@ function RangeBody({
         <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
         <div>
         {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
-        <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           <KpiCard
-            label="FANZA へのクリック"
+            label="FANZA クリック"
             value={fmt(eventCount('dmm_link_click'))}
             unit="回"
             sub={`${fmt(eventUsers('dmm_link_click'))}人がクリック`}
             onClick={() => setDetail('clicked')}
           />
           <KpiCard
-            label="訪問→クリック率"
+            label="見込み客"
+            value={fmt(prospects.users)}
+            unit="人"
+            sub={`普段のブラウザで ${fmt(prospects.clicks)}回（${pct(prospects.clicks, prospects.allClicks)}）`}
+            onClick={() => setDetail('prospects')}
+          />
+          <KpiCard
+            label="クリック率"
             value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
             unit="%"
             sub={`訪問 ${fmt(eventUsers('page_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
@@ -641,7 +659,7 @@ function RangeBody({
                 value={fmt(total.users)}
                 unit="人"
                 sub={`FANZA へのクリック ${fmt(total.clicks)}回（うちアプリ内 ${fmt(inAppClicks)}回）`}
-                onClick={() => setDetail('os')}
+                onClick={() => setDetail(`os:${name === 'iPhone' ? 'iOS' : 'Android'}`)}
                 extra={osRows
                   .filter((r) => r.os === (name === 'iPhone' ? 'iOS' : 'Android'))
                   .slice(0, 4)
@@ -756,13 +774,13 @@ function RangeBody({
             )}
           </DetailModal>
         )}
-        {detail === 'os' && (
+        {detail?.startsWith('os:') && (
           <DetailModal
-            title="端末とブラウザ"
+            title={`端末とブラウザ（${detail === 'os:iOS' ? 'iPhone' : 'Android'}）`}
             note="GA の判定。X のアプリ内ブラウザは、iPhone が「Safari (in-app)」、Android が「Android Webview」になることが多い。FANZA へのクリックは動画と同人誌の合計。人数は重複を除いた数のため、合計とは一致しない。"
             onClose={closeDetail}
           >
-            {osRows.length === 0 ? (
+            {osRows.filter((r) => r.os === detail.slice(3)).length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (
               <div className="overflow-x-auto">
@@ -777,7 +795,7 @@ function RangeBody({
                     </tr>
                   </thead>
                   <tbody>
-                    {osRows.map((r) => (
+                    {osRows.filter((r) => r.os === detail.slice(3)).map((r) => (
                       <tr key={`${r.os}/${r.browser}`} className="border-t border-gray-700">
                         <td className="py-2 pr-2">{r.os}</td>
                         <td className="pr-2">{r.browser}</td>
@@ -790,6 +808,32 @@ function RangeBody({
                 </table>
               </div>
             )}
+          </DetailModal>
+        )}
+        {detail === 'prospects' && (
+          <DetailModal
+            title="実質的な見込み客"
+            note="普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。FANZA の報酬の記録（クッキー）は開いたブラウザに残るので、普段のブラウザで開いた人だけが、あとで買っても報酬になる。アプリ内ブラウザ（X など）で開いた人は除く。人数はブラウザごとの人数を足したもの（同じ人を2回数えることがある）。動画と同人誌の合計。"
+            onClose={closeDetail}
+          >
+            {(() => {
+              const rows = [
+                ...browserRows.map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, clicks: r.clicks, users: r.clickUsers })),
+                { key: 'intent', label: 'Android ・ アプリ内から自動で普段のブラウザへ', clicks: intentOk[0], users: intentOk[1] },
+              ].sort((a, b) => b.clicks - a.clicks);
+              const max = Math.max(...rows.map((r) => r.clicks), 1);
+              const inApp = osRows.filter((r) => IN_APP_BROWSERS.includes(r.browser)).reduce((sum, r) => sum + r.clicks, 0) - intentOk[0];
+              return (
+                <>
+                  {rows.map((r) => (
+                    <Bar key={r.key} label={r.label} value={r.clicks} max={max} right={`${fmt(r.clicks)}回（${fmt(r.users)}人）`} />
+                  ))}
+                  <p className="mt-4 text-xs text-gray-400">
+                    除いたもの: アプリ内ブラウザで FANZA を開いた {fmt(Math.max(inApp, 0))}回（報酬になりにくい）
+                  </p>
+                </>
+              );
+            })()}
           </DetailModal>
         )}
         {detail === 'inapp' && (
