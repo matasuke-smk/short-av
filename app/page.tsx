@@ -27,7 +27,7 @@ export async function generateMetadata({
     return {
       title,
       description,
-      alternates: { canonical: `/?mode=doujin&d=${encodeURIComponent(d)}` },
+      alternates: { canonical: `/d/${encodeURIComponent(d)}` },
       openGraph: { title, description, siteName: 'Short AV', images: [{ url: doujin.cover, alt: doujin.title }], locale: 'ja_JP', type: 'website' },
       twitter: { card: 'summary_large_image', title, description, images: [doujin.cover] },
     };
@@ -50,8 +50,9 @@ export async function generateMetadata({
   return {
     title,
     description,
-    // 作品ごとに別のページとして登録されるよう、正規の URL は自分自身にする（以前は layout の設定でトップになっていて、作品ページが登録されなかった）
-    alternates: { canonical: getVideoUrl(contentId) },
+    // 作品ごとに別のページとして登録されるよう、正規の URL は作品の別名 URL（/v/作品番号）にする。
+    // /?v= のままだと Next.js がパス「/」の検索文字列を捨ててトップの URL になる（next.config.ts の rewrites を参照）
+    alternates: { canonical: `/v/${encodeURIComponent(contentId)}` },
     openGraph: {
       title,
       description,

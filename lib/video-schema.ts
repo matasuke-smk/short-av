@@ -55,7 +55,7 @@ export function generateVideoSchema(video: Video) {
     description: video.title, // 説明文がない場合はタイトルを使用
     thumbnailUrl: [video.thumbnail_url],
     uploadDate: formatDateWithTimezone(video.release_date || video.created_at),
-    contentUrl: `https://short-av.com/?v=${video.dmm_content_id}`,
+    contentUrl: `https://short-av.com/v/${encodeURIComponent(video.dmm_content_id)}`,
   };
 
   // 埋め込み動画URL（推奨）
