@@ -3,13 +3,13 @@ import { CONTACT_FORM_URL, SITE_OPERATOR } from '@/config/site';
 
 export const metadata: Metadata = {
   title: '利用規約 - Short AV',
-  description: 'Short AVの利用規約。サイト利用時の注意事項、免責事項について記載しています。',
+  description: 'Short AV の利用規約。18歳未満の利用禁止、サンプル動画と作品情報の出典（FANZA Web サービス）、アフィリエイトリンク、禁止事項、免責事項、規約の変更について記載しています。',
   alternates: {
     canonical: '/terms',
   },
   openGraph: {
     title: '利用規約 - Short AV',
-    description: 'Short AVの利用規約。サイト利用時の注意事項、免責事項について記載しています。',
+    description: 'Short AV の利用規約。18歳未満の利用禁止、サンプル動画と作品情報の出典（FANZA Web サービス）、アフィリエイトリンク、禁止事項、免責事項、規約の変更について記載しています。',
     url: 'https://short-av.com/terms',
     siteName: 'Short AV',
     locale: 'ja_JP',

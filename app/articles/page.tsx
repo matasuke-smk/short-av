@@ -5,13 +5,13 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '記事一覧 - Short AV使い方完全ガイド',
-  description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！初心者から上級者まで役立つ50以上の記事で、DMMの動画をもっと快適に楽しめます。',
+  description: 'Short AV の使い方（スワイプ・検索・いいね・履歴）、FANZA で安く買う方法と購入の流れ、サンプル動画の長い作品や今週の人気作の一覧、サイズ比較ツールなど男性の体と性の知識まで。FANZA のサンプル動画を楽しむための記事をまとめています。',
   alternates: {
     canonical: '/articles',
   },
   openGraph: {
     title: '記事一覧 - Short AV使い方完全ガイド',
-    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！50以上の記事を掲載。',
+    description: 'Short AV の使い方、FANZA で安く買う方法、サンプル動画の長い作品や人気作の一覧、サイズ比較ツールなど男性の体と性の知識の記事をまとめています。',
     url: 'https://short-av.com/articles',
     siteName: 'Short AV',
     images: [
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '記事一覧 - Short AV使い方完全ガイド',
-    description: 'Short AVの使い方、便利な機能、検索のコツ、セキュリティ対策、男性の健康・性生活に関する情報まで徹底解説！50以上の記事を掲載。',
+    description: 'Short AV の使い方、FANZA で安く買う方法、サンプル動画の長い作品や人気作の一覧、サイズ比較ツールなど男性の体と性の知識の記事をまとめています。',
     images: ['/og-image.jpg'],
   },
 };

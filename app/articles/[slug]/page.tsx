@@ -6,6 +6,8 @@ import { fillLiveSections } from '@/lib/articles/live';
 import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
 import ArticleLink, { formatDate } from '../ArticleLink';
+import SwipeCta from '../SwipeCta';
+import { getCtaVideos } from '@/lib/articles/cta-videos';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -97,6 +99,8 @@ export default async function ArticlePage({ params }: Props) {
   // 本文の <!-- live:名前 --> を最新のデータ（作品の一覧・統計）に置き換える
   const bodyHtml = isInteractiveTool ? '' : await fillLiveSections(renderArticleMarkdown(content, article.title));
   const modifiedAt = getArticleModifiedAt(article);
+  // 本文の下の導線に出す人気作（表紙3枚）
+  const ctaVideos = await getCtaVideos();
 
   // Article構造化データ
   const articleSchema = {
@@ -179,7 +183,8 @@ export default async function ArticlePage({ params }: Props) {
       </header>
 
       {/* コンテンツ - レスポンシブ対応 */}
-      <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
+      {/* スマホは画面下の固定ボタン（SwipeCta sticky）のぶん下に余白を取る */}
+      <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12 pb-28 md:pb-12">
         <article>
           {/* タイトル */}
           <header className="mb-8 md:mb-12">
@@ -209,6 +214,9 @@ export default async function ArticlePage({ params }: Props) {
             </p>
           </header>
 
+          {/* サイトの本体（スワイプ画面）への導線（上）。記事は検索から来る人の入口なので、本体を先に知らせる */}
+          <SwipeCta slug={article.slug} position="top" />
+
           {/* 本文 - レスポンシブ対応 */}
           <div className="prose prose-invert prose-lg md:prose-xl max-w-none">
             {isInteractiveTool ? (
@@ -226,6 +234,9 @@ export default async function ArticlePage({ params }: Props) {
             )}
           </div>
         </article>
+
+        {/* サイトの本体への導線（本文の後。人気作の表紙つき） */}
+        <SwipeCta slug={article.slug} position="end" videos={ctaVideos} />
 
         {/* 次の記事/前の記事ナビゲーション */}
         {(nextArticle || prevArticle) && (
@@ -290,6 +301,8 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         </footer>
       </main>
+      {/* スマホの画面下の固定ボタン */}
+      <SwipeCta slug={article.slug} position="sticky" />
     </div>
   );
 }

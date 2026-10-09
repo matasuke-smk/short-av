@@ -41,7 +41,7 @@ export async function generateMetadata({
   if (!video?.thumbnail_url) return {};
 
   const title = `${video.title} | Short AV`;
-  const description = 'サンプル動画を縦スワイプでチェック。Short AV で作品を探そう。';
+  const description = `${video.title} のサンプル動画を、縦スワイプで次々チェック。会員登録不要。FANZA の人気作・新作をいいね・履歴・検索で探せる Short AV。`;
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
