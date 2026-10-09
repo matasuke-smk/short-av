@@ -584,6 +584,9 @@ function RangeBody({
   return (
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
+        {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4 lg:items-start">
+        <div>
         {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           <KpiCard
@@ -604,7 +607,9 @@ function RangeBody({
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
           <HourlyChart hours={hours} total={users} totalEvents={totalClicks} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('funnel')} />
         </Section>
+        </div>
 
+        <div>
         {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
         <div className="grid grid-cols-2 gap-2 mb-2">
           {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
@@ -623,7 +628,7 @@ function RangeBody({
         </div>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0">
           {(() => {
             // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
             // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
@@ -661,6 +666,8 @@ function RangeBody({
             sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
             onClick={() => setDetail('channels')}
           />
+        </div>
+        </div>
         </div>
 
         {detail === 'xpost' && (
@@ -1490,16 +1497,20 @@ export default function AnalyticsView({
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white px-2 py-3 md:p-6">
+    <main className="min-h-screen bg-gray-900 text-white px-2 py-3 md:p-6 lg:py-4">
       <div className="max-w-6xl mx-auto">
+        {/* PC は見出し・動画｜同人誌・日本のみ｜すべてを1行に並べる（スクロールせずに見られるよう縦を詰める） */}
+        <div className="lg:flex lg:items-center lg:gap-4">
+        <div className="lg:flex-1 lg:min-w-0">
         <h1 className="text-xl md:text-2xl font-bold">アクセス解析</h1>
         <p className="text-xs text-gray-400 mt-1">
-          Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。スワイプ関連の数字は 2026/10/6 以降のみ。
+          Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。
           {' '}{fetchedAt} 時点（5分ごとに更新）
         </p>
+        </div>
 
         {/* 動画｜同人誌 */}
-        <div className="mt-3 flex rounded-full bg-gray-800 p-1 max-w-xs mx-auto">
+        <div className="mt-3 lg:mt-0 flex rounded-full bg-gray-800 p-1 max-w-xs lg:w-60 mx-auto lg:mx-0">
           {(['video', 'doujin'] as const).map((key) => (
             <button
               key={key}
@@ -1513,7 +1524,7 @@ export default function AnalyticsView({
         </div>
 
         {/* 日本のみ｜すべて */}
-        <div className="mt-2 flex items-center justify-center gap-2">
+        <div className="mt-2 lg:mt-0 flex items-center justify-center gap-2">
           <div className="flex rounded-full bg-gray-800 p-1">
             {(['jp', 'all'] as const).map((key) => (
               <button
@@ -1529,9 +1540,10 @@ export default function AnalyticsView({
           </div>
           {countryPending && <span className="text-xs text-gray-400">読み込み中…</span>}
         </div>
+        </div>
 
         {/* スマホは上に3つ・下に2つ。PC は1行に並べ、1日ごとと平均の間に区切りを入れる */}
-        <nav className="mt-3 mb-4 flex flex-col md:flex-row gap-1.5 md:gap-3">
+        <nav className="mt-3 mb-4 lg:mb-3 flex flex-col md:flex-row gap-1.5 md:gap-3">
           <div className="grid grid-cols-3 gap-1.5 md:gap-2 md:flex-[3]">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
           <div className="hidden md:block w-px bg-gray-700" aria-hidden />
           <div className="grid grid-cols-2 gap-1.5 md:gap-2 md:flex-[2.4]">{(['7d', 'weekday'] as const).map(button)}</div>
