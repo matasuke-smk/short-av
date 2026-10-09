@@ -142,7 +142,16 @@ ${byAge ? `<div><p class="text-sm text-gray-300 font-bold mb-2">年代別（勃�
   { revalidate: CACHE_SECONDS },
 );
 
+// ちんこ偏差値チェッカーへの導線（平均を調べる人は「自分はどのくらいの位置か」が知りたいので、答えの直後に目立つ枠で出す）
+const checkerCta = async () =>
+  `<div class="not-prose my-6 rounded-2xl border border-yellow-500/60 bg-yellow-500/10 p-5 md:p-6">
+    <p class="text-lg md:text-xl font-bold text-white m-0">あなたは平均の上？下？ 10秒で分かります</p>
+    <p class="mt-2 text-sm md:text-base text-gray-300 m-0">長さと太さを入れるだけで、日本基準と世界基準の偏差値、100人中なん位か、「AV男優並み」「日本人の平均並み」のどれかが出ます。登録不要・匿名、cm でも mm でも OK。</p>
+    <a href="/articles/size-comparison-tool" onclick="try{window.gtag&&window.gtag('event','tool_cta_click',{position:'average_article'})}catch(e){}" class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-yellow-400 py-3 px-4 font-bold text-gray-900 no-underline hover:bg-yellow-300">🍌 ちんこ偏差値チェッカーで調べる</a>
+  </div>`;
+
 const SECTIONS: Record<string, () => Promise<string>> = {
+  'checker-cta': checkerCta,
   'long-samples': longSamples,
   'popular-week': popularWeek,
   'size-report': sizeReport,
