@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type DataKey, type RangeData } from './AnalyticsView';
 import { RANGE_KEYS, getYesterdaySoFar, loadRange } from './data';
@@ -33,12 +34,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     null,
     // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
     // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う。記録は3日分残しているので、一昨日まで補える
+    // 記録は表示のあと（after）に回し、ここではこれまでの記録を読むだけにする（記録を待つと開くのが遅くなるため。
+    // サイトが使われている間は10分おきにも記録しているので、遅れても数分）
     (async () => {
-      await recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error));
       const [today, yesterday, dayBefore] = await Promise.all([0, 1, 2].map((daysAgo) => getLiveHourly(daysAgo).catch(() => null)));
       return { today, yesterday, dayBefore };
     })(),
   ]);
+  after(() => recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error)));
   const data: Partial<Record<DataKey, RangeData>> = { [firstKey]: first };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
