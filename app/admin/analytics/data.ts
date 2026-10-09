@@ -204,12 +204,12 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   // 2026/10/8 に登録したばかりで、反映前はエラーになることがあるため、さらに別に取得して失敗しても他は表示する
   // 収益につながる内訳（流入元ごと・作品ごとの再生とクリック）もここで取る（失敗しても他の表示は残す）
   const answerRequests: ReportRequest[] = [
-    // 17: 年齢確認・いいねの操作の内訳
+    // 17: 年齢確認・いいねの操作・X のアプリ内ブラウザ向けの案内（表示／このまま開く／閉じる）の内訳
     {
       dateRanges,
       dimensions: [{ name: 'eventName' }, { name: 'customEvent:action' }],
       metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }],
-      dimensionFilter: eventIn(['age_verification', 'like_action']),
+      dimensionFilter: eventIn(['age_verification', 'like_action', 'inapp_browser_notice']),
     },
     // 18: 流入元ごとの再生・クリック（回数・人数）
     {
@@ -443,7 +443,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v18'],
+  ['admin-analytics-v19'],
   { revalidate: 300 },
 );
 
