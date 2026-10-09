@@ -400,7 +400,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     via: swipeCountRef.current > 0 ? 'swipe' : 'direct',
   }), [isFiniteList]);
 
-  // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
+  // アプリ内ブラウザで FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
+  // Android は先に intent:// で普段のブラウザへの切り替えを試し、切り替わらなかったときだけ案内を出す
   // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
   const [inAppNotice, setInAppNotice] = useState<{ url: string; platform: InAppPlatform; label: string; track: () => void; restoreUrl: string } | null>(null);
   // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、アプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
@@ -418,20 +419,49 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       return;
     }
     e.preventDefault();
-    // 案内の間だけアドレスを変え、閉じたら元に戻す。
-    // - 目印（?inapp=1）: 「ブラウザで開く」はこのアドレスをそのまま開くので、開き直した先で目印を見て回数を記録する（下の useEffect）
-    // - 同人誌はスワイプしてもアドレスが変わらないので、開き直したときに同じ作品が出るよう ?mode=doujin&d= にする
-    const restoreUrl = window.location.href;
-    const url = new URL(window.location.href);
-    url.searchParams.set(INAPP_REOPEN_PARAM, '1');
-    if (doujinId) {
-      url.searchParams.delete('v');
-      url.searchParams.set('mode', 'doujin');
-      url.searchParams.set('d', doujinId);
+    const fanzaUrl = e.currentTarget.href;
+    const showNotice = () => {
+      // 案内の間だけアドレスを変え、閉じたら元に戻す。
+      // - 目印（?inapp=1）: 「ブラウザで開く」はこのアドレスをそのまま開くので、開き直した先で目印を見て回数を記録する（上の useEffect）
+      // - 同人誌はスワイプしてもアドレスが変わらないので、開き直したときに同じ作品が出るよう ?mode=doujin&d= にする
+      const restoreUrl = window.location.href;
+      const url = new URL(window.location.href);
+      url.searchParams.set(INAPP_REOPEN_PARAM, '1');
+      if (doujinId) {
+        url.searchParams.delete('v');
+        url.searchParams.set('mode', 'doujin');
+        url.searchParams.set('d', doujinId);
+      }
+      window.history.replaceState(window.history.state, '', url.toString());
+      setInAppNotice({ url: fanzaUrl, platform, label, track, restoreUrl });
+      trackInAppNotice('show');
+    };
+    if (platform === 'ios') {
+      showNotice();
+      return;
     }
-    window.history.replaceState(window.history.state, '', url.toString());
-    setInAppNotice({ url: e.currentTarget.href, platform, label, track, restoreUrl });
-    trackInAppNotice('show');
+
+    // Android: intent:// で、普段使っているブラウザ（パッケージを指定しない）で FANZA のリンクを直接開く。
+    // アプリが切り替われば画面が隠れるので、そこで FANZA へのクリックとして記録する。
+    // 1.5秒たっても隠れなければ（アプリ内ブラウザが intent を通さない）、「︙ → ブラウザで開く」の案内を出す
+    // （X の Android 版が通すかは実機で確かめていない。GA の「Android 自動で切り替え」「Android 切り替えできず」で確かめる）
+    const u = new URL(fanzaUrl);
+    const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(fanzaUrl)};end`;
+    let switched = false;
+    const onHidden = () => {
+      if (document.visibilityState !== 'hidden' || switched) return;
+      switched = true;
+      track();
+      trackInAppNotice('intent_ok');
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    window.setTimeout(() => {
+      document.removeEventListener('visibilitychange', onHidden);
+      if (switched) return;
+      trackInAppNotice('intent_failed');
+      showNotice();
+    }, 1500);
+    window.location.href = intentUrl;
   }, []);
   const closeInAppNotice = (openAnyway: boolean) => {
     if (!inAppNotice) return;
