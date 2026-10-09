@@ -2,24 +2,10 @@ import type { Article } from '../types';
 
 export const article: Article = {
   slug: 'size-comparison-tool',
-  title: 'ペニスサイズ比較ツール - 研究データの平均値と比べる目安',
-  description: '勃起時の長さと太さを入力すると、日本人の目安値や Veale ら（2015年）のメタ分析の平均値と比べたおおよその位置を表示するツール。結果は統計上の目安で、医学的な診断ではありません。',
+  title: 'ペニスサイズ偏差値チェッカー - 日本人の平均と比べて100人中なん位か',
+  description: '勃起時の長さと太さを入れるだけで、日本人の目安値と比べた偏差値と100人中なん位かが分かるツール（ちんこ偏差値チェッカー）。cm でも mm でも入力でき、コンドームのサイズの目安も表示。登録不要・匿名。結果は統計上の目安で、医学的な診断ではありません。',
   content: `
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-<p style="color: #d1d5db; margin-bottom: 1rem;">勃起時の長さと太さを入力すると、日本人の目安値や海外の研究データの平均値と比べたおおよその位置を確認できます。結果は統計上の目安で、医学的な診断ではありません。</p>
-
-<p style="color: #d1d5db; margin-bottom: 1.5rem;">「統計を計算する」を押すと、入力した長さ・太さ（直径）・年齢層（任意）と、ブラウザごとの匿名ID がサーバーに送信・保存され、匿名の統計データとして利用されます。氏名やメールアドレスなどの入力はありません。詳しくは<a href="/privacy" style="color: #60a5fa; text-decoration: underline;">プライバシーポリシー</a>をご覧ください。</p>
-
-<!-- 収集された統計データ表示 -->
-<div id="collectedStats" class="collected-stats-card">
-  <div class="stats-header">
-    <h3>📊 このツールに集まったデータ（勃起時・自己申告）</h3>
-  </div>
-  <div id="statsContent" class="stats-content">
-    <div class="stats-loading">データを読み込み中...</div>
-  </div>
-</div>
 
 <style>
 .size-tool-container {
@@ -344,40 +330,124 @@ export const article: Article = {
     padding: 16px;
   }
 }
+
+.tool-lead {
+  color: #d1d5db;
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+.tool-lead strong { color: #fff; }
+.form-hint {
+  color: #9ca3af;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.tool-error {
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.35);
+  border: 1px solid #991b1b;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+.dev-hero {
+  text-align: center;
+  padding: 8px 0 16px;
+}
+.dev-label {
+  color: #bfdbfe;
+  font-size: 0.9rem;
+}
+.dev-main {
+  color: #fff;
+  font-size: 4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 4px 0 8px;
+}
+.stat-input {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  font-weight: normal;
+}
+.stat-foot {
+  color: #bfdbfe;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 6px;
+}
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.btn-share {
+  flex: 1 1 200px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #fff;
+  font-weight: bold;
+  font-size: 0.95rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-share:hover { background: #1f2937; }
+.btn-share-x {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+.btn-share-x:hover { background: #e5e7eb; }
+.share-note {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
 </style>
 
 <div class="size-tool-container">
-  <div class="tool-card">
-    <h3>サイズを入力してください</h3>
+  <p class="tool-lead">勃起時の長さと太さを入れるだけで、日本人の目安値と比べた<strong>偏差値</strong>と、<strong>100人中なん位か</strong>が分かります。登録不要・匿名です。結果は統計上の目安で、医学的な診断ではありません。</p>
+
+  <div class="tool-card" id="inputCard">
+    <h3>サイズを入力してください（勃起時）</h3>
 
     <div class="form-group">
-      <label class="form-label">長さ（mm）</label>
-      <input type="number" id="lengthInput" class="form-input" min="70" max="200" step="1" placeholder="例: 126">
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
+      <label class="form-label" for="lengthInput">長さ</label>
+      <input type="number" id="lengthInput" class="form-input" inputmode="decimal" step="0.1" placeholder="例: 13.5（cm）または 135（mm）">
+      <p class="form-hint">cm でも mm でもかまいません（30未満は cm として扱います）</p>
     </div>
 
     <div class="form-group">
-      <label class="form-label">太さの測定方法</label>
+      <label class="form-label">太さの測り方</label>
       <div class="radio-group">
         <label class="radio-label">
-          <input type="radio" name="girthType" value="diameter" checked>
-          直径（mm）
+          <input type="radio" name="girthType" value="circumference" checked>
+          外周（ぐるっと一周の長さ。おすすめ）
         </label>
         <label class="radio-label">
-          <input type="radio" name="girthType" value="circumference">
-          外周（mm）
+          <input type="radio" name="girthType" value="diameter">
+          直径
         </label>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-label" id="girthLabel">太さ - 直径（mm）</label>
-      <input type="number" id="girthInput" class="form-input" min="25" max="50" step="1" placeholder="例: 35">
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-top: 8px;">※ 勃起時のサイズを入力してください</p>
+      <label class="form-label" id="girthLabel" for="girthInput">太さ - 外周</label>
+      <input type="number" id="girthInput" class="form-input" inputmode="decimal" step="0.1" placeholder="例: 11（cm）または 110（mm）">
+      <p class="form-hint" id="girthHint">いちばん太いところを柔らかいメジャーか紐で測ります。cm でも mm でも可</p>
     </div>
 
     <div class="form-group">
-      <label class="form-label">年齢層（任意）</label>
+      <label class="form-label" for="ageInput">年齢層（任意）</label>
       <select id="ageInput" class="form-input">
         <option value="">選択しない</option>
         <option value="20s">20代</option>
@@ -387,53 +457,64 @@ export const article: Article = {
       </select>
     </div>
 
-    <button class="btn-calculate" id="calculateBtn">統計を計算する</button>
+    <p id="toolError" class="tool-error" hidden></p>
+    <button class="btn-calculate" id="calculateBtn">偏差値を計算する</button>
+    <p class="form-hint" style="margin-top: 10px;">押すと、入力した長さ・太さ・年齢層（任意）とブラウザごとの匿名IDが保存され、下の「集まったデータ」の集計に使われます（同じブラウザからは最初の1回分のみ）。氏名などの入力はありません。<a href="/privacy" style="color: #60a5fa; text-decoration: underline;">プライバシーポリシー</a></p>
   </div>
 
   <div id="resultContainer" class="result-hidden">
     <div class="result-card">
-      <h3 class="result-title">あなたの統計結果</h3>
+      <h3 class="result-title">あなたの結果</h3>
 
-      <div class="rank-badge">
+      <div class="dev-hero">
+        <div class="dev-label">総合の偏差値</div>
+        <div class="dev-main" id="overallDeviation">50</div>
         <div class="rank-badge-large" id="rankLevel">平均的</div>
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
 
       <div class="stat-grid">
         <div class="stat-item-double">
-          <div class="stat-label">長さ</div>
+          <div class="stat-label">長さ <span class="stat-input" id="lengthEcho"></span></div>
           <div class="stat-double-row">
             <div class="stat-half">
-              <div class="stat-sublabel">パーセンタイル</div>
-              <div class="stat-value" id="lengthPercentile">50%</div>
+              <div class="stat-sublabel">偏差値</div>
+              <div class="stat-value" id="lengthDeviation">50</div>
             </div>
             <div class="stat-half">
               <div class="stat-sublabel">100人中</div>
               <div class="stat-value" id="lengthRank">50位</div>
             </div>
           </div>
+          <div class="stat-foot" id="lengthPercentile">上位 50%</div>
         </div>
         <div class="stat-item-double">
-          <div class="stat-label">太さ</div>
+          <div class="stat-label">太さ <span class="stat-input" id="girthEcho"></span></div>
           <div class="stat-double-row">
             <div class="stat-half">
-              <div class="stat-sublabel">パーセンタイル</div>
-              <div class="stat-value" id="girthPercentile">50%</div>
+              <div class="stat-sublabel">偏差値</div>
+              <div class="stat-value" id="girthDeviation">50</div>
             </div>
             <div class="stat-half">
               <div class="stat-sublabel">100人中</div>
               <div class="stat-value" id="girthRank">50位</div>
             </div>
           </div>
+          <div class="stat-foot" id="girthPercentile">上位 50%</div>
         </div>
       </div>
 
       <div class="condom-recommendation">
         <div class="condom-title">コンドームサイズの目安</div>
         <div class="condom-size" id="condomSize">Mサイズ前後</div>
-        <div class="condom-note">※ あくまで目安です。サイズの基準はメーカーごとに異なるため、各メーカーのサイズ表（公称幅）で確認してください。</div>
+        <div class="condom-note">※ あくまで目安です。S・M・L の基準はメーカーごとに異なります。選び方は<a href="/articles/condom-size-guide" style="color: #93c5fd; text-decoration: underline;">コンドームのサイズの選び方</a>へ</div>
       </div>
 
+      <div class="share-row">
+        <a id="shareX" class="btn-share btn-share-x" href="#" target="_blank" rel="noopener">𝕏 結果をポストする</a>
+        <button id="shareCopy" class="btn-share" type="button">結果の文をコピー</button>
+      </div>
+      <p class="share-note" id="shareNote">ポストには数字だけが入ります（入力した mm は入りません）。</p>
     </div>
 
     <div class="tool-card">
@@ -445,10 +526,18 @@ export const article: Article = {
 
     <div class="disclaimer">
       <div class="disclaimer-text">
-        ※ 結果は、目安値を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
-        ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください<br>
-        ※ 「統計を計算する」を押すと、長さ・直径（外周で入力した場合は直径に換算した値）・年齢層（任意）・ブラウザごとの匿名ID・登録日時がサーバーに保存され、匿名の統計データとして利用されます（同じブラウザからは最初の1回分のみ）
+        ※ 偏差値・順位は、日本人の目安値（長さ 124mm・直径 36mm）を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
+        ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください
       </div>
+    </div>
+  </div>
+
+  <div id="collectedStats" class="collected-stats-card">
+    <div class="stats-header">
+      <h3>📊 このツールに集まったデータ（勃起時・自己申告）</h3>
+    </div>
+    <div id="statsContent" class="stats-content">
+      <div class="stats-loading">データを読み込み中...</div>
     </div>
   </div>
 </div>
@@ -457,170 +546,192 @@ export const article: Article = {
 (function() {
   'use strict';
 
-  // DOMが完全に読み込まれた後に実行
+  var TOOL_URL = 'https://short-av.com/articles/size-comparison-tool';
+  // 日本人の目安値（mm）。国内の複数の報告（勃起時の長さはおおむね12〜14cm）を参考にした目安で、単一の調査の値ではない
+  var JP = { lengthMean: 124, lengthStd: 18, diameterMean: 36, diameterStd: 3.6 };
+
   document.addEventListener('DOMContentLoaded', function() {
-    // 統計データはサーバーサイドで埋め込まれているため、初回読み込みは不要
-    // loadCollectedStats();
-
-    // 測定方法の切り替え
-    document.querySelectorAll('input[name="girthType"]').forEach(radio => {
+    document.querySelectorAll('input[name="girthType"]').forEach(function(radio) {
       radio.addEventListener('change', function() {
-        const label = document.getElementById('girthLabel');
-        const input = document.getElementById('girthInput');
-
+        var label = document.getElementById('girthLabel');
+        var input = document.getElementById('girthInput');
+        var hint = document.getElementById('girthHint');
         if (this.value === 'diameter') {
-          label.textContent = '太さ - 直径（mm）';
-          input.min = 25;
-          input.max = 50;
-          input.placeholder = '例: 35';
+          label.textContent = '太さ - 直径';
+          input.placeholder = '例: 3.5（cm）または 35（mm）';
+          hint.textContent = '直径を直接測るのは難しいので、外周で入力するのがおすすめです。cm でも mm でも可';
         } else {
-          label.textContent = '太さ - 外周（mm）';
-          input.min = 80;
-          input.max = 157;
-          input.placeholder = '例: 110';
+          label.textContent = '太さ - 外周';
+          input.placeholder = '例: 11（cm）または 110（mm）';
+          hint.textContent = 'いちばん太いところを柔らかいメジャーか紐で測ります。cm でも mm でも可';
         }
         input.value = '';
+        hideError();
       });
     });
-
-    // 計算ボタンのイベントリスナー
-    const calculateBtn = document.getElementById('calculateBtn');
-    if (calculateBtn) {
-      calculateBtn.addEventListener('click', calculateStats);
-    }
+    var calculateBtn = document.getElementById('calculateBtn');
+    if (calculateBtn) calculateBtn.addEventListener('click', calculateStats);
+    var copyBtn = document.getElementById('shareCopy');
+    if (copyBtn) copyBtn.addEventListener('click', copyShareText);
+    var xBtn = document.getElementById('shareX');
+    if (xBtn) xBtn.addEventListener('click', function() { track('size_tool_share', { method: 'x' }); });
   });
 
-// 正規分布のCDF（累積分布関数）
-function normalCDF(x, mean, stdDev) {
-  const z = (x - mean) / stdDev;
-  const t = 1 / (1 + 0.2316419 * Math.abs(z));
-  const d = 0.3989423 * Math.exp(-z * z / 2);
-  let prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
-
-  if (z > 0) {
-    prob = 1 - prob;
+  function track(name, params) {
+    try { if (window.gtag) window.gtag('event', name, params || {}); } catch (e) {}
   }
 
-  return prob;
-}
+  // 正規分布の累積分布関数
+  function normalCDF(x, mean, stdDev) {
+    var z = (x - mean) / stdDev;
+    var t = 1 / (1 + 0.2316419 * Math.abs(z));
+    var d = 0.3989423 * Math.exp(-z * z / 2);
+    var prob = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    return z > 0 ? 1 - prob : prob;
+  }
 
-// 外周から直径に変換
-function circumferenceToDiameter(circumference) {
-  return circumference / Math.PI;
-}
+  // 偏差値 = 50 + 10 × (値 − 平均) ÷ 標準偏差
+  function deviation(x, mean, stdDev) {
+    return Math.round(50 + 10 * (x - mean) / stdDev);
+  }
 
-// 5段階評価を取得
-function getRankLevel(percentile) {
-  if (percentile >= 90) return { level: '大きめ', description: '日本人男性の上位10%に入ります' };
-  if (percentile >= 70) return { level: 'やや大きめ', description: '日本人男性の平均よりやや大きめです' };
-  if (percentile >= 30) return { level: '平均的', description: '日本人男性の標準範囲内です' };
-  if (percentile >= 10) return { level: 'やや小さめ', description: '日本人男性の平均よりやや小さめです' };
-  return { level: '小さめ', description: '日本人男性の下位10%に入ります' };
-}
+  // cm で入力された値を mm に直す（長さ・外周は 30 未満、直径は 8 未満を cm とみなす）
+  function toMm(value, cmBelow) {
+    return value < cmBelow ? value * 10 : value;
+  }
 
-// コンドームサイズの目安（外周から大まかに判定。S/M/L の基準はメーカーごとに異なる）
-function recommendCondomSize(diameter) {
-  const circumference = Math.round(diameter * Math.PI);
-  let size;
-  if (circumference < 105) size = 'Sサイズ前後';
-  else if (circumference < 115) size = 'Mサイズ前後';
-  else if (circumference < 123) size = 'Lサイズ前後';
-  else size = 'XLサイズ前後';
-  return size + '（外周 約' + circumference + 'mm）';
-}
+  function getRankLevel(percentile) {
+    if (percentile >= 90) return { level: '大きめ', description: '日本人男性の上位10%に入ります' };
+    if (percentile >= 70) return { level: 'やや大きめ', description: '日本人男性の平均よりやや大きめです' };
+    if (percentile >= 30) return { level: '平均的', description: '日本人男性の標準範囲内です' };
+    if (percentile >= 10) return { level: 'やや小さめ', description: '日本人男性の平均よりやや小さめです' };
+    return { level: '小さめ', description: '日本人男性の下位10%に入ります' };
+  }
 
-  let comparisonChart = null;
+  // コンドームサイズの目安（外周から大まかに判定。S/M/L の基準はメーカーごとに異なる）
+  function recommendCondomSize(diameter) {
+    var circumference = Math.round(diameter * Math.PI);
+    var size;
+    if (circumference < 105) size = 'Sサイズ前後';
+    else if (circumference < 115) size = 'Mサイズ前後';
+    else if (circumference < 123) size = 'Lサイズ前後';
+    else size = 'XLサイズ前後';
+    return size + '（外周 約' + circumference + 'mm・直径 約' + Math.round(diameter) + 'mm）';
+  }
+
+  function showError(message) {
+    var el = document.getElementById('toolError');
+    el.textContent = message;
+    el.hidden = false;
+  }
+  function hideError() {
+    var el = document.getElementById('toolError');
+    el.hidden = true;
+  }
+
+  var comparisonChart = null;
+  var lastShareText = '';
 
   function calculateStats() {
-  // 入力値を取得
-  const lengthMm = parseFloat(document.getElementById('lengthInput').value);
-  const girthInput = parseFloat(document.getElementById('girthInput').value);
-  const girthType = document.querySelector('input[name="girthType"]:checked').value;
+    hideError();
+    var lengthRaw = parseFloat(document.getElementById('lengthInput').value);
+    var girthRaw = parseFloat(document.getElementById('girthInput').value);
+    var girthType = document.querySelector('input[name="girthType"]:checked').value;
 
-  // バリデーション
-  if (!lengthMm || !girthInput) {
-    alert('長さと太さを入力してください');
-    return;
-  }
-
-  if (lengthMm < 70 || lengthMm > 200) {
-    alert('長さは70〜200mm（7.0〜20.0cm）の範囲で入力してください。この範囲外の値は医学的に極めて稀です');
-    return;
-  }
-
-  // 長さはmm単位のまま使用
-  const length = lengthMm;
-
-  // 太さを直径に統一
-  let diameter;
-  if (girthType === 'diameter') {
-    diameter = girthInput;
-    if (diameter < 25 || diameter > 50) {
-      alert('直径は25〜50mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です');
+    if (!lengthRaw || !girthRaw) {
+      showError('長さと太さの両方を入力してください。');
       return;
     }
-  } else {
-    if (girthInput < 80 || girthInput > 157) {
-      alert('外周は80〜157mmの範囲で入力してください。この範囲外の値は医学的に極めて稀です');
+    var lengthMm = toMm(lengthRaw, 30);
+    if (lengthMm < 70 || lengthMm > 200) {
+      showError('長さは 7〜20cm（70〜200mm）の範囲で入力してください。');
       return;
     }
-    diameter = circumferenceToDiameter(girthInput);
-  }
+    var diameter;
+    if (girthType === 'diameter') {
+      diameter = toMm(girthRaw, 8);
+      if (diameter < 25 || diameter > 50) {
+        showError('直径は 2.5〜5cm（25〜50mm）の範囲で入力してください。');
+        return;
+      }
+    } else {
+      var circumference = toMm(girthRaw, 30);
+      if (circumference < 80 || circumference > 157) {
+        showError('外周は 8〜15.7cm（80〜157mm）の範囲で入力してください。');
+        return;
+      }
+      diameter = circumference / Math.PI;
+    }
 
-  // 日本人の目安値（mm単位）
-  // 国内の複数の報告（勃起時の長さはおおむね12〜14cm程度の範囲）を参考にした目安値。単一の調査の値ではない
-  const jpLengthMean = 124;
-  const jpLengthStd = 18;
-  const jpDiameterMean = 36;
-  const jpDiameterStd = 3.6;
+    var lengthPercentile = normalCDF(lengthMm, JP.lengthMean, JP.lengthStd) * 100;
+    var diameterPercentile = normalCDF(diameter, JP.diameterMean, JP.diameterStd) * 100;
+    var lengthDev = deviation(lengthMm, JP.lengthMean, JP.lengthStd);
+    var girthDev = deviation(diameter, JP.diameterMean, JP.diameterStd);
+    var overallDev = Math.round((lengthDev + girthDev) / 2);
+    var lengthRank = Math.min(100, Math.max(1, Math.round(100 - lengthPercentile + 1)));
+    var diameterRank = Math.min(100, Math.max(1, Math.round(100 - diameterPercentile + 1)));
+    var avgPercentile = (lengthPercentile + diameterPercentile) / 2;
+    var rankInfo = getRankLevel(avgPercentile);
+    var topPct = function(p) { return Math.max(1, Math.round(100 - p)); };
 
-  // パーセンタイル計算
-  const lengthPercentile = normalCDF(length, jpLengthMean, jpLengthStd) * 100;
-  const diameterPercentile = normalCDF(diameter, jpDiameterMean, jpDiameterStd) * 100;
+    document.getElementById('overallDeviation').textContent = overallDev;
+    document.getElementById('lengthDeviation').textContent = lengthDev;
+    document.getElementById('girthDeviation').textContent = girthDev;
+    document.getElementById('lengthRank').textContent = lengthRank + '位';
+    document.getElementById('girthRank').textContent = diameterRank + '位';
+    document.getElementById('lengthPercentile').textContent = '上位 ' + topPct(lengthPercentile) + '%';
+    document.getElementById('girthPercentile').textContent = '上位 ' + topPct(diameterPercentile) + '%';
+    document.getElementById('lengthEcho').textContent = '（' + (lengthMm / 10).toFixed(1) + 'cm）';
+    document.getElementById('girthEcho').textContent = '（直径 ' + (diameter / 10).toFixed(1) + 'cm）';
+    document.getElementById('rankLevel').textContent = rankInfo.level;
+    document.getElementById('rankDescription').textContent = rankInfo.description;
+    document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
-  // 100人中の順位
-  const lengthRank = Math.round(100 - lengthPercentile + 1);
-  const diameterRank = Math.round(100 - diameterPercentile + 1);
+    // X に投稿する文（数字だけ。入力した mm は入れない）
+    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらい。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
-  // 総合パーセンタイル（平均）
-  const avgPercentile = (lengthPercentile + diameterPercentile) / 2;
-  const rankInfo = getRankLevel(avgPercentile);
-
-  // コンドームサイズ
-  const condomSize = recommendCondomSize(diameter);
-
-  // 結果を表示
-  document.getElementById('lengthPercentile').textContent = lengthPercentile.toFixed(1) + '%';
-  document.getElementById('girthPercentile').textContent = diameterPercentile.toFixed(1) + '%';
-  document.getElementById('lengthRank').textContent = lengthRank + '位';
-  document.getElementById('girthRank').textContent = diameterRank + '位';
-  document.getElementById('rankLevel').textContent = rankInfo.level;
-  document.getElementById('rankDescription').textContent = rankInfo.description;
-  document.getElementById('condomSize').textContent = condomSize;
-
-  // 結果エリアを表示
-  document.getElementById('resultContainer').classList.remove('result-hidden');
-
-  // グラフを描画
-  drawChart(length, diameter);
-
-  // 結果エリアまでスクロール
+    document.getElementById('resultContainer').classList.remove('result-hidden');
+    drawChart(lengthMm, diameter);
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    // 統計データを送信（常に送信、勃起時固定）
+    track('size_tool_calculate', { deviation: overallDev, level: rankInfo.level, girth_type: girthType });
+
     // DB の列は整数のため、直径（外周から換算すると小数になる）などは四捨五入して送る
     sendStatisticsData(Math.round(lengthMm), Math.round(diameter), 'erect', document.getElementById('ageInput').value);
   }
 
-  // 匿名ユーザーIDを取得（LocalStorageベース。1ユーザー1データの判定に使用）
+  function copyShareText() {
+    if (!lastShareText) return;
+    var done = function() {
+      var note = document.getElementById('shareNote');
+      note.textContent = 'コピーしました。X などに貼り付けてください。';
+      track('size_tool_share', { method: 'copy' });
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(lastShareText).then(done).catch(function() { fallbackCopy(lastShareText, done); });
+    } else {
+      fallbackCopy(lastShareText, done);
+    }
+  }
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  // 匿名ユーザーID（LocalStorage。1ブラウザ1データの判定に使用）
   function getSizeToolUserId() {
     try {
       var key = 'short-av-user-id';
       var userId = localStorage.getItem(key);
       if (!userId) {
-        userId = (crypto && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : 'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        userId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'uid-' + Date.now() + '-' + Math.random().toString(36).slice(2);
         localStorage.setItem(key, userId);
       }
       return userId;
@@ -629,38 +740,24 @@ function recommendCondomSize(diameter) {
     }
   }
 
-  // 統計データをサーバーに送信
   async function sendStatisticsData(lengthMm, diameterMm, erectionState, ageGroup) {
     try {
       var submittedKey = 'short-av-size-submitted';
       var userId = getSizeToolUserId();
-
-      // 既に投稿済みのユーザーは再送信しない（DBへは最初の1件のみ保存される）
+      // 既に登録済みのブラウザは再送信しない（DB へは最初の1件のみ保存される）
       if (localStorage.getItem(submittedKey) === '1') {
         loadCollectedStats();
         return;
       }
-
-      const response = await fetch('/api/size-stats', {
+      var response = await fetch('/api/size-stats', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lengthMm,
-          diameterMm,
-          erectionState,
-          ageGroup: ageGroup || null,
-          userId,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lengthMm: lengthMm, diameterMm: diameterMm, erectionState: erectionState, ageGroup: ageGroup || null, userId: userId }),
       });
-
       if (!response.ok) {
         console.error('Failed to send statistics data');
       } else {
-        // 送信成功後は投稿済みフラグを立て、以降は再送信しない
         try { localStorage.setItem(submittedKey, '1'); } catch (e) {}
-        // データ送信成功後、統計データを更新
         loadCollectedStats();
       }
     } catch (error) {
@@ -668,111 +765,51 @@ function recommendCondomSize(diameter) {
     }
   }
 
-  // 収集された統計データを読み込んで表示
   async function loadCollectedStats() {
     try {
-      const response = await fetch('/api/size-stats?erectionState=erect');
-      if (!response.ok) {
-        throw new Error('Failed to fetch statistics');
-      }
-
-      const data = await response.json();
-      const statsContent = document.getElementById('statsContent');
-
+      var response = await fetch('/api/size-stats?erectionState=erect');
+      if (!response.ok) throw new Error('Failed to fetch statistics');
+      var data = await response.json();
+      var statsContent = document.getElementById('statsContent');
       if (data.count === 0) {
         statsContent.textContent = 'まだデータが収集されていません';
         statsContent.className = 'stats-loading';
         return;
       }
-
       // 表示用の HTML はサーバー側（lib/sizeStats.ts の generateStatsHTML）で組み立てたものを使う
       statsContent.className = 'stats-content';
       statsContent.innerHTML = data.html;
     } catch (error) {
       console.error('Error loading collected statistics:', error);
-      const statsContent = document.getElementById('statsContent');
-      statsContent.textContent = 'データの読み込みに失敗しました';
-      statsContent.className = 'stats-loading';
     }
   }
 
   function drawChart(userLength, userDiameter) {
-    const ctx = document.getElementById('comparisonChart');
-
-    // 既存のチャートを破棄
-    if (comparisonChart) {
-      comparisonChart.destroy();
-    }
-
+    var ctx = document.getElementById('comparisonChart');
+    if (comparisonChart) comparisonChart.destroy();
     comparisonChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['長さ（mm）', '太さ（mm）'],
-      datasets: [
-        {
-          label: 'あなた',
-          data: [userLength, userDiameter],
-          backgroundColor: 'rgba(59, 130, 246, 0.8)',
-          borderColor: 'rgba(59, 130, 246, 1)',
-          borderWidth: 2
-        },
-        {
-          label: '日本人の目安値',
-          data: [124, 36],
-          backgroundColor: 'rgba(34, 197, 94, 0.8)',
-          borderColor: 'rgba(34, 197, 94, 1)',
-          borderWidth: 2
-        },
-        {
-          label: 'Veale ら（2015）の平均',
-          data: [131, 37.1],
-          backgroundColor: 'rgba(251, 146, 60, 0.8)',
-          borderColor: 'rgba(251, 146, 60, 1)',
-          borderWidth: 2
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: {
-            color: '#e5e7eb',
-            font: {
-              size: 12
-            }
-          }
-        },
-        tooltip: {
-          backgroundColor: 'rgba(17, 24, 39, 0.95)',
-          titleColor: '#e5e7eb',
-          bodyColor: '#e5e7eb',
-          borderColor: '#374151',
-          borderWidth: 1
-        }
+      type: 'bar',
+      data: {
+        labels: ['長さ（mm）', '太さ（直径 mm）'],
+        datasets: [
+          { label: 'あなた', data: [Math.round(userLength), Math.round(userDiameter * 10) / 10], backgroundColor: 'rgba(59, 130, 246, 0.8)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 2 },
+          { label: '日本人の目安値', data: [124, 36], backgroundColor: 'rgba(34, 197, 94, 0.8)', borderColor: 'rgba(34, 197, 94, 1)', borderWidth: 2 },
+          { label: 'Veale ら（2015）の平均', data: [131, 37.1], backgroundColor: 'rgba(251, 146, 60, 0.8)', borderColor: 'rgba(251, 146, 60, 1)', borderWidth: 2 }
+        ]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            color: '#9ca3af'
-          },
-          grid: {
-            color: 'rgba(75, 85, 99, 0.3)'
-          }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#e5e7eb', font: { size: 12 } } },
+          tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.95)', titleColor: '#e5e7eb', bodyColor: '#e5e7eb', borderColor: '#374151', borderWidth: 1 }
         },
-        x: {
-          ticks: {
-            color: '#9ca3af'
-          },
-          grid: {
-            color: 'rgba(75, 85, 99, 0.3)'
-          }
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: 'rgba(75, 85, 99, 0.3)' } },
+          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(75, 85, 99, 0.3)' } }
         }
       }
-    }
-  });
+    });
   }
 })();
 </script>
@@ -784,7 +821,7 @@ function recommendCondomSize(diameter) {
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">保存されるデータと使い方</h3>
 
-  <p class="mb-4 text-gray-300">「統計を計算する」を押すと、次の情報がサーバーに送信・保存されます。</p>
+  <p class="mb-4 text-gray-300">「偏差値を計算する」を押すと、次の情報がサーバーに送信・保存されます。</p>
 
   <ul class="list-disc ml-6 space-y-1 text-gray-300 mb-4">
     <li>長さ（mm）と直径（mm。外周で入力した場合は直径に換算した値）</li>
@@ -797,7 +834,7 @@ function recommendCondomSize(diameter) {
 
   <p class="mb-4 text-gray-300">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけで、同じ回線からの登録も30日に1件までです。詳しくは<a href="/privacy" class="text-blue-400 hover:text-blue-300 underline">プライバシーポリシー</a>をご覧ください。</p>
 
-  <p class="mb-6 text-gray-300">ページ上部の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
+  <p class="mb-6 text-gray-300">結果の下の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">計算に使っている値</h3>
 
@@ -822,11 +859,11 @@ function recommendCondomSize(diameter) {
 
   <p class="mb-6 text-gray-300">計算では、これらの値が正規分布に従うと仮定しています。実際の分布とは異なる場合があるため、パーセンタイルや「100人中○位」は大まかな目安として受け止めてください。</p>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">パーセンタイルとは</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">偏差値と「100人中なん位」の意味</h3>
 
-  <p class="mb-4 text-gray-300">パーセンタイルは、全体の中でどの位置にいるかを示す指標です。</p>
+  <p class="mb-4 text-gray-300">偏差値は、平均を50、標準偏差1つぶんを10として位置を表した数字です（学校のテストの偏差値と同じ計算）。目安値どおりなら50、平均より標準偏差1つぶん大きければ60、小さければ40になります。総合の偏差値は長さと太さの偏差値の平均です。</p>
 
-  <p class="mb-6 text-gray-300">50パーセンタイルは真ん中（このツールでは目安値と同じ）を意味し、80パーセンタイルなら上位20%程度にあたります。</p>
+  <p class="mb-6 text-gray-300">「100人中なん位」は、同じ分布の100人を大きい順に並べたときのおおよその順位です。偏差値60なら上位16%程度（100人中16位くらい）、偏差値40なら下位16%程度にあたります。</p>
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">測定のコツ</h3>
 
@@ -866,7 +903,7 @@ function recommendCondomSize(diameter) {
 </div>
   `.trim(),
   publishedAt: '2025-11-05',
-  updatedAt: '2026-10-06',
+  updatedAt: '2026-10-10',
   pinned: true,
   category: 'ツール'
 };

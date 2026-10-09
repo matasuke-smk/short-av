@@ -7,6 +7,9 @@ export const article: Article = {
   content: `
 Short AVの[サイズ比較ツール](/articles/size-comparison-tool)では、測った数値を匿名で保存できます。ここでは、これまでに保存されたデータをまとめています。ページを開くたびに最新の状態で集計しています。
 
+> 自分のサイズが日本人の中でどのあたりかは、[ペニスサイズ偏差値チェッカー](/articles/size-comparison-tool)で確かめられます（長さと太さを入れるだけ・登録不要）。
+
+
 <!-- live:size-report -->
 
 ## このデータの性格

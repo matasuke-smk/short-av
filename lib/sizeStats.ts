@@ -128,15 +128,10 @@ export function generateStatsHTML(stats: { count: number; statistics: any } | nu
     return '<div class="stats-loading">まだデータが収集されていません</div>';
   }
 
+  // 件数は出さない（集まった人数は多くなく、自己申告で測り方もまちまちなため、数字だけが独り歩きしないように。管理画面では実数を見られる）
   const cls = 'class';
   let html = '';
-  html += '<div ' + cls + '="stats-item">';
-  html += '<div ' + cls + '="stats-label">集計に使った件数</div>';
-  html += '<div ' + cls + '="stats-value">' + stats.count + '</div>';
-  html += '<div ' + cls + '="stats-subvalue">人</div>';
-  html += '</div>';
-
-  html += '<div ' + cls + '="stats-item-wide">';
+  html += '<div ' + cls + '="stats-item-wide" style="grid-column: 1 / -1;">';
   html += '<div ' + cls + '="stats-double-container">';
   html += '<div ' + cls + '="stats-half-item">';
   html += '<div ' + cls + '="stats-label">平均長さ</div>';
