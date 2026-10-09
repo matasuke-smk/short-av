@@ -1,5 +1,7 @@
 'use client';
 
+import { createPortal } from 'react-dom';
+
 // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したときに、先に出す案内。
 // X の中で FANZA を開くと、普段使うブラウザ（Safari など）の FANZA のログインが使えない。
 // X は Safari への自動の切り替え（x-safari-https）を止めているので（2026-10-09 実機で確認）、
@@ -12,14 +14,16 @@ export const isXInAppBrowserIOS = () =>
 
 type Props = {
   url: string | null;
+  buttonLabel: string; // 手順3で「もう一度押して」と書くボタンの名前
   onOpenAnyway: () => void;
   onClose: () => void;
 };
 
-export default function InAppBrowserNotice({ url, onOpenAnyway, onClose }: Props) {
+export default function InAppBrowserNotice({ url, buttonLabel, onOpenAnyway, onClose }: Props) {
   if (!url) return null;
 
-  return (
+  // 再生画面などの上にも出るよう、body の直下に出す
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
         className="mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 pb-2 text-white shadow-2xl"
@@ -42,7 +46,7 @@ export default function InAppBrowserNotice({ url, onOpenAnyway, onClose }: Props
           </li>
           <li className="flex items-center gap-2">
             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">3</span>
-            <span>同じ作品が開くので、もう一度「詳細はこちら」</span>
+            <span>同じ作品が開くので、もう一度「{buttonLabel}」</span>
           </li>
         </ol>
 
@@ -64,6 +68,7 @@ export default function InAppBrowserNotice({ url, onOpenAnyway, onClose }: Props
           </svg>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

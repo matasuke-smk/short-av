@@ -17,7 +17,7 @@ export default function DoujinReader({
   onComplete,
 }: {
   doujin: Doujin;
-  onLinkClick?: () => void;
+  onLinkClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   onComplete?: () => void; // 最後まで読んで購入ページに来たとき（1回だけ）
 }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
