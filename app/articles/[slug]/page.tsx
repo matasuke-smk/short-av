@@ -34,6 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
+  const ogImage = article.ogImage ?? '/og-image.jpg';
   return {
     title: `${article.title} - Short AV`,
     description: article.description,
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       siteName: 'Short AV',
       images: [
         {
-          url: '/og-image.jpg',
+          url: ogImage,
           width: 1200,
           height: 630,
           alt: article.title,
@@ -63,7 +64,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title: `${article.title} - Short AV`,
       description: article.description,
-      images: ['/og-image.jpg'],
+      images: [ogImage],
     },
   };
 }
