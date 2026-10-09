@@ -371,6 +371,12 @@ export const article: Article = {
   color: #fde68a;
   font-weight: 700;
   font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.country-compare {
+  color: #bfdbfe;
+  font-weight: 700;
+  font-size: 0.95rem;
   margin-bottom: 10px;
 }
 .collected-stats-card {
@@ -491,6 +497,7 @@ export const article: Article = {
         <div class="dev-main" id="overallDeviation">50</div>
         <div class="rank-tag">あなたは <span id="rankTag">日本人の平均並み</span></div>
         <div class="world-compare" id="worldCompare"></div>
+        <div class="country-compare" id="countryCompare"></div>
         <div class="rank-badge-large" id="rankLevel">平均的</div>
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
@@ -549,7 +556,8 @@ export const article: Article = {
     <div class="disclaimer">
       <div class="disclaimer-text">
         ※ 偏差値・順位は、日本人の目安値（長さ 124mm・直径 36mm）を正規分布と仮定して計算したおおよその位置です。実際の分布とは異なる場合があります<br>
-        ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください
+        ※ 医学的な診断ではありません。サイズや機能に悩みがある場合は泌尿器科で相談してください<br>
+        ※ 「〇〇の平均並み」は、WorldData.info「Average penis size by country」（2023年11月時点・88か国）の勃起時の長さの平均のうち17か国と比べたものです。国によって調査方法（自己申告か医療者の測定か）が違い、国どうしの差より個人差のほうが大きいので、話のタネ程度にご覧ください
       </div>
     </div>
   </div>
@@ -573,6 +581,23 @@ export const article: Article = {
   var JP = { lengthMean: 124, lengthStd: 18, diameterMean: 36, diameterStd: 3.6 };
   // 海外の研究の平均（Veale ら 2015 のメタ分析。医療者が測定）: 長さ 131mm・直径 37.1mm
   var WORLD = { lengthMean: 131, diameterMean: 37.1 };
+  // 国ごとの勃起時の長さの平均（cm）。WorldData.info「Average penis size by country」（2023年11月25日時点、88か国）のうち
+  // 上位・下位5か国と目立った国。調査方法（自己申告か医療者の測定か）が国によって違うため、あくまで目安
+  var COUNTRIES = [
+    ['エクアドル', 17.6], ['カメルーン', 16.7], ['ボリビア', 16.5], ['スーダン', 16.5], ['ハイチ', 16.0], ['オランダ', 15.9],
+    ['デンマーク', 14.9], ['アメリカ', 13.6], ['日本', 13.6], ['韓国', 13.2], ['中国', 13.1], ['イエメン', 12.7],
+    ['香港', 11.2], ['スリランカ', 10.9], ['フィリピン', 10.9], ['ミャンマー', 10.7], ['カンボジア', 10.0]
+  ];
+  // 長さがいちばん近い国（同じ差なら平均の大きいほう）
+  function nearestCountry(lengthCm) {
+    var best = COUNTRIES[0];
+    for (var i = 1; i < COUNTRIES.length; i++) {
+      var d = Math.abs(COUNTRIES[i][1] - lengthCm);
+      var bd = Math.abs(best[1] - lengthCm);
+      if (d < bd || (d === bd && COUNTRIES[i][1] > best[1])) best = COUNTRIES[i];
+    }
+    return best;
+  }
 
   // 日本の目安値・海外の研究の平均と比べた一言（長さと太さの両方で超えたときだけ「超え」）
   function compareLine(lengthMm, diameter) {
@@ -722,12 +747,14 @@ export const article: Article = {
     var compare = compareLine(lengthMm, diameter);
     document.getElementById('rankTag').textContent = rankInfo.tag;
     document.getElementById('worldCompare').textContent = compare.text;
+    var country = nearestCountry(lengthMm / 10);
+    document.getElementById('countryCompare').textContent = '長さは ' + country[0] + '（平均 ' + country[1].toFixed(1) + 'cm）の平均並み';
     document.getElementById('rankLevel').textContent = rankInfo.level;
     document.getElementById('rankDescription').textContent = rankInfo.description;
     document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
     // X に投稿する文（数字だけ。入力した mm は入れない）
-    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '長さは' + country[0] + 'の平均並み。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
     document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
     document.getElementById('resultContainer').classList.remove('result-hidden');
