@@ -104,6 +104,41 @@ const CHANNEL_LABELS: Record<string, string> = {
 
 const channelLabel = (v: string) => CHANNEL_LABELS[v] ?? (v === '(not set)' || v === '' ? '（記録なし）' : v);
 
+// 来た元の内訳（参照元 / メディア / キャンペーン）の GA の値を日本語にする。表に無い値（ほかのサイトのドメインなど）はそのまま出す
+const NOT_SET_LABELS: Record<string, string> = {
+  '(not set)': '記録なし',
+  '': '記録なし',
+  '(data not available)': 'GA が判定できず',
+};
+const SOURCE_LABELS: Record<string, string> = {
+  ...NOT_SET_LABELS,
+  '(direct)': '直接（ブックマークなど）',
+  x: 'X',
+  't.co': 'X（t.co のリンク）',
+  'twitter.com': 'X（twitter.com）',
+  'x.com': 'X（x.com）',
+  google: 'Google',
+  yahoo: 'Yahoo!',
+  bing: 'Bing',
+};
+const MEDIUM_LABELS: Record<string, string> = {
+  ...NOT_SET_LABELS,
+  '(none)': 'なし',
+  social: 'SNS',
+  referral: 'ほかのサイトのリンク',
+  organic: '検索',
+  cpc: '広告',
+  email: 'メール',
+};
+const CAMPAIGN_LABELS: Record<string, string> = {
+  ...NOT_SET_LABELS,
+  '(cross-network)': 'GA が判定できず',
+  '(referral)': 'なし',
+  '(direct)': 'なし',
+  '(organic)': 'なし',
+  x_post: 'X の投稿',
+};
+
 const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
 const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
 const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
@@ -935,7 +970,7 @@ function RangeBody({
               </div>
             )}
             <h3 className="text-sm font-bold mt-6 mb-1">来た元の内訳</h3>
-            <p className="text-xs text-gray-400 mb-2">参照元 / メディア / キャンペーン（x_post = 管理画面で作った X の投稿の URL）。(direct) は来た元が分からない訪問。</p>
+            <p className="text-xs text-gray-400 mb-2">来た元・種類・目印（「X の投稿」= 管理画面で作った X の投稿の URL から来た訪問）。「記録なし」「GA が判定できず」は、GA が来た元を記録できなかった訪問。</p>
             {sources.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (
@@ -943,9 +978,9 @@ function RangeBody({
                 <table className="w-full text-sm whitespace-nowrap">
                   <thead className="text-gray-400">
                     <tr>
-                      <th className="text-left font-normal py-1">参照元</th>
-                      <th className="text-left font-normal">メディア</th>
-                      <th className="text-left font-normal">キャンペーン</th>
+                      <th className="text-left font-normal py-1">来た元</th>
+                      <th className="text-left font-normal">種類</th>
+                      <th className="text-left font-normal">目印</th>
                       <th className="text-right font-normal">人数</th>
                       <th className="text-right font-normal">訪問</th>
                     </tr>
@@ -953,9 +988,9 @@ function RangeBody({
                   <tbody>
                     {sources.map((r) => (
                       <tr key={r.dimensions.join('/')} className="border-t border-gray-700">
-                        <td className="py-2 pr-2">{r.dimensions[0]}</td>
-                        <td className="pr-2">{r.dimensions[1]}</td>
-                        <td className="pr-2">{r.dimensions[2]}</td>
+                        <td className="py-2 pr-2">{SOURCE_LABELS[r.dimensions[0]] ?? r.dimensions[0]}</td>
+                        <td className="pr-2">{MEDIUM_LABELS[r.dimensions[1]] ?? r.dimensions[1]}</td>
+                        <td className="pr-2">{CAMPAIGN_LABELS[r.dimensions[2]] ?? r.dimensions[2]}</td>
                         <td className="text-right">{fmt(r.metrics[0])}人</td>
                         <td className="text-right">{fmt(r.metrics[1])}回</td>
                       </tr>
