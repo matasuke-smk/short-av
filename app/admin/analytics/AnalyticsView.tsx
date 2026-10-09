@@ -511,6 +511,26 @@ function RangeBody({
   const x = summarizeXPosts(reports[25] ?? [], reports[26] ?? [], reports[27] ?? []);
   // 来た元の内訳（レポート 28）
   const sources = reports[28] ?? [];
+  // 端末×ブラウザ（レポート 30）: [端末, ブラウザ, イベント] → [人数, 回数]
+  const osBrowser = reports[30] ?? [];
+  const osRows = (() => {
+    const byKey = new Map<string, { os: string; browser: string; users: number; clickUsers: number; clicks: number }>();
+    for (const r of osBrowser) {
+      const [os, browser, event] = r.dimensions;
+      const key = `${os}/${browser}`;
+      const row = byKey.get(key) ?? { os, browser, users: 0, clickUsers: 0, clicks: 0 };
+      if (event === 'page_view') row.users += r.metrics[0];
+      if (event === 'dmm_link_click') {
+        row.clickUsers += r.metrics[0];
+        row.clicks += r.metrics[1];
+      }
+      byKey.set(key, row);
+    }
+    return [...byKey.values()].sort((a, b) => b.users - a.users);
+  })();
+  const osTotal = (os: string) => osRows.filter((r) => r.os === os).reduce((sum, r) => ({ users: sum.users + r.users, clicks: sum.clicks + r.clicks }), { users: 0, clicks: 0 });
+  const ios = osTotal('iOS');
+  const android = osTotal('Android');
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
@@ -628,6 +648,13 @@ function RangeBody({
             sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
             onClick={() => setDetail('xpost')}
           />
+          <Card
+            label="iPhone / Android"
+            value={`${fmt(ios.users)} / ${fmt(android.users)}`}
+            unit="人"
+            sub={`FANZA へのクリック iPhone ${fmt(ios.clicks)}回・Android ${fmt(android.clicks)}回`}
+            onClick={() => setDetail('os')}
+          />
           {(() => {
             // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。表示から「このまま開く」「閉じる」を引いた残りは、
             // 案内のとおり「ブラウザで開く」を押した（または何もせず離れた）人
@@ -683,6 +710,42 @@ function RangeBody({
                   right={`${fmt(r.metrics[0])}回（${fmt(r.metrics[1])}人・1人 ${r.metrics[1] > 0 ? (r.metrics[0] / r.metrics[1]).toFixed(1) : '0'}回）`}
                 />
               ))
+            )}
+          </DetailModal>
+        )}
+        {detail === 'os' && (
+          <DetailModal
+            title="端末とブラウザ"
+            note="GA の判定。X のアプリ内ブラウザは、iPhone が「Safari (in-app)」、Android が「Android Webview」になることが多い。FANZA へのクリックは動画と同人誌の合計。人数は重複を除いた数のため、合計とは一致しない。"
+            onClose={closeDetail}
+          >
+            {osRows.length === 0 ? (
+              <p className="text-sm text-gray-400">まだデータがありません。</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead className="text-gray-400">
+                    <tr>
+                      <th className="text-left font-normal py-1">端末</th>
+                      <th className="text-left font-normal">ブラウザ</th>
+                      <th className="text-right font-normal">訪問</th>
+                      <th className="text-right font-normal">クリック</th>
+                      <th className="text-right font-normal">クリック率</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {osRows.map((r) => (
+                      <tr key={`${r.os}/${r.browser}`} className="border-t border-gray-700">
+                        <td className="py-2 pr-2">{r.os}</td>
+                        <td className="pr-2">{r.browser}</td>
+                        <td className="text-right">{fmt(r.users)}人</td>
+                        <td className="text-right">{fmt(r.clickUsers)}人（{fmt(r.clicks)}回）</td>
+                        <td className={`text-right font-bold ${r.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(r.clickUsers, r.users)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </DetailModal>
         )}

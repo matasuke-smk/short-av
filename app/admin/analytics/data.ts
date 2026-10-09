@@ -282,6 +282,15 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       dimensionFilter: { orGroup: { expressions: [eventIs('doujin_complete'), { andGroup: { expressions: [eventIs('dmm_link_click'), isDoujinContent] } }] } },
       limit: 1000,
     },
+    // 端末（iOS / Android など）×ブラウザ（GA の判定。X のアプリ内は iPhone が「Safari (in-app)」、Android が「Android Webview」）ごとの
+    // 訪問・FANZA へのクリック（動画と同人誌の合計）。レポート 30 に入れる
+    {
+      dateRanges,
+      dimensions: [{ name: 'operatingSystem' }, { name: 'browser' }, { name: 'eventName' }],
+      metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
+      dimensionFilter: eventIn(['page_view', 'dmm_link_click']),
+      limit: 200,
+    },
   ];
   for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
@@ -320,6 +329,9 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   const reports = [...mainReports, ...extraReports, ...answerReports];
   reports[19] = [...(reports[19] ?? []), ...workActionReports[0]];
   reports[21] = [...(reports[21] ?? []), ...workActionReports[1]];
+  // 30: 端末×ブラウザ（国ごとの 29 は「すべて」のときだけなので、番号を固定して入れる。「日本のみ」では 29 が空になる）
+  reports[29] ??= [];
+  reports[30] = workActionReports[2];
 
   // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
   if (affectedDays.length > 0) {
@@ -443,7 +455,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v19'],
+  ['admin-analytics-v20'],
   { revalidate: 300 },
 );
 
