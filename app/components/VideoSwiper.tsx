@@ -528,7 +528,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 検索・ランキング・いいね・履歴・女優の一覧に切り替える
   // 以前は古いスライドのまま reInit し、150ms 後にアニメーション付きで移動していたため、一瞬別の動画が見えていた。
   // スライドが新しい一覧に描き変わった直後（useLayoutEffect）に、アニメーションなしで目的の位置へ移動する。
+  // 移動の要求は回数（scrollSeq）でも管理する。人気一覧などは同じ配列をそのまま渡すので、2回目は videos が変わらず
+  // 描き直しが起きない → 下の useLayoutEffect が走らず移動しない（残った要求が次の補充などで古い位置に消化され、別の動画に飛んでいた）
   const pendingScrollRef = useRef<number | null>(null);
+  const [scrollSeq, setScrollSeq] = useState(0);
   const replaceVideos = useCallback((newVideos: Video[], selectedVideoId: string) => {
     const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
     if (targetIndex === -1) return;
@@ -536,6 +539,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setVideos(newVideos);
     setCurrentIndex(targetIndex);
     setIsFiniteList(true);
+    setScrollSeq((n) => n + 1);
   }, []);
 
   const replaceWithDoujin = useCallback((list: Doujin[], selectedId: string) => {
@@ -548,6 +552,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setVideos(slides);
     setCurrentIndex(target);
     setIsFiniteList(true);
+    setScrollSeq((n) => n + 1);
   }, [videos]);
 
   useLayoutEffect(() => {
@@ -557,7 +562,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     lastSnapRef.current = target;
     emblaApi.reInit();
     emblaApi.scrollTo(target, true); // 第2引数 true = アニメーションなしで即座に移動
-  }, [emblaApi, videos]);
+  }, [emblaApi, videos, scrollSeq]);
 
   // いいねを切り替える関数（いいねは dmm_content_id で管理する）
   const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
@@ -848,6 +853,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     pendingScrollRef.current = 0;
     setVideos(nextVideos);
     setCurrentIndex(0);
+    setScrollSeq((n) => n + 1);
   }, [mode, isFiniteList, videos, currentIndex, doujinList]);
 
   const modeToggle = (
