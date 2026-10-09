@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { buildDoujinPostText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 import type { Doujin } from '@/lib/doujin-types';
 
@@ -16,12 +16,32 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
   const [alreadyPosted, setAlreadyPosted] = useState(false);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  // 表示中の作品を X で紹介したことがあるか（ボタンを押す前に分かるよう、作品が変わるたびに確かめる）
+  const [posted, setPosted] = useState<{ contentId: string; lastPostedAt: string | null; count: number } | null>(null);
 
   useEffect(() => {
     setIsAdmin(document.cookie.split('; ').includes('sav_admin_ui=1'));
   }, []);
 
+  const refreshPosted = useCallback(async (id: string) => {
+    const response = await fetch(`/api/admin/x-posts/status?contentId=${encodeURIComponent(id)}`, { cache: 'no-store' }).catch(() => null);
+    const data = response?.ok ? await response.json().catch(() => null) : null;
+    if (data) setPosted({ contentId: id, lastPostedAt: data.lastPostedAt, count: data.count });
+  }, []);
+
+  useEffect(() => {
+    if (!isAdmin || !contentId) return;
+    // スワイプが続くときに毎回問い合わせないよう、少し止まってから確かめる
+    const timer = window.setTimeout(() => refreshPosted(contentId), 400);
+    return () => window.clearTimeout(timer);
+  }, [isAdmin, contentId, refreshPosted]);
+
   if (!isAdmin || !contentId) return null;
+  // 確かめた結果が今の作品のものなら使う（前の作品の結果を出さない）
+  const postedNow = posted?.contentId === contentId ? posted : null;
+  const postedLabel = postedNow?.lastPostedAt
+    ? `投稿済み ${new Date(postedNow.lastPostedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' })}${postedNow.count > 1 ? `（${postedNow.count}回）` : ''}`
+    : null;
 
   async function compose() {
     setOpen(true);
@@ -68,6 +88,7 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
     setBusy(false);
     if (response.ok) {
       setAlreadyPosted(true);
+      refreshPosted(contentId!);
       setStatus('紹介済みとして記録しました（2週間は「おすすめ」に出なくなります）');
     } else {
       setStatus('記録できませんでした');
@@ -85,6 +106,7 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
     setBusy(false);
     if (response.ok) {
       setAlreadyPosted(false);
+      refreshPosted(contentId!);
       setStatus('紹介済みを取り消しました');
     } else {
       setStatus('取り消せませんでした');
@@ -97,9 +119,11 @@ export default function AdminXCompose({ contentId, doujin }: { contentId?: strin
     <>
       <button
         onClick={compose}
-        className="fixed top-[calc(env(safe-area-inset-top)+3.25rem)] left-2 z-[70] bg-black/80 border border-gray-600 text-white text-xs font-bold rounded-full px-3 py-1.5 shadow-lg"
+        className={`fixed top-[calc(env(safe-area-inset-top)+3.25rem)] left-2 z-[70] border text-white text-xs font-bold rounded-full px-3 py-1.5 shadow-lg ${
+          postedLabel ? 'bg-emerald-700/90 border-emerald-400' : 'bg-black/80 border-gray-600'
+        }`}
       >
-        X投稿文
+        {postedLabel ? `X ${postedLabel}` : 'X投稿文'}
       </button>
 
       {open && (
