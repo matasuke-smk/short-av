@@ -356,6 +356,20 @@ export const article: Article = {
   text-align: center;
   padding: 8px 0 16px;
 }
+.rank-tag {
+  display: inline-block;
+  background: #fde047;
+  color: #1f2937;
+  font-weight: 800;
+  font-size: 1.15rem;
+  padding: 6px 16px;
+  border-radius: 999px;
+  margin: 4px 0 10px;
+}
+.rank-tag span { font-size: 1.35rem; }
+.collected-stats-card {
+  margin-top: 20px;
+}
 .dev-label {
   color: #bfdbfe;
   font-size: 0.9rem;
@@ -415,7 +429,7 @@ export const article: Article = {
 </style>
 
 <div class="size-tool-container">
-  <p class="tool-lead">勃起時の長さと太さを入れるだけで、日本人の目安値と比べた<strong>偏差値</strong>と、<strong>100人中なん位か</strong>が分かります。登録不要・匿名です。結果は統計上の目安で、医学的な診断ではありません。</p>
+  <p class="tool-lead">勃起時の長さと太さを入れるだけで、日本人の目安値と比べた<strong>偏差値</strong>と、<strong>100人中なん位か</strong>、そして「AV男優並み」「日本人の平均並み」のどれにあたるかが分かります。登録不要・匿名です。結果は統計上の目安で、医学的な診断ではありません。</p>
 
   <div class="tool-card" id="inputCard">
     <h3>サイズを入力してください（勃起時）</h3>
@@ -469,6 +483,7 @@ export const article: Article = {
       <div class="dev-hero">
         <div class="dev-label">総合の偏差値</div>
         <div class="dev-main" id="overallDeviation">50</div>
+        <div class="rank-tag">あなたは <span id="rankTag">日本人の平均並み</span></div>
         <div class="rank-badge-large" id="rankLevel">平均的</div>
         <div class="rank-description" id="rankDescription">日本人男性の標準範囲内です</div>
       </div>
@@ -600,12 +615,13 @@ export const article: Article = {
     return value < cmBelow ? value * 10 : value;
   }
 
+  // 評価（上から: 上位2%・上位16%・平均まわり・下位16%・下位2%。偏差値 70・60・40・30 の区切り）
   function getRankLevel(percentile) {
-    if (percentile >= 90) return { level: '大きめ', description: '日本人男性の上位10%に入ります' };
-    if (percentile >= 70) return { level: 'やや大きめ', description: '日本人男性の平均よりやや大きめです' };
-    if (percentile >= 30) return { level: '平均的', description: '日本人男性の標準範囲内です' };
-    if (percentile >= 10) return { level: 'やや小さめ', description: '日本人男性の平均よりやや小さめです' };
-    return { level: '小さめ', description: '日本人男性の下位10%に入ります' };
+    if (percentile >= 97.7) return { level: '大きめ', tag: 'AV男優並み', description: '日本人男性の上位2%。文句なしの大きさです' };
+    if (percentile >= 84) return { level: 'やや大きめ', tag: 'バナナ並み', description: '日本人男性の上位16%。堂々としたサイズです' };
+    if (percentile >= 16) return { level: '平均的', tag: '日本人の平均並み', description: '日本人男性の標準範囲内。いちばん多いゾーンです' };
+    if (percentile >= 2.3) return { level: 'やや小さめ', tag: 'ミニバナナ並み', description: '平均より少し控えめ。相性と使い方しだいです' };
+    return { level: '小さめ', tag: 'コンパクト派', description: '平均よりかなり控えめ。悩みがあれば泌尿器科で相談を' };
   }
 
   // コンドームサイズの目安（外周から大まかに判定。S/M/L の基準はメーカーごとに異なる）
@@ -683,19 +699,20 @@ export const article: Article = {
     document.getElementById('girthPercentile').textContent = '上位 ' + topPct(diameterPercentile) + '%';
     document.getElementById('lengthEcho').textContent = '（' + (lengthMm / 10).toFixed(1) + 'cm）';
     document.getElementById('girthEcho').textContent = '（直径 ' + (diameter / 10).toFixed(1) + 'cm）';
+    document.getElementById('rankTag').textContent = rankInfo.tag;
     document.getElementById('rankLevel').textContent = rankInfo.level;
     document.getElementById('rankDescription').textContent = rankInfo.description;
     document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
     // X に投稿する文（数字だけ。入力した mm は入れない）
-    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらい。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    lastShareText = 'ペニスサイズ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
     document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
     document.getElementById('resultContainer').classList.remove('result-hidden');
     drawChart(lengthMm, diameter);
     document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    track('size_tool_calculate', { deviation: overallDev, level: rankInfo.level, girth_type: girthType });
+    track('size_tool_calculate', { deviation: overallDev, level: rankInfo.tag, girth_type: girthType });
 
     // DB の列は整数のため、直径（外周から換算すると小数になる）などは四捨五入して送る
     sendStatisticsData(Math.round(lengthMm), Math.round(diameter), 'erect', document.getElementById('ageInput').value);
@@ -905,5 +922,6 @@ export const article: Article = {
   publishedAt: '2025-11-05',
   updatedAt: '2026-10-10',
   pinned: true,
+  ogImage: '/og/size-tool.png',
   category: 'ツール'
 };
