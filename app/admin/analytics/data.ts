@@ -219,20 +219,20 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       dimensionFilter: and(eventIn(['video_view', 'dmm_link_click']), notDoujin),
       limit: 100,
     },
-    // 19: 作品ごとの再生・クリック（回数）。再生が多いのにクリックされない作品を見つける
+    // 19: 作品ごとの再生（回数）。再生が多いのにクリックされない作品を見つける。クリックは workActionRequests で別に取って足す
     {
       dateRanges,
       dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }],
       metrics: [{ name: 'eventCount' }],
-      dimensionFilter: and(eventIn(['video_view', 'dmm_link_click']), notDoujin),
+      dimensionFilter: and(eventIs('video_view'), notDoujin),
       orderBys: [byMetricDesc],
-      limit: 300,
+      limit: 1000,
     },
     // 20〜24: 同人誌（アクセス解析の「同人誌」）
     // 20: 表示・最後まで読んだ・FANZA へのクリック（回数・人数）
     { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents },
-    // 21: 作品ごと
-    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: doujinEvents, orderBys: [byMetricDesc], limit: 500 },
+    // 21: 作品ごとの表示。最後まで読んだ・クリックは workActionRequests で別に取って足す
+    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('doujin_view'), orderBys: [byMetricDesc], limit: 1000 },
     // 22: 日別
     { dateRanges, dimensions: [{ name: 'date' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents, limit: 300 },
     // 23: どこで表示されたか（動画の間＝おすすめ / 同人誌メイン＝同人誌）
@@ -271,7 +271,19 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
         ]
       : []),
   ];
-  for (const request of [...requests, ...extraRequests, ...answerRequests]) {
+  // 作品ごとのクリック・最後まで読んだ（レポート 19・21 に足す）。表示・再生と一緒に回数の多い順で取ると、
+  // 作品の数が多いときに回数の少ないクリック・最後まで読んだの行が上限で切り捨てられ、合計と合わなかったため別に取る
+  const workActionRequests: ReportRequest[] = [
+    { dateRanges, dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: and(eventIs('dmm_link_click'), notDoujin), limit: 1000 },
+    {
+      dateRanges,
+      dimensions: [{ name: 'customEvent:content_id' }, { name: 'eventName' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: { orGroup: { expressions: [eventIs('doujin_complete'), { andGroup: { expressions: [eventIs('dmm_link_click'), isDoujinContent] } }] } },
+      limit: 1000,
+    },
+  ];
+  for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
   }
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
@@ -280,7 +292,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   const affectedDays = [...days].filter((day) => day <= LAST_AFFECTED_DAY);
   if (affectedDays.length > 0) {
     const { dateRanges: wideRanges, filter } = jstDaysFilter([...days]);
-    for (const request of [...requests, ...extraRequests, ...answerRequests]) {
+    for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
       request.dateRanges = wideRanges;
       request.dimensionFilter = and(request.dimensionFilter, filter);
     }
@@ -289,7 +301,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   // 失敗したことは画面にも出す（以前は黙って空にしていたため、イベント数の合計が少なく出ても気づけなかった）
   let warning: string | undefined;
   // 3つの組は互いに関係ないので同時に取得する（以前は順番に待っていて、開くのに10秒ほどかかっていた）
-  const [mainReports, extraReports, answerReports] = await Promise.all([
+  const [mainReports, extraReports, answerReports, workActionReports] = await Promise.all([
     runReports(requests),
     runReports(extraRequests).catch((error) => {
       console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
@@ -300,8 +312,14 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       console.error('[analytics] 年齢確認・流入元・作品ごとの内訳を取得できませんでした:', error);
       return answerRequests.map(() => [] as ReportRow[]);
     }),
+    runReports(workActionRequests).catch((error) => {
+      console.error('[analytics] 作品ごとのクリック・最後まで読んだを取得できませんでした:', error);
+      return workActionRequests.map(() => [] as ReportRow[]);
+    }),
   ]);
   const reports = [...mainReports, ...extraReports, ...answerReports];
+  reports[19] = [...(reports[19] ?? []), ...workActionReports[0]];
+  reports[21] = [...(reports[21] ?? []), ...workActionReports[1]];
 
   // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
   if (affectedDays.length > 0) {
@@ -425,7 +443,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v17'],
+  ['admin-analytics-v18'],
   { revalidate: 300 },
 );
 
