@@ -153,7 +153,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     align: 'start',
     containScroll: false,
     skipSnaps: false,
+    // スライドの増減での自動の初期化（reInit）はしない。補充（残り5本で20本追加）が「次へ移動」の直後に起きると、
+    // 初期化で進行中のアニメーションが切れて一瞬で切り替わっていた（15〜20回目のスワイプで毎回）。
+    // 下の effect で、動きが止まった（settle）あとに初期化する
+    watchSlides: false,
   });
+  // スワイプの動きが止まっているか。止まるまで初期化を待つ
+  const settledRef = useRef(true);
+  const pendingReInitRef = useRef(false);
+  const reInitedByListChangeRef = useRef(false);
   // 同人誌（サーバーで取得した一覧）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList] = useState<Doujin[]>(initialDoujinList);
@@ -543,9 +551,42 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     if (!emblaApi || target === null) return;
     pendingScrollRef.current = null;
     lastSnapRef.current = target;
+    reInitedByListChangeRef.current = true;
     emblaApi.reInit();
     emblaApi.scrollTo(target, true); // 第2引数 true = アニメーションなしで即座に移動
   }, [emblaApi, videos, scrollSeq]);
+
+  // スライドが増減したら（補充・読み込み中の表示）、動きが止まってから初期化する（watchSlides: false の代わり）
+  useEffect(() => {
+    if (!emblaApi) return;
+    if (reInitedByListChangeRef.current) {
+      // 一覧の差し替えは上の useLayoutEffect で初期化済み
+      reInitedByListChangeRef.current = false;
+      return;
+    }
+    if (settledRef.current) emblaApi.reInit();
+    else pendingReInitRef.current = true;
+  }, [emblaApi, videos, isLoadingMore]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onScroll = () => {
+      settledRef.current = false;
+    };
+    const onSettle = () => {
+      settledRef.current = true;
+      if (pendingReInitRef.current) {
+        pendingReInitRef.current = false;
+        emblaApi.reInit();
+      }
+    };
+    emblaApi.on('scroll', onScroll);
+    emblaApi.on('settle', onSettle);
+    return () => {
+      emblaApi.off('scroll', onScroll);
+      emblaApi.off('settle', onSettle);
+    };
+  }, [emblaApi]);
 
   // いいねを切り替える関数（いいねは dmm_content_id で管理する）
   const toggleLike = useCallback(async (video: Video, event: React.MouseEvent) => {
