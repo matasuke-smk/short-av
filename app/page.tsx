@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
-import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, type Doujin } from '@/lib/doujin';
+import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
 // revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
@@ -69,8 +69,10 @@ export async function generateMetadata({
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
 
 // 同人誌（人気＋高評価からランダム）。doujinId があればその作品を先頭にする。取れなくても動画は表示する
-async function loadDoujin(doujinId?: string): Promise<Doujin[]> {
+// doujinIds（管理画面のアクセス解析の「作品ごと」から開いたとき）があれば、その作品だけを渡した順に
+async function loadDoujin(doujinId?: string, doujinIds?: string[]): Promise<Doujin[]> {
   try {
+    if (doujinIds) return await fetchDoujinByIds(doujinIds);
     const [list, target] = await Promise.all([fetchDoujin('mix', 40), doujinId ? fetchDoujinById(doujinId) : Promise.resolve(null)]);
     return target ? [target, ...list.filter((d) => d.contentId !== target.contentId)] : list;
   } catch (error) {
@@ -79,8 +81,8 @@ async function loadDoujin(doujinId?: string): Promise<Doujin[]> {
   }
 }
 
-async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?: string; doujinId?: string; doujinMode?: boolean }) {
-  const doujinPromise = loadDoujin(doujinId);
+async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: { targetId?: string; doujinId?: string; doujinMode?: boolean; doujinIds?: string[] }) {
+  const doujinPromise = loadDoujin(doujinId, doujinIds);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   // プールサイズ。1人あたりのスワイプは平均2〜3回なので、200本（約260KB）を毎回データベースから取ると
   // Supabase の通信量（Egress）の大半になっていた。足りなくなったら /api/videos で補充する
@@ -194,6 +196,9 @@ async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?
   const firstVideoSchema = generateVideoSchema(videos[0]);
 
   // URLパラメータの処理はクライアント側（VideoSwiper）で行う
+  const doujinList = await doujinPromise;
+  // アクセス解析の「作品ごと」から開いたときは、その一覧の同人誌だけをスワイプで見る（動画は挟まない）
+  const doujinOnly = !!doujinIds && doujinList.length > 0;
   return (
     <>
       <script
@@ -202,11 +207,12 @@ async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?
       />
       <VideoSwiper
         videos={videos}
-        startIndex={0}
         videoPool={videoPool}
         linkNotice={linkNotice}
-        doujinList={await doujinPromise}
+        doujinList={doujinList}
         doujinMode={doujinMode}
+        doujinOnly={doujinOnly}
+        startIndex={doujinOnly ? Math.max(0, doujinList.findIndex((d) => d.contentId === doujinId)) : 0}
       />
     </>
   );
@@ -215,18 +221,21 @@ async function VideoList({ targetId, doujinId, doujinMode = false }: { targetId?
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[] }>;
+  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[]; list?: string | string[] }>;
 }) {
-  const { v, mode, d } = await searchParams;
+  const { v, mode, d, list } = await searchParams;
   const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
   // ?mode=doujin&d=作品番号: 同人誌中心の画面（X の同人誌の投稿から。その回だけ）
   const doujinMode = mode === 'doujin';
   const doujinId = doujinMode && typeof d === 'string' && DOUJIN_ID_PATTERN.test(d) ? d : undefined;
+  // &list=作品番号,作品番号,…: 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき、その作品だけを並べる（最大30冊）
+  const listIds = doujinMode && typeof list === 'string' ? list.split(',').filter((id) => DOUJIN_ID_PATTERN.test(id)).slice(0, 30) : [];
+  const doujinIds = listIds.length > 0 ? listIds : undefined;
 
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} />
+        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} doujinIds={doujinIds} />
       </Suspense>
     </>
   );
