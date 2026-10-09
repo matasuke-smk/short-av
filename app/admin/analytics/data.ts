@@ -288,16 +288,20 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
 
   // 失敗したことは画面にも出す（以前は黙って空にしていたため、イベント数の合計が少なく出ても気づけなかった）
   let warning: string | undefined;
-  const extraReports = await runReports(extraRequests).catch((error) => {
-    console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
-    warning = `一部の集計（イベント別・画面と検索・よく見られたページ）を取得できませんでした: ${error instanceof Error ? error.message : String(error)}`;
-    return extraRequests.map(() => [] as ReportRow[]);
-  });
-  const answerReports = await runReports(answerRequests).catch((error) => {
-    console.error('[analytics] 年齢確認・流入元・作品ごとの内訳を取得できませんでした:', error);
-    return answerRequests.map(() => [] as ReportRow[]);
-  });
-  const reports = [...(await runReports(requests)), ...extraReports, ...answerReports];
+  // 3つの組は互いに関係ないので同時に取得する（以前は順番に待っていて、開くのに10秒ほどかかっていた）
+  const [mainReports, extraReports, answerReports] = await Promise.all([
+    runReports(requests),
+    runReports(extraRequests).catch((error) => {
+      console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
+      warning = `一部の集計（イベント別・画面と検索・よく見られたページ）を取得できませんでした: ${error instanceof Error ? error.message : String(error)}`;
+      return extraRequests.map(() => [] as ReportRow[]);
+    }),
+    runReports(answerRequests).catch((error) => {
+      console.error('[analytics] 年齢確認・流入元・作品ごとの内訳を取得できませんでした:', error);
+      return answerRequests.map(() => [] as ReportRow[]);
+    }),
+  ]);
+  const reports = [...mainReports, ...extraReports, ...answerReports];
 
   // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
   if (affectedDays.length > 0) {
@@ -415,15 +419,13 @@ const getRangeData = unstable_cache(
     // X の投稿で紹介した作品（最初に開いた URL の ?v=）
     const xPostIds = (reports[27] ?? []).map((r) => xPostContentId(r.dimensions[0])).filter((id): id is string => !!id);
     const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds, ...xPostIds])].filter((id) => id && id !== '(not set)');
-    const db = await loadDb(range, ids);
-    // 同人誌の作品名・表紙（表示の多い上位30冊）
+    // 同人誌の作品名・表紙（表示の多い上位30冊）。データベースとは関係ないので同時に取得する
     const doujinIds = [...new Set((reports[21] ?? []).filter((r) => r.dimensions[1] === 'doujin_view').map((r) => r.dimensions[0]))].slice(0, 30);
-    const doujinInfo = Object.fromEntries(
-      (await fetchDoujinByIds(doujinIds).catch(() => [])).map((d) => [d.contentId, { title: d.title, cover: d.cover }]),
-    );
+    const [db, doujins] = await Promise.all([loadDb(range, ids), fetchDoujinByIds(doujinIds).catch(() => [])]);
+    const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v16'],
+  ['admin-analytics-v17'],
   { revalidate: 300 },
 );
 
