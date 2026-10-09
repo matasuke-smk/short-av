@@ -47,6 +47,13 @@ export type RangeData =
   | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; doujinInfo?: Record<string, { title: string; cover: string }>; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
   | { error: string };
 
+// まだ取得していない期間（画面を開いたあとに /api/admin/analytics で1つずつ取る）。表示は「読み込み中」にする
+const LOADING_MESSAGE = '読み込み中…';
+const LOADING: RangeData = { error: LOADING_MESSAGE };
+// 取得する順番（「曜日ごとの平均」は28日間を使う）
+const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'dayBefore', '7d', '28d'];
+const dataKeyOf = (view: ViewKey): DataKey => (view === 'weekday' ? '28d' : view);
+
 
 // GA の流入元（デフォルト チャネル グループ）を日本語にする
 // イベント名を日本語にする（サイトが送るものと、GA が自動で送る主なもの）
@@ -1262,7 +1269,7 @@ function CountryTable({ rows }: { rows: ReportRow[] }) {
 }
 
 export default function AnalyticsView({
-  data,
+  data: initialData,
   initialRange,
   fetchedAt,
   realtime,
@@ -1273,12 +1280,46 @@ export default function AnalyticsView({
   country: Country; // 日本のみ（標準）か、海外も含めたすべてか
   yesterdaySoFar: YesterdaySoFar | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
-  data: Record<DataKey, RangeData>;
+  data: Partial<Record<DataKey, RangeData>>; // 開いたときに取得した期間だけ（残りはこの画面で取る）
   initialRange: ViewKey;
   fetchedAt: string;
   realtime: ReportRow[] | null; // いま見られているページ（直近30分）。取得できなければ null
 }) {
   const [viewKey, setViewKey] = useState<ViewKey>(initialRange);
+  // 期間ごとのデータ。開いたときに無かった期間は、表示してから1つずつ取得する（選んでいる期間を先に取る）
+  const [loaded, setLoaded] = useState(initialData);
+  const viewKeyRef = useRef(viewKey);
+  viewKeyRef.current = viewKey;
+  useEffect(() => {
+    setLoaded(initialData);
+    let cancelled = false;
+    (async () => {
+      const have = new Set(Object.keys(initialData) as DataKey[]);
+      while (!cancelled) {
+        const missing = LOAD_ORDER.filter((key) => !have.has(key));
+        if (missing.length === 0) break;
+        const wanted = dataKeyOf(viewKeyRef.current);
+        const key = missing.includes(wanted) ? wanted : missing[0];
+        have.add(key);
+        const range: RangeData = await fetch(`/api/admin/analytics?key=${key}&country=${country}`, { cache: 'no-store' })
+          .then((r) => r.json())
+          .catch((error) => ({ error: `取得できませんでした: ${error instanceof Error ? error.message : String(error)}` }));
+        if (!cancelled) setLoaded((prev) => ({ ...prev, [key]: range }));
+      }
+      // すべて取り終えてから、もう一方（日本のみ⇔すべて）の集計を裏で取得しておく（下の warm と同じ）
+      if (!cancelled) {
+        const url = new URL(window.location.href);
+        if (country === 'jp') url.searchParams.set('country', 'all');
+        else url.searchParams.delete('country');
+        url.searchParams.set('warm', '1');
+        fetch(url.pathname + url.search, { cache: 'no-store' }).catch(() => {});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialData, country]);
+  const data: Record<DataKey, RangeData> = { today: LOADING, yesterday: LOADING, dayBefore: LOADING, '7d': LOADING, '28d': LOADING, ...loaded };
   // 「動画｜同人誌」: どちらの数字を見るか（URL の kind に残す）
   const [section, setSection] = useState<'video' | 'doujin'>('video');
   useEffect(() => {
@@ -1346,7 +1387,11 @@ export default function AnalyticsView({
   );
   const errorBox = (message: string) => (
     <>
-      <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{message}</div>
+      {message === LOADING_MESSAGE ? (
+        <p className="py-10 text-center text-sm text-gray-400">{message}</p>
+      ) : (
+        <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{message}</div>
+      )}
       {realtimeSection}
     </>
   );
