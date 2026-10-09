@@ -450,11 +450,16 @@ const getRangeData = unstable_cache(
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
     reports[10] = toJstHourly(reports[10], range);
     const topClicked = reports[7];
-    // 作品名を引く作品: よくクリックされた作品と、再生の多い作品（上位30）
-    const playedIds = (reports[19] ?? []).filter((r) => r.dimensions[1] === 'video_view').slice(0, 30).map((r) => r.dimensions[0]);
+    // 作品名を引く作品: よくクリックされた作品と、作品ごとの表（再生の多い順・クリックの多い順の上位30）に出る作品
+    const topOf = (event: string) => {
+      const counts = new Map<string, number>();
+      for (const r of reports[19] ?? []) if (r.dimensions[1] === event) counts.set(r.dimensions[0], (counts.get(r.dimensions[0]) ?? 0) + r.metrics[0]);
+      return [...counts.entries()].sort(([, a], [, b]) => b - a).slice(0, 30).map(([id]) => id);
+    };
+    const tableIds = [...topOf('video_view'), ...topOf('dmm_link_click')];
     // X の投稿で紹介した作品（最初に開いた URL の ?v=）
     const xPostIds = (reports[27] ?? []).map((r) => xPostContentId(r.dimensions[0])).filter((id): id is string => !!id);
-    const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...playedIds, ...xPostIds])].filter((id) => id && id !== '(not set)');
+    const ids = [...new Set([...topClicked.map((r) => r.dimensions[0]), ...tableIds, ...xPostIds])].filter((id) => id && id !== '(not set)');
     // 同人誌の作品名・表紙（画面の作品ごとの表と同じく、クリック → 最後まで読んだ → 表示の多い順の上位30冊）。データベースとは関係ないので同時に取得する
     const doujinScore = new Map<string, [number, number, number]>();
     for (const r of reports[21] ?? []) {
@@ -472,7 +477,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v22'],
+  ['admin-analytics-v23'],
   { revalidate: 300 },
 );
 
