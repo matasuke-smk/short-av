@@ -144,6 +144,9 @@ function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean,
   return same ? prev : out;
 }
 
+// 指を離したときにこれ以上動いていれば次・前の作品へ進める（速さに関係なく）
+const SWIPE_MIN_PX = 60;
+
 export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, doujinOnly = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
@@ -407,7 +410,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   }), [isFiniteList]);
 
   // アプリ内ブラウザで FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
-  // Android は先に intent:// で普段のブラウザへの切り替えを試し、切り替わらなかったときだけ案内を出す
   // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
   const [inAppNotice, setInAppNotice] = useState<{ url: string; platform: InAppPlatform; label: string; track: () => void; restoreUrl: string } | null>(null);
   // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、アプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
@@ -442,42 +444,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       setInAppNotice({ url: fanzaUrl, platform, label, track, restoreUrl });
       trackInAppNotice('show');
     };
-    if (platform === 'ios') {
-      showNotice();
-      return;
-    }
-
-    // Android: intent:// で、普段使っているブラウザ（パッケージを指定しない）で FANZA のリンクを直接開く。
-    // アプリが切り替われば画面が隠れるので、そこで FANZA へのクリックとして記録する。
-    // 1.5秒たっても隠れなければ（アプリ内ブラウザが intent を通さない）、「︙ → ブラウザで開く」の案内を出す
-    // （X の Android 版が通すかは実機で確かめていない。GA の「Android 切り替えを試した」−「Android 切り替えできず」で確かめる）
-    // 切り替わると画面が裏に回り、そのあとの記録（「自動で切り替え」）は GA に届かないことがある（10/9 15〜17時に Android の記録が0件だった）。
-    // そこで「試した」を GA に送り終えてから（最大0.5秒待って）切り替える
-    const u = new URL(fanzaUrl);
-    const intentUrl = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${encodeURIComponent(fanzaUrl)};end`;
-    let switched = false;
-    const onHidden = () => {
-      if (document.visibilityState !== 'hidden' || switched) return;
-      switched = true;
-      track();
-      trackInAppNotice('intent_ok', { transport_type: 'beacon' });
-    };
-    let started = false;
-    const startIntent = () => {
-      if (started) return;
-      started = true;
-      document.addEventListener('visibilitychange', onHidden);
-      window.setTimeout(() => {
-        document.removeEventListener('visibilitychange', onHidden);
-        if (switched) return;
-        trackInAppNotice('intent_failed');
-        showNotice();
-      }, 1500);
-      window.location.href = intentUrl;
-    };
-    trackInAppNotice('intent_try', { transport_type: 'beacon', event_callback: startIntent, event_timeout: 500 });
-    // GA が読み込まれていないなど、送り終わりの合図が来ないときも0.5秒で切り替える
-    window.setTimeout(startIntent, 500);
+    // Android も最初から案内を出す。以前は intent:// で普段のブラウザへの自動の切り替えを試していたが、
+    // X の Android 版は intent を拒否して赤く「このアクションを実行できるアプリはありません」と出すだけだった（2026-10-09 実機で確認）
+    showNotice();
   }, []);
   const closeInAppNotice = (openAnyway: boolean) => {
     if (!inAppNotice) return;
@@ -762,6 +731,31 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi, videos, loadMoreVideos, isLoadingMore, isFiniteList, doujinMode]);
+
+  // 指を離したときに SWIPE_MIN_PX 以上動いていれば、速さに関係なく次・前の作品へ。
+  // embla は、ゆっくり動かしたときは画面の半分以上動かさないと次に進まない（素早く払ったときだけ短くても進む）ため、
+  // 反応の遅い端末では「長いストロークでないと次に行けない」と感じた（2026-10-09 Android の実機で報告）
+  useEffect(() => {
+    if (!emblaApi) return;
+    let indexAtDown = 0;
+    const onPointerDown = () => {
+      indexAtDown = emblaApi.selectedScrollSnap();
+    };
+    const onPointerUp = () => {
+      if (emblaApi.selectedScrollSnap() !== indexAtDown) return; // embla がすでに次・前へ進めると決めた
+      const engine = emblaApi.internalEngine();
+      const moved = engine.location.get() - engine.scrollSnaps[indexAtDown]; // 上に払うと負
+      if (Math.abs(moved) < SWIPE_MIN_PX) return;
+      if (moved < 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+    };
+    emblaApi.on('pointerDown', onPointerDown);
+    emblaApi.on('pointerUp', onPointerUp);
+    return () => {
+      emblaApi.off('pointerDown', onPointerDown);
+      emblaApi.off('pointerUp', onPointerUp);
+    };
+  }, [emblaApi]);
 
   const currentVideo = videos[currentIndex];
 

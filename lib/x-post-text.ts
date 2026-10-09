@@ -4,6 +4,8 @@
 import type { Doujin } from '@/lib/doujin-types';
 
 export const SITE_URL = 'https://short-av.com';
+// 投稿文のリンクの下に付ける一言。X のアプリ内ブラウザだと表示が狭くスワイプもしづらいので、ブラウザで開いてもらう（2026-10-09）
+export const BROWSER_HINT = '※ブラウザで開くと快適です';
 export const X_MAX_WEIGHTED_LENGTH = 280;
 // X は URL を長さに関わらず 23 文字として数える
 const X_URL_LENGTH = 23;
@@ -109,6 +111,7 @@ export function buildDoujinPostText(doujin: Doujin, headingIndex: number): strin
       '',
       'スワイプで試し読みはこちら👇',
       url,
+      BROWSER_HINT,
       '',
       '#PR #FANZA同人',
     ]

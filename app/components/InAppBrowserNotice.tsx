@@ -14,6 +14,7 @@ export const INAPP_REOPEN_PARAM = 'inapp';
 
 // 案内を出すアプリ内ブラウザ。ios: X のアプリ内（UA の末尾に「Twitter for iPhone/12.32.1」が付く）、
 // android: アプリ内の WebView（UA に「; wv)」が付く。X の Android も WebView だった。GA の「Android Webview」）。それ以外は null
+// Android は以前 intent:// で普段のブラウザへの自動の切り替えを試していたが、X が拒否して赤いエラーを出すだけだったので 2026-10-09 にやめた
 export type InAppPlatform = 'ios' | 'android';
 export const inAppPlatform = (): InAppPlatform | null => {
   if (typeof navigator === 'undefined') return null;
@@ -45,36 +46,18 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
         <p className="mt-1.5 text-sm text-gray-300">ブラウザで開くと、いつもの FANZA のログインのまま購入できます。</p>
 
         <ol className="mt-4 space-y-2.5 text-sm">
-          {platform === 'ios' ? (
-            <>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
-                <span>画面下の</span>
-                <span className="rounded-full bg-black px-3 py-1 text-xs font-medium">short-av.com ⋮</span>
-                <span>をタップ</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
-                <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">ブラウザで開く 🌐</span>
-                <span>をタップ</span>
-              </li>
-            </>
-          ) : (
-            // Android は実機で確かめていないので、矢印は出さず言葉だけで案内する（アプリによってメニューの位置・名前が違う）
-            <>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
-                <span>画面右上の</span>
-                <span className="rounded-lg bg-black px-2.5 py-1 text-xs font-bold">︙</span>
-                <span>（メニュー）をタップ</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
-                <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">ブラウザで開く</span>
-                <span>をタップ</span>
-              </li>
-            </>
-          )}
+          {/* iPhone・Android とも X のアプリ内ブラウザは画面下に「short-av.com ⋮」があり、そのメニューに「ブラウザで開く」がある（Android は 2026-10-09 のスクショで確認） */}
+          <li className="flex items-center gap-2">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
+            <span>画面下の</span>
+            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium">short-av.com ⋮</span>
+            <span>をタップ</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
+            <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">{platform === 'ios' ? 'ブラウザで開く 🌐' : 'ブラウザで開く'}</span>
+            <span>をタップ{platform === 'android' && <span className="text-gray-400">（「Chrome で開く」の場合も）</span>}</span>
+          </li>
           <li className="flex items-center gap-2">
             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">3</span>
             <span>同じ作品が開くので、もう一度「{buttonLabel}」</span>
@@ -91,13 +74,13 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
           このまま FANZA を開く
         </a>
 
-        {/* iPhone の X: 画面下の中央の「short-av.com」を指す */}
-        {platform === 'ios' && <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
+        {/* 画面下の中央の「short-av.com」を指す */}
+        <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
           <span className="text-xs">ここをタップ</span>
           <svg className="h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m0 0l-6-6m6 6l6-6" />
           </svg>
-        </div>}
+        </div>
       </div>
     </div>,
     document.body,
