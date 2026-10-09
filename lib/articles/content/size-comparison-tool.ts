@@ -673,10 +673,10 @@ export const article: Article = {
   // 評価（上から: 上位2%・上位16%・平均まわり・下位16%・下位2%。偏差値 70・60・40・30 の区切り）
   function getRankLevel(percentile) {
     if (percentile >= 97.7) return { level: '大きめ', tag: 'AV男優並み', description: '日本人男性の上位2%。文句なしの大きさです' };
-    if (percentile >= 84) return { level: 'やや大きめ', tag: 'バナナ並み', description: '日本人男性の上位16%。堂々としたサイズです' };
+    if (percentile >= 84) return { level: 'やや大きめ', tag: '平均よりはっきり大きめ', description: '日本人男性の上位16%。堂々としたサイズです' };
     if (percentile >= 16) return { level: '平均的', tag: '日本人の平均並み', description: '日本人男性の標準範囲内。いちばん多いゾーンです' };
-    if (percentile >= 2.3) return { level: 'やや小さめ', tag: 'ミニバナナ並み', description: '平均より少し控えめ。相性と使い方しだいです' };
-    return { level: '小さめ', tag: 'コンパクト派', description: '平均よりかなり控えめ。悩みがあれば泌尿器科で相談を' };
+    if (percentile >= 2.3) return { level: 'やや小さめ', tag: '平均より控えめ', description: '日本人男性の下位16%。相性と使い方しだいです' };
+    return { level: '小さめ', tag: 'かなり控えめ', description: '日本人男性の下位2%。悩みがあれば泌尿器科で相談を' };
   }
 
   // コンドームサイズの目安（外周から大まかに判定。S/M/L の基準はメーカーごとに異なる）
@@ -770,7 +770,7 @@ export const article: Article = {
     document.getElementById('condomSize').textContent = recommendCondomSize(diameter);
 
     // X に投稿する文（数字だけ。入力した mm は入れない）
-    lastShareText = 'ちんこ偏差値チェッカーで測ったら、偏差値 ' + overallDev + '（長さ ' + lengthDev + '・太さ ' + girthDev + '）、世界基準では ' + worldDev + '。日本人男性100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらいで「' + rankInfo.tag + '」でした。' + (compare.share ? compare.share + '。' : '') + '長さは' + country[0] + 'の平均並み。\\n#ちんこ偏差値チェッカー\\n' + TOOL_URL;
+    lastShareText = ['ちんこ偏差値チェッカーの結果', '総合偏差値 ' + overallDev + '（日本基準）／' + worldDev + '（世界基準）', '長さ ' + lengthDev + '・太さ ' + girthDev, '日本人100人中 ' + Math.round((lengthRank + diameterRank) / 2) + '位くらい・' + rankInfo.tag, '長さは' + country[0] + 'の平均（' + country[1].toFixed(1) + 'cm）と同じくらい', '#ちんこ偏差値チェッカー', TOOL_URL].join('\\n');
     document.getElementById('shareX').href = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(lastShareText);
 
     document.getElementById('resultContainer').classList.remove('result-hidden');
