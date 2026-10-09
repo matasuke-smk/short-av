@@ -67,6 +67,7 @@ interface VideoSwiperProps {
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
   doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌中心（先頭はその作品、同人誌5冊ごとに動画1本）
+  doujinOnly?: boolean; // 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき: doujinList の同人誌だけを並べる（動画は挟まない・補充しない）
 }
 
 // サンプル動画URLからアフィリエイトIDを削除する関数
@@ -143,7 +144,7 @@ function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean,
   return same ? prev : out;
 }
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, doujinOnly = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -175,7 +176,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
   const [doujinListKind, setDoujinListKind] = useState<DoujinListKind | null>(null);
   // 最初の表示から同人誌を挟んでおく（あとから挟むと、表示中の位置がずれるため）
-  const [videos, setVideos] = useState<Video[]>(() => interleaveDoujin(initialVideos, initialDoujinList, initialDoujinMode, doujinBySlideRef.current));
+  // 同人誌だけを並べるとき（doujinOnly）は、一覧の同人誌を1冊ずつスライドにする（動画の1件は型を満たすためだけに使う）
+  const [videos, setVideos] = useState<Video[]>(() =>
+    doujinOnly && initialVideos[0]
+      ? initialDoujinList.map((d, k) => makeDoujinSlide(d, `doujin-only-${k}`, initialVideos[0], doujinBySlideRef.current))
+      : interleaveDoujin(initialVideos, initialDoujinList, initialDoujinMode, doujinBySlideRef.current),
+  );
   // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
@@ -201,7 +207,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showActressModal, setShowActressModal] = useState(false);
-  const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList);
+  const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
   // 上の余白・タイトル・下の帯の中身の高さを実際に測り、残りに収まらなければ ①動画のサムネイルを縮める（バナーは残す）②それでも小さすぎればバナーを出さない。

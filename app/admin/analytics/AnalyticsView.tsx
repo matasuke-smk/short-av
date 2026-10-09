@@ -621,7 +621,12 @@ function RangeBody({
       return { channel: r.dimensions[0], sessions: r.metrics[0], users: r.metrics[1], playUsers: of('video_view'), clickUsers: of('dmm_link_click') };
     })
     .sort((a, b) => b.clickUsers - a.clickUsers || b.users - a.users);
-  const topClickChannel = channelRows.find((r) => r.clickUsers > 0);
+  // X 以外から来た人: 検索・直接（ブックマークなど）・ほかのサイトのリンクなど。普段のブラウザで来るので報酬につながりやすい。
+  // SNS（X）と、来た元が分からない訪問（ほとんどは X のアプリ内からと考えられるが確かめられない）は除く
+  const NOT_NON_X_CHANNELS = ['Organic Social', 'Paid Social', 'Unassigned', 'Cross-network', '(not set)', ''];
+  const nonX = channelRows
+    .filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel))
+    .reduce((sum, r) => ({ users: sum.users + r.users, clickUsers: sum.clickUsers + r.clickUsers }), { users: 0, clickUsers: 0 });
   // 作品ごとの再生・クリック（回数）
   const workMap = new Map<string, { id: string; plays: number; clicks: number }>();
   for (const r of workEvents) {
@@ -739,6 +744,20 @@ function RangeBody({
             );
           })()}
           <Card
+            label="よくクリックされた作品"
+            value={fmt(works.filter((w) => w.clicks > 0).length)}
+            unit="作品"
+            sub="作品ごとの再生・FANZA へのクリック"
+            onClick={() => setDetail('clicked')}
+            extra={[...works]
+              .filter((w) => w.clicks > 0)
+              .sort((a, b) => b.clicks - a.clicks)
+              .slice(0, 5)
+              .map((w) => (
+                <ExtraRow key={w.id} name={db.titleById[w.id] ?? w.id} right={`クリック ${fmt(w.clicks)}回・再生 ${fmt(w.plays)}回`} />
+              ))}
+          />
+          <Card
             label="X の動画の投稿から来た人"
             value={fmt(x.users)}
             unit="人"
@@ -755,24 +774,10 @@ function RangeBody({
             }
           />
           <Card
-            label="よくクリックされた作品"
-            value={fmt(works.filter((w) => w.clicks > 0).length)}
-            unit="作品"
-            sub="作品ごとの再生・FANZA へのクリック"
-            onClick={() => setDetail('clicked')}
-            extra={[...works]
-              .filter((w) => w.clicks > 0)
-              .sort((a, b) => b.clicks - a.clicks)
-              .slice(0, 5)
-              .map((w) => (
-                <ExtraRow key={w.id} name={db.titleById[w.id] ?? w.id} right={`クリック ${fmt(w.clicks)}回・再生 ${fmt(w.plays)}回`} />
-              ))}
-          />
-          <Card
-            label="どこから来たか（流入元ごとのクリック率）"
-            value={fmt(channels.length)}
-            unit="種類"
-            sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
+            label="X 以外から来た人（検索・ブックマーク・ほかのサイト）"
+            value={fmt(nonX.users)}
+            unit="人"
+            sub={`FANZA へのクリック ${fmt(nonX.clickUsers)}人（${pct(nonX.clickUsers, nonX.users)}）`}
             onClick={() => setDetail('channels')}
             extra={channelRows.slice(0, 5).map((r) => (
               <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
