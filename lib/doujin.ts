@@ -1,4 +1,4 @@
-import { fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
+import { DMMBlockedError, fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
 import type { Doujin, DoujinFacet, DoujinOrder } from '@/lib/doujin-types';
 
 export { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types';
@@ -78,9 +78,24 @@ export async function rankingDoujin(period: 'weekly' | 'monthly' | 'all', hits =
   return (data.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null);
 }
 
-/** 作品番号の一覧から同人誌を取る（いいね・履歴の表示用。並びは渡した順、見つからないものは除く） */
+/** 1冊取る。一時的な失敗なら1秒待ってもう一度だけ。DMM に止められているとき（DMMBlockedError）と、見つからない作品（null）はやり直さない */
+async function fetchDoujinByIdWithRetry(contentId: string): Promise<Doujin | null> {
+  try {
+    return await fetchDoujinById(contentId);
+  } catch (error) {
+    if (error instanceof DMMBlockedError) return null;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return fetchDoujinById(contentId).catch(() => null);
+  }
+}
+
+/**
+ * 作品番号の一覧から同人誌を取る（いいね・履歴・アクセス解析の表示用。並びは渡した順、見つからないものは除く）
+ * 1冊ずつしか問い合わせられない API なので冊数ぶん投げるが、同時に投げる数は fetchDMMProducts 側で抑えている
+ * （全冊を同時に投げると DMM に一時停止され、30冊で18〜24冊しか返らなかった）
+ */
 export async function fetchDoujinByIds(ids: string[]): Promise<Doujin[]> {
-  const list = await Promise.all(ids.map((id) => fetchDoujinById(id).catch(() => null)));
+  const list = await Promise.all([...new Set(ids)].map(fetchDoujinByIdWithRetry));
   return list.filter((d): d is Doujin => d !== null);
 }
 
