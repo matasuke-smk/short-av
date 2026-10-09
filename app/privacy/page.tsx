@@ -3,13 +3,13 @@ import { CONTACT_FORM_URL, SITE_OPERATOR } from '@/config/site';
 
 export const metadata: Metadata = {
   title: 'プライバシーポリシー - Short AV',
-  description: 'Short AVのプライバシーポリシー。Cookie使用、個人情報の取り扱いについて記載しています。',
+  description: 'Short AV のプライバシーポリシー。アクセス解析（Google Analytics）と Cookie の使い方、いいね・履歴など端末に保存する情報、アフィリエイトリンク、お問い合わせで受け取る情報の取り扱いについて記載しています。',
   alternates: {
     canonical: '/privacy',
   },
   openGraph: {
     title: 'プライバシーポリシー - Short AV',
-    description: 'Short AVのプライバシーポリシー。Cookie使用、個人情報の取り扱いについて記載しています。',
+    description: 'Short AV のプライバシーポリシー。アクセス解析（Google Analytics）と Cookie の使い方、いいね・履歴など端末に保存する情報、アフィリエイトリンク、お問い合わせで受け取る情報の取り扱いについて記載しています。',
     url: 'https://short-av.com/privacy',
     siteName: 'Short AV',
     locale: 'ja_JP',
