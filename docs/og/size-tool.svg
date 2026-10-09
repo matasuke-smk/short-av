@@ -49,10 +49,10 @@
   </g>
 
   <!-- 吹き出し: 〇〇並み？ -->
-  <g transform="translate(880 40)">
-    <path d="M 20 0 H 300 Q 320 0 320 20 V 120 Q 320 140 300 140 H 120 L 90 172 L 96 140 H 20 Q 0 140 0 120 V 20 Q 0 0 20 0 Z" fill="#ffffff" stroke="#1f2937" stroke-width="6"/>
-    <text x="160" y="52" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" font-weight="800" fill="#1f2937">あなたは</text>
-    <text x="160" y="112" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="46" font-weight="900" fill="#e11d48">AV男優並み？</text>
+  <g transform="translate(820 40)">
+    <path d="M 20 0 H 360 Q 380 0 380 20 V 120 Q 380 140 360 140 H 150 L 120 172 L 126 140 H 20 Q 0 140 0 120 V 20 Q 0 0 20 0 Z" fill="#ffffff" stroke="#1f2937" stroke-width="6"/>
+    <text x="190" y="52" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" font-weight="800" fill="#1f2937">あなたは</text>
+    <text x="190" y="112" text-anchor="middle" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="40" font-weight="900" fill="#e11d48">エクアドル人並み？！</text>
   </g>
   <!-- 下の帯 -->
   <rect x="0" y="566" width="1200" height="64" fill="#1f2937"/>
