@@ -43,6 +43,7 @@ const ActressModal = dynamic(() => import('./ActressModal'), {
   ssr: false,
 });
 import {
+  sendGAEvent,
   trackVideoView,
   trackLike,
   trackSwipe,
@@ -1095,6 +1096,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     >
                       おすすめに戻る
                     </button>
+                    {/* 離脱する場面なので、ここだけツールの導線を出す（本体のスライドには出さない。FANZA へのクリックの枠を減らさないため） */}
+                    <a
+                      href="/articles/size-comparison-tool"
+                      onClick={() => sendGAEvent('tool_cta_click', { position: 'end_slide' })}
+                      className="mt-2 inline-block rounded-xl border border-yellow-500/60 bg-yellow-500/10 px-6 py-3 text-sm font-bold text-yellow-200 transition-all active:scale-95 hover:bg-yellow-500/20"
+                    >
+                      🍌 ちんこ偏差値チェッカーを試す
+                    </a>
                   </div>
                 </div>
                 </div>
