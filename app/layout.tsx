@@ -77,6 +77,7 @@ export default function RootLayout({
   return (
     <html lang="ja" className={notoSansJP.variable}>
       <head>
+        <GoogleAnalytics />
         {/* PWA設定 */}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -94,7 +95,6 @@ export default function RootLayout({
         />
       </head>
       <body className={`${notoSansJP.className} antialiased`}>
-        <GoogleAnalytics />
         <AgeVerificationGate />
         <AdminUserSync />
         {/* <PWAInstaller /> */}
