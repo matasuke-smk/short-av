@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getUserId } from '@/lib/user-id';
 import DoujinPosts from './DoujinPosts';
+import PostedBar from './PostedBar';
 import {
   countXWeightedLength,
   getPostFormat,
@@ -408,21 +409,13 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
   const length = text ? countXWeightedLength(text) : 0;
 
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
+    <div className={`bg-gray-800 rounded-lg overflow-hidden ${video.postedCount > 0 ? 'ring-2 ring-emerald-500' : ''}`}>
+      {video.postedCount > 0 && <PostedBar count={video.postedCount} lastPostedAt={video.lastPostedAt} busy={busy} onUndo={undo} />}
       <CardMedia video={video} />
       <div className="p-3">
         <div className="flex flex-wrap gap-x-2 gap-y-1 mb-1 text-[11px]">
           {video.likedAt && <span className="text-pink-300">♥ {shortDate(video.likedAt)} にいいね</span>}
-          {video.postedCount > 0 ? (
-            <span className="text-orange-300">
-              紹介済み {video.postedCount}回（前回 {video.lastPostedAt ? shortDate(video.lastPostedAt) : '-'}）
-              <button onClick={undo} disabled={busy} className="ml-2 underline text-gray-300 hover:text-white disabled:opacity-50">
-                取り消す
-              </button>
-            </span>
-          ) : (
-            video.likedAt && <span className="text-gray-400">未紹介</span>
-          )}
+          {video.postedCount === 0 && video.likedAt && <span className="text-gray-400">未紹介</span>}
         </div>
         <p className="text-sm font-bold">{video.title}</p>
         {reasons.length > 0 && (
