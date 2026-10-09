@@ -7,7 +7,6 @@ import type { ReportRow } from '@/lib/ga-data';
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 import DoujinAnalytics from './DoujinAnalytics';
-import SampleLengthStatus from './SampleLengthStatus';
 import { xPostContentId, type Country, type ViewKey } from './view-keys';
 
 /**
@@ -586,7 +585,7 @@ function RangeBody({
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
         {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           <KpiCard
             label="FANZA へのクリック"
             value={fmt(eventCount('dmm_link_click'))}
@@ -601,63 +600,30 @@ function RangeBody({
             sub={`訪問 ${fmt(eventUsers('page_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
             onClick={() => setDetail('channels')}
           />
-          <KpiCard
-            label="再生→クリック率"
-            value={share(eventUsers('dmm_link_click'), eventUsers('video_view'))}
-            unit="%"
-            sub={`再生 ${fmt(eventUsers('video_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
-            onClick={() => setDetail('played')}
-          />
         </div>
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
           <HourlyChart hours={hours} total={users} totalEvents={totalClicks} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('funnel')} />
         </Section>
 
-        {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」） */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 mb-4">
-          <Card
-            label="流れ（どこで離脱しているか）"
-            value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
-            unit="%"
-            sub="訪問した人のうち FANZA へのクリックまで進んだ割合"
-            onClick={() => setDetail('funnel')}
-          />
-          <Card label="1人あたりの滞在時間" value={seconds(users > 0 ? engagement / users : 0)} sub={`訪問回数 ${fmt(sessions)}`} />
-          <Card
-            label="1人あたりのスワイプ数"
-            value={swipeUsers > 0 ? (swipes / users).toFixed(1) : '0'}
-            unit="回"
-            sub={`合計 ${fmt(swipes)}回・${fmt(swipeUsers)}人`}
-            onClick={() => setDetail('swipe')}
-          />
-          <Card
-            label="サンプル動画の再生"
-            value={fmt(eventCount('video_view'))}
-            unit="回"
-            sub={`${fmt(eventUsers('video_view'))}人が再生・1人 ${eventUsers('video_view') > 0 ? (eventCount('video_view') / eventUsers('video_view')).toFixed(1) : '0'}本`}
-            onClick={() => setDetail('played')}
-          />
-          <Card
-            label="どこから来たか（流入元ごとのクリック率）"
-            value={fmt(channels.length)}
-            unit="種類"
-            sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
-            onClick={() => setDetail('channels')}
-          />
-          <Card
-            label="X の動画の投稿から来た人"
-            value={fmt(x.users)}
-            unit="人"
-            sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
-            onClick={() => setDetail('xpost')}
-          />
-          <Card
-            label="iPhone / Android"
-            value={`${fmt(ios.users)} / ${fmt(android.users)}`}
-            unit="人"
-            sub={`FANZA へのクリック iPhone ${fmt(ios.clicks)}回・Android ${fmt(android.clicks)}回`}
-            onClick={() => setDetail('os')}
-          />
+        {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
+            const inAppClicks = osRows.filter((r) => r.os === (name === 'iPhone' ? 'iOS' : 'Android') && r.browser === inAppBrowser).reduce((sum, r) => sum + r.clicks, 0);
+            return (
+              <Card
+                key={name}
+                label={name}
+                value={fmt(total.users)}
+                unit="人"
+                sub={`FANZA へのクリック ${fmt(total.clicks)}回（うちアプリ内 ${fmt(inAppClicks)}回）`}
+                onClick={() => setDetail('os')}
+              />
+            );
+          })}
+        </div>
+
+        {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
           {(() => {
             // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
             // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
@@ -674,14 +640,27 @@ function RangeBody({
               />
             );
           })()}
-          <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
-          <Card label="いま見られているページ" value={realtimeViews === null ? '—' : fmt(realtimeViews)} unit={realtimeViews === null ? undefined : '回'} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
-          <Card label="いいね（運営者を除く）" value={fmt(db.likes)} unit="件" sub={
-              db.adminError
-                ? `運営者の端末を読めませんでした: ${db.adminError}`
-                : `運営者のいいね ${fmt(db.adminLikes ?? 0)}件（登録端末 ${fmt(db.adminDevices ?? 0)}台）`
-            } onClick={() => setDetail('like')} />
-          <Card label="サイズ比較ツールの登録" value={fmt(db.sizes)} unit="件" sub="サイトのデータベース" />
+          <Card
+            label="X の動画の投稿から来た人"
+            value={fmt(x.users)}
+            unit="人"
+            sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
+            onClick={() => setDetail('xpost')}
+          />
+          <Card
+            label="よくクリックされた作品"
+            value={fmt(works.filter((w) => w.clicks > 0).length)}
+            unit="作品"
+            sub="作品ごとの再生・FANZA へのクリック"
+            onClick={() => setDetail('clicked')}
+          />
+          <Card
+            label="どこから来たか（流入元ごとのクリック率）"
+            value={fmt(channels.length)}
+            unit="種類"
+            sub={topClickChannel ? `クリックがいちばん多い: ${channelLabel(topClickChannel.channel).split('（')[0]}（${fmt(topClickChannel.clickUsers)}人）` : 'まだクリックはありません'}
+            onClick={() => setDetail('channels')}
+          />
         </div>
 
         {detail === 'xpost' && (
@@ -1476,11 +1455,6 @@ export default function AnalyticsView({
       hourlyAxis.events = Math.max(hourlyAxis.events, events / dates.length);
     }
   }
-  const realtimeSection = (
-    <Section title="いま見られているページ（直近30分）" note={`${fetchedAt} 時点。最新にするには引き下げて再読み込み。`}>
-      {realtime === null ? <p className="text-sm text-gray-400">取得できませんでした。</p> : <PageList rows={realtime} />}
-    </Section>
-  );
   const errorBox = (message: string) => (
     <>
       {message === LOADING_MESSAGE ? (
@@ -1488,7 +1462,6 @@ export default function AnalyticsView({
       ) : (
         <div className="bg-red-900/40 border border-red-700 rounded-lg p-4 text-sm mb-4">{message}</div>
       )}
-      {realtimeSection}
     </>
   );
 
@@ -1517,7 +1490,7 @@ export default function AnalyticsView({
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-3 md:p-6">
+    <main className="min-h-screen bg-gray-900 text-white px-2 py-3 md:p-6">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-xl md:text-2xl font-bold">アクセス解析</h1>
         <p className="text-xs text-gray-400 mt-1">
@@ -1591,7 +1564,6 @@ export default function AnalyticsView({
             <>
               <WeekdayView weekday={weekday} daily={month.reports[2]} hourlyAxis={hourlyAxis} />
               <DailyTable daily={month.reports[2]} dailyEvents={month.reports[3]} />
-              {realtimeSection}
             </>
           ) : (
             errorBox('曜日ごとのデータを取得できませんでした。')
@@ -1624,8 +1596,6 @@ export default function AnalyticsView({
           })()}
 
 
-        {/* サンプル動画の長さの記録状況（検索の「サンプル動画3分以上」用）。いちばん下に置く */}
-        <SampleLengthStatus />
 
         <p className="text-xs text-gray-500">
           GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。

@@ -1,7 +1,6 @@
-import { runRealtimeReport } from '@/lib/ga-data';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type DataKey, type RangeData } from './AnalyticsView';
-import { RANGE_KEYS, byCountry, getYesterdaySoFar, loadRange } from './data';
+import { RANGE_KEYS, getYesterdaySoFar, loadRange } from './data';
 import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
 
 export const dynamic = 'force-dynamic';
@@ -30,17 +29,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
       return null;
     }),
-    // いま見られているページ（直近30分）。リアルタイムなので使い回さずに毎回取得する
-    runRealtimeReport({
-      dimensions: [{ name: 'unifiedScreenName' }],
-      metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
-      dimensionFilter: byCountry(country, undefined),
-      orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
-      limit: 10,
-    }).catch((error) => {
-      console.error('[analytics] リアルタイムを取得できませんでした:', error);
-      return null;
-    }),
+    // いま見られているページ（直近30分）は画面から外したので取得しない（2026/10/9）
+    null,
     // 「今日」「昨日」の時間帯グラフの遅れを補うリアルタイムの記録（開いたときにも記録してから読む。sql/014 が未実行なら補わない）。
     // GA の集計は数時間遅れるので、0時を過ぎた直後の「昨日」の夜の時間帯もこれで補う。記録は3日分残しているので、一昨日まで補える
     (async () => {
