@@ -586,7 +586,7 @@ function RangeBody({
   // 実質的な見込み客: 普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。アプリ内ブラウザ（X など）で開くと、
   // あとで普段のブラウザで買っても報酬にならないため除く。Android で intent:// により普段のブラウザへ自動で切り替わった人は
   // GA ではアプリ内（Android Webview）のクリックとして記録されるので、自動で切り替わった分を足す。
-  // 切り替わると「自動で切り替え」の記録は届かないことがあるため、「試した − できず」と比べて多いほうを使う（「試した」は 10/9 夕方から）
+  // 切り替わると「自動で切り替え」の記録は届かないことがあるため、「試した − できず」と比べて多いほうを使う（「試した」は 10/9 夕方から。10/9 夜に自動の切り替えをやめたので、以後は0）
   const IN_APP_BROWSERS = ['Safari (in-app)', 'Android Webview'];
   const browserRows = osRows.filter((r) => !IN_APP_BROWSERS.includes(r.browser) && r.clicks > 0);
   const noticeMetrics = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics ?? [0, 0];
@@ -884,7 +884,7 @@ function RangeBody({
         {detail === 'inapp' && (
           <DetailModal
             title="「ブラウザで開く」案内（アプリ内ブラウザ）"
-            note="X などのアプリ内ブラウザで FANZA へのボタンを押した人に出す案内（iPhone の X は 2026/10/9 13時ごろから、Android のアプリ内ブラウザは 10/9 15時ごろから）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 14時ごろから）。回数（人数）。"
+            note="X などのアプリ内ブラウザで FANZA へのボタンを押した人に出す案内（iPhone の X は 2026/10/9 13時ごろから、Android のアプリ内ブラウザは 10/9 15時ごろから。Android の自動の切り替えは X が拒否するので 10/9 夜にやめた）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 14時ごろから）。回数（人数）。"
             onClose={closeDetail}
           >
             {/* まだ0回の記録も並べる（以前は記録のあるものだけで、「ブラウザで開き直した」が0回のときに出なかった） */}

@@ -11,7 +11,7 @@ import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
 import { getAdminUserIds } from '@/lib/admin-users';
 import { EXTRA_LONG_SAMPLE_SECONDS, LONG_SAMPLE_SECONDS } from '@/config/site';
-import { countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { BROWSER_HINT, countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
 export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
@@ -378,6 +378,7 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
         ? `${exactLength(video.sample_seconds)}の長尺サンプル動画はこちら👇`
         : 'サンプル動画はこちら👇',
       url,
+      BROWSER_HINT,
       '',
       '#PR #FANZA',
     ]
