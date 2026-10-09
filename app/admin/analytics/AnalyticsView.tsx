@@ -501,6 +501,8 @@ function RangeBody({
   const [totals, byEvent, daily, dailyEvents, swipeDepth, via, topPlayed, topClicked, channels, devices, hourly, screens, searchTypes, searchTerms, zeroResults, pages, allEvents = [], answers = [], channelEvents = [], workEvents = []] = reports;
   // X の動画の投稿から来た人（レポート 25〜27）
   const x = summarizeXPosts(reports[25] ?? [], reports[26] ?? [], reports[27] ?? []);
+  // 来た元の内訳（レポート 28）
+  const sources = reports[28] ?? [];
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
@@ -725,6 +727,36 @@ function RangeBody({
                         <td className="text-right">{fmt(r.playUsers)}人</td>
                         <td className="text-right">{fmt(r.clickUsers)}人</td>
                         <td className={`text-right font-bold ${r.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(r.clickUsers, r.users)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <h3 className="text-sm font-bold mt-6 mb-1">来た元の内訳</h3>
+            <p className="text-xs text-gray-400 mb-2">参照元 / メディア / キャンペーン（x_post = 管理画面で作った X の投稿の URL）。(direct) は来た元が分からない訪問。</p>
+            {sources.length === 0 ? (
+              <p className="text-sm text-gray-400">まだデータがありません。</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm whitespace-nowrap">
+                  <thead className="text-gray-400">
+                    <tr>
+                      <th className="text-left font-normal py-1">参照元</th>
+                      <th className="text-left font-normal">メディア</th>
+                      <th className="text-left font-normal">キャンペーン</th>
+                      <th className="text-right font-normal">人数</th>
+                      <th className="text-right font-normal">訪問</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sources.map((r) => (
+                      <tr key={r.dimensions.join('/')} className="border-t border-gray-700">
+                        <td className="py-2 pr-2">{r.dimensions[0]}</td>
+                        <td className="pr-2">{r.dimensions[1]}</td>
+                        <td className="pr-2">{r.dimensions[2]}</td>
+                        <td className="text-right">{fmt(r.metrics[0])}人</td>
+                        <td className="text-right">{fmt(r.metrics[1])}回</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1447,7 +1479,7 @@ export default function AnalyticsView({
         {country === 'all' &&
           (() => {
             const range = viewKey === 'weekday' ? month : current!;
-            return 'reports' in range && range.reports[28] ? <CountryTable rows={range.reports[28]} /> : null;
+            return 'reports' in range && range.reports[29] ? <CountryTable rows={range.reports[29]} /> : null;
           })()}
 
 
