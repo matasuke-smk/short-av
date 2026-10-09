@@ -8,7 +8,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   fetchRankingVideos,
   fetchNewReleases,
@@ -20,6 +19,7 @@ import {
   type DMMItem,
 } from '@/lib/dmm-api';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { chunk, upsertBySlug } from '@/lib/video-import';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -42,46 +42,6 @@ function verifyCronRequest(request: Request): boolean {
 
   // 開発環境ではチェックをスキップ
   return process.env.NODE_ENV === 'development';
-}
-
-function chunk<T>(array: T[], size: number): T[][] {
-  const result: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
-  return result;
-}
-
-/**
- * slug → id のマップを作成し、未登録のものはまとめて追加する（女優・ジャンル共通）
- */
-async function upsertBySlug(
-  supabase: SupabaseClient,
-  table: 'actresses' | 'genres',
-  items: Map<string, string>, // slug → name
-): Promise<Map<string, string>> {
-  const slugToId = new Map<string, string>();
-  const slugs = [...items.keys()];
-
-  for (const slugChunk of chunk(slugs, CHUNK_SIZE)) {
-    const { data, error } = await supabase.from(table).select('id, slug').in('slug', slugChunk);
-    if (error) throw error;
-    for (const row of data ?? []) slugToId.set(row.slug, row.id);
-  }
-
-  const missing = slugs.filter((slug) => !slugToId.has(slug));
-  for (const slugChunk of chunk(missing, CHUNK_SIZE)) {
-    const rows = slugChunk.map((slug) =>
-      table === 'actresses'
-        ? { name: items.get(slug)!, slug, video_count: 0, is_active: true }
-        : { name: items.get(slug)!, slug, sort_order: 999, is_active: true },
-    );
-    const { data, error } = await supabase.from(table).insert(rows).select('id, slug');
-    if (error) throw error;
-    for (const row of data ?? []) slugToId.set(row.slug, row.id);
-  }
-
-  return slugToId;
 }
 
 export async function GET(request: Request) {
@@ -145,8 +105,8 @@ export async function GET(request: Request) {
       for (const a of extractActresses(video)) actressNames.set(a.slug, a.name);
       for (const g of extractGenres(video)) genreNames.set(g.slug, g.name);
     }
-    const actressIdMap = await upsertBySlug(supabase, 'actresses', actressNames);
-    const genreIdMap = await upsertBySlug(supabase, 'genres', genreNames);
+    const actressIdMap = await upsertBySlug(supabase, 'actresses', actressNames, CHUNK_SIZE);
+    const genreIdMap = await upsertBySlug(supabase, 'genres', genreNames, CHUNK_SIZE);
     console.info(`[Cron] 女優${actressIdMap.size}件 / ジャンル${genreIdMap.size}件を紐付け (${elapsed()})`);
 
     // 5. 動画をまとめて保存
