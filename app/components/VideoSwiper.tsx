@@ -16,7 +16,7 @@ import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
-import InAppBrowserNotice, { INAPP_REOPEN_PARAM, isXInAppBrowserIOS } from './InAppBrowserNotice';
+import InAppBrowserNotice, { INAPP_REOPEN_PARAM, inAppPlatform, type InAppPlatform } from './InAppBrowserNotice';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
@@ -402,17 +402,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
   // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
-  const [inAppNotice, setInAppNotice] = useState<{ url: string; label: string; track: () => void; restoreUrl: string } | null>(null);
-  // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、X のアプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
+  const [inAppNotice, setInAppNotice] = useState<{ url: string; platform: InAppPlatform; label: string; track: () => void; restoreUrl: string } | null>(null);
+  // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、アプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
   useEffect(() => {
     const url = new URL(window.location.href);
     if (!url.searchParams.has(INAPP_REOPEN_PARAM)) return;
-    if (!isXInAppBrowserIOS()) trackInAppNotice('reopened');
+    if (!inAppPlatform()) trackInAppNotice('reopened');
     url.searchParams.delete(INAPP_REOPEN_PARAM);
     window.history.replaceState(window.history.state, '', url.toString());
   }, []);
   const handleFanzaClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, label: string, track: () => void, doujinId?: string) => {
-    if (!isXInAppBrowserIOS()) {
+    const platform = inAppPlatform();
+    if (!platform) {
       track();
       return;
     }
@@ -429,7 +430,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       url.searchParams.set('d', doujinId);
     }
     window.history.replaceState(window.history.state, '', url.toString());
-    setInAppNotice({ url: e.currentTarget.href, label, track, restoreUrl });
+    setInAppNotice({ url: e.currentTarget.href, platform, label, track, restoreUrl });
     trackInAppNotice('show');
   }, []);
   const closeInAppNotice = (openAnyway: boolean) => {
@@ -1731,6 +1732,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       <InAppBrowserNotice
         url={inAppNotice?.url ?? null}
+        platform={inAppNotice?.platform ?? 'ios'}
         buttonLabel={inAppNotice?.label ?? ''}
         onOpenAnyway={() => closeInAppNotice(true)}
         onClose={() => closeInAppNotice(false)}

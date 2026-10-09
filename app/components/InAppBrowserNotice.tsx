@@ -2,7 +2,8 @@
 
 import { createPortal } from 'react-dom';
 
-// X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したときに、先に出す案内。
+// X などのアプリ内ブラウザで FANZA へのボタンを押したときに、先に出す案内。
+// 10/8 の FANZA へのクリックの約9割がアプリ内ブラウザ（iPhone の X が 481回、Android の WebView が 93回 / 642回）で、成約が0件だった。
 // X の中で FANZA を開くと、普段使うブラウザ（Safari など）の FANZA のログインが使えない。
 // X は Safari への自動の切り替え（x-safari-https）を止めているので（2026-10-09 実機で確認）、
 // 画面下の「short-av.com」→「ブラウザで開く」で short-av ごと開き直してもらう。
@@ -11,42 +12,69 @@ import { createPortal } from 'react-dom';
 // 案内の間だけアドレスに付ける目印。「ブラウザで開く」で開き直された回数を数える（VideoSwiper）
 export const INAPP_REOPEN_PARAM = 'inapp';
 
-// X のアプリ内ブラウザ（iPhone）。UA の末尾に「Twitter for iPhone/12.32.1」が付く
-export const isXInAppBrowserIOS = () =>
-  typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent) && /Twitter/i.test(navigator.userAgent);
+// 案内を出すアプリ内ブラウザ。ios: X のアプリ内（UA の末尾に「Twitter for iPhone/12.32.1」が付く）、
+// android: アプリ内の WebView（UA に「; wv)」が付く。X の Android も WebView だった。GA の「Android Webview」）。それ以外は null
+export type InAppPlatform = 'ios' | 'android';
+export const inAppPlatform = (): InAppPlatform | null => {
+  if (typeof navigator === 'undefined') return null;
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua) && /Twitter/i.test(ua)) return 'ios';
+  if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'android';
+  return null;
+};
 
 type Props = {
   url: string | null;
+  platform: InAppPlatform;
   buttonLabel: string; // 手順3で「もう一度押して」と書くボタンの名前
   onOpenAnyway: () => void;
   onClose: () => void;
 };
 
-export default function InAppBrowserNotice({ url, buttonLabel, onOpenAnyway, onClose }: Props) {
+export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenAnyway, onClose }: Props) {
   if (!url) return null;
 
   // 再生画面などの上にも出るよう、body の直下に出す
   return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
-        className="mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 pb-2 text-white shadow-2xl"
+        className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+1.25rem)]'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-lg font-bold">ブラウザで開くのがおすすめです</p>
         <p className="mt-1.5 text-sm text-gray-300">ブラウザで開くと、いつもの FANZA のログインのまま購入できます。</p>
 
         <ol className="mt-4 space-y-2.5 text-sm">
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
-            <span>画面下の</span>
-            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium">short-av.com ⋮</span>
-            <span>をタップ</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
-            <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">ブラウザで開く 🌐</span>
-            <span>をタップ</span>
-          </li>
+          {platform === 'ios' ? (
+            <>
+              <li className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
+                <span>画面下の</span>
+                <span className="rounded-full bg-black px-3 py-1 text-xs font-medium">short-av.com ⋮</span>
+                <span>をタップ</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
+                <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">ブラウザで開く 🌐</span>
+                <span>をタップ</span>
+              </li>
+            </>
+          ) : (
+            // Android は実機で確かめていないので、矢印は出さず言葉だけで案内する（アプリによってメニューの位置・名前が違う）
+            <>
+              <li className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
+                <span>画面右上の</span>
+                <span className="rounded-lg bg-black px-2.5 py-1 text-xs font-bold">︙</span>
+                <span>（メニュー）をタップ</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
+                <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">ブラウザで開く</span>
+                <span>をタップ</span>
+              </li>
+            </>
+          )}
           <li className="flex items-center gap-2">
             <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">3</span>
             <span>同じ作品が開くので、もう一度「{buttonLabel}」</span>
@@ -63,13 +91,13 @@ export default function InAppBrowserNotice({ url, buttonLabel, onOpenAnyway, onC
           このまま FANZA を開く
         </a>
 
-        {/* X の「short-av.com」の表示（画面の下の中央）を指す */}
-        <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
+        {/* iPhone の X: 画面下の中央の「short-av.com」を指す */}
+        {platform === 'ios' && <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
           <span className="text-xs">ここをタップ</span>
           <svg className="h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m0 0l-6-6m6 6l6-6" />
           </svg>
-        </div>
+        </div>}
       </div>
     </div>,
     document.body,
