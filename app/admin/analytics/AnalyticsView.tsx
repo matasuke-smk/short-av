@@ -119,14 +119,15 @@ function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: s
     <button
       type="button"
       onClick={onClick}
-      className="relative flex flex-col justify-start h-full rounded-lg p-3 min-w-0 text-left bg-emerald-950/40 hover:bg-emerald-900/40 ring-1 ring-emerald-700"
+      className="relative flex flex-col justify-start h-full rounded-lg px-3 py-2 min-w-0 text-left bg-emerald-950/40 hover:bg-emerald-900/40 ring-1 ring-emerald-700"
     >
-      <div className="text-xs leading-snug text-emerald-200 line-clamp-2 min-h-[2.75em] pr-3">{label}</div>
-      <div className="text-2xl md:text-3xl leading-tight font-bold mt-1 truncate">
+      {/* 見出しと説明は1〜2行の高さを空けておかない（スマホで高さが無駄に高かった） */}
+      <div className="text-xs leading-snug text-emerald-200 truncate pr-3">{label}</div>
+      <div className="text-2xl md:text-3xl leading-tight font-bold truncate">
         {value}
         <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>
       </div>
-      <div className="text-xs leading-snug text-gray-400 mt-1 line-clamp-2 min-h-[2.75em]">{sub}</div>
+      <div className="text-xs leading-snug text-gray-400 line-clamp-2">{sub}</div>
       <span className="absolute top-1.5 right-2 text-emerald-300 text-sm" aria-hidden>›</span>
     </button>
   );
@@ -322,13 +323,14 @@ function HourlyChart({
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{days > 1 ? 'FANZA へのクリック（1日平均・右の目盛り）' : 'FANZA へのクリック（右の目盛り）'}</span>
 
       </div>
-      <div className="relative mt-5">
+      {/* グラフの高さ。PC はスクロールせずに画面の下まで使うよう、画面の高さに合わせて伸ばす */}
+      <div className="relative mt-5 [--chart-h:9rem] lg:[--chart-h:max(9rem,calc(100vh-36rem))]">
         {/* 目盛り（最大値の線）。左が利用者、右が FANZA へのクリック */}
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
         <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt1(max)}人</span>
         <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt1(maxEvents)}回</span>
         {/* FANZA へのクリックの折れ線（棒の上に重ねる。タップは下の棒に通す） */}
-        <div className="absolute inset-x-0 top-0 h-36 pointer-events-none z-10">
+        <div className="absolute inset-x-0 top-0 h-[var(--chart-h)] pointer-events-none z-10">
           <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
             <polyline points={linePoints} fill="none" stroke="#fbbf24" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
           </svg>
@@ -348,8 +350,8 @@ function HourlyChart({
             }`}
             style={{
               left: `${((shown.h + (shown.h < 4 ? 0 : shown.h > 19 ? 1 : 0.5)) / 24) * 100}%`,
-              // 棒の先端（高さ h-36 = 9rem）の少し上
-              top: `calc(${(1 - Math.min(shown.users / max, 1)) * 9}rem - 0.375rem)`,
+              // 棒の先端（高さ --chart-h）の少し上
+              top: `calc(${1 - Math.min(shown.users / max, 1)} * var(--chart-h) - 0.375rem)`,
             }}
           >
             <p className="font-bold text-white">{shown.h}時台{days > 1 ? '（1日平均）' : ''}</p>
@@ -361,7 +363,7 @@ function HourlyChart({
             </p>
           </div>
         )}
-        <div className="h-36 flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
+        <div className="h-[var(--chart-h)] flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
           {perDay.map((x) => (
             <button
               key={x.h}
@@ -585,7 +587,7 @@ function RangeBody({
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
         {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
-        <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4 lg:items-start">
+        <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
         <div>
         {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
         <div className="grid grid-cols-2 gap-2 mb-4">
@@ -609,7 +611,8 @@ function RangeBody({
         </Section>
         </div>
 
-        <div>
+        {/* 右の列は左の列の下端まで伸ばし、カードで埋める（PC で右下が空かないように） */}
+        <div className="lg:flex lg:flex-col lg:pb-4">
         {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
         <div className="grid grid-cols-2 gap-2 mb-2">
           {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
@@ -628,7 +631,7 @@ function RangeBody({
         </div>
 
         {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0 lg:flex-1 lg:grid-rows-2">
           {(() => {
             // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
             // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
@@ -1497,8 +1500,8 @@ export default function AnalyticsView({
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white px-2 py-3 md:p-6 lg:py-4">
-      <div className="max-w-6xl mx-auto">
+    <main className="min-h-screen lg:min-h-0 bg-gray-900 text-white px-2 py-3 md:p-6 lg:px-5 lg:py-3">
+      <div className="max-w-6xl lg:max-w-none mx-auto">
         {/* PC は見出し・動画｜同人誌・日本のみ｜すべてを1行に並べる（スクロールせずに見られるよう縦を詰める） */}
         <div className="lg:flex lg:items-center lg:gap-4">
         <div className="lg:flex-1 lg:min-w-0">
