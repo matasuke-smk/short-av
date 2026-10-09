@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
+import SampleLengthsView from './sample-lengths/SampleLengthsView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -12,6 +13,7 @@ const TABS = [
   { key: 'analytics', label: 'アクセス解析' },
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
+  { key: 'sample-lengths', label: 'サンプルの長さ' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 
@@ -150,6 +152,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div hidden={tab !== 'analytics'}>{children}</div>
           {opened.includes('x-posts') && <div hidden={tab !== 'x-posts'}><XPostsView /></div>}
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
+          {opened.includes('sample-lengths') && <div hidden={tab !== 'sample-lengths'}><SampleLengthsView /></div>}
         </>
       ) : (
         children
