@@ -22,12 +22,13 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { chunk, upsertBySlug } from '@/lib/video-import';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// Pro プラン（2026/10/9〜）は 300秒まで延ばせる（無料プランは60秒）
+export const maxDuration = 300;
 
-// 1回の実行で取得するジャンル数（100ジャンル ÷ 15 ≒ 7日で一巡）
-const GENRES_PER_RUN = 15;
-// ジャンル取得に使う時間の上限（DB保存の時間を残すため）
-const GENRE_FETCH_BUDGET_MS = 18_000;
+// 1回の実行で取得するジャンル数（100ジャンル ÷ 50 ≒ 2日で一巡。60秒の上限があった頃は15で7日かかっていた）
+const GENRES_PER_RUN = 50;
+// ジャンル取得に使う時間の上限（DB保存の時間を残すため。15ジャンルで18秒ほどだった）
+const GENRE_FETCH_BUDGET_MS = 150_000;
 // この日数以上更新されず、いいねもされていない動画を削除する（ジャンル一巡の期間より十分長くする）
 const STALE_DAYS = 30;
 // .in() / バルク書き込み1回あたりの件数

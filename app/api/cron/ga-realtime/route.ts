@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { recordGaRealtime } from '@/lib/ga-realtime';
 
 /**
- * GA のリアルタイム（直近30分）を記録する（15分ごとに GitHub Actions から呼ぶ。.github/workflows/ga-realtime.yml）
- * 呼び出しには環境変数 REALTIME_CRON_SECRET と同じ合言葉が必要（Authorization: Bearer ...）
+ * GA のリアルタイム（直近30分）を記録する（Vercel の定期実行で10分ごと。vercel.json）
+ * Vercel の定期実行は CRON_SECRET を付けて呼ぶ。手で呼ぶとき（GitHub Actions の手動実行）は REALTIME_CRON_SECRET でもよい
+ * （2026/10/9 に Pro プランにして、15分ごとの GitHub Actions から移した。GitHub は混雑時に間引かれ、1日2回しか動かない日もあった）
  */
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const secret = process.env.REALTIME_CRON_SECRET;
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  const auth = request.headers.get('authorization');
+  const secrets = [process.env.CRON_SECRET, process.env.REALTIME_CRON_SECRET].filter(Boolean);
+  if (!auth || !secrets.some((secret) => auth === `Bearer ${secret}`)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   try {

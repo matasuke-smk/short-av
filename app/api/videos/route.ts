@@ -1,6 +1,5 @@
-import { after, NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { maybeRecordGaRealtime } from '@/lib/ga-realtime';
 
 // 1本あたり約1.3KB。補充1回あたりの Supabase の通信量を抑えるため少なめにする
 const DEFAULT_POOL_SIZE = 60;
@@ -32,8 +31,6 @@ type Video = { dmm_content_id: string; [key: string]: unknown };
  * 渡すと、そのどれかに当てはまる作品を約6割、残りを全作品からのランダムにして、好みの作品が3、その他が2の割合で交互に並べる。
  */
 export async function GET(request: NextRequest) {
-  // サイトが使われている間、10分おきに GA のリアルタイムを記録する（アクセス解析の「今日」の遅れを補う。応答の後に実行）
-  after(() => maybeRecordGaRealtime().catch((error) => console.error('[videos] GA realtime record:', error?.message ?? error)));
   const { searchParams } = request.nextUrl;
   const requested = parseInt(searchParams.get('limit') || '', 10);
   const limit = Number.isFinite(requested)
