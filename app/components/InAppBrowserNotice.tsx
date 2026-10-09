@@ -39,7 +39,9 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
   return createPortal(
     <div className="fixed inset-0 z-[200] flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
-        className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+1.25rem)]'}`}
+        // Android の X は画面下の「short-av.com ⋮」のバーがページの上に重なる（約50px。iPhone はバーがページの外側）ので、
+        // 矢印がバーに隠れないよう下の余白を広げる（2026-10-10 Android の実機で矢印が見切れていた）
+        className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+4.5rem)]'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-lg font-bold">ブラウザで開くのがおすすめです</p>
