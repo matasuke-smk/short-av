@@ -1,0 +1,77 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { LONG_SAMPLE_LABEL, LONG_SAMPLE_SECONDS } from '@/config/site';
+
+type Counts = { remaining: number; measured: number; failed: number; long: number; total: number };
+
+/**
+ * サンプル動画の長さの記録状況と「今すぐ調べる」ボタン（検索の「サンプル動画◯分以上」用）。
+ * 以前はアクセス解析の最下部にあったが、10/9 の整理（PR #149）で外れていたので、10/10 に管理画面のタブとして戻した
+ */
+export default function SampleLengthsView() {
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    fetch('/api/admin/sample-lengths').then((r) => (r.ok ? r.json() : null)).then(setCounts).catch(() => {});
+  }, []);
+
+  async function run() {
+    setBusy(true);
+    setMessage('調べています（1分ほどかかります）...');
+    const response = await fetch('/api/admin/sample-lengths', { method: 'POST' });
+    const data = await response.json().catch(() => null);
+    setBusy(false);
+    if (!response.ok || !data) {
+      setMessage('調べられませんでした');
+      return;
+    }
+    setCounts(data);
+    setMessage(`今回 ${data.recorded.toLocaleString()}件の長さが分かりました`);
+  }
+
+  return (
+    <main className="min-h-screen bg-gray-900 text-white px-2 py-3 md:p-6">
+    <section className="max-w-3xl mx-auto bg-gray-800 rounded-lg p-3 md:p-4 mb-4">
+      <h1 className="text-lg md:text-xl font-bold">サンプル動画の長さ（{LONG_SAMPLE_SECONDS / 60}分以上）</h1>
+      <p className="text-xs text-gray-400 mt-1">検索の「{LONG_SAMPLE_LABEL}」「4分以上」と、記事「サンプル動画が4分以上ある作品一覧」のもとになる記録です。</p>
+      {counts ? (
+        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 text-sm">
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">長さが分かった</dt>
+            <dd className="text-lg font-bold">{counts.measured.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">うち{LONG_SAMPLE_SECONDS / 60}分以上</dt>
+            <dd className="text-lg font-bold">{counts.long.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">まだ調べていない</dt>
+            <dd className="text-lg font-bold">{counts.remaining.toLocaleString()}件</dd>
+          </div>
+          <div className="bg-gray-900 rounded p-3">
+            <dt className="text-xs text-gray-400">調べられなかった</dt>
+            <dd className="text-lg font-bold">{counts.failed.toLocaleString()}件</dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="text-sm text-gray-300 mt-2">読み込み中...</p>
+      )}
+      <p className="text-xs text-gray-500 mt-2">全{counts?.total.toLocaleString() ?? '—'}件。「調べられなかった」作品は、検索の「{LONG_SAMPLE_LABEL}」の対象になりません。</p>
+      <p className="text-xs text-gray-400 mt-1">毎日の自動更新でも少しずつ記録されます。1回押すと約45秒で200〜300件ほど記録します。</p>
+      <div className="flex items-center gap-3 mt-3">
+        <button
+          onClick={run}
+          disabled={busy || counts?.remaining === 0}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded px-4 py-2 text-sm font-bold"
+        >
+          {busy ? '調べています...' : counts?.remaining === 0 ? 'すべて記録済み' : '今すぐ調べる'}
+        </button>
+        {message && <span className="text-sm text-yellow-300">{message}</span>}
+      </div>
+    </section>
+    </main>
+  );
+}
