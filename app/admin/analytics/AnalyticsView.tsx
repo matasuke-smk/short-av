@@ -65,6 +65,7 @@ const EVENT_LABELS: Record<string, string> = {
   dmm_link_click: 'FANZA へのクリック',
   search: '検索の実行',
   like_action: 'いいね・取り消し',
+  inapp_browser_notice: 'X のアプリ内ブラウザ向けの「ブラウザで開く」案内',
   modal_open: '画面を開いた（検索・人気など）',
   modal_close: '画面を閉じた',
   tutorial_view: '使い方の表示',
@@ -627,6 +628,23 @@ function RangeBody({
             sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
             onClick={() => setDetail('xpost')}
           />
+          {(() => {
+            // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。表示から「このまま開く」「閉じる」を引いた残りは、
+            // 案内のとおり「ブラウザで開く」を押した（または何もせず離れた）人
+            const notice = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics[0] ?? 0;
+            const shown = notice('表示');
+            const anyway = notice('このまま開く');
+            const closed = notice('閉じる');
+            return (
+              <Card
+                label="「ブラウザで開く」案内（X の iPhone）"
+                value={fmt(shown)}
+                unit="回"
+                sub={`このまま開く ${fmt(anyway)}回・閉じる ${fmt(closed)}回・それ以外 ${fmt(Math.max(shown - anyway - closed, 0))}回`}
+                onClick={() => setDetail('inapp')}
+              />
+            );
+          })()}
           <Card label="画面を開いた（検索・人気など）" value={fmt(anyEventCount('modal_open'))} unit="回" sub={`検索の実行 ${fmt(anyEventCount('search'))}回`} onClick={() => setDetail('screens')} />
           <Card label="いま見られているページ" value={realtimeViews === null ? '—' : fmt(realtimeViews)} unit={realtimeViews === null ? undefined : '回'} sub="直近30分のページ表示" onClick={() => setDetail('realtime')} />
           <Card label="いいね（運営者を除く）" value={fmt(db.likes)} unit="件" sub={
@@ -666,6 +684,15 @@ function RangeBody({
                 />
               ))
             )}
+          </DetailModal>
+        )}
+        {detail === 'inapp' && (
+          <DetailModal
+            title="「ブラウザで開く」案内（X の iPhone）"
+            note="X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押した人に出す案内（2026/10/9 13時ごろから）。表示から「このまま開く」「閉じる」を引いた残りが、案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直した（または何もせず離れた）回数。回数（人数）。"
+            onClose={closeDetail}
+          >
+            <AnswerBars event="inapp_browser_notice" rows={answers} />
           </DetailModal>
         )}
         {detail === 'funnel' && (
