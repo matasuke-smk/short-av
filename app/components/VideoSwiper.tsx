@@ -66,7 +66,7 @@ interface VideoSwiperProps {
   videoPool: Video[]; // 動画プール（全データ）
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
-  doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌中心（先頭はその作品、同人誌5冊ごとに動画1本）
+  doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌モード（先頭はその作品。同人誌だけを並べる）
   doujinOnly?: boolean; // 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき: doujinList の同人誌だけを並べる（動画は挟まない・補充しない）
 }
 
@@ -101,10 +101,9 @@ function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: nu
 
 const SWIPED_KEY = 'short-av-has-swiped';
 
-// 同人誌: 動画を何本見たら同人誌を1冊挟むか。同人誌中心の画面（X の同人誌のリンクから）では、同人誌を何冊見たら動画を1本挟むか。
-// 挟んだ同人誌は id が doujin- で始まる動画の形で一覧に入れる（位置の番号で動く既存の処理をそのまま使うため）
-const DOUJIN_EVERY = 5;
-const DOUJIN_GROUP = 5; // 同人誌メインでは、動画メインと同じく6枚に1枚が動画
+// 同人誌は id が doujin- で始まる動画の形で一覧に入れる（位置の番号で動く既存の処理をそのまま使うため）。
+// 2026-10-10 から動画と同人誌は完全に分けた（動画モードは動画だけ、同人誌モードは同人誌だけ。行き来は上の「動画｜同人誌」）。
+// 以前は6枚に1枚もう片方を挟んでいたが、動画の間の同人誌は3日で2,309回表示・5クリックと反応が薄く、動画のクリックの枠を減らしていた
 const isDoujinSlide = (video: Video | undefined) => !!video?.id.startsWith('doujin-');
 
 // 同人誌を一覧に入れるための動画の形（base は動画の1件。型を満たすために使い、表示に関わる項目は同人誌のもので上書きする）
@@ -124,24 +123,10 @@ function makeDoujinSlide(doujin: Doujin, id: string, base: Video, slides: Map<st
   };
 }
 
-// 一覧に同人誌を挟む（動画の並びはそのまま。補充で動画が増えたときも同じ規則で挟み直す）。slides には各同人誌の中身を入れる
-function interleaveDoujin(prev: Video[], doujins: Doujin[], doujinMode: boolean, slides: Map<string, Doujin>): Video[] {
-  const real = prev.filter((v) => !isDoujinSlide(v));
-  if (doujins.length === 0 || real.length === 0) return prev;
-  const listKey = doujins[0].contentId; // 同人誌の一覧が入れ替わったら別のスライドとして描き直す
-  const slide = (k: number, base: Video): Video => makeDoujinSlide(doujins[k % doujins.length], `doujin-${listKey}-${k}`, base, slides);
-  const out: Video[] = [];
-  real.forEach((video, i) => {
-    if (doujinMode) {
-      for (let j = 0; j < DOUJIN_GROUP; j++) out.push(slide(i * DOUJIN_GROUP + j, video));
-      out.push(video);
-    } else {
-      out.push(video);
-      if ((i + 1) % DOUJIN_EVERY === 0) out.push(slide((i + 1) / DOUJIN_EVERY - 1, video));
-    }
-  });
-  const same = out.length === prev.length && out.every((v, i) => v.id === prev[i].id);
-  return same ? prev : out;
+// 同人誌モードのスライド（一覧の同人誌を1冊ずつ）。base は型を満たすための動画の1件（表示に関わる項目は同人誌で上書きされる）
+function doujinSlides(doujins: Doujin[], base: Video, slides: Map<string, Doujin>): Video[] {
+  const listKey = doujins[0]?.contentId ?? 'none'; // 一覧が入れ替わったら別のスライドとして描き直す
+  return doujins.map((d, k) => makeDoujinSlide(d, `doujin-${listKey}-${k}`, base, slides));
 }
 
 // 指を離したときにこれ以上動いていれば次・前の作品へ進める（速さに関係なく）
@@ -171,20 +156,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌（サーバーで取得した一覧）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList] = useState<Doujin[]>(initialDoujinList);
-  // 「動画｜同人誌」: 動画メイン（動画5本ごとに同人誌1冊）か、同人誌メイン（同人誌5冊ごとに動画1本）か。上の切り替えで変える
+  // 「動画｜同人誌」: 動画モード（動画だけ）か、同人誌モード（同人誌だけ）か。上の切り替えで変える
   const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
   const doujinMode = mode === 'doujin';
-  // いま挟んでいる同人誌の並び（切り替えのたびに、まだ見ていない同人誌から始まるようずらす）
-  const [activeDoujin, setActiveDoujin] = useState<Doujin[]>(initialDoujinList);
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
   const [doujinListKind, setDoujinListKind] = useState<DoujinListKind | null>(null);
-  // 最初の表示から同人誌を挟んでおく（あとから挟むと、表示中の位置がずれるため）
-  // 同人誌だけを並べるとき（doujinOnly）は、一覧の同人誌を1冊ずつスライドにする（動画の1件は型を満たすためだけに使う）
+  // 動画モードは動画だけ、同人誌モード（?mode=doujin。X の同人誌のリンクから）は一覧の同人誌だけを並べる
+  // 同人誌だけを並べるとき（doujinOnly）は、管理画面から渡された一覧をそのまま（補充しない）
   const [videos, setVideos] = useState<Video[]>(() =>
-    doujinOnly && initialVideos[0]
-      ? initialDoujinList.map((d, k) => makeDoujinSlide(d, `doujin-only-${k}`, initialVideos[0], doujinBySlideRef.current))
-      : interleaveDoujin(initialVideos, initialDoujinList, initialDoujinMode, doujinBySlideRef.current),
+    (doujinOnly || initialDoujinMode) && initialVideos[0] && initialDoujinList.length > 0
+      ? doujinSlides(initialDoujinList, initialVideos[0], doujinBySlideRef.current)
+      : initialVideos,
   );
+  // 同人誌モードに切り替えたときに、動画モードの並びと位置を覚えておく（戻ったときに同じ場所から続ける）
+  const videoModeBackupRef = useRef<{ videos: Video[]; index: number } | null>(null);
   // 作品の画像の外でもスワイプ・ホイールで切り替えられるようにする帯（縦画面の下・横画面と PC の右側）
   const bottomPanelRef = useRef<HTMLDivElement>(null);
   const sidePanelRef = useRef<HTMLDivElement>(null);
@@ -392,12 +377,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     };
     // 下の帯は動画が読み込まれてから表示されるので、そのときにも測り直す
   }, [isLandscape, videos.length > 0]);
-
-  // 補充で動画が増えたとき・一覧が入れ替わったときに同人誌を挟み直す（検索などの有限の一覧には挟まない）
-  useEffect(() => {
-    if (activeDoujin.length === 0 || isFiniteList) return;
-    setVideos((prev) => interleaveDoujin(prev, activeDoujin, doujinMode, doujinBySlideRef.current));
-  }, [activeDoujin, videos.length, isFiniteList, doujinMode]);
 
   // 履歴に追加する関数（lib/view-history.ts。運営者の端末ではサーバーにも保存して端末間で共有する）
   const addToHistory = useCallback((videoId: string) => saveToHistory(videoId), []);
@@ -706,7 +685,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
 
       // 有限リストでない場合のみ、追加の動画を読み込む
-      if (!isFiniteList && index >= videos.length - 5 && !isLoadingMore) {
+      // 同人誌モードは一覧（40冊）だけで補充しない（最後に「これで最後です」→「おすすめに戻る」で新しい40冊）
+      if (!isFiniteList && !doujinMode && index >= videos.length - 5 && !isLoadingMore) {
         loadMoreVideos();
       }
 
@@ -828,9 +808,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setTouchStart(null);
   }, [touchStart, closeModal]);
 
-  // 「動画｜同人誌」を切り替える。表示中の位置から先の動画を、選んだほうの並べ方で並べ直して先頭から見せる
-  // （同人誌は、これまでに挟んだぶんだけずらして、まだ見ていないものから）。URL の mode も書き換える（再読み込みしても同じほう）
-  const doujinOffsetRef = useRef(0);
+  // 「動画｜同人誌」を切り替える。同人誌モードは一覧の同人誌を先頭から、動画モードは切り替える前の並び・位置に戻す。
+  // URL の mode も書き換える（再読み込みしても同じほう）
   const switchMode = useCallback((next: 'video' | 'doujin') => {
     if (next === mode) return;
     trackModeSwitch(next);
@@ -845,19 +824,32 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       return;
     }
     window.history.replaceState(window.history.state, '', url.toString());
-    const realBefore = videos.slice(0, currentIndex).filter((v) => !isDoujinSlide(v)).length;
-    const real = videos.filter((v) => !isDoujinSlide(v)).slice(realBefore);
-    doujinOffsetRef.current += videos.slice(0, currentIndex + 1).filter((v) => isDoujinSlide(v)).length;
-    const offset = doujinList.length > 0 ? doujinOffsetRef.current % doujinList.length : 0;
-    const rotated = [...doujinList.slice(offset), ...doujinList.slice(0, offset)];
-    const nextVideos = interleaveDoujin(real.length > 0 ? real : videos.filter((v) => !isDoujinSlide(v)), rotated, next === 'doujin', doujinBySlideRef.current);
-    setActiveDoujin(rotated);
+    let nextVideos: Video[];
+    let nextIndex = 0;
+    if (next === 'doujin') {
+      const real = videos.filter((v) => !isDoujinSlide(v));
+      if (real.length > 0) videoModeBackupRef.current = { videos: real, index: Math.min(currentIndex, real.length - 1) };
+      const base = real[0] ?? initialVideos[0] ?? videos[0];
+      if (doujinList.length === 0 || !base) {
+        window.location.href = url.toString();
+        return;
+      }
+      nextVideos = doujinSlides(doujinList, base, doujinBySlideRef.current);
+    } else {
+      const backup = videoModeBackupRef.current;
+      nextVideos = backup && backup.videos.length > 0 ? backup.videos : initialVideos;
+      nextIndex = backup && backup.videos.length > 0 ? backup.index : 0;
+      if (nextVideos.length === 0) {
+        window.location.href = url.toString();
+        return;
+      }
+    }
     setMode(next);
-    pendingScrollRef.current = 0;
+    pendingScrollRef.current = nextIndex;
     setVideos(nextVideos);
-    setCurrentIndex(0);
+    setCurrentIndex(nextIndex);
     setScrollSeq((n) => n + 1);
-  }, [mode, isFiniteList, videos, currentIndex, doujinList]);
+  }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
 
   const modeToggle = (
     <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label="動画と同人誌の切り替え">
@@ -1075,7 +1067,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </div>
             )}
             {/* 最後の動画の次に表示（有限リストの場合） */}
-            {isFiniteList && (
+            {(isFiniteList || doujinMode) && (
               <div className="h-[100dvh] w-full snap-start snap-always relative">
                 <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
                 <div className="text-white text-center px-8">

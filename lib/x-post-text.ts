@@ -36,7 +36,7 @@ export function getXPostVideoUrl(dmmContentId: string, format: XPostFormat = 'ca
 }
 
 /**
- * X 投稿用の同人誌の URL。開くと同人誌中心の画面（その作品から。ときどき動画を挟む）になる
+ * X 投稿用の同人誌の URL。開くと同人誌モードの画面（その作品から。同人誌だけ）になる
  */
 export function getXPostDoujinUrl(contentId: string): string {
   const params = new URLSearchParams({
@@ -95,7 +95,7 @@ const DOUJIN_HEADINGS = [(n: number) => `【同人誌・${n}ページ試し読�
 
 
 /**
- * 同人誌の X 投稿文。リンクを開くと、その作品から始まる同人誌中心の画面（ときどき動画）になる（?mode=doujin&d=）
+ * 同人誌の X 投稿文。リンクを開くと、その作品から始まる同人誌モードの画面（同人誌だけ）になる（?mode=doujin&d=）
  * 280 を超える場合はタイトルを切り詰める
  */
 export function buildDoujinPostText(doujin: Doujin, headingIndex: number): string {
