@@ -16,6 +16,7 @@ import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
+import InAppBrowserNotice, { isXInAppBrowserIOS } from './InAppBrowserNotice';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
@@ -52,6 +53,7 @@ import {
   trackDoujinView,
   trackDoujinComplete,
   trackModeSwitch,
+  trackInAppNotice,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
 
@@ -397,6 +399,36 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     swipe_index: swipeCountRef.current,
     via: swipeCountRef.current > 0 ? 'swipe' : 'direct',
   }), [isFiniteList]);
+
+  // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
+  // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
+  const [inAppNotice, setInAppNotice] = useState<{ url: string; label: string; track: () => void; restoreUrl: string | null } | null>(null);
+  const handleFanzaClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, label: string, track: () => void, doujinId?: string) => {
+    if (!isXInAppBrowserIOS()) {
+      track();
+      return;
+    }
+    e.preventDefault();
+    let restoreUrl: string | null = null;
+    if (doujinId) {
+      // 同人誌はスワイプしてもアドレスが変わらないので、ブラウザで開き直したときに同じ作品が出るよう、案内の間だけ ?mode=doujin&d= にする
+      restoreUrl = window.location.href;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('v');
+      url.searchParams.set('mode', 'doujin');
+      url.searchParams.set('d', doujinId);
+      window.history.replaceState(window.history.state, '', url.toString());
+    }
+    setInAppNotice({ url: e.currentTarget.href, label, track, restoreUrl });
+    trackInAppNotice('show');
+  }, []);
+  const closeInAppNotice = (openAnyway: boolean) => {
+    if (!inAppNotice) return;
+    if (inAppNotice.restoreUrl) window.history.replaceState(window.history.state, '', inAppNotice.restoreUrl);
+    if (openAnyway) inAppNotice.track();
+    trackInAppNotice(openAnyway ? 'open_anyway' : 'close');
+    setInAppNotice(null);
+  };
 
   // 補充に失敗したら、しばらく再試行しない（失敗→即再試行の繰り返しでリクエストが止まらなくなるのを防ぐ）
   const refillBlockedUntilRef = useRef(0);
@@ -862,7 +894,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                           const d = doujinBySlideRef.current.get(video.id)!;
                           trackDoujinComplete(d.contentId, d.samples.length);
                         }}
-                        onLinkClick={() => trackDMMClick(video.id, doujinBySlideRef.current.get(video.id)!.contentId, 'doujin', getViewContext())}
+                        onLinkClick={(e) => {
+                          const contentId = doujinBySlideRef.current.get(video.id)!.contentId;
+                          handleFanzaClick(e, 'FANZA で続きを読む', () => trackDMMClick(video.id, contentId, 'doujin', getViewContext()), contentId);
+                        }}
                       />
                     </div>
                   </div>
@@ -1065,7 +1100,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               href={currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
+              onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
               {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
@@ -1113,7 +1148,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               href={currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
+              onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
               className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
               {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
@@ -1250,7 +1285,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 href={currentVideo.dmm_product_url}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                onClick={() => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext())}
+                onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
                 {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
@@ -1409,9 +1444,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-4 text-center transition-all font-bold shadow-lg active:scale-95 flex flex-col justify-center"
-                    onClick={() => {
+                    onClick={(e) => {
                       if (currentVideo) {
-                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext());
+                        handleFanzaClick(e, 'フル動画はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext()));
                       }
                     }}
                   >
@@ -1501,9 +1536,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"
-                    onClick={() => {
+                    onClick={(e) => {
                       if (currentVideo) {
-                        trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext());
+                        handleFanzaClick(e, 'フル動画はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', 'detail', getViewContext()));
                       }
                     }}
                   >
@@ -1682,6 +1717,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             trackModalOpen('actress_videos');
           }
         }}
+      />
+
+      <InAppBrowserNotice
+        url={inAppNotice?.url ?? null}
+        buttonLabel={inAppNotice?.label ?? ''}
+        onOpenAnyway={() => closeInAppNotice(true)}
+        onClose={() => closeInAppNotice(false)}
       />
     </div>
   );

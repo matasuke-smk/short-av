@@ -111,6 +111,24 @@ export const trackLike = (videoId: string, action: 'like' | 'unlike') => {
   });
 };
 
+// FANZA へのボタンを押した人のブラウザ。X のアプリ内ブラウザで開くと、普段のブラウザの FANZA と別扱いになり報酬を取りこぼすため、
+// どれくらいいるかを調べる（iPhone の X は UA に「Twitter for iPhone」が付く。Android の X は未確認）
+export const browserLabel = () => {
+  if (typeof navigator === 'undefined') return '';
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) {
+    if (/Twitter/i.test(ua)) return 'X（iPhone）';
+    if (!/Safari\//.test(ua)) return 'アプリ内（iPhone）';
+    return 'ブラウザ（iPhone）';
+  }
+  if (/Android/.test(ua)) {
+    if (/Twitter/i.test(ua)) return 'X（Android）';
+    if (/; wv\)/.test(ua)) return 'アプリ内（Android）';
+    return 'ブラウザ（Android）';
+  }
+  return 'PC など';
+};
+
 // DMMリンククリックイベント
 export const trackDMMClick = (
   videoId: string,
@@ -122,7 +140,15 @@ export const trackDMMClick = (
     video_id: videoId,
     content_id: contentId,
     link_type: LABELS.link_type[linkType],
+    browser: browserLabel(),
     ...contextLabels(context),
+  });
+};
+
+// X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したときの「ブラウザで開く」案内
+export const trackInAppNotice = (action: 'show' | 'open_anyway' | 'close') => {
+  sendGAEvent('inapp_browser_notice', {
+    action: { show: '表示', open_anyway: 'このまま開く', close: '閉じる' }[action],
   });
 };
 
