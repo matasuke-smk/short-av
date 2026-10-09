@@ -656,18 +656,17 @@ function RangeBody({
             onClick={() => setDetail('os')}
           />
           {(() => {
-            // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。表示から「このまま開く」「閉じる」を引いた残りは、
-            // 案内のとおり「ブラウザで開く」を押した（または何もせず離れた）人
+            // X のアプリ内ブラウザ（iPhone）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 夕方から、
+            // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
             const notice = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics[0] ?? 0;
             const shown = notice('表示');
-            const anyway = notice('このまま開く');
-            const closed = notice('閉じる');
+            const reopened = notice('ブラウザで開き直した');
             return (
               <Card
                 label="「ブラウザで開く」案内（X の iPhone）"
-                value={fmt(shown)}
+                value={fmt(reopened)}
                 unit="回"
-                sub={`このまま開く ${fmt(anyway)}回・閉じる ${fmt(closed)}回・それ以外 ${fmt(Math.max(shown - anyway - closed, 0))}回`}
+                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）・このまま開く ${fmt(notice('このまま開く'))}回`}
                 onClick={() => setDetail('inapp')}
               />
             );
@@ -752,7 +751,7 @@ function RangeBody({
         {detail === 'inapp' && (
           <DetailModal
             title="「ブラウザで開く」案内（X の iPhone）"
-            note="X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押した人に出す案内（2026/10/9 13時ごろから）。表示から「このまま開く」「閉じる」を引いた残りが、案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直した（または何もせず離れた）回数。回数（人数）。"
+            note="X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押した人に出す案内（2026/10/9 13時ごろから）。「ブラウザで開き直した」は案内のとおり画面下の short-av.com →「ブラウザで開く」で開き直された回数で、開き直した先で記録する（2026/10/9 夕方から）。回数（人数）。"
             onClose={closeDetail}
           >
             <AnswerBars event="inapp_browser_notice" rows={answers} />

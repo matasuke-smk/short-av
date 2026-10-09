@@ -146,9 +146,10 @@ export const trackDMMClick = (
 };
 
 // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したときの「ブラウザで開く」案内
-export const trackInAppNotice = (action: 'show' | 'open_anyway' | 'close') => {
+// reopened: 案内のとおり「ブラウザで開く」で開き直された（開き直した先のブラウザで記録する）
+export const trackInAppNotice = (action: 'show' | 'open_anyway' | 'close' | 'reopened') => {
   sendGAEvent('inapp_browser_notice', {
-    action: { show: '表示', open_anyway: 'このまま開く', close: '閉じる' }[action],
+    action: { show: '表示', open_anyway: 'このまま開く', close: '閉じる', reopened: 'ブラウザで開き直した' }[action],
   });
 };
 

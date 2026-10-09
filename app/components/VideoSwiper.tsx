@@ -16,7 +16,7 @@ import DMMBanner from './DMMBanner';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
-import InAppBrowserNotice, { isXInAppBrowserIOS } from './InAppBrowserNotice';
+import InAppBrowserNotice, { INAPP_REOPEN_PARAM, isXInAppBrowserIOS } from './InAppBrowserNotice';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
@@ -402,29 +402,39 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // X のアプリ内ブラウザ（iPhone）で FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
   // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
-  const [inAppNotice, setInAppNotice] = useState<{ url: string; label: string; track: () => void; restoreUrl: string | null } | null>(null);
+  const [inAppNotice, setInAppNotice] = useState<{ url: string; label: string; track: () => void; restoreUrl: string } | null>(null);
+  // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、X のアプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(INAPP_REOPEN_PARAM)) return;
+    if (!isXInAppBrowserIOS()) trackInAppNotice('reopened');
+    url.searchParams.delete(INAPP_REOPEN_PARAM);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, []);
   const handleFanzaClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, label: string, track: () => void, doujinId?: string) => {
     if (!isXInAppBrowserIOS()) {
       track();
       return;
     }
     e.preventDefault();
-    let restoreUrl: string | null = null;
+    // 案内の間だけアドレスを変え、閉じたら元に戻す。
+    // - 目印（?inapp=1）: 「ブラウザで開く」はこのアドレスをそのまま開くので、開き直した先で目印を見て回数を記録する（下の useEffect）
+    // - 同人誌はスワイプしてもアドレスが変わらないので、開き直したときに同じ作品が出るよう ?mode=doujin&d= にする
+    const restoreUrl = window.location.href;
+    const url = new URL(window.location.href);
+    url.searchParams.set(INAPP_REOPEN_PARAM, '1');
     if (doujinId) {
-      // 同人誌はスワイプしてもアドレスが変わらないので、ブラウザで開き直したときに同じ作品が出るよう、案内の間だけ ?mode=doujin&d= にする
-      restoreUrl = window.location.href;
-      const url = new URL(window.location.href);
       url.searchParams.delete('v');
       url.searchParams.set('mode', 'doujin');
       url.searchParams.set('d', doujinId);
-      window.history.replaceState(window.history.state, '', url.toString());
     }
+    window.history.replaceState(window.history.state, '', url.toString());
     setInAppNotice({ url: e.currentTarget.href, label, track, restoreUrl });
     trackInAppNotice('show');
   }, []);
   const closeInAppNotice = (openAnyway: boolean) => {
     if (!inAppNotice) return;
-    if (inAppNotice.restoreUrl) window.history.replaceState(window.history.state, '', inAppNotice.restoreUrl);
+    window.history.replaceState(window.history.state, '', inAppNotice.restoreUrl);
     if (openAnyway) inAppNotice.track();
     trackInAppNotice(openAnyway ? 'open_anyway' : 'close');
     setInAppNotice(null);
