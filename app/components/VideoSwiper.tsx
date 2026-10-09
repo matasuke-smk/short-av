@@ -1054,17 +1054,21 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </div>
             ))}
             {/* ローディングインジケーター */}
+            {/* 縦画面では下の帯（固定表示）が画面の下側を覆うので、スライド全体（100dvh）ではなく動画の表示領域（上の帯から下の帯まで）の中央に出す */}
             {isLoadingMore && (
-              <div className="h-[100dvh] w-full snap-start snap-always relative flex items-center justify-center">
-                <div className="text-white text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                  <p className="text-sm">読み込み中...</p>
+              <div className="h-[100dvh] w-full snap-start snap-always relative">
+                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
+                  <div className="text-white text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                    <p className="text-sm">読み込み中...</p>
+                  </div>
                 </div>
               </div>
             )}
             {/* 最後の動画の次に表示（有限リストの場合） */}
             {isFiniteList && (
-              <div className="h-[100dvh] w-full snap-start snap-always relative flex items-center justify-center">
+              <div className="h-[100dvh] w-full snap-start snap-always relative">
+                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
                 <div className="text-white text-center px-8">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1091,6 +1095,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       おすすめに戻る
                     </button>
                   </div>
+                </div>
                 </div>
               </div>
             )}
