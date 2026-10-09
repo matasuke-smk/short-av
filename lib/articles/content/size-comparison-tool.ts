@@ -896,6 +896,15 @@ export const article: Article = {
 })();
 </script>
 
+<!-- サイトの本体（スワイプ画面）への導線。ツール記事は HTML なので SwipeCta（React）の代わりに同じ見た目をここに置く。押した回数は article_cta_click（position: mid） -->
+<section class="not-prose" style="margin-top: 40px; border: 1px solid rgba(29, 78, 216, 0.6); background: rgba(23, 37, 84, 0.3); border-radius: 16px; padding: 20px 24px;">
+  <h2 class="text-xl md:text-2xl font-bold text-white" style="margin: 0;">サンプル動画をスワイプで見てみる</h2>
+  <p class="text-sm md:text-base text-gray-300" style="margin-top: 8px;">このサイトの本体は、FANZA の人気作・新作のサンプル動画を縦スワイプで次々チェックできる画面です。会員登録は要りません。気になった作品はそのまま FANZA で買えます。</p>
+  <a href="/" onclick="try{window.gtag&&window.gtag('event','article_cta_click',{article:'size-comparison-tool',position:'mid',content_id:'home'})}catch(e){}" style="margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2563eb; padding: 12px 16px; font-weight: bold; color: #fff; text-decoration: none;">
+    <span aria-hidden="true">▶</span> スワイプ画面を開く
+  </a>
+</section>
+
 <div class="tool-card" style="margin-top: 40px;">
   <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">このツールについて</h2>
 
