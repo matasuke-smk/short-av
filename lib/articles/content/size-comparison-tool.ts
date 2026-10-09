@@ -929,24 +929,48 @@ export const article: Article = {
 
   <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">計算に使っている値</h3>
 
-  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-    <div class="font-bold text-white mb-2">■ 日本人の目安値（パーセンタイル・順位の計算に使用）</div>
-    <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">長さ</strong><br>124mm（標準偏差18mm）</li>
-      <li><strong class="text-white">直径</strong><br>36mm（標準偏差3.6mm）</li>
-      <li><strong class="text-white">根拠</strong><br>国内の調査では勃起時の長さがおおむね12〜14cm程度の範囲で報告されており、それらを参考にしたおおよその目安値です。単一の調査の結果ではなく、測定方法（医療者による測定か自己申告か）によっても数値は変わります。</li>
-    </ul>
+  <p class="mb-3 text-gray-300">偏差値は「日本基準」と「世界基準」の2つを出しています。それぞれの平均と標準偏差は次のとおりです（すべて勃起時）。</p>
+
+  <div class="overflow-x-auto mb-4">
+    <table class="w-full text-sm md:text-base border-collapse" style="min-width: 520px;">
+      <thead>
+        <tr class="text-gray-300">
+          <th class="text-left py-2 px-3 border-b border-gray-600"></th>
+          <th class="text-left py-2 px-3 border-b border-gray-600 text-white">日本基準</th>
+          <th class="text-left py-2 px-3 border-b border-gray-600 text-white">世界基準</th>
+        </tr>
+      </thead>
+      <tbody class="text-gray-200">
+        <tr class="border-b border-gray-700">
+          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">長さ</td>
+          <td class="py-3 px-3">平均 <strong class="text-white">12.4cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 1.8cm</span></td>
+          <td class="py-3 px-3">平均 <strong class="text-white">13.1cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 1.66cm</span></td>
+        </tr>
+        <tr class="border-b border-gray-700">
+          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">太さ（直径）</td>
+          <td class="py-3 px-3">平均 <strong class="text-white">3.6cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 0.36cm</span></td>
+          <td class="py-3 px-3">平均 <strong class="text-white">3.7cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 0.35cm（外周 11.7cm±1.1cm から換算）</span></td>
+        </tr>
+        <tr class="border-b border-gray-700">
+          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">どんな数字か</td>
+          <td class="py-3 px-3">国内の複数の調査（勃起時の長さはおおむね12〜14cm）を参考にした目安値。単一の調査の値ではない</td>
+          <td class="py-3 px-3">医療者が測定した研究を集めたメタ分析の平均値（1万5千人超）</td>
+        </tr>
+        <tr class="border-b border-gray-700">
+          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">出典</td>
+          <td class="py-3 px-3">国内の調査報告（<a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">日本人男性のペニスサイズ</a>の記事にまとめ）</td>
+          <td class="py-3 px-3">Veale ら（2015年）BJU International</td>
+        </tr>
+        <tr>
+          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">使う場所</td>
+          <td class="py-3 px-3">総合の偏差値（大きな数字）、100人中の順位、上位%、「○○並み」</td>
+          <td class="py-3 px-3">「世界基準では」の偏差値、グラフの比較、「海外の研究の平均も超え」の判定</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-    <div class="font-bold text-white mb-2">■ 海外の研究データ（世界基準の偏差値とグラフの比較に使用）</div>
-    <ul class="list-disc ml-6 space-y-2 text-gray-300">
-      <li><strong class="text-white">勃起時の長さ</strong><br>平均 約13.1cm（標準偏差 約1.7cm）</li>
-      <li><strong class="text-white">勃起時の外周</strong><br>平均 約11.7cm（標準偏差 約1.1cm。直径に換算すると約37mm・標準偏差約3.5mm）</li>
-      <li><strong class="text-white">平常時の長さ（参考）</strong><br>平均 約9.2cm</li>
-      <li><strong class="text-white">出典</strong><br>Veale ら（2015年）BJU International。医療者が測定した研究を集めたメタ分析</li>
-    </ul>
-  </div>
+  <p class="mb-6 text-gray-300 text-sm">参考: 海外の研究の平常時（勃起していないとき）の長さの平均は約9.2cm。このツールは勃起時のみを扱います。国ごとの平均（「○○の平均並み」）は別の資料（WorldData.info）によるもので、上の2つの基準とは別です。</p>
 
   <p class="mb-6 text-gray-300">計算では、これらの値が正規分布に従うと仮定しています。実際の分布とは異なる場合があるため、パーセンタイルや「100人中○位」は大まかな目安として受け止めてください。</p>
 
