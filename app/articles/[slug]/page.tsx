@@ -7,6 +7,7 @@ import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
 import ArticleLink, { formatDate } from '../ArticleLink';
 import SwipeCta from '../SwipeCta';
+import ArticleWidget from '../ArticleWidget';
 import { getCtaVideos } from '@/lib/articles/cta-videos';
 
 type Props = {
@@ -249,6 +250,9 @@ export default async function ArticlePage({ params }: Props) {
             )}
           </div>
         </article>
+
+        {/* 記事の内容に合った FANZA の商品ウィジェット（本文の後） */}
+        <ArticleWidget slug={article.slug} />
 
         {/* サイトの本体への導線（本文の後。人気作の表紙つき） */}
         <SwipeCta slug={article.slug} position="end" videos={ctaVideos} />
