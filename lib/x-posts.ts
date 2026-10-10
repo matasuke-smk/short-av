@@ -397,7 +397,16 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
     };
   });
   videos.sort((a, b) => b.score - a.score || (a.rank ?? 999) - (b.rank ?? 999));
-  return { days: RECOMMEND_DAYS, videos: videos.filter((v) => v.score > 0).slice(0, RECOMMEND_LIMIT) };
+  // 同じ女優は3作品まで（反応の大きい女優の作品ばかりが並ばないように）
+  const perActress = new Map<string, number>();
+  const picked = videos.filter((v) => {
+    if (v.score <= 0) return false;
+    if (!v.actressName) return true;
+    const n = (perActress.get(v.actressName) ?? 0) + 1;
+    perActress.set(v.actressName, n);
+    return n <= 3;
+  });
+  return { days: RECOMMEND_DAYS, videos: picked.slice(0, RECOMMEND_LIMIT) };
 }
 
 export type LikedVideo = Omit<RecommendedVideo, 'score'> & { likedAt: string };
