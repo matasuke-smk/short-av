@@ -11,7 +11,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // 標準は「日本のみ」。?country=all で海外も含める
   const country: Country = countryParam === 'all' ? 'all' : 'jp';
   const initialRange: ViewKey = VIEW_KEYS.includes(rangeParam as ViewKey) ? (rangeParam as ViewKey) : 'today';
-  const bucket = Math.floor(Date.now() / 300_000);
+  const bucket = Math.floor(Date.now() / 600_000);
 
   // 画面から裏で呼ばれる「もう一方（日本のみ⇔すべて）の集計の取得」（?warm=1）: GA の集計を取得して使い回せるようにするだけ。
   // リアルタイムの記録・読み込み（Supabase）は行わない（2分おきに呼ばれるため、データベースの通信量を増やさない）

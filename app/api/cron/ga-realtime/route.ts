@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { recordGaRealtime } from '@/lib/ga-realtime';
+import { loadRange } from '@/app/admin/analytics/data';
 
 /**
  * GA のリアルタイム（直近30分）を記録する（Vercel の定期実行で10分ごと。vercel.json）
@@ -15,7 +16,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   try {
-    return NextResponse.json({ ok: true, ...(await recordGaRealtime()) });
+    const result = await recordGaRealtime();
+    // アクセス解析の「今日」（日本のみ）を先に取っておく（10分ごとの区切りと同じ周期。開いたとき・引き下げて再読み込みしたときに
+    // GA への問い合わせを待たずに済む。2026/10/10: 5分経過後の再読み込みに約5秒以上かかっていた）
+    const warmed = await loadRange('today', 'jp').then((r) => !('error' in r)).catch(() => false);
+    return NextResponse.json({ ok: true, warmed, ...result });
   } catch (error) {
     console.error('GA realtime record error:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
