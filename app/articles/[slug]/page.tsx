@@ -9,6 +9,7 @@ import ArticleLink, { formatDate } from '../ArticleLink';
 import SwipeCta from '../SwipeCta';
 import ArticleWidget from '../ArticleWidget';
 import ArticleRail from '../ArticleRail';
+import ArticleToc from '../ArticleToc';
 import { getCtaVideos } from '@/lib/articles/cta-videos';
 
 type Props = {
@@ -232,7 +233,7 @@ export default async function ArticlePage({ params }: Props) {
 
           {/* 目次 */}
           {toc.length >= 2 && (
-            <nav aria-label="目次" className="mb-10 rounded-xl bg-gray-50 border border-gray-100 px-5 py-4 md:px-6 md:py-5">
+            <nav aria-label="目次" className="xl:hidden mb-10 rounded-xl bg-gray-50 border border-gray-100 px-5 py-4 md:px-6 md:py-5">
               <p className="text-sm font-bold text-gray-900 mb-3">目次</p>
               <ol className="space-y-2 text-sm md:text-[15px] text-gray-700">
                 {toc.map((item, i) => (
@@ -309,7 +310,8 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         </footer>
       </main>
-      {/* PC: 本文の右の余白に商品ウィジェット（1280px 以上） */}
+      {/* PC（1280px 以上）: 本文の左の余白に目次、右の余白に商品ウィジェット */}
+      <ArticleToc items={toc} />
       <ArticleRail slug={article.slug} />
       {/* スマホの画面下の固定ボタン */}
       <SwipeCta slug={article.slug} position="sticky" />
