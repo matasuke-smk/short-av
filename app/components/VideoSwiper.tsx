@@ -832,12 +832,40 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // サムネイルの中央の▶から再生中の作品（再生バーと重ならないよう、いいね・PR 表示を上に移す）
   const [inlinePlayingId, setInlinePlayingId] = useState<string | null>(null);
 
+  // サンプルを見終わった瞬間の FANZA への誘導（案A: 表紙を暗くして中央に大きなボタン）。
+  // DMM のプレイヤーからは「終わった」合図を受け取れないので、再生開始からサンプルの長さ＋2秒で出す。
+  // 1作品につき1回だけ（閉じたら、その作品では再び出さない）。作品が変わったら消す
+  const [sampleEndedId, setSampleEndedId] = useState<string | null>(null);
+  const sampleEndTimerRef = useRef<number | null>(null);
+  const sampleEndDismissedRef = useRef<Set<string>>(new Set());
+  const closeSampleEndCta = useCallback(() => {
+    if (sampleEndedId) sampleEndDismissedRef.current.add(sampleEndedId);
+    setSampleEndedId(null);
+  }, [sampleEndedId]);
+  useEffect(() => {
+    // 作品が変わったら、待っている表示と出ている案内を消す
+    if (sampleEndTimerRef.current) window.clearTimeout(sampleEndTimerRef.current);
+    sampleEndTimerRef.current = null;
+    setSampleEndedId(null);
+  }, [currentIndex]);
+
   // サムネイルの中央の▶から再生したとき（再生画面は開かない）
   const recordInlineView = useCallback(() => {
     if (!currentVideo) return;
     setInlinePlayingId(currentVideo.dmm_content_id);
     addToHistory(currentVideo.dmm_content_id);
     trackVideoView(currentVideo.id, currentVideo.dmm_content_id || '', currentVideo.title || '', getViewContext());
+    const id = currentVideo.dmm_content_id;
+    const seconds = currentVideo.sample_seconds ?? 0;
+    if (seconds > 0 && !sampleEndDismissedRef.current.has(id)) {
+      // 開発中の確認用: ?endcta=1 を付けると3秒で出る
+      const quick = process.env.NODE_ENV !== 'production' && new URLSearchParams(window.location.search).has('endcta');
+      if (sampleEndTimerRef.current) window.clearTimeout(sampleEndTimerRef.current);
+      sampleEndTimerRef.current = window.setTimeout(() => {
+        setSampleEndedId(id);
+        sendGAEvent('sample_end_cta', { action: 'show', content_id: id });
+      }, quick ? 3000 : (seconds + 2) * 1000);
+    }
   }, [currentVideo, addToHistory, getViewContext]);
 
   const closeModal = useCallback(() => {
@@ -1081,6 +1109,44 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       </div>
                     )}
 
+                    {/* サンプルを見終わった瞬間の誘導（案A）。表紙を暗くして中央に FANZA のボタン。枠内のタップは再生に伝えない */}
+                    {sampleEndedId === video.dmm_content_id && index === currentIndex && enableAffiliateLinks && video.dmm_product_url && (
+                      <div
+                        className="absolute inset-0 z-50 bg-black/75 flex flex-col items-center justify-center gap-2 px-6 text-center"
+                        onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
+                        role="dialog"
+                        aria-label="サンプルはここまで"
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
+                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center"
+                          aria-label="閉じる"
+                        >
+                          ×
+                        </button>
+                        <div className="text-white font-bold text-base lg:text-lg">サンプルはここまで</div>
+                        <div className="text-gray-300 text-xs line-clamp-2 max-w-[90%]">{video.title}</div>
+                        <a
+                          href={video.dmm_product_url}
+                          target="_blank"
+                          rel="noopener noreferrer sponsored"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sendGAEvent('sample_end_cta', { action: 'click', content_id: video.dmm_content_id });
+                            handleFanzaClick(e, 'サンプル終了', () => trackDMMClick(video.id, video.dmm_content_id || '', 'sample_end', getViewContext()));
+                          }}
+                          className="mt-2 w-[88%] max-w-sm rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-base lg:text-lg py-3.5 shadow-[0_4px_18px_rgba(37,99,235,0.6)] active:scale-95 transition-transform"
+                        >
+                          本編を FANZA で見る{video.price ? `　¥${video.price.toLocaleString()}〜` : ''}
+                        </a>
+                        <div className="mt-1 text-gray-400 text-xs">
+                          <span className="lg:hidden">↑ 上にスワイプで次の作品</span>
+                          <span className="hidden lg:inline">↓ キーかホイールで次の作品</span>
+                        </div>
+                      </div>
+                    )}
+
                     {/* PC: 作品名をサムネイルの上端に重ねる（再生中は動画を隠さないよう消す） */}
                     {!(inlinePlayingId === video.dmm_content_id && index === currentIndex) && (
                       <div className="hidden lg:block absolute top-0 inset-x-0 z-30 bg-gradient-to-b from-black/85 via-black/50 to-transparent px-4 pt-3 pb-10 pointer-events-none">
@@ -1089,7 +1155,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     )}
 
                     {/* サンプル動画の長さ - サムネイル右下（PR の表示は画面上部のクレジットの帯に移した） */}
-                    {(video.sample_seconds ?? 0) > 0 && (
+                    {(video.sample_seconds ?? 0) > 0 && sampleEndedId !== video.dmm_content_id && (
                       <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 flex items-center gap-1 bg-black/75 text-white px-2 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                           <path d="M8 5v14l11-7z" />
