@@ -161,6 +161,11 @@ export type RecommendedVideo = {
   postedCount: number; // これまでに紹介した回数
   lastPostedAt: string | null; // 前回紹介した日時
   sampleSeconds: number | null; // サンプル動画の長さ（秒。分からなければ null）
+  // 出演女優の X での反応（直近 X_RESULT_DAYS 日に、その女優の作品の投稿リンクから来た訪問の「作品あたり」の平均。いちばん高い女優）
+  actressName?: string | null;
+  actressAvg?: number | null; // 実績がなければ null
+  actressWorks?: number; // 平均の元になった作品数
+  isDebut?: boolean; // 新人・デビュー作（題名から判定）
 };
 
 /**
@@ -228,24 +233,85 @@ async function getLikeCountsExcludingAdmin(): Promise<Map<string, number>> {
   return counts;
 }
 
+/** 題名から新人・デビュー作かを判定（X で特に反応が大きかった: 10/8〜10 の上位4作品はすべてデビュー作） */
+const DEBUT_RE = /新人|デビュー|DEBUT|Debut|debut/;
+
+/**
+ * X の投稿リンクから来た訪問（セッション）を作品ごとに数える（直近 X_RESULT_DAYS 日）。
+ * 着地ページの ?v= で作品を見分ける。取得できなければ空
+ */
+async function getXSessionsByWork(): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  try {
+    const [rows] = await runReports([
+      {
+        dateRanges: [{ startDate: `${X_RESULT_DAYS - 1}daysAgo`, endDate: 'today' }],
+        dimensions: [{ name: 'landingPagePlusQueryString' }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: fromX,
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 2000,
+      },
+    ]);
+    for (const r of rows) {
+      const m = r.dimensions[0].match(/[?&]v=([^&]+)/);
+      if (m) counts.set(m[1], (counts.get(m[1]) ?? 0) + r.metrics[0]);
+    }
+  } catch (error) {
+    console.warn('[x-posts] X からの作品ごとの訪問を取得できませんでした:', error);
+  }
+  return counts;
+}
+
+/**
+ * 女優ごとの X での反応: その女優の作品の投稿で来た訪問の、作品あたりの平均（訪問が 3 未満の作品は投稿していないとみなして除く）
+ */
+async function getActressXResponse(xSessions: Map<string, number>) {
+  const supabase = getSupabaseAdmin();
+  const ids = [...xSessions.entries()].filter(([, n]) => n >= 3).map(([id]) => id);
+  const byActress = new Map<string, { total: number; works: number }>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase.from('videos').select('dmm_content_id, actress_ids').in('dmm_content_id', ids.slice(i, i + 200));
+    if (error) throw error;
+    for (const row of data ?? []) {
+      for (const a of (row.actress_ids ?? []) as string[]) {
+        const e = byActress.get(a) ?? { total: 0, works: 0 };
+        e.total += xSessions.get(row.dmm_content_id as string) ?? 0;
+        e.works += 1;
+        byActress.set(a, e);
+      }
+    }
+  }
+  return byActress;
+}
+
 /**
  * 投稿すると効果的な作品を、反応の大きい順に返す。
  * 紹介してから REPOST_INTERVAL_DAYS 日は出さず、その後はもう一度候補に入る。
  * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
  *      + X から来た人の FANZA へのリンク × 10 + X から来た人の再生 × 3（前回の紹介で反応があった作品を優先）
+ *      + 出演女優の X での反応（作品あたりの訪問 ÷ 10。上限 150 点）+ 新人・デビュー作 30 点（2026-10-11 追加）
+ * 候補には、X で反応の大きかった女優（作品あたり 100 人以上）のまだ紹介していない作品と、最近のデビュー作も入れる
  * リンクが押された作品は「買いたくなる」作品、スワイプ後に再生された作品は「目に留まる」作品なので重く数える。
  */
 export async function getRecommendedVideos(): Promise<{ days: number; videos: RecommendedVideo[] }> {
   const supabase = getSupabaseAdmin();
 
-  const [{ history, used }, ga, likeCounts] = await Promise.all([getPostHistory(), getGaCounts(RECOMMEND_DAYS), getLikeCountsExcludingAdmin()]);
+  const [{ history, used }, ga, likeCounts, xSessions] = await Promise.all([
+    getPostHistory(),
+    getGaCounts(RECOMMEND_DAYS),
+    getLikeCountsExcludingAdmin(),
+    getXSessionsByWork(),
+  ]);
+  const actressStats = await getActressXResponse(xSessions);
+  const strongActresses = [...actressStats.entries()].filter(([, e]) => e.total / e.works >= 100).map(([id]) => id);
   // いいねの多い作品（運営者を除く）の上位60件も候補に入れる
   const likedIds = [...likeCounts].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([id]) => id);
   const gaIds = [...new Set([...ga.plays.keys(), ...ga.clicks.keys(), ...ga.xPlays.keys(), ...ga.xClicks.keys()])].filter(
     (id) => !used.has(id),
   );
 
-  const columns = 'dmm_content_id, title, thumbnail_url, rank_position, sample_seconds';
+  const columns = 'dmm_content_id, title, thumbnail_url, rank_position, sample_seconds, actress_ids';
   const base = () =>
     supabase
       .from('videos')
@@ -253,22 +319,53 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
       .eq('is_active', true)
       .not('thumbnail_url', 'is', null)
       .not('sample_video_url', 'is', null);
-  const [gaRes, rankingRes, likedRes] = await Promise.all([
+  const [gaRes, rankingRes, likedRes, actressRes, debutRes] = await Promise.all([
     gaIds.length > 0 ? base().in('dmm_content_id', gaIds) : Promise.resolve({ data: [], error: null }),
     base().not('rank_position', 'is', null).order('rank_position', { ascending: true }).limit(60),
     likedIds.length > 0 ? base().in('dmm_content_id', likedIds) : Promise.resolve({ data: [], error: null }),
+    strongActresses.length > 0
+      ? base().overlaps('actress_ids', strongActresses).order('release_date', { ascending: false }).limit(60)
+      : Promise.resolve({ data: [], error: null }),
+    base().or('title.ilike.%新人%,title.ilike.%デビュー%,title.ilike.%DEBUT%').order('release_date', { ascending: false }).limit(30),
   ]);
-  for (const res of [gaRes, rankingRes, likedRes]) {
+  for (const res of [gaRes, rankingRes, likedRes, actressRes, debutRes]) {
     if (res.error) throw res.error;
   }
 
-  type Row = { dmm_content_id: string; title: string; thumbnail_url: string | null; rank_position: number | null; sample_seconds: number | null };
+  type Row = {
+    dmm_content_id: string;
+    title: string;
+    thumbnail_url: string | null;
+    rank_position: number | null;
+    sample_seconds: number | null;
+    actress_ids: string[] | null;
+  };
   const byId = new Map<string, Row>();
-  for (const row of [...(gaRes.data ?? []), ...(rankingRes.data ?? []), ...(likedRes.data ?? [])] as Row[]) {
+  for (const row of [...(gaRes.data ?? []), ...(rankingRes.data ?? []), ...(likedRes.data ?? []), ...(actressRes.data ?? []), ...(debutRes.data ?? [])] as Row[]) {
     if (!used.has(row.dmm_content_id)) byId.set(row.dmm_content_id, row);
   }
 
+  // 候補の女優名（札に出す）
+  const candidateActressIds = [...new Set([...byId.values()].flatMap((r) => r.actress_ids ?? []))];
+  const actressNames = new Map<string, string>();
+  for (let i = 0; i < candidateActressIds.length; i += 200) {
+    const { data, error } = await supabase.from('actresses').select('id, name').in('id', candidateActressIds.slice(i, i + 200));
+    if (error) throw error;
+    for (const a of data ?? []) actressNames.set(a.id as string, a.name as string);
+  }
+
   const videos = [...byId.values()].map((row): RecommendedVideo => {
+    // 出演女優のうち、X での反応がいちばん大きい女優
+    let best: { id: string; avg: number; works: number } | null = null;
+    for (const a of row.actress_ids ?? []) {
+      const e = actressStats.get(a);
+      if (!e) continue;
+      const avg = Math.round(e.total / e.works);
+      if (!best || avg > best.avg) best = { id: a, avg, works: e.works };
+    }
+    const firstActress = (row.actress_ids ?? [])[0];
+    const isDebut = DEBUT_RE.test(row.title);
+    const actressBonus = best ? Math.min(150, Math.round(best.avg / 10)) : 0;
     const plays = ga.plays.get(row.dmm_content_id) ?? 0;
     const swipePlays = ga.swipePlays.get(row.dmm_content_id) ?? 0;
     const clicks = ga.clicks.get(row.dmm_content_id) ?? 0;
@@ -283,7 +380,11 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
       title: row.title,
       thumbnail_url: row.thumbnail_url,
       sampleSeconds: row.sample_seconds && row.sample_seconds > 0 ? row.sample_seconds : null,
-      score: clicks * 5 + swipePlays * 2 + plays + likes * 3 + rankBonus + xClicks * 10 + xPlays * 3,
+      score: clicks * 5 + swipePlays * 2 + plays + likes * 3 + rankBonus + xClicks * 10 + xPlays * 3 + actressBonus + (isDebut ? 30 : 0),
+      actressName: best ? actressNames.get(best.id) ?? null : firstActress ? actressNames.get(firstActress) ?? null : null,
+      actressAvg: best?.avg ?? null,
+      actressWorks: best?.works ?? 0,
+      isDebut,
       plays,
       swipePlays,
       clicks,
