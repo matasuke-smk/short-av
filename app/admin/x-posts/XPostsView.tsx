@@ -234,6 +234,10 @@ type VideoItem = {
   postedCount: number;
   lastPostedAt: string | null;
   likedAt?: string; // 「いいね」タブのみ
+  actressName?: string | null;
+  actressAvg?: number | null; // 出演女優の X での反応（作品あたりの訪問）。実績がなければ null
+  actressWorks?: number;
+  isDebut?: boolean;
 };
 
 const sampleLength = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -416,6 +420,27 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
           {video.postedCount === 0 && video.likedAt && <span className="text-gray-400">未紹介</span>}
         </div>
         <p className="text-sm font-bold">{video.title}</p>
+        {/* 出演女優の X での反応（その女優の作品を投稿したとき、作品あたり何人来たか）と、新人・デビュー作 */}
+        {(video.actressName || video.isDebut) && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {video.actressName && (
+              <span
+                className={`text-[11px] rounded px-1.5 py-0.5 ${
+                  (video.actressAvg ?? 0) >= 1000
+                    ? 'bg-emerald-800 text-emerald-100'
+                    : (video.actressAvg ?? 0) >= 100
+                      ? 'bg-emerald-900/70 text-emerald-200'
+                      : 'bg-gray-700 text-gray-300'
+                }`}
+              >
+                {video.actressAvg != null
+                  ? `${video.actressName}: X で平均 ${video.actressAvg.toLocaleString('ja-JP')}人（${video.actressWorks}作品）`
+                  : `${video.actressName}: X の実績なし`}
+              </span>
+            )}
+            {video.isDebut && <span className="text-[11px] rounded px-1.5 py-0.5 bg-blue-900/70 text-blue-200">新人・デビュー作</span>}
+          </div>
+        )}
         {reasons.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {reasons.map((reason) => (
