@@ -1190,7 +1190,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         {/* タイトル - 2行固定 */}
         <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
           {currentVideo && (
-            <h2 className="text-white text-base lg:!text-xl font-bold line-clamp-2 lg:!line-clamp-3 leading-6 lg:!leading-7 overflow-hidden">
+            <h2 className="text-white text-base lg:!text-xl font-bold line-clamp-2 lg:!line-clamp-5 leading-6 lg:!leading-7 overflow-hidden">
               {currentVideo.title}
             </h2>
           )}
