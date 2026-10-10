@@ -44,40 +44,41 @@ export default function InAppBrowserNotice({ url, platform, buttonLabel, onOpenA
         className={`mx-auto w-full max-w-md rounded-t-2xl bg-gray-900 px-5 pt-5 text-white shadow-2xl ${platform === 'ios' ? 'pb-2' : 'pb-[calc(env(safe-area-inset-bottom)+3rem)]'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-lg font-bold">ブラウザで開くのがおすすめです</p>
-        <p className="mt-1.5 text-sm text-gray-300">ブラウザで開くと、いつもの FANZA のログインのまま購入できます。</p>
+        <p className="text-lg font-bold">FANZA を開きます</p>
+        <p className="mt-1.5 text-sm text-gray-300">いつもの FANZA のログインのまま買うなら、ブラウザで開くのがおすすめです。</p>
 
-        <ol className="mt-4 space-y-2.5 text-sm">
-          {/* iPhone・Android とも X のアプリ内ブラウザは画面下に「short-av.com ⋮」があり、そのメニューに「ブラウザで開く」がある（Android は 2026-10-09 のスクショで確認） */}
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">1</span>
-            <span>画面下の</span>
-            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium">short-av.com ⋮</span>
-            <span>をタップ</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">2</span>
-            <span className="rounded-lg bg-gray-700 px-3 py-1 text-xs font-medium">{platform === 'ios' ? 'ブラウザで開く 🌐' : 'ブラウザで開く'}</span>
-            <span>をタップ{platform === 'android' && <span className="text-gray-400">（「Chrome で開く」の場合も）</span>}</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold">3</span>
-            <span>同じ作品が開くので、もう一度「{buttonLabel}」</span>
-          </li>
-        </ol>
-
+        {/* そのまま開くボタンをいちばん目立たせる（閉じてクリックごと消えるのを減らす）。手順はその下に小さく */}
         <a
           href={url}
           target="_blank"
           rel="noopener noreferrer sponsored"
           onClick={onOpenAnyway}
-          className="mt-5 block w-full rounded-xl border border-gray-600 py-3 text-center text-sm font-bold text-gray-200 active:scale-95"
+          className="mt-4 block w-full rounded-xl bg-blue-600 py-3.5 text-center text-base font-bold text-white active:scale-95"
         >
           このまま FANZA を開く
         </a>
 
+        <p className="mt-4 text-xs font-bold text-gray-300">ブラウザで開く手順（この案内は1日1回だけ出ます）</p>
+        <ol className="mt-2 space-y-2 text-sm">
+          <li className="flex items-center gap-2">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-[11px] font-bold">1</span>
+            <span>画面下の</span>
+            <span className="rounded-full bg-black px-2.5 py-0.5 text-xs font-medium">short-av.com ⋮</span>
+            <span>をタップ</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-[11px] font-bold">2</span>
+            <span className="rounded-lg bg-gray-700 px-2.5 py-0.5 text-xs font-medium">{platform === 'ios' ? 'ブラウザで開く 🌐' : 'ブラウザで開く'}</span>
+            <span>をタップ{platform === 'android' && <span className="text-gray-400">（「Chrome で開く」の場合も）</span>}</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-700 text-[11px] font-bold">3</span>
+            <span>同じ作品が開くので、もう一度「{buttonLabel}」</span>
+          </li>
+        </ol>
+
         {/* 画面下の中央の「short-av.com」を指す */}
-        <div className="pointer-events-none mt-3 flex flex-col items-center text-blue-400">
+        <div className="pointer-events-none mt-2 flex flex-col items-center text-blue-400">
           <span className="text-xs">ここをタップ</span>
           {/* 跳ねる動きは上に高さの25%（8px）動くので、その分の余白（mt-2）を取って文字に重ならないようにする */}
           <svg className="mt-2 h-8 w-8 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
