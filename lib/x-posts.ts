@@ -290,7 +290,7 @@ async function getActressXResponse(xSessions: Map<string, number>) {
  * 紹介してから REPOST_INTERVAL_DAYS 日は出さず、その後はもう一度候補に入る。
  * 点数 = FANZA へのリンク × 5 + スワイプ後の再生 × 2 + 再生 × 1 + いいね × 3 + ランキング上位ボーナス（1位 30点〜30位 1点）
  *      + X から来た人の FANZA へのリンク × 10 + X から来た人の再生 × 3（前回の紹介で反応があった作品を優先）
- *      + 出演女優の X での反応（作品あたりの訪問 ÷ 10。上限 150 点）+ 新人・デビュー作 30 点（2026-10-11 追加）
+ *      + 出演女優の X での反応（作品あたりの訪問 ÷ 3。上限 200 点。÷10 では瀬戸環奈の未紹介作が上位20件に入らなかった）+ 新人・デビュー作 30 点（2026-10-11 追加）
  * 候補には、X で反応の大きかった女優（作品あたり 100 人以上）のまだ紹介していない作品と、最近のデビュー作も入れる
  * リンクが押された作品は「買いたくなる」作品、スワイプ後に再生された作品は「目に留まる」作品なので重く数える。
  */
@@ -365,7 +365,7 @@ export async function getRecommendedVideos(): Promise<{ days: number; videos: Re
     }
     const firstActress = (row.actress_ids ?? [])[0];
     const isDebut = DEBUT_RE.test(row.title);
-    const actressBonus = best ? Math.min(150, Math.round(best.avg / 10)) : 0;
+    const actressBonus = best ? Math.min(200, Math.round(best.avg / 3)) : 0;
     const plays = ga.plays.get(row.dmm_content_id) ?? 0;
     const swipePlays = ga.swipePlays.get(row.dmm_content_id) ?? 0;
     const clicks = ga.clicks.get(row.dmm_content_id) ?? 0;
