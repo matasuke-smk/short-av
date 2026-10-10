@@ -20,13 +20,13 @@ type VideoRow = { dmm_content_id: string; title: string; thumbnail_url: string |
 
 // 作品の一覧（タップすると Short AV のスワイプ画面でその作品から見られる）。サムネイルはパッケージの表面（右半分）を出す
 function videoList(videos: VideoRow[], badge: (video: VideoRow, index: number) => string): string {
-  if (videos.length === 0) return '<p class="text-gray-400">いま表示できる作品がありません。時間をおいてもう一度ご覧ください。</p>';
+  if (videos.length === 0) return '<p class="text-gray-500">いま表示できる作品がありません。時間をおいてもう一度ご覧ください。</p>';
   const items = videos
     .map((video, i) => {
       const thumb = video.thumbnail_url
-        ? `<img src="${escapeHtml(video.thumbnail_url)}" alt="" loading="lazy" class="w-20 h-28 flex-shrink-0 rounded object-cover object-right bg-gray-900" />`
+        ? `<img src="${escapeHtml(video.thumbnail_url)}" alt="" loading="lazy" class="w-20 h-28 flex-shrink-0 rounded object-cover object-right bg-gray-100" />`
         : '';
-      return `<li><a href="/?v=${encodeURIComponent(video.dmm_content_id)}" class="flex gap-3 items-start rounded-lg bg-gray-800 hover:bg-gray-700 p-2.5 no-underline">${thumb}<span class="min-w-0 flex-1"><span class="block text-xs text-amber-300 font-bold mb-1">${badge(video, i)}</span><span class="block text-sm text-gray-100 leading-snug line-clamp-3">${escapeHtml(video.title)}</span></span></a></li>`;
+      return `<li><a href="/?v=${encodeURIComponent(video.dmm_content_id)}" class="flex gap-3 items-start rounded-lg bg-gray-50 hover:bg-gray-100 p-2.5 no-underline">${thumb}<span class="min-w-0 flex-1"><span class="block text-xs text-amber-700 font-bold mb-1">${badge(video, i)}</span><span class="block text-sm text-gray-800 leading-snug line-clamp-3">${escapeHtml(video.title)}</span></span></a></li>`;
     })
     .join('');
   return `<ul class="not-prose grid grid-cols-1 sm:grid-cols-2 gap-2 my-6 list-none p-0">${items}</ul>`;
@@ -92,7 +92,7 @@ const sizeReport = unstable_cache(
     const correction = Number(summarizeForAdmin(erectRows, 'erect').correctionMm);
     const usable = erectRows.filter((d) => d.length_mm >= LENGTH_RANGE_MM.min && d.length_mm <= LENGTH_RANGE_MM.max);
     const cm = (mm: number) => (mm / 10).toFixed(1);
-    const cell = 'py-2 px-3 border-b border-gray-700';
+    const cell = 'py-2 px-3 border-b border-gray-200';
 
     const summaryRows = [
       ['勃起時', erect],
@@ -115,7 +115,7 @@ const sizeReport = unstable_cache(
       .sort((a, b) => a - b)
       .map((b) => {
         const n = buckets.get(b) ?? 0;
-        return `<div class="flex items-center gap-2 text-sm"><span class="w-24 flex-shrink-0 text-gray-400">${b}〜${b + 1}cm</span><span class="h-3 rounded bg-blue-500" style="width:${Math.max(4, (n / maxCount) * 70)}%"></span><span class="text-gray-300">${n}</span></div>`;
+        return `<div class="flex items-center gap-2 text-sm"><span class="w-24 flex-shrink-0 text-gray-500">${b}〜${b + 1}cm</span><span class="h-3 rounded bg-blue-500" style="width:${Math.max(4, (n / maxCount) * 70)}%"></span><span class="text-gray-700">${n}</span></div>`;
       })
       .join('');
 
@@ -133,9 +133,9 @@ const sizeReport = unstable_cache(
     const updated = new Date().toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric' });
     return `<div class="not-prose my-6 space-y-6">
 <p class="text-xs text-gray-500">${updated}時点の集計</p>
-<table class="w-full text-sm"><thead class="text-gray-400"><tr><th class="${cell} text-left font-normal"></th><th class="${cell} text-right font-normal">件数</th><th class="${cell} text-right font-normal">長さの平均</th><th class="${cell} text-right font-normal">直径の平均</th></tr></thead><tbody>${summaryRows}</tbody></table>
-${distribution ? `<div><p class="text-sm text-gray-300 font-bold mb-2">勃起時の長さの分布</p><div class="space-y-1.5">${distribution}</div></div>` : ''}
-${byAge ? `<div><p class="text-sm text-gray-300 font-bold mb-2">年代別（勃起時）</p><table class="w-full text-sm"><thead class="text-gray-400"><tr><th class="${cell} text-left font-normal">年代</th><th class="${cell} text-right font-normal">件数</th><th class="${cell} text-right font-normal">長さの平均</th></tr></thead><tbody>${byAge}</tbody></table></div>` : ''}
+<table class="w-full text-sm"><thead class="text-gray-500"><tr><th class="${cell} text-left font-normal"></th><th class="${cell} text-right font-normal">件数</th><th class="${cell} text-right font-normal">長さの平均</th><th class="${cell} text-right font-normal">直径の平均</th></tr></thead><tbody>${summaryRows}</tbody></table>
+${distribution ? `<div><p class="text-sm text-gray-700 font-bold mb-2">勃起時の長さの分布</p><div class="space-y-1.5">${distribution}</div></div>` : ''}
+${byAge ? `<div><p class="text-sm text-gray-700 font-bold mb-2">年代別（勃起時）</p><table class="w-full text-sm"><thead class="text-gray-500"><tr><th class="${cell} text-left font-normal">年代</th><th class="${cell} text-right font-normal">件数</th><th class="${cell} text-right font-normal">長さの平均</th></tr></thead><tbody>${byAge}</tbody></table></div>` : ''}
 </div>`;
   },
   ['article-live-size-report-v1'],
@@ -144,9 +144,9 @@ ${byAge ? `<div><p class="text-sm text-gray-300 font-bold mb-2">年代別（勃�
 
 // ちんこ偏差値チェッカーへの導線（平均を調べる人は「自分はどのくらいの位置か」が知りたいので、答えの直後に目立つ枠で出す）
 const checkerCta = async () =>
-  `<div class="not-prose my-6 rounded-2xl border border-yellow-500/60 bg-yellow-500/10 p-5 md:p-6">
-    <p class="text-lg md:text-xl font-bold text-white m-0">あなたは平均の上？下？ 10秒で分かります</p>
-    <p class="mt-2 text-sm md:text-base text-gray-300 m-0">長さと太さを入れるだけで、日本基準と世界基準の偏差値、100人中なん位か、「AV男優並み」「日本人の平均並み」のどれかが出ます。登録不要・匿名、cm でも mm でも OK。</p>
+  `<div class="not-prose my-6 rounded-2xl border border-yellow-300 bg-yellow-50 p-5 md:p-6">
+    <p class="text-lg md:text-xl font-bold text-gray-900 m-0">あなたは平均の上？下？ 10秒で分かります</p>
+    <p class="mt-2 text-sm md:text-base text-gray-700 m-0">長さと太さを入れるだけで、日本基準と世界基準の偏差値、100人中なん位か、「AV男優並み」「日本人の平均並み」のどれかが出ます。登録不要・匿名、cm でも mm でも OK。</p>
     <a href="/articles/size-comparison-tool" onclick="try{window.gtag&&window.gtag('event','tool_cta_click',{position:'average_article'})}catch(e){}" class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-yellow-400 py-3 px-4 font-bold text-gray-900 no-underline hover:bg-yellow-300">🍌 ちんこ偏差値チェッカーで調べる</a>
   </div>`;
 
@@ -166,7 +166,7 @@ export async function fillLiveSections(html: string): Promise<string> {
     const replacement = section
       ? await section().catch((error) => {
           console.error(`[articles] ${name} を作れませんでした:`, error);
-          return '<p class="text-gray-400">いまデータを表示できません。時間をおいてもう一度ご覧ください。</p>';
+          return '<p class="text-gray-500">いまデータを表示できません。時間をおいてもう一度ご覧ください。</p>';
         })
       : '';
     // 段落（<p>）に包まれていれば段落ごと置き換える

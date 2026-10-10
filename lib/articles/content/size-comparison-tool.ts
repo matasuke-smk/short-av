@@ -15,15 +15,15 @@ export const article: Article = {
 }
 
 .tool-card {
-  background: #1f2937;
-  border: 1px solid #374151;
+  background: #fff;
+  border: 1px solid #e5e5e5;
   border-radius: 10px;
   padding: 16px;
   margin-bottom: 16px;
 }
 
 .tool-card h3 {
-  color: #fff;
+  color: #111;
   font-size: 1.1rem;
   margin-bottom: 16px;
   font-weight: bold;
@@ -35,7 +35,7 @@ export const article: Article = {
 
 .form-label {
   display: block;
-  color: #d1d5db;
+  color: #333;
   font-size: 0.95rem;
   margin-bottom: 8px;
   font-weight: 500;
@@ -44,10 +44,10 @@ export const article: Article = {
 .form-input {
   width: 100%;
   padding: 12px;
-  background: #111827;
-  border: 1px solid #374151;
+  background: #fff;
+  border: 1px solid #d4d4d4;
   border-radius: 8px;
-  color: #fff;
+  color: #111;
   font-size: 1rem;
   box-sizing: border-box;
 }
@@ -66,7 +66,7 @@ export const article: Article = {
 .radio-label {
   display: flex;
   align-items: center;
-  color: #d1d5db;
+  color: #333;
   cursor: pointer;
 }
 
@@ -193,28 +193,28 @@ export const article: Article = {
 }
 
 .condom-recommendation {
-  background: #065f46;
-  border: 1px solid #059669;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
   border-radius: 6px;
   padding: 10px 12px;
   margin-top: 12px;
 }
 
 .condom-title {
-  color: #6ee7b7;
+  color: #047857;
   font-size: 0.85rem;
   font-weight: bold;
   margin-bottom: 4px;
 }
 
 .condom-size {
-  color: #fff;
+  color: #064e3b;
   font-size: 1.1rem;
   font-weight: bold;
 }
 
 .condom-note {
-  color: #d1fae5;
+  color: #065f46;
   font-size: 0.75rem;
   margin-top: 4px;
 }
@@ -226,15 +226,15 @@ export const article: Article = {
 }
 
 .disclaimer {
-  background: #7c2d12;
-  border: 1px solid #ea580c;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
   border-radius: 6px;
   padding: 12px;
   margin-top: 16px;
 }
 
 .disclaimer-text {
-  color: #fed7aa;
+  color: #9a3412;
   font-size: 0.8rem;
   line-height: 1.5;
 }
@@ -332,21 +332,21 @@ export const article: Article = {
 }
 
 .tool-lead {
-  color: #d1d5db;
+  color: #333;
   margin-bottom: 1rem;
   line-height: 1.7;
 }
-.tool-lead strong { color: #fff; }
+.tool-lead strong { color: #111; }
 .form-hint {
-  color: #9ca3af;
+  color: #666;
   font-size: 0.85rem;
   margin-top: 8px;
   line-height: 1.5;
 }
 .tool-error {
-  color: #fca5a5;
-  background: rgba(127, 29, 29, 0.35);
-  border: 1px solid #991b1b;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 12px;
@@ -426,23 +426,23 @@ export const article: Article = {
   gap: 6px;
   padding: 12px 16px;
   border-radius: 10px;
-  border: 1px solid #4b5563;
-  background: #111827;
-  color: #fff;
+  border: 1px solid #d4d4d4;
+  background: #fff;
+  color: #111;
   font-weight: bold;
   font-size: 0.95rem;
   text-decoration: none;
   cursor: pointer;
 }
-.btn-share:hover { background: #1f2937; }
+.btn-share:hover { background: #f5f5f5; }
 .btn-share-x {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
+  background: #000;
+  color: #fff;
+  border-color: #000;
 }
-.btn-share-x:hover { background: #e5e7eb; }
+.btn-share-x:hover { background: #262626; }
 .share-note {
-  color: #9ca3af;
+  color: #666;
   font-size: 0.8rem;
   margin-top: 8px;
 }
@@ -493,7 +493,7 @@ export const article: Article = {
 
     <p id="toolError" class="tool-error" hidden></p>
     <button class="btn-calculate" id="calculateBtn">偏差値を計算する</button>
-    <p class="form-hint" style="margin-top: 10px;">押すと、入力した長さ・太さ・年齢層（任意）とブラウザごとの匿名IDが保存され、下の「集まったデータ」の集計に使われます（同じブラウザからは最初の1回分のみ）。氏名などの入力はありません。<a href="/privacy" style="color: #60a5fa; text-decoration: underline;">プライバシーポリシー</a></p>
+    <p class="form-hint" style="margin-top: 10px;">押すと、入力した長さ・太さ・年齢層（任意）とブラウザごとの匿名IDが保存され、下の「集まったデータ」の集計に使われます（同じブラウザからは最初の1回分のみ）。氏名などの入力はありません。<a href="/privacy" style="color: #2563eb; text-decoration: underline;">プライバシーポリシー</a></p>
   </div>
 
   <div id="resultContainer" class="result-hidden">
@@ -545,7 +545,7 @@ export const article: Article = {
       <div class="condom-recommendation">
         <div class="condom-title">コンドームサイズの目安</div>
         <div class="condom-size" id="condomSize">Mサイズ前後</div>
-        <div class="condom-note">※ あくまで目安です。S・M・L の基準はメーカーごとに異なります。選び方は<a href="/articles/condom-size-guide" style="color: #93c5fd; text-decoration: underline;">コンドームのサイズの選び方</a>へ</div>
+        <div class="condom-note">※ あくまで目安です。S・M・L の基準はメーカーごとに異なります。選び方は<a href="/articles/condom-size-guide" style="color: #047857; text-decoration: underline;">コンドームのサイズの選び方</a>へ</div>
       </div>
 
       <div class="share-row">
@@ -883,12 +883,12 @@ export const article: Article = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#e5e7eb', font: { size: 12 } } },
+          legend: { labels: { color: '#333', font: { size: 12 } } },
           tooltip: { backgroundColor: 'rgba(17, 24, 39, 0.95)', titleColor: '#e5e7eb', bodyColor: '#e5e7eb', borderColor: '#374151', borderWidth: 1 }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#9ca3af' }, grid: { color: 'rgba(75, 85, 99, 0.3)' } },
-          x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(75, 85, 99, 0.3)' } }
+          y: { beginAtZero: true, ticks: { color: '#666' }, grid: { color: 'rgba(0, 0, 0, 0.08)' } },
+          x: { ticks: { color: '#666' }, grid: { color: 'rgba(0, 0, 0, 0.08)' } }
         }
       }
     });
@@ -897,24 +897,24 @@ export const article: Article = {
 </script>
 
 <!-- サイトの本体（スワイプ画面）への導線。ツール記事は HTML なので SwipeCta（React）の代わりに同じ見た目をここに置く。押した回数は article_cta_click（position: mid） -->
-<section class="not-prose" style="margin-top: 40px; border: 1px solid rgba(29, 78, 216, 0.6); background: rgba(23, 37, 84, 0.3); border-radius: 16px; padding: 20px 24px;">
-  <h2 class="text-xl md:text-2xl font-bold text-white" style="margin: 0;">サンプル動画をスワイプで見てみる</h2>
-  <p class="text-sm md:text-base text-gray-300" style="margin-top: 8px;">このサイトの本体は、FANZA の人気作・新作のサンプル動画を縦スワイプで次々チェックできる画面です。会員登録は要りません。気になった作品はそのまま FANZA で買えます。</p>
-  <a href="/" onclick="try{window.gtag&&window.gtag('event','article_cta_click',{article:'size-comparison-tool',position:'mid',content_id:'home'})}catch(e){}" style="margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; background: #2563eb; padding: 12px 16px; font-weight: bold; color: #fff; text-decoration: none;">
+<section class="not-prose" style="margin-top: 40px; border: 1px solid #e5e5e5; background: #fafafa; border-radius: 16px; padding: 20px 24px;">
+  <h2 class="text-xl md:text-2xl font-bold text-gray-900" style="margin: 0;">サンプル動画をスワイプで見てみる</h2>
+  <p class="text-sm md:text-base text-gray-700" style="margin-top: 8px;">このサイトの本体は、FANZA の人気作・新作のサンプル動画を縦スワイプで次々チェックできる画面です。会員登録は要りません。気になった作品はそのまま FANZA で買えます。</p>
+  <a href="/" onclick="try{window.gtag&&window.gtag('event','article_cta_click',{article:'size-comparison-tool',position:'mid',content_id:'home'})}catch(e){}" style="margin-top: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; background: #111; padding: 12px 16px; font-weight: bold; color: #fff; text-decoration: none;">
     <span aria-hidden="true">▶</span> スワイプ画面を開く
   </a>
 </section>
 
 <div class="tool-card" style="margin-top: 40px;">
-  <h2 class="text-xl md:text-2xl font-bold mb-4 text-white">このツールについて</h2>
+  <h2 class="text-xl md:text-2xl font-bold mb-4 text-gray-900">このツールについて</h2>
 
-  <p class="mb-4 text-gray-300">このツールは、下記の目安値・研究データの平均値と比べて、入力したサイズがおおよそどのあたりに位置するかを表示します。対象は勃起時のサイズのみです。結果は統計上の目安で、医学的な診断ではありません。</p>
+  <p class="mb-4 text-gray-700">このツールは、下記の目安値・研究データの平均値と比べて、入力したサイズがおおよそどのあたりに位置するかを表示します。対象は勃起時のサイズのみです。結果は統計上の目安で、医学的な診断ではありません。</p>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">保存されるデータと使い方</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-gray-900">保存されるデータと使い方</h3>
 
-  <p class="mb-4 text-gray-300">「偏差値を計算する」を押すと、次の情報がサーバーに送信・保存されます。</p>
+  <p class="mb-4 text-gray-700">「偏差値を計算する」を押すと、次の情報がサーバーに送信・保存されます。</p>
 
-  <ul class="list-disc ml-6 space-y-1 text-gray-300 mb-4">
+  <ul class="list-disc ml-6 space-y-1 text-gray-700 mb-4">
     <li>長さ（mm）と直径（mm。外周で入力した場合は直径に換算した値）</li>
     <li>状態（このツールでは常に「勃起時」）</li>
     <li>年齢層（選んだ場合のみ）</li>
@@ -923,46 +923,46 @@ export const article: Article = {
     <li>登録日時</li>
   </ul>
 
-  <p class="mb-4 text-gray-300">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけで、同じ回線からの登録も30日に1件までです。詳しくは<a href="/privacy" class="text-blue-400 hover:text-blue-300 underline">プライバシーポリシー</a>をご覧ください。</p>
+  <p class="mb-4 text-gray-700">氏名・メールアドレスなどの入力欄はありません。保存したデータは匿名の統計（件数・平均・標準偏差）としてこのページに表示するために使います。同じブラウザから保存されるのは最初の1回分だけで、同じ回線からの登録も30日に1件までです。詳しくは<a href="/privacy" class="text-blue-600 hover:text-blue-800 underline">プライバシーポリシー</a>をご覧ください。</p>
 
-  <p class="mb-6 text-gray-300">結果の下の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
+  <p class="mb-6 text-gray-700">結果の下の「このツールに集まったデータ」は利用者の自己申告によるもので、測定方法も統一されていないため、参考程度にご覧ください。</p>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">計算に使っている値</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-gray-900">計算に使っている値</h3>
 
-  <p class="mb-3 text-gray-300">偏差値は「日本基準」と「世界基準」の2つを出しています。それぞれの平均と標準偏差は次のとおりです（すべて勃起時）。</p>
+  <p class="mb-3 text-gray-700">偏差値は「日本基準」と「世界基準」の2つを出しています。それぞれの平均と標準偏差は次のとおりです（すべて勃起時）。</p>
 
   <div class="overflow-x-auto mb-4">
     <table class="w-full text-sm md:text-base border-collapse" style="min-width: 520px;">
       <thead>
-        <tr class="text-gray-300">
-          <th class="text-left py-2 px-3 border-b border-gray-600"></th>
-          <th class="text-left py-2 px-3 border-b border-gray-600 text-white">日本基準</th>
-          <th class="text-left py-2 px-3 border-b border-gray-600 text-white">世界基準</th>
+        <tr class="text-gray-700">
+          <th class="text-left py-2 px-3 border-b border-gray-300"></th>
+          <th class="text-left py-2 px-3 border-b border-gray-300 text-gray-900">日本基準</th>
+          <th class="text-left py-2 px-3 border-b border-gray-300 text-gray-900">世界基準</th>
         </tr>
       </thead>
-      <tbody class="text-gray-200">
-        <tr class="border-b border-gray-700">
-          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">長さ</td>
-          <td class="py-3 px-3">平均 <strong class="text-white">12.4cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 1.8cm</span></td>
-          <td class="py-3 px-3">平均 <strong class="text-white">13.1cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 1.66cm</span></td>
+      <tbody class="text-gray-800">
+        <tr class="border-b border-gray-200">
+          <td class="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">長さ</td>
+          <td class="py-3 px-3">平均 <strong class="text-gray-900">12.4cm</strong><br><span class="text-gray-500 text-xs md:text-sm">標準偏差 1.8cm</span></td>
+          <td class="py-3 px-3">平均 <strong class="text-gray-900">13.1cm</strong><br><span class="text-gray-500 text-xs md:text-sm">標準偏差 1.66cm</span></td>
         </tr>
-        <tr class="border-b border-gray-700">
-          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">太さ（直径）</td>
-          <td class="py-3 px-3">平均 <strong class="text-white">3.6cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 0.36cm</span></td>
-          <td class="py-3 px-3">平均 <strong class="text-white">3.7cm</strong><br><span class="text-gray-400 text-xs md:text-sm">標準偏差 0.35cm（外周 11.7cm±1.1cm から換算）</span></td>
+        <tr class="border-b border-gray-200">
+          <td class="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">太さ（直径）</td>
+          <td class="py-3 px-3">平均 <strong class="text-gray-900">3.6cm</strong><br><span class="text-gray-500 text-xs md:text-sm">標準偏差 0.36cm</span></td>
+          <td class="py-3 px-3">平均 <strong class="text-gray-900">3.7cm</strong><br><span class="text-gray-500 text-xs md:text-sm">標準偏差 0.35cm（外周 11.7cm±1.1cm から換算）</span></td>
         </tr>
-        <tr class="border-b border-gray-700">
-          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">どんな数字か</td>
+        <tr class="border-b border-gray-200">
+          <td class="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">どんな数字か</td>
           <td class="py-3 px-3">国内の複数の調査（勃起時の長さはおおむね12〜14cm）を参考にした目安値。単一の調査の値ではない</td>
           <td class="py-3 px-3">医療者が測定した研究を集めたメタ分析の平均値（1万5千人超）</td>
         </tr>
-        <tr class="border-b border-gray-700">
-          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">出典</td>
-          <td class="py-3 px-3">国内の調査報告（<a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">ちんこの平均サイズは何cm？</a>の記事にまとめ）</td>
+        <tr class="border-b border-gray-200">
+          <td class="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">出典</td>
+          <td class="py-3 px-3">国内の調査報告（<a href="/articles/japanese-penis-size-data" class="text-blue-600 hover:text-blue-800 underline">ちんこの平均サイズは何cm？</a>の記事にまとめ）</td>
           <td class="py-3 px-3">Veale ら（2015年）BJU International</td>
         </tr>
         <tr>
-          <td class="py-3 px-3 font-bold text-white whitespace-nowrap">使う場所</td>
+          <td class="py-3 px-3 font-bold text-gray-900 whitespace-nowrap">使う場所</td>
           <td class="py-3 px-3">総合の偏差値（大きな数字）、100人中の順位、上位%、「○○並み」</td>
           <td class="py-3 px-3">「世界基準では」の偏差値、グラフの比較、「海外の研究の平均も超え」の判定</td>
         </tr>
@@ -970,50 +970,50 @@ export const article: Article = {
     </table>
   </div>
 
-  <p class="mb-6 text-gray-300 text-sm">参考: 海外の研究の平常時（勃起していないとき）の長さの平均は約9.2cm。このツールは勃起時のみを扱います。国ごとの平均（「○○の平均並み」）は別の資料（WorldData.info）によるもので、上の2つの基準とは別です。</p>
+  <p class="mb-6 text-gray-700 text-sm">参考: 海外の研究の平常時（勃起していないとき）の長さの平均は約9.2cm。このツールは勃起時のみを扱います。国ごとの平均（「○○の平均並み」）は別の資料（WorldData.info）によるもので、上の2つの基準とは別です。</p>
 
-  <p class="mb-6 text-gray-300">計算では、これらの値が正規分布に従うと仮定しています。実際の分布とは異なる場合があるため、パーセンタイルや「100人中○位」は大まかな目安として受け止めてください。</p>
+  <p class="mb-6 text-gray-700">計算では、これらの値が正規分布に従うと仮定しています。実際の分布とは異なる場合があるため、パーセンタイルや「100人中○位」は大まかな目安として受け止めてください。</p>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">偏差値と「100人中なん位」の意味</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-gray-900">偏差値と「100人中なん位」の意味</h3>
 
-  <p class="mb-4 text-gray-300">偏差値は、平均を50、標準偏差1つぶんを10として位置を表した数字です（学校のテストの偏差値と同じ計算）。目安値どおりなら50、平均より標準偏差1つぶん大きければ60、小さければ40になります。総合の偏差値は長さと太さの偏差値の平均です。「日本基準」は日本の目安値、「世界基準」は海外の研究の平均（Veale ら 2015）をもとに計算しています。</p>
+  <p class="mb-4 text-gray-700">偏差値は、平均を50、標準偏差1つぶんを10として位置を表した数字です（学校のテストの偏差値と同じ計算）。目安値どおりなら50、平均より標準偏差1つぶん大きければ60、小さければ40になります。総合の偏差値は長さと太さの偏差値の平均です。「日本基準」は日本の目安値、「世界基準」は海外の研究の平均（Veale ら 2015）をもとに計算しています。</p>
 
-  <p class="mb-6 text-gray-300">「100人中なん位」は、同じ分布の100人を大きい順に並べたときのおおよその順位です。偏差値60なら上位16%程度（100人中16位くらい）、偏差値40なら下位16%程度にあたります。</p>
+  <p class="mb-6 text-gray-700">「100人中なん位」は、同じ分布の100人を大きい順に並べたときのおおよその順位です。偏差値60なら上位16%程度（100人中16位くらい）、偏差値40なら下位16%程度にあたります。</p>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">測定のコツ</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-gray-900">測定のコツ</h3>
 
-  <p class="mb-4 text-gray-300">測り方によって数値は大きく変わることがあります。次のポイントを押さえましょう。</p>
+  <p class="mb-4 text-gray-700">測り方によって数値は大きく変わることがあります。次のポイントを押さえましょう。</p>
 
-  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-4">
-    <div class="font-bold text-white mb-2">■ 長さの測定</div>
-    <ul class="list-disc ml-6 space-y-1 text-gray-300">
+  <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+    <div class="font-bold text-gray-900 mb-2">■ 長さの測定</div>
+    <ul class="list-disc ml-6 space-y-1 text-gray-700">
       <li>勃起した状態で測定</li>
       <li>定規を根元の恥骨に軽く当て、上側から先端まで測る</li>
       <li>定規を使って真っすぐ測る</li>
     </ul>
   </div>
 
-  <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-    <div class="font-bold text-white mb-2">■ 太さの測定</div>
-    <ul class="list-disc ml-6 space-y-1 text-gray-300">
+  <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+    <div class="font-bold text-gray-900 mb-2">■ 太さの測定</div>
+    <ul class="list-disc ml-6 space-y-1 text-gray-700">
       <li>柔らかいメジャーで外周を測る（紙テープに印を付けて定規で測ってもよい）</li>
       <li>直径を直接測るのは難しいため、外周で入力するのがおすすめ</li>
       <li>竿の中ほど（一番太いあたり）で測る</li>
     </ul>
   </div>
 
-  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-white">コンドームサイズの選び方</h3>
+  <h3 class="text-lg md:text-xl font-bold mt-6 mb-3 text-gray-900">コンドームサイズの選び方</h3>
 
-  <p class="mb-4 text-gray-300">コンドームは自分に合ったサイズを選ぶことが大切です。きつすぎると痛みや破損の原因になり、緩すぎると外れやすくなります。</p>
+  <p class="mb-4 text-gray-700">コンドームは自分に合ったサイズを選ぶことが大切です。きつすぎると痛みや破損の原因になり、緩すぎると外れやすくなります。</p>
 
-  <p class="mb-6 text-gray-300">このツールが表示するサイズは外周から見た大まかな目安です。S・M・L などの基準はメーカーによって異なるため、購入前に各メーカーのサイズ表（公称幅）を確認してください。選び方は<a href="/articles/condom-size-guide" class="text-blue-400 hover:text-blue-300 underline">コンドームのサイズ選びガイド</a>で詳しく解説しています。</p>
+  <p class="mb-6 text-gray-700">このツールが表示するサイズは外周から見た大まかな目安です。S・M・L などの基準はメーカーによって異なるため、購入前に各メーカーのサイズ表（公称幅）を確認してください。選び方は<a href="/articles/condom-size-guide" class="text-blue-600 hover:text-blue-800 underline">コンドームのサイズ選びガイド</a>で詳しく解説しています。</p>
 
-  <h2 class="text-xl md:text-2xl font-bold mt-8 mb-4 text-white">関連記事</h2>
+  <h2 class="text-xl md:text-2xl font-bold mt-8 mb-4 text-gray-900">関連記事</h2>
 
   <ul class="list-disc ml-6 space-y-2">
-    <li><a href="/articles/japanese-penis-size-data" class="text-blue-400 hover:text-blue-300 underline">ちんこの平均サイズは何cm？日本人男性の長さ・太さのデータまとめ</a></li>
-    <li><a href="/articles/condom-size-guide" class="text-blue-400 hover:text-blue-300 underline">コンドームのサイズ選びガイド</a></li>
-    <li><a href="/articles/penis-size-satisfaction-truth" class="text-blue-400 hover:text-blue-300 underline">ペニスサイズと満足度の真実</a></li>
+    <li><a href="/articles/japanese-penis-size-data" class="text-blue-600 hover:text-blue-800 underline">ちんこの平均サイズは何cm？日本人男性の長さ・太さのデータまとめ</a></li>
+    <li><a href="/articles/condom-size-guide" class="text-blue-600 hover:text-blue-800 underline">コンドームのサイズ選びガイド</a></li>
+    <li><a href="/articles/penis-size-satisfaction-truth" class="text-blue-600 hover:text-blue-800 underline">ペニスサイズと満足度の真実</a></li>
   </ul>
 </div>
   `.trim(),

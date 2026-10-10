@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300"><defs>
+  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f472b6"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+  <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+  <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fb923c"/><stop offset="1" stop-color="#e11d48"/></linearGradient>
+</defs>
+  <rect width="1200" height="300" fill="#0a0a0a"/>
+  <clipPath id="clip-70-30"><rect x="82" y="42" width="96" height="216" rx="13"/></clipPath>
+  <rect x="70" y="30" width="120" height="240" rx="22" fill="#171717" stroke="#3f3f46" stroke-width="2.88"/>
+  <g clip-path="url(#clip-70-30)">
+    <rect x="82" y="-8" width="96" height="101" rx="11" fill="url(#g1)" opacity="0.45"/><rect x="82" y="100" width="96" height="101" rx="11" fill="url(#g2)" opacity="1"/><rect x="82" y="208" width="96" height="101" rx="11" fill="url(#g3)" opacity="0.45"/>
+    <polygon points="118.4,136 118.4,165 147.4,150.5" fill="#fff"/>
+  </g>
+  <polyline points="202,136.2 219,119.2 236,136.2" fill="none" stroke="#fff" stroke-width="4.760000000000001" stroke-linecap="round" stroke-linejoin="round" opacity="1"/><polyline points="202,165 219,148 236,165" fill="none" stroke="#fff" stroke-width="4.760000000000001" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/><polyline points="202,193.79999999999998 219,176.79999999999998 236,193.79999999999998" fill="none" stroke="#fff" stroke-width="4.760000000000001" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/><text x="260" y="118" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif" font-weight="800" font-size="46" fill="#fff" text-anchor="start">サンプル動画を、縦スワイプで次々と</text><text x="260" y="166" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif" font-weight="500" font-size="22" fill="#a3a3a3" text-anchor="start">FANZA の人気作・新作のサンプルを、会員登録なしで。気になったらそのまま FANZA へ</text><text x="1130" y="60" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif" font-weight="700" font-size="18" fill="#737373" text-anchor="end">Short AV</text><rect x="260" y="200" width="300" height="64" rx="32" fill="#2563eb"/>
+  <text x="410" y="232" dominant-baseline="central" text-anchor="middle" font-family="'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif" font-weight="700" font-size="24" fill="#fff">スワイプ画面を開く ▶</text>
+</svg>
