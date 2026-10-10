@@ -11,8 +11,9 @@ import { blendByPreference, getPreference, type Preference } from '@/lib/prefere
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds, portraitBannerIds } from '@/config/banners';
+import { landscapeBannerIds, portraitBannerIds, pcWidgets } from '@/config/banners';
 import DMMBanner from './DMMBanner';
+import DMMWidget from './DMMWidget';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
@@ -1022,7 +1023,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
                     <div
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-2rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-10rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
                       style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
                       onClick={handleThumbnailClick}
                     >
@@ -1100,6 +1101,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         <span className="text-gray-400">サイト認証後に表示</span>
                       )}
                     </div>
+
+                    {/* PC: サムネイルの下の空いた帯に FANZA の商品ウィジェット（728×90、人気順）。表示中の作品のときだけ読み込む */}
+                    {index === currentIndex && (
+                      <div className="hidden lg:flex justify-center flex-shrink-0 mt-3">
+                        <DMMWidget widgetId={pcWidgets.bottom.id} width={pcWidgets.bottom.width} height={pcWidgets.bottom.height} style={{ width: 'min(728px, 100%)' }} />
+                      </div>
+                    )}
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     {index === currentIndex && !isLandscape && (fit?.showBanner ?? true) && (
@@ -1286,15 +1294,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
-        {/* PC: 縦長バナー（160×600）を右の欄の下に。高さに収まるよう縮める */}
+        {/* PC: 右の欄の下に FANZA の商品ウィジェット（300×600、人気順）。以前の縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2">
-          {currentVideo && (
-            <DMMBanner
-              key={`pc-portrait-banner-${currentVideo.id}-${currentIndex}`}
-              bannerId={portraitBannerIds[currentIndex % 2]}
-              className="h-full max-h-[600px]"
-            />
-          )}
+          <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
         </div>
 
         {/* ボタンエリア - 3列グリッド（PC は画面の左端に縦1列のメニューとして固定） */}
