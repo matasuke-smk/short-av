@@ -14,10 +14,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds, pcWidgets } from '@/config/banners';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
+import FirstTimeLinks from './FirstTimeLinks';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
-import InAppBrowserNotice, { INAPP_REOPEN_PARAM, inAppPlatform, type InAppPlatform } from './InAppBrowserNotice';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
@@ -55,7 +55,6 @@ import {
   trackDoujinView,
   trackDoujinComplete,
   trackModeSwitch,
-  trackInAppNotice,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
 
@@ -401,70 +400,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     via: swipeCountRef.current > 0 ? 'swipe' : 'direct',
   }), [isFiniteList]);
 
-  // アプリ内ブラウザで FANZA へのボタンを押したら、すぐ開かずに「ブラウザで開く」案内を出す（InAppBrowserNotice）。
-  // label は案内の手順3に出すボタンの名前、track はそのまま開いたときに送る GA のイベント
-  const [inAppNotice, setInAppNotice] = useState<{ url: string; platform: InAppPlatform; label: string; track: () => void; restoreUrl: string } | null>(null);
-  // 案内のとおり「ブラウザで開く」で開き直された: 目印（?inapp=1）付きで、アプリ内ブラウザ以外で開かれたら記録する。目印はすぐ外す
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has(INAPP_REOPEN_PARAM)) return;
-    if (!inAppPlatform()) trackInAppNotice('reopened');
-    url.searchParams.delete(INAPP_REOPEN_PARAM);
-    window.history.replaceState(window.history.state, '', url.toString());
+  // FANZA へのボタン。アプリ内ブラウザ（X など）でもそのまま開く。
+  // 以前は「ブラウザで開く」案内（モーダル）を出していたが、見た人の4割が閉じて FANZA を開かず、開き直したのは4%だけだった（10/9〜10）。
+  // その場で買えば報酬は付くので、止めずに開く方がよい（2026-10-10）
+  const handleFanzaClick = useCallback((_e: React.MouseEvent<HTMLAnchorElement>, _label: string, track: () => void, _doujinId?: string) => {
+    track();
   }, []);
-  const handleFanzaClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, label: string, track: () => void, doujinId?: string) => {
-    const platform = inAppPlatform();
-    if (!platform) {
-      track();
-      return;
-    }
-    // 案内は1人1日1回だけ。2回目以降はそのまま開く（毎回出すと閉じられてクリックごと消えていた。10/10: 案内を見た人の4割が閉じていた）
-    const noticeKey = 'short-av-inapp-notice-date';
-    const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
-    let shownToday = false;
-    try {
-      shownToday = localStorage.getItem(noticeKey) === today;
-    } catch {
-      // 読めなければ毎回出す
-    }
-    if (shownToday) {
-      track();
-      return;
-    }
-    try {
-      localStorage.setItem(noticeKey, today);
-    } catch {
-      // 保存できなくても動作には影響しない
-    }
-    e.preventDefault();
-    const fanzaUrl = e.currentTarget.href;
-    const showNotice = () => {
-      // 案内の間だけアドレスを変え、閉じたら元に戻す。
-      // - 目印（?inapp=1）: 「ブラウザで開く」はこのアドレスをそのまま開くので、開き直した先で目印を見て回数を記録する（上の useEffect）
-      // - 同人誌はスワイプしてもアドレスが変わらないので、開き直したときに同じ作品が出るよう ?mode=doujin&d= にする
-      const restoreUrl = window.location.href;
-      const url = new URL(window.location.href);
-      url.searchParams.set(INAPP_REOPEN_PARAM, '1');
-      if (doujinId) {
-        url.searchParams.delete('v');
-        url.searchParams.set('mode', 'doujin');
-        url.searchParams.set('d', doujinId);
-      }
-      window.history.replaceState(window.history.state, '', url.toString());
-      setInAppNotice({ url: fanzaUrl, platform, label, track, restoreUrl });
-      trackInAppNotice('show');
-    };
-    // Android も最初から案内を出す。以前は intent:// で普段のブラウザへの自動の切り替えを試していたが、
-    // X の Android 版は intent を拒否して赤く「このアクションを実行できるアプリはありません」と出すだけだった（2026-10-09 実機で確認）
-    showNotice();
-  }, []);
-  const closeInAppNotice = (openAnyway: boolean) => {
-    if (!inAppNotice) return;
-    window.history.replaceState(window.history.state, '', inAppNotice.restoreUrl);
-    if (openAnyway) inAppNotice.track();
-    trackInAppNotice(openAnyway ? 'open_anyway' : 'close');
-    setInAppNotice(null);
-  };
 
   // 補充に失敗したら、しばらく再試行しない（失敗→即再試行の繰り返しでリクエストが止まらなくなるのを防ぐ）
   const refillBlockedUntilRef = useRef(0);
@@ -1140,6 +1081,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         >
                           本編を FANZA で見る{video.price ? `　¥${video.price.toLocaleString()}〜` : ''}
                         </a>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <FirstTimeLinks position="sample_end" className="mt-2" />
+                        </div>
                         <div className="mt-1 text-gray-400 text-xs">
                           <span className="lg:hidden">↑ 上にスワイプで次の作品</span>
                           <span className="hidden lg:inline">↓ キーかホイールで次の作品</span>
@@ -1321,6 +1265,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           ) : (
             <div />
           )}
+          {/* PC: 価格ボタンの下に「初めての人」向けのリンク（初回500円OFF・FANZA TV 無料体験） */}
+          {enableAffiliateLinks && <FirstTimeLinks position="pc_price" className="col-span-2" />}
         </div>
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
@@ -1920,13 +1866,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         }}
       />
 
-      <InAppBrowserNotice
-        url={inAppNotice?.url ?? null}
-        platform={inAppNotice?.platform ?? 'ios'}
-        buttonLabel={inAppNotice?.label ?? ''}
-        onOpenAnyway={() => closeInAppNotice(true)}
-        onClose={() => closeInAppNotice(false)}
-      />
     </div>
   );
 }

@@ -17,6 +17,7 @@
 export const landscapeBannerIds: string[] = [
   '1082_640_200',
   '1083_640_200',
+  '1277_640_200', // FANZA TV（14日間無料体験・月額550円で2200作品以上見放題）。無料お試し登録の報酬が大きい（2026-10-10 追加）
 ];
 
 /**
@@ -27,7 +28,17 @@ export const landscapeBannerIds: string[] = [
 export const portraitBannerIds: string[] = [
   '1082_160_600',
   '1083_160_600',
+  '1277_160_600', // FANZA TV
 ];
+
+/**
+ * 「初めての人」向けのリンク（サービス新規の報酬が大きい: 動画の新規購入 2,100円、FANZA TV の無料お試し登録 2,750円。いずれも 2026-10 の報酬UP中の料率）
+ * 形式は年齢確認画面のクーポンのリンクと同じ（al.fanza.co.jp）。FANZA TV は tv.dmm.co.jp
+ */
+export const firstTimeLinks = {
+  coupon: 'https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&af_id=matasuke-005&ch=link_tool&ch_id=link',
+  fanzaTv: 'https://al.fanza.co.jp?lurl=https%3A%2F%2Ftv.dmm.co.jp%2F&af_id=matasuke-005&ch=link_tool&ch_id=link',
+} as const;
 
 /**
  * PC だけで使う商品ウィジェット（DMM アフィリエイトの「ウィジェット作成」で 2026-10-10 に作成。FANZA → 動画 → ビデオ、人気順、固定表示、枠線なし）

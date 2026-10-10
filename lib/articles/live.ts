@@ -1,3 +1,4 @@
+import { firstTimeLinks } from '@/config/banners';
 import { unstable_cache } from 'next/cache';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { runReports } from '@/lib/ga-data';
@@ -150,8 +151,18 @@ const checkerCta = async () =>
     <a href="/articles/size-comparison-tool" onclick="try{window.gtag&&window.gtag('event','tool_cta_click',{position:'average_article'})}catch(e){}" class="mt-4 flex items-center justify-center gap-2 rounded-xl bg-yellow-400 py-3 px-4 font-bold text-gray-900 no-underline hover:bg-yellow-300">🍌 ちんこ偏差値チェッカーで調べる</a>
   </div>`;
 
+// FANZA TV（見放題）の案内。無料お試し登録の報酬が大きい。記事「FANZA で安く買う方法」の見放題の段落の後に出す
+const fanzaTvCta = async () =>
+  `<div class="not-prose my-6 rounded-2xl border border-gray-200 bg-gray-50 p-5 md:p-6">
+    <p class="text-lg md:text-xl font-bold text-gray-900 m-0">月に何本も見るなら、FANZA TV の14日間無料体験から</p>
+    <p class="mt-2 text-sm md:text-base text-gray-600 m-0">月額550円（税込）で2,200作品以上が見放題。まず14日間の無料体験で、見たい作品やメーカーが入っているかを確かめられます。期間内に解約すれば料金はかかりません。</p>
+    <a href="${firstTimeLinks.fanzaTv}" target="_blank" rel="noopener noreferrer sponsored" onclick="try{window.gtag&&window.gtag('event','first_time_link_click',{kind:'fanza_tv',position:'article_save_money'})}catch(e){}" class="mt-4 flex items-center justify-center gap-2 rounded-full bg-gray-900 hover:bg-gray-700 py-3 font-bold text-white no-underline">FANZA TV を14日間無料で試す</a>
+    <p class="mt-2 text-xs text-gray-400 m-0">※ 広告（アフィリエイト）リンクです</p>
+  </div>`;
+
 const SECTIONS: Record<string, () => Promise<string>> = {
   'checker-cta': checkerCta,
+  'fanza-tv': fanzaTvCta,
   'long-samples': longSamples,
   'popular-week': popularWeek,
   'size-report': sizeReport,
