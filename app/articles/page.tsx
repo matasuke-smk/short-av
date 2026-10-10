@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
+import { getAllArticles, getArticleModifiedAt, getArticleEyecatch } from '@/lib/articles';
 import ArticleLink from './ArticleLink';
 import SwipeBanner from './SwipeBanner';
 import type { Metadata } from 'next';
@@ -70,9 +70,9 @@ export default async function ArticlesPage() {
             <ArticleLink
               key={article.slug}
               article={article}
-              className="group block py-6 md:py-8"
+              className="group block py-5 md:py-7"
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 md:gap-8">
                 <div className="min-w-0 flex-1">
                   {article.pinned && (
                     <p className="text-xs font-bold text-gray-500 mb-2">ツール</p>
@@ -93,9 +93,15 @@ export default async function ArticlesPage() {
                     </div>
                   )}
                 </div>
-                <svg className="mt-1 w-5 h-5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getArticleEyecatch(article)}
+                  alt=""
+                  loading="lazy"
+                  width={1200}
+                  height={630}
+                  className="w-24 md:w-44 aspect-[1200/630] rounded-lg object-cover flex-shrink-0 group-hover:opacity-90 transition-opacity"
+                />
               </div>
             </ArticleLink>
           ))}

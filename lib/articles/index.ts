@@ -20,3 +20,8 @@ export function getAllArticles(): Article[] {
     return byDate !== 0 ? byDate : a.slug.localeCompare(b.slug);
   });
 }
+
+/** 記事のアイキャッチ画像（記事一覧・記事ページの見出し・OG 画像に使う）。専用の OG 画像がある記事はそれ、なければ docs/eyecatch/build.js で生成したもの */
+export function getArticleEyecatch(article: Article): string {
+  return article.ogImage ?? `/eyecatch/${article.slug}.png`;
+}
