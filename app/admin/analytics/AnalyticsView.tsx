@@ -599,8 +599,11 @@ function RangeBody({
   // 実質的な見込み客: 普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。アプリ内ブラウザ（X など）で開くと、
   // あとで普段のブラウザで買っても報酬にならないため除く
   const IN_APP_BROWSERS = ['Safari (in-app)', 'Android Webview'];
-  const browserRows = osRows.filter((r) => !IN_APP_BROWSERS.includes(r.browser) && r.clicks > 0);
+  // 普段のブラウザで来た人すべて（FANZA を押していない人も含む。報酬が付く状態で来ている「届く範囲」）
+  const normalRows = osRows.filter((r) => !IN_APP_BROWSERS.includes(r.browser));
+  const browserRows = normalRows.filter((r) => r.clicks > 0);
   const prospects = {
+    reach: normalRows.reduce((sum, r) => sum + r.users, 0),
     clicks: browserRows.reduce((sum, r) => sum + r.clicks, 0),
     users: browserRows.reduce((sum, r) => sum + r.clickUsers, 0),
     allClicks: osRows.reduce((sum, r) => sum + r.clicks, 0),
@@ -681,10 +684,10 @@ function RangeBody({
             onClick={() => setDetail('clicked')}
           />
           <KpiCard
-            label="見込み客"
-            value={fmt(prospects.users)}
+            label="普段のブラウザで来た人"
+            value={fmt(prospects.reach)}
             unit="人"
-            sub={`普段のブラウザで ${fmt(prospects.clicks)}回（${pct(prospects.clicks, prospects.allClicks)}）`}
+            sub={`うち FANZA を押した見込み客 ${fmt(prospects.users)}人（${pct(prospects.users, prospects.reach)}）`}
             onClick={() => setDetail('prospects')}
           />
           <KpiCard
@@ -867,23 +870,29 @@ function RangeBody({
         )}
         {detail === 'prospects' && (
           <DetailModal
-            title="実質的な見込み客"
-            note="普段のブラウザ（Safari・Chrome など）で FANZA を開いた人。FANZA の報酬の記録（クッキー）は開いたブラウザに残るので、普段のブラウザで開いた人だけが、あとで買っても報酬になる。アプリ内ブラウザ（X など）で開いた人は除く。人数はブラウザごとの人数を足したもの（同じ人を2回数えることがある）。動画と同人誌の合計。"
+            title="普段のブラウザで来た人と、そのうちの見込み客"
+            note="上の段は普段のブラウザ（Safari・Chrome など）で来た人すべて。FANZA の報酬の記録（クッキー）は開いたブラウザに残るので、この人たちは FANZA まで連れていければ報酬になる。下の段（見込み客）はそのうち実際に FANZA を押した人。アプリ内ブラウザ（X など）で来た人は、あとで普段のブラウザで買っても報酬にならないため除く。Android の X は Chrome のタブで開くことがあり、その場合は Chrome（普段のブラウザ）として数える（報酬は付く）。人数はブラウザごとの人数を足したもの（同じ人を2回数えることがある）。動画と同人誌の合計。"
             onClose={closeDetail}
           >
             {(() => {
-              const rows = browserRows
-                .map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, clicks: r.clicks, users: r.clickUsers }))
-                .sort((a, b) => b.clicks - a.clicks);
-              const max = Math.max(...rows.map((r) => r.clicks), 1);
-              const inApp = osRows.filter((r) => IN_APP_BROWSERS.includes(r.browser)).reduce((sum, r) => sum + r.clicks, 0);
+              const rows = normalRows
+                .map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, users: r.users, clickUsers: r.clickUsers, clicks: r.clicks }))
+                .sort((a, b) => b.users - a.users);
+              const max = Math.max(...rows.map((r) => r.users), 1);
+              const inApp = osRows.filter((r) => IN_APP_BROWSERS.includes(r.browser));
+              const inAppUsers = inApp.reduce((sum, r) => sum + r.users, 0);
+              const inAppClicks = inApp.reduce((sum, r) => sum + r.clicks, 0);
               return (
                 <>
+                  <p className="mb-3 text-sm text-gray-300">
+                    普段のブラウザで来た {fmt(prospects.reach)}人 → FANZA を押した {fmt(prospects.users)}人（{pct(prospects.users, prospects.reach)}）。
+                    この割合が、来た人をどれだけ FANZA まで連れていけたか。
+                  </p>
                   {rows.map((r) => (
-                    <Bar key={r.key} label={r.label} value={r.clicks} max={max} right={`${fmt(r.clicks)}回（${fmt(r.users)}人）`} />
+                    <Bar key={r.key} label={r.label} value={r.users} max={max} right={`${fmt(r.users)}人 → 押した ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
                   ))}
                   <p className="mt-4 text-xs text-gray-400">
-                    除いたもの: アプリ内ブラウザで FANZA を開いた {fmt(Math.max(inApp, 0))}回（報酬になりにくい）
+                    除いたもの: アプリ内ブラウザで来た {fmt(inAppUsers)}人（FANZA を押した {fmt(inAppClicks)}回。報酬になりにくい）
                   </p>
                 </>
               );
