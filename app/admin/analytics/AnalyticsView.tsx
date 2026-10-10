@@ -579,12 +579,14 @@ function RangeBody({
   // 端末×ブラウザ（レポート 30）: [端末, ブラウザ, イベント] → [人数, 回数]
   const osBrowser = reports[30] ?? [];
   const osRows = (() => {
-    const byKey = new Map<string, { os: string; browser: string; users: number; clickUsers: number; clicks: number }>();
+    const byKey = new Map<string, { os: string; browser: string; users: number; playUsers: number; swipeUsers: number; clickUsers: number; clicks: number }>();
     for (const r of osBrowser) {
       const [os, browser, event] = r.dimensions;
       const key = `${os}/${browser}`;
-      const row = byKey.get(key) ?? { os, browser, users: 0, clickUsers: 0, clicks: 0 };
+      const row = byKey.get(key) ?? { os, browser, users: 0, playUsers: 0, swipeUsers: 0, clickUsers: 0, clicks: 0 };
       if (event === 'page_view') row.users += r.metrics[0];
+      if (event === 'video_view') row.playUsers += r.metrics[0];
+      if (event === 'swipe') row.swipeUsers += r.metrics[0];
       if (event === 'dmm_link_click') {
         row.clickUsers += r.metrics[0];
         row.clicks += r.metrics[1];
@@ -604,6 +606,8 @@ function RangeBody({
   const browserRows = normalRows.filter((r) => r.clicks > 0);
   const prospects = {
     reach: normalRows.reduce((sum, r) => sum + r.users, 0),
+    play: normalRows.reduce((sum, r) => sum + r.playUsers, 0),
+    swipe: normalRows.reduce((sum, r) => sum + r.swipeUsers, 0),
     clicks: browserRows.reduce((sum, r) => sum + r.clicks, 0),
     users: browserRows.reduce((sum, r) => sum + r.clickUsers, 0),
     allClicks: osRows.reduce((sum, r) => sum + r.clicks, 0),
@@ -876,7 +880,7 @@ function RangeBody({
           >
             {(() => {
               const rows = normalRows
-                .map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, users: r.users, clickUsers: r.clickUsers, clicks: r.clicks }))
+                .map((r) => ({ key: `${r.os}/${r.browser}`, label: `${r.os === 'iOS' ? 'iPhone' : r.os} ・ ${r.browser}`, users: r.users, playUsers: r.playUsers, clickUsers: r.clickUsers, clicks: r.clicks }))
                 .sort((a, b) => b.users - a.users);
               const max = Math.max(...rows.map((r) => r.users), 1);
               const inApp = osRows.filter((r) => IN_APP_BROWSERS.includes(r.browser));
@@ -884,12 +888,27 @@ function RangeBody({
               const inAppClicks = inApp.reduce((sum, r) => sum + r.clicks, 0);
               return (
                 <>
-                  <p className="mb-3 text-sm text-gray-300">
-                    普段のブラウザで来た {fmt(prospects.reach)}人 → FANZA を押した {fmt(prospects.users)}人（{pct(prospects.users, prospects.reach)}）。
-                    この割合が、来た人をどれだけ FANZA まで連れていけたか。
-                  </p>
+                  {/* 普段のブラウザで来た人の流れ。どこで落ちているかを見る（再生していなければ最初の画面、再生しても押さないなら押す瞬間の作り） */}
+                  <div className="mb-4 rounded-lg bg-gray-900/60 ring-1 ring-gray-700 p-3">
+                    <p className="text-xs text-gray-400 mb-2">普段のブラウザで来た人の流れ（人数と、来た人に対する割合）</p>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      {[
+                        ['来た', prospects.reach],
+                        ['サンプル再生', prospects.play],
+                        ['スワイプした', prospects.swipe],
+                        ['FANZA を押した', prospects.users],
+                      ].map(([label, n], i) => (
+                        <div key={String(label)} className="rounded bg-gray-800 py-2 px-1">
+                          <div className="text-[11px] text-gray-400 leading-tight">{label}</div>
+                          <div className="text-lg font-bold leading-tight">{fmt(Number(n))}<span className="text-xs font-normal text-gray-400">人</span></div>
+                          <div className="text-[11px] text-emerald-300">{i === 0 ? '100%' : pct(Number(n), prospects.reach)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[11px] text-gray-500">再生・スワイプは今日以降の集計から入ります（それ以前の期間は0になる）</p>
+                  </div>
                   {rows.map((r) => (
-                    <Bar key={r.key} label={r.label} value={r.users} max={max} right={`${fmt(r.users)}人 → 押した ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
+                    <Bar key={r.key} label={r.label} value={r.users} max={max} right={`${fmt(r.users)}人 → 再生 ${fmt(r.playUsers)}人 → 押した ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
                   ))}
                   <p className="mt-4 text-xs text-gray-400">
                     除いたもの: アプリ内ブラウザで来た {fmt(inAppUsers)}人（FANZA を押した {fmt(inAppClicks)}回。報酬になりにくい）

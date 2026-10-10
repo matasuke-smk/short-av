@@ -288,8 +288,9 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       dateRanges,
       dimensions: [{ name: 'operatingSystem' }, { name: 'browser' }, { name: 'eventName' }],
       metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
-      dimensionFilter: eventIn(['page_view', 'dmm_link_click']),
-      limit: 200,
+      // video_view（サンプル再生）と swipe は「普段のブラウザで来た人の流れ」（来た → 再生 → スワイプ → FANZA）に使う
+      dimensionFilter: eventIn(['page_view', 'video_view', 'swipe', 'dmm_link_click']),
+      limit: 400,
     },
     // 時間帯ごとの FANZA へのクリック（動画と同人誌の合計）。レポート 10 の2つ目の数字（以前はすべてのイベントの回数）に入れる
     { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('dmm_link_click'), limit: 10000 },
@@ -503,7 +504,7 @@ const getRangeData = unstable_cache(
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
-  ['admin-analytics-v24'],
+  ['admin-analytics-v25'],
   { revalidate: 300 },
 );
 
