@@ -1193,6 +1193,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
+        {/* PC: 「動画｜同人誌」の切り替えの直下に FANZA の商品ウィジェット（300×600、人気順）。ボタンはその下。以前は欄の一番下で、縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
+        <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
+          <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
+        </div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定（PC はサムネイルの上に重ねるのでここには出さない。行数で右の欄の高さが変わり、下のウィジェットの大きさが揺れていた） */}
         <div className="h-12 lg:!hidden flex items-start overflow-hidden flex-shrink-0">
@@ -1299,11 +1303,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           ) : (
             <div />
           )}
-        </div>
-
-        {/* PC: 右の欄の下に FANZA の商品ウィジェット（300×600、人気順）。以前の縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
-        <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2">
-          <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
         </div>
 
         {/* ボタンエリア - 3列グリッド（PC は画面の左端に縦1列のメニューとして固定） */}
