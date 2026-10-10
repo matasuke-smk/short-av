@@ -9,7 +9,9 @@ export type TocItem = { id: string; text: string };
  * 読んでいる見出しに色が付く（IntersectionObserver で、画面の上 1/3 に入った h2 を「いま読んでいる」とみなす）。
  * 1280px 未満とスマホでは本文の上の目次（page.tsx）を使うので、ここは出さない
  */
-export default function ArticleToc({ items }: { items: TocItem[] }) {
+export type OtherArticle = { slug: string; title: string };
+
+export default function ArticleToc({ items, others = [] }: { items: TocItem[]; others?: OtherArticle[] }) {
   const [active, setActive] = useState<string>(items[0]?.id ?? '');
 
   useEffect(() => {
@@ -29,13 +31,14 @@ export default function ArticleToc({ items }: { items: TocItem[] }) {
     return () => window.removeEventListener('scroll', update);
   }, [items]);
 
-  if (items.length < 2) return null;
+  if (items.length < 2 && others.length === 0) return null;
   return (
     <nav
-      aria-label="目次"
-      className="hidden xl:block fixed top-24 w-[220px]"
+      aria-label="目次と記事一覧"
+      className="hidden xl:block fixed top-24 w-[220px] max-h-[calc(100vh-8rem)] overflow-y-auto"
       style={{ right: 'calc(50% + 24rem + 40px)' }}
     >
+      {items.length >= 2 && (<>
       <p className="text-xs font-bold text-gray-400 tracking-wide mb-3">目次</p>
       <ol className="space-y-1.5 border-l border-gray-100">
         {items.map((item) => {
@@ -54,6 +57,22 @@ export default function ArticleToc({ items }: { items: TocItem[] }) {
           );
         })}
       </ol>
+      </>)}
+      {others.length > 0 && (
+        <div className={items.length >= 2 ? 'mt-8' : ''}>
+          <p className="text-xs font-bold text-gray-400 tracking-wide mb-3">記事一覧</p>
+          <ul className="space-y-2">
+            {others.map((a) => (
+              <li key={a.slug}>
+                <a href={`/articles/${a.slug}`} className="block text-[13px] leading-snug text-gray-500 hover:text-gray-900 line-clamp-2">
+                  {a.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a href="/articles" className="mt-3 inline-block text-xs text-gray-500 hover:text-gray-900 underline underline-offset-4">すべての記事を見る</a>
+        </div>
+      )}
     </nav>
   );
 }

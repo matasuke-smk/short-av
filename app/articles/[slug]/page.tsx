@@ -311,7 +311,7 @@ export default async function ArticlePage({ params }: Props) {
         </footer>
       </main>
       {/* PC（1280px 以上）: 本文の左の余白に目次、右の余白に商品ウィジェット */}
-      <ArticleToc items={toc} />
+      <ArticleToc items={toc} others={allArticles.filter((a) => a.slug !== slug).slice(0, 8).map((a) => ({ slug: a.slug, title: a.title }))} />
       <ArticleRail slug={article.slug} />
       {/* スマホの画面下の固定ボタン */}
       <SwipeCta slug={article.slug} position="sticky" />
