@@ -417,6 +417,24 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       track();
       return;
     }
+    // 案内は1人1日1回だけ。2回目以降はそのまま開く（毎回出すと閉じられてクリックごと消えていた。10/10: 案内を見た人の4割が閉じていた）
+    const noticeKey = 'short-av-inapp-notice-date';
+    const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
+    let shownToday = false;
+    try {
+      shownToday = localStorage.getItem(noticeKey) === today;
+    } catch {
+      // 読めなければ毎回出す
+    }
+    if (shownToday) {
+      track();
+      return;
+    }
+    try {
+      localStorage.setItem(noticeKey, today);
+    } catch {
+      // 保存できなくても動作には影響しない
+    }
     e.preventDefault();
     const fanzaUrl = e.currentTarget.href;
     const showNotice = () => {
