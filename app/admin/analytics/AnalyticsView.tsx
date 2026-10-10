@@ -8,6 +8,7 @@ type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 import DoujinAnalytics from './DoujinAnalytics';
 import { xPostContentId, type Country, type ViewKey } from './view-keys';
+import { sumDmmReports, type DmmReportRow } from '@/lib/dmm-reports-shared';
 
 /**
  * アクセス解析の表示（管理画面）
@@ -545,7 +546,9 @@ function RangeBody({
   live,
   hourlyAxis,
   compare,
+  dmmReports,
 }: {
+  dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（管理画面で貼り付けたもの。この期間の分を「FANZA クリック」に並べる）
   compare: { soFar: YesterdaySoFar | null } | null; // 「今日」のとき、昨日の同じ時刻までの数字
   live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」「一昨日」のみ）
   hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（すべての期間で共通）
@@ -556,6 +559,15 @@ function RangeBody({
   fixedDaily: ReportRow[][] | null; // 日別の表に使う「28日間」のレポート（取得できなければ null）
 }) {
   const { reports, db, warning } = data;
+  // この期間の DMM の実績（日本時間の日付で合わせる）
+  const dmm = (() => {
+    const [from, to] = VIEW_SPAN[rangeKey];
+    const dates = new Set<string>();
+    for (let daysAgo = to; daysAgo <= from; daysAgo++) dates.add(new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10));
+    return sumDmmReports(dmmReports.filter((r) => dates.has(r.date)));
+  })();
+  const dmmConversions = dmm.direct_count + dmm.category_count + dmm.new_count;
+  const dmmYen = dmm.direct_yen + dmm.category_yen + dmm.new_yen;
   // 全画面で開いている詳細（カードの種類）
   const [detail, setDetail] = useState<string | null>(null);
   const closeDetail = useCallback(() => setDetail(null), []);
@@ -661,7 +673,11 @@ function RangeBody({
             label="FANZA クリック"
             value={fmt(eventCount('dmm_link_click'))}
             unit="回"
-            sub={`${fmt(eventUsers('dmm_link_click'))}人がクリック`}
+            sub={
+              dmm.days > 0
+                ? `${fmt(eventUsers('dmm_link_click'))}人。DMM 側 ${fmt(dmm.clicks)}回・成約 ${fmt(dmmConversions)}件（¥${fmt(dmmYen)}）`
+                : `${fmt(eventUsers('dmm_link_click'))}人がクリック`
+            }
             onClick={() => setDetail('clicked')}
           />
           <KpiCard
@@ -1503,7 +1519,9 @@ export default function AnalyticsView({
   live,
   yesterdaySoFar,
   country,
+  dmmReports,
 }: {
+  dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（直近35日）
   country: Country; // 日本のみ（標準）か、海外も含めたすべてか
   yesterdaySoFar: YesterdaySoFar | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
@@ -1743,6 +1761,7 @@ export default function AnalyticsView({
           <RangeBody
             rangeKey={viewKey as RangeKey}
             data={current}
+            dmmReports={dmmReports}
             realtime={
               <>
                 <p className="text-xs text-gray-400 mb-3">{fetchedAt} 時点。最新にするには引き下げて再読み込み。</p>

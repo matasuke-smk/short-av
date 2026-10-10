@@ -3,6 +3,7 @@ import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type DataKey, type RangeData } from './AnalyticsView';
 import { RANGE_KEYS, getYesterdaySoFar, loadRange } from './data';
 import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
+import { getDmmReports } from '@/lib/dmm-reports';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // /api/admin/analytics で1つずつ取る（以前は5つの期間をまとめて取得し、GA への問い合わせが約40回になって開くのが遅かった）
   const firstKey: DataKey = initialRange === 'weekday' ? '28d' : initialRange;
   // 期間の集計・昨日の同じ時刻まで・いま見られているページ・リアルタイムの記録は互いに関係ないので、まとめて待つ
-  const [first, yesterdaySoFar, realtime, live] = await Promise.all([
+  const [first, yesterdaySoFar, realtime, live, dmmReports] = await Promise.all([
     loadRange(firstKey, country),
     getYesterdaySoFar(bucket, country).catch((error) => {
       console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
@@ -40,10 +41,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       const [today, yesterday, dayBefore] = await Promise.all([0, 1, 2].map((daysAgo) => getLiveHourly(daysAgo).catch(() => null)));
       return { today, yesterday, dayBefore };
     })(),
+    // DMM アフィリエイトの実績（管理画面の「FANZA 実績」で貼り付けたもの。表がまだなければ空）
+    getDmmReports(35).catch(() => []),
   ]);
   after(() => recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error)));
   const data: Partial<Record<DataKey, RangeData>> = { [firstKey]: first };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} dmmReports={dmmReports} />;
 }

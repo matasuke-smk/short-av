@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
 import SampleLengthsView from './sample-lengths/SampleLengthsView';
+import DmmReportsView from './dmm-reports/DmmReportsView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
   { key: 'sample-lengths', label: 'サンプルの長さ' },
+  { key: 'dmm-reports', label: 'FANZA 実績' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 
@@ -153,6 +155,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {opened.includes('x-posts') && <div hidden={tab !== 'x-posts'}><XPostsView /></div>}
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
           {opened.includes('sample-lengths') && <div hidden={tab !== 'sample-lengths'}><SampleLengthsView /></div>}
+          {opened.includes('dmm-reports') && <div hidden={tab !== 'dmm-reports'}><DmmReportsView /></div>}
         </>
       ) : (
         children
