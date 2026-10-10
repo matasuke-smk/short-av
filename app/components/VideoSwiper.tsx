@@ -1081,6 +1081,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       </div>
                     )}
 
+                    {/* PC: 作品名をサムネイルの上端に重ねる（再生中は動画を隠さないよう消す） */}
+                    {!(inlinePlayingId === video.dmm_content_id && index === currentIndex) && (
+                      <div className="hidden lg:block absolute top-0 inset-x-0 z-30 bg-gradient-to-b from-black/85 via-black/50 to-transparent px-4 pt-3 pb-10 pointer-events-none">
+                        <h2 className="text-white text-lg font-bold leading-6 line-clamp-2 drop-shadow">{video.title}</h2>
+                      </div>
+                    )}
+
                     {/* サンプル動画の長さ - サムネイル右下（PR の表示は画面上部のクレジットの帯に移した） */}
                     {(video.sample_seconds ?? 0) > 0 && (
                       <div className={`absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3' : 'bottom-6'} right-3 z-40 flex items-center gap-1 bg-black/75 text-white px-2 py-1 rounded text-xs font-bold shadow-lg pointer-events-none`}>
@@ -1187,10 +1194,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
-        {/* タイトル - 2行固定 */}
-        <div className="h-12 lg:!h-auto lg:!max-h-[8.75rem] flex items-start overflow-hidden flex-shrink-0">
+        {/* タイトル - 2行固定（PC はサムネイルの上に重ねるのでここには出さない。行数で右の欄の高さが変わり、下のウィジェットの大きさが揺れていた） */}
+        <div className="h-12 lg:!hidden flex items-start overflow-hidden flex-shrink-0">
           {currentVideo && (
-            <h2 className="text-white text-base lg:!text-xl font-bold line-clamp-2 lg:!line-clamp-5 leading-6 lg:!leading-7 overflow-hidden">
+            <h2 className="text-white text-base font-bold line-clamp-2 leading-6 overflow-hidden">
               {currentVideo.title}
             </h2>
           )}

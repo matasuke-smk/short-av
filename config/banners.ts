@@ -39,17 +39,17 @@ export const pcWidgets = {
 } as const;
 
 /**
- * 記事ページの本文の後に出す商品ウィジェット（300×250、スマホ表示可。DMM アフィリエイトで 2026-10-10 に作成）。
- * 記事の内容に合わせてキーワードを変える。slug がこの表にない記事は common
+ * 記事ページの本文の後に出す商品ウィジェット（DMM アフィリエイトで 2026-10-10 に作成）。
+ * スマホは 300×250、PC（lg 以上）は本文の幅に合う 728×90。記事の内容に合わせてキーワードを変える。slug が表にない記事は common
  */
 export const articleWidgets = {
-  common: { id: 'b9c63e5e116bb21a50c68e22935a7b4e', label: 'FANZA の人気作品' },               // 動画 人気順
-  bigSize: { id: '5429dbaae8c80ea02e4619e686404a51', label: '「巨根」の人気作品' },             // 動画 キーワード: 巨根
-  condom: { id: '19349ce5071501477e9a448d5928e607', label: 'FANZA 通販のコンドーム' },         // 通販 大人のおもちゃ キーワード: コンドーム
-  premature: { id: '5a3dcd3463bbec964df6a41078520bd7', label: '早漏対策のグッズ' },             // 通販 大人のおもちゃ キーワード: 早漏
-  shaved: { id: '557c873f2aac26a8bfedd23d10fa2596', label: '「パイパン」の人気作品' },          // 動画 キーワード: パイパン
-  slut: { id: '1b6a0574cf63a6c1997043e9e061e98a', label: '「痴女」の人気作品' },                // 動画 キーワード: 痴女
-  intimate: { id: 'ccbc590531a9b91db619e5fae054504e', label: '「密着セックス」の人気作品' },   // 動画 キーワード: 密着 セックス
+  common: { sp: 'b9c63e5e116bb21a50c68e22935a7b4e', pc: 'a729d4aafe68b7894a406d3c02a50571', label: 'FANZA の人気作品' },               // 動画 人気順
+  bigSize: { sp: '5429dbaae8c80ea02e4619e686404a51', pc: 'ecd91be83a57a36b1cfe7ddb2a8aa73a', label: '「巨根」の人気作品' },             // 動画 キーワード: 巨根
+  condom: { sp: '19349ce5071501477e9a448d5928e607', pc: 'c2cc5537668228610f8f2114442a3998', label: 'FANZA 通販のコンドーム' },         // 通販 大人のおもちゃ キーワード: コンドーム
+  premature: { sp: '5a3dcd3463bbec964df6a41078520bd7', pc: '948099a615d5ed904a3fc4791b448927', label: '早漏対策のグッズ' },             // 通販 大人のおもちゃ キーワード: 早漏
+  shaved: { sp: '557c873f2aac26a8bfedd23d10fa2596', pc: '691dde551b8441104013b6e61dde6dde', label: '「パイパン」の人気作品' },          // 動画 キーワード: パイパン
+  slut: { sp: '1b6a0574cf63a6c1997043e9e061e98a', pc: 'd2e5b70138950ab0f55946165d3baf27', label: '「痴女」の人気作品' },                // 動画 キーワード: 痴女
+  intimate: { sp: 'ccbc590531a9b91db619e5fae054504e', pc: '6fa0e9c4ea45be51e9854cc0df57ac79', label: '「密着セックス」の人気作品' },   // 動画 キーワード: 密着 セックス
 } as const;
 
 export const articleWidgetBySlug: Record<string, keyof typeof articleWidgets> = {
