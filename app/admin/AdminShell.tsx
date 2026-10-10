@@ -96,9 +96,18 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <BackToTop hidden={siteOpen} />
       <nav className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-5xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto pt-[max(env(safe-area-inset-top),0.5rem)]">
+          {/* スマホ: 左端の「…」で残りのタブとログアウトのメニューを開く。残りの幅を2つのタブで等分する */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="md:hidden flex-shrink-0 px-3 py-2 rounded-lg text-lg leading-none text-gray-300 hover:bg-gray-800"
+            aria-label="メニュー"
+          >
+            …
+          </button>
           {TABS.map(({ key, label }) => {
             const primary = PRIMARY_TABS.includes(key);
-            const cls = `${className(isHome ? tab === key : (pathname?.startsWith(`/admin/${key}`) ?? false))} ${primary ? '' : 'hidden md:block'}`;
+            const cls = `${className(isHome ? tab === key : (pathname?.startsWith(`/admin/${key}`) ?? false))} ${primary ? 'flex-1 text-center md:flex-none' : 'hidden md:block'}`;
             return isHome ? (
               <button key={key} type="button" onClick={() => select(key)} className={cls}>
                 {label}
@@ -110,15 +119,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-          {/* スマホ: 残りのタブとログアウトを左から出るメニューに */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className="md:hidden px-3 py-2 rounded-lg text-lg leading-none text-gray-300 hover:bg-gray-800"
-            aria-label="メニュー"
-          >
-            …
-          </button>
           <button
             type="button"
             onClick={() => {
