@@ -49,7 +49,7 @@ export const articleWidgets = {
   premature: { sp: '5a3dcd3463bbec964df6a41078520bd7', pc: '948099a615d5ed904a3fc4791b448927', rail: '4fbfd9bfd84f0b40a31bec7a20a3ede1', label: '早漏対策のグッズ' },             // 通販 大人のおもちゃ キーワード: 早漏
   shaved: { sp: '557c873f2aac26a8bfedd23d10fa2596', pc: '691dde551b8441104013b6e61dde6dde', rail: '5bc943c893c72a3dc0f6bffae3202ed2', label: '「パイパン」の人気作品' },          // 動画 キーワード: パイパン
   slut: { sp: '1b6a0574cf63a6c1997043e9e061e98a', pc: 'd2e5b70138950ab0f55946165d3baf27', rail: 'd7a9b0456e376a602592c63b8f900a5d', label: '「痴女」の人気作品' },                // 動画 キーワード: 痴女
-  intimate: { sp: 'ccbc590531a9b91db619e5fae054504e', pc: '6fa0e9c4ea45be51e9854cc0df57ac79', rail: '31a7970d4b7796b14683f4efa704c057' /* 300×600 の「密着」は DMM 側の保存で画面が固まり作れず、人気順で代用 */, label: '「密着セックス」の人気作品' },   // 動画 キーワード: 密着 セックス
+  intimate: { sp: 'ccbc590531a9b91db619e5fae054504e', pc: '6fa0e9c4ea45be51e9854cc0df57ac79', rail: '1536d892c41a455c35a70c383d02ed26', label: '「密着セックス」の人気作品' },   // 動画 キーワード: 密着 セックス
 } as const;
 
 export const articleWidgetBySlug: Record<string, keyof typeof articleWidgets> = {
