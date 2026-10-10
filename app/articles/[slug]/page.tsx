@@ -8,6 +8,7 @@ import type { Metadata } from 'next';
 import ArticleLink, { formatDate } from '../ArticleLink';
 import SwipeCta from '../SwipeCta';
 import ArticleWidget from '../ArticleWidget';
+import ArticleRail from '../ArticleRail';
 import { getCtaVideos } from '@/lib/articles/cta-videos';
 
 type Props = {
@@ -308,6 +309,8 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         </footer>
       </main>
+      {/* PC: 本文の右の余白に商品ウィジェット（1280px 以上） */}
+      <ArticleRail slug={article.slug} />
       {/* スマホの画面下の固定ボタン */}
       <SwipeCta slug={article.slug} position="sticky" />
     </div>
