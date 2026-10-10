@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Fragment } from 'react';
 import { sumDmmReports, type DmmReportRow } from '@/lib/dmm-reports-shared';
 
 const fmt = (n: number) => n.toLocaleString('ja-JP');
@@ -16,6 +17,8 @@ export default function DmmReportsView() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  // スマホで内訳を開いている日（タップで開閉）
+  const [openDate, setOpenDate] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/dmm-reports')
@@ -85,7 +88,59 @@ export default function DmmReportsView() {
           ) : rows.length === 0 ? (
             <p className="text-sm text-gray-400 mt-3">まだ記録がありません。上の欄に貼り付けて保存してください。</p>
           ) : (
-            <div className="overflow-x-auto mt-3">
+            <>
+            {/* スマホ: 日付・クリック・報酬合計だけの表。行をタップすると内訳（横スクロールの表は見づらかった） */}
+            <div className="md:hidden mt-3">
+              <table className="w-full text-sm">
+                <thead className="text-gray-400">
+                  <tr>
+                    <th className="text-left font-normal py-1">日付</th>
+                    <th className="text-right font-normal">クリック</th>
+                    <th className="text-right font-normal">報酬合計</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const count = r.direct_count + r.category_count + r.new_count;
+                    const sum = r.direct_yen + r.category_yen + r.new_yen;
+                    const open = openDate === r.date;
+                    return (
+                      <Fragment key={r.date}>
+                        <tr className="border-t border-gray-700 cursor-pointer active:bg-gray-700/50" onClick={() => setOpenDate(open ? null : r.date)}>
+                          <td className="py-2.5">
+                            <span className="inline-block w-3 text-gray-500 text-xs">{open ? '▾' : '▸'}</span>
+                            {md(r.date)}
+                          </td>
+                          <td className="text-right tabular-nums">{fmt(r.clicks)}</td>
+                          <td className={`text-right font-bold tabular-nums ${sum > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>¥{fmt(sum)}</td>
+                        </tr>
+                        {open && (
+                          <tr className="bg-gray-900/60">
+                            <td colSpan={3} className="px-3 py-2 text-xs text-gray-300">
+                              <div className="grid grid-cols-3 gap-2 text-center">
+                                <div><div className="text-gray-500">ダイレクト</div><div>{r.direct_count}件 ¥{fmt(r.direct_yen)}</div></div>
+                                <div><div className="text-gray-500">カテゴリ</div><div>{r.category_count}件 ¥{fmt(r.category_yen)}</div></div>
+                                <div><div className="text-gray-500">新規</div><div>{r.new_count}件 ¥{fmt(r.new_yen)}</div></div>
+                              </div>
+                              <div className="mt-1.5 text-gray-400">成約 {count}件 ・ 成約率 {pct(count, r.clicks)}</div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-500 font-bold">
+                    <td className="py-2">合計</td>
+                    <td className="text-right tabular-nums">{fmt(total.clicks)}</td>
+                    <td className={`text-right tabular-nums ${yen > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>¥{fmt(yen)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {/* PC: すべての列 */}
+            <div className="hidden md:block overflow-x-auto mt-3">
               <table className="w-full text-sm" style={{ minWidth: 640 }}>
                 <thead className="text-gray-400">
                   <tr>
@@ -128,6 +183,7 @@ export default function DmmReportsView() {
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </section>
       </div>
