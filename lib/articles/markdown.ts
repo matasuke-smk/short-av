@@ -11,8 +11,8 @@ const ORDERED_RE = /^\s*\d+[.)]\s+/;
 
 function inline(text: string): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-white">$1</strong>')
-    .replace(LINK_RE, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline">$1</a>');
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>')
+    .replace(LINK_RE, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline">$1</a>');
 }
 
 function renderTable(lines: string[]): string {
@@ -24,17 +24,17 @@ function renderTable(lines: string[]): string {
   // スマホで読みやすいようカード形式にする
   let html = '<div class="space-y-4 my-6">';
   for (const row of rows) {
-    html += '<div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">';
+    html += '<div class="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">';
     row.forEach((cell, i) => {
       if (i >= headers.length) return;
       const header = headers[i].replace(/\*\*(.+?)\*\*/g, '$1');
       const value = inline(cell).replace(/<br>/g, '<br class="my-1">');
       if (i === 0) {
-        html += `<div class="text-lg font-bold text-white mb-3 pb-3 border-b border-gray-700">${value}</div>`;
+        html += `<div class="text-lg font-bold text-gray-900 mb-3 pb-3 border-b border-gray-200">${value}</div>`;
       } else {
-        html += '<div class="flex justify-between items-start py-2 border-b border-gray-700/50 last:border-0">';
-        html += `<span class="text-sm text-gray-400 font-medium">${header}</span>`;
-        html += `<span class="text-sm text-gray-200 text-right ml-4">${value}</span>`;
+        html += '<div class="flex justify-between items-start py-2 border-b border-gray-200 last:border-0">';
+        html += `<span class="text-sm text-gray-500 font-medium">${header}</span>`;
+        html += `<span class="text-sm text-gray-800 text-right ml-4">${value}</span>`;
         html += '</div>';
       }
     });
@@ -96,16 +96,22 @@ export function renderArticleMarkdown(content: string, title: string): string {
         if (marks === '#' && index === 0 && title.startsWith(text.split(/[｜|:：]| - /)[0].trim())) return body;
         const tag = marks === '###' ? 'h3' : 'h2';
         const cls = marks === '#'
-          ? 'text-2xl md:text-3xl font-bold mt-8 mb-4 text-white'
+          ? 'text-2xl md:text-3xl font-bold mt-8 mb-4 text-gray-900'
           : marks === '##'
-            ? 'text-xl md:text-2xl font-bold mt-6 mb-3 text-white'
-            : 'text-lg md:text-xl font-bold mt-4 mb-2 text-white';
+            ? 'text-xl md:text-2xl font-bold mt-6 mb-3 text-gray-900'
+            : 'text-lg md:text-xl font-bold mt-4 mb-2 text-gray-900';
         return `<${tag} class="${cls}">${inline(text.trim())}</${tag}>${body}`;
       }
 
       const lines = block.split('\n').filter(line => line.trim());
       if (block.includes('|') && lines.length > 2 && lines[1].includes('---')) {
         return renderTable(lines);
+      }
+
+      // 引用（> で始まる行のまとまり）: 本文と区別した薄い囲みで出す
+      if (lines.every(line => /^\s*>/.test(line))) {
+        const body = lines.map(line => line.replace(/^\s*>\s?/, '')).join('\n');
+        return `<blockquote class="my-6 border-l-4 border-gray-200 pl-4 text-gray-600">${inline(body)}</blockquote>`;
       }
 
       return renderBlock(block);

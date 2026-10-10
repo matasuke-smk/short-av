@@ -170,7 +170,7 @@ export default async function ArticlePage({ params }: Props) {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-white text-gray-900">
       {/* 構造化データ */}
       {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
       <script
@@ -182,35 +182,31 @@ export default async function ArticlePage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
       {/* ヘッダー - レスポンシブ対応 */}
-      <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/articles"
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </Link>
-            <h1 className="text-lg md:text-xl font-bold line-clamp-1">記事</h1>
-          </div>
+      <header className="bg-white/95 backdrop-blur border-b border-gray-100 sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-5 md:px-8 py-3 flex items-center justify-between">
+          <Link href="/articles" className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors text-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            記事一覧
+          </Link>
+          <Link href="/" className="text-sm font-bold tracking-wide text-gray-900">Short AV</Link>
         </div>
       </header>
 
       {/* コンテンツ - レスポンシブ対応 */}
       {/* スマホは画面下の固定ボタン（SwipeCta sticky）のぶん下に余白を取る */}
-      <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12 pb-28 md:pb-12">
+      <main className="max-w-3xl mx-auto px-5 md:px-8 py-10 md:py-16 pb-28 md:pb-16">
         <article>
           {/* タイトル */}
-          <header className="mb-8 md:mb-12">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-6 leading-tight whitespace-pre-line">
+          <header className="mb-10 md:mb-12">
+            <h1 className="text-2xl md:text-4xl font-bold mb-4 md:mb-5 leading-snug md:leading-tight tracking-tight whitespace-pre-line">
               {article.title}
             </h1>
             {!article.pinned && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-400">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-gray-500">
                 {article.category && (
-                  <span className="bg-gray-800 px-3 py-1 rounded">
+                  <span className="text-gray-700">
                     {article.category}
                   </span>
                 )}
@@ -225,7 +221,7 @@ export default async function ArticlePage({ params }: Props) {
               </div>
             )}
             {/* ステルスマーケティング規制（2023年10月〜）への対応として、全記事に広告表記を出す */}
-            <p className="mt-4 text-xs md:text-sm text-gray-500">
+            <p className="mt-3 text-xs text-gray-400">
               ※本ページはプロモーション（広告）を含みます。
             </p>
           </header>
@@ -234,17 +230,17 @@ export default async function ArticlePage({ params }: Props) {
           <SwipeCta slug={article.slug} position="top" />
 
           {/* 本文 - レスポンシブ対応 */}
-          <div className="prose prose-invert prose-lg md:prose-xl max-w-none">
+          <div className="max-w-none">
             {isInteractiveTool ? (
               /* インタラクティブツールの場合はHTMLをそのまま表示 */
               <div
-                className="text-gray-300 leading-relaxed"
+                className="text-gray-800 leading-relaxed"
                 dangerouslySetInnerHTML={{ __html: content }}
               />
             ) : (
               /* 通常の記事の場合はMarkdown処理 */
               <div
-                className="space-y-6 md:space-y-8 text-gray-300 leading-relaxed md:leading-loose text-base md:text-lg"
+                className="space-y-6 md:space-y-8 text-gray-800 leading-[1.9] md:leading-[2] text-base md:text-lg"
                 dangerouslySetInnerHTML={{ __html: bodyHtml }}
               />
             )}
@@ -259,21 +255,21 @@ export default async function ArticlePage({ params }: Props) {
 
         {/* 次の記事/前の記事ナビゲーション */}
         {(nextArticle || prevArticle) && (
-          <nav className="mt-12 md:mt-16 pt-8 md:pt-12 border-t border-gray-800">
+          <nav className="mt-12 md:mt-16 pt-8 md:pt-10 border-t border-gray-100">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 前の記事 */}
               {prevArticle ? (
                 <ArticleLink
                   article={prevArticle}
-                  className="group bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg p-4 md:p-6 transition-colors"
+                  className="group rounded-lg p-4 md:p-5 border border-gray-100 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="text-xs md:text-sm text-gray-400 mb-2 flex items-center gap-2">
+                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                     前の記事
                   </div>
-                  <div className="text-sm md:text-base font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
+                  <div className="text-sm md:text-base font-bold text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
                     {prevArticle.title}
                   </div>
                 </ArticleLink>
@@ -285,15 +281,15 @@ export default async function ArticlePage({ params }: Props) {
               {nextArticle && (
                 <ArticleLink
                   article={nextArticle}
-                  className="group bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg p-4 md:p-6 transition-colors md:text-right"
+                  className="group rounded-lg p-4 md:p-5 border border-gray-100 hover:bg-gray-50 transition-colors md:text-right"
                 >
-                  <div className="text-xs md:text-sm text-gray-400 mb-2 flex items-center gap-2 md:justify-end">
+                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2 md:justify-end">
                     次の記事
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
-                  <div className="text-sm md:text-base font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
+                  <div className="text-sm md:text-base font-bold text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
                     {nextArticle.title}
                   </div>
                 </ArticleLink>
@@ -303,19 +299,19 @@ export default async function ArticlePage({ params }: Props) {
         )}
 
         {/* フッター - レスポンシブ対応 */}
-        <footer className="mt-8 md:mt-12 pt-8 md:pt-12 border-t border-gray-800">
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <footer className="mt-8 md:mt-12 pt-8 md:pt-10 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/articles"
-              className="inline-block bg-gray-800 hover:bg-gray-700 text-white px-8 md:px-10 py-3 md:py-4 rounded-lg font-bold transition-colors text-center text-sm md:text-base"
+              className="inline-block border border-gray-300 hover:bg-gray-50 text-gray-900 px-8 py-3 rounded-full font-bold transition-colors text-center text-sm"
             >
               記事一覧に戻る
             </Link>
             <Link
               href="/"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 md:px-10 py-3 md:py-4 rounded-lg font-bold transition-colors text-center text-sm md:text-base"
+              className="inline-block bg-gray-900 hover:bg-gray-700 text-white px-8 py-3 rounded-full font-bold transition-colors text-center text-sm"
             >
-              ホームに戻る
+              スワイプ画面を開く
             </Link>
           </div>
         </footer>

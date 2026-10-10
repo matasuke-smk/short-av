@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 import ArticleLink from './ArticleLink';
+import SwipeBanner from './SwipeBanner';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -33,70 +34,66 @@ export const metadata: Metadata = {
   },
 };
 
-// ページネーション削除：全記事を1ページに表示してクローラビリティを向上
+const dateLabel = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+};
+
+// ページネーションなし：全記事を1ページに出す（クローラーが全記事をたどれるように）
+// 見た目は note のような白地・余白多め・罫線だけの一覧（色付きのカードは使わない）
 export default async function ArticlesPage() {
-  // サイズ比較ツール（pinned）が先頭、以降は公開日の新しい順
+  // ちんこ偏差値チェッカー（pinned）が先頭、以降は公開日の新しい順
   const articles = getAllArticles();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* ヘッダー - レスポンシブ対応 */}
-      <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-4 md:py-5">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl md:text-3xl font-bold">記事一覧</h1>
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-white text-gray-900">
+      <header className="bg-white/95 backdrop-blur border-b border-gray-100 sticky top-0 z-10">
+        <div className="max-w-3xl mx-auto px-5 md:px-8 py-3 flex items-center justify-between">
+          <h1 className="text-base font-bold">記事</h1>
+          <Link href="/" className="text-sm font-bold tracking-wide text-gray-900">Short AV</Link>
         </div>
       </header>
 
-      {/* コンテンツ - レスポンシブ対応 */}
-      <main className="max-w-4xl mx-auto px-4 md:px-6 lg:px-8 py-8 md:py-12">
-        <p className="text-gray-400 mb-2 text-base md:text-lg">
-          Short AVの使い方や便利な機能、男性の体と性の知識について解説しています。
+      <main className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-12">
+        {/* サイトの本体（スワイプ画面）への誘導バナー */}
+        <SwipeBanner place="list" />
+
+        <p className="mt-8 md:mt-10 text-gray-700 text-base md:text-lg leading-relaxed">
+          Short AV の使い方、FANZA で安く買う方法、男性の体と性の知識について書いています。
         </p>
-        <p className="text-gray-500 mb-8 md:mb-10 text-xs md:text-sm">
+        <p className="mt-2 mb-6 md:mb-8 text-xs text-gray-400">
           ※本ページはプロモーション（広告）を含みます。
         </p>
 
-        {/* 記事一覧 - レスポンシブ対応 */}
-        <div className="space-y-4 md:space-y-5">
+        <div className="divide-y divide-gray-100 border-t border-b border-gray-100">
           {articles.map((article) => (
             <ArticleLink
               key={article.slug}
               article={article}
-              className="block bg-gray-800 hover:bg-gray-700 rounded-lg p-6 md:p-8 transition-colors border border-gray-700"
+              className="group block py-6 md:py-8"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-3 text-white whitespace-pre-line">
+                <div className="min-w-0 flex-1">
+                  {article.pinned && (
+                    <p className="text-xs font-bold text-gray-500 mb-2">ツール</p>
+                  )}
+                  <h2 className="text-lg md:text-2xl font-bold leading-snug text-gray-900 group-hover:text-gray-600 transition-colors whitespace-pre-line">
                     {article.title}
                   </h2>
-                  <p className="text-gray-400 mb-3 md:mb-4 text-sm md:text-base">
+                  <p className="mt-2 text-sm md:text-base text-gray-500 leading-relaxed line-clamp-2">
                     {article.description}
                   </p>
                   {!article.pinned && (
-                    <div className="flex items-center gap-4 text-sm md:text-base text-gray-500">
-                      {article.category && (
-                        <span className="bg-gray-700 px-2 md:px-3 py-1 rounded text-xs md:text-sm">
-                          {article.category}
-                        </span>
-                      )}
+                    <div className="mt-3 flex items-center gap-3 text-xs text-gray-400">
+                      {article.category && <span>{article.category}</span>}
                       <time dateTime={getArticleModifiedAt(article)}>
-                        {new Date(getArticleModifiedAt(article)).toLocaleDateString('ja-JP')}
+                        {dateLabel(getArticleModifiedAt(article))}
                         {article.updatedAt && article.updatedAt !== article.publishedAt && ' 更新'}
                       </time>
                     </div>
                   )}
                 </div>
-                <svg className="w-6 h-6 md:w-7 md:h-7 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="mt-1 w-5 h-5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
@@ -104,18 +101,16 @@ export default async function ArticlesPage() {
           ))}
         </div>
 
-        {/* 記事総数表示 */}
-        <div className="text-center mt-8 text-sm text-gray-500">
-          全{articles.length}件の記事
-        </div>
+        <p className="text-center mt-6 text-xs text-gray-400">
+          全{articles.length}件
+        </p>
 
-        {/* フッター - レスポンシブ対応 */}
-        <div className="mt-12 md:mt-16 text-center">
+        <div className="mt-10 md:mt-14 text-center">
           <Link
             href="/"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 md:px-10 py-3 md:py-4 rounded-lg font-bold transition-colors text-sm md:text-base"
+            className="inline-block bg-gray-900 hover:bg-gray-700 text-white px-8 py-3 rounded-full font-bold transition-colors text-sm"
           >
-            ホームに戻る
+            スワイプ画面を開く
           </Link>
         </div>
       </main>
