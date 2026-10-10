@@ -1188,7 +1188,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定 */}
-        <div className="h-12 lg:!h-[5.25rem] flex items-start overflow-hidden flex-shrink-0">
+        <div className="h-12 lg:!h-auto lg:!max-h-[8.75rem] flex items-start overflow-hidden flex-shrink-0">
           {currentVideo && (
             <h2 className="text-white text-base lg:!text-xl font-bold line-clamp-2 lg:!line-clamp-5 leading-6 lg:!leading-7 overflow-hidden">
               {currentVideo.title}
