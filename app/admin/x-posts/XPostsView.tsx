@@ -342,17 +342,15 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
   // 計測用パラメータ（投稿形式）を付けた本文
   const finalText = () => (text ? setPostFormat(text, getPostFormat(text)) : '');
 
-  // 1行目（【…】の見出し）だけを作り直した文面のものに差し替える
+  // 文全体を作り直す（構造・書き出し・締めが毎回変わる）。同じ文が返ったら最大5回まで引き直す
   async function rerollHeading() {
     if (text === null) return;
-    const current = text.split('\n')[0];
     for (let i = 0; i < 5; i++) {
       const response = await fetch(`/api/admin/x-posts/compose?contentId=${encodeURIComponent(video.dmm_content_id)}`);
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.text) return;
-      const heading = (data.text as string).split('\n')[0];
-      if (heading !== current || i === 4) {
-        setText((t) => (t === null ? t : [heading, ...t.split('\n').slice(1)].join('\n')));
+      if (data.text !== text || i === 4) {
+        setText(data.text);
         return;
       }
     }
@@ -469,7 +467,7 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
                 className="ml-auto text-xs text-gray-400 hover:text-gray-200 underline"
                 title="1行目の見出しだけを別のものに変えます（編集した本文はそのまま）"
               >
-                別の見出しにする
+                別の書き方にする
               </button>
             </div>
           </div>
