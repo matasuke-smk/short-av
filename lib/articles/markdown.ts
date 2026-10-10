@@ -85,6 +85,7 @@ function renderBlock(block: string): string {
 
 export function renderArticleMarkdown(content: string, title: string): string {
   const blocks = content.split(/\n\s*\n/).map(b => b.replace(/^\n+|\n+$/g, '')).filter(Boolean);
+  let h2Count = 0; // 目次用に h2 へ sec-1, sec-2... の id を振る
 
   return blocks
     .map((block, index) => {
@@ -95,12 +96,13 @@ export function renderArticleMarkdown(content: string, title: string): string {
         const body = rest?.trim() ? renderBlock(rest) : '';
         if (marks === '#' && index === 0 && title.startsWith(text.split(/[｜|:：]| - /)[0].trim())) return body;
         const tag = marks === '###' ? 'h3' : 'h2';
+        const idAttr = tag === 'h2' ? ` id="sec-${++h2Count}"` : '';
         const cls = marks === '#'
           ? 'text-2xl md:text-3xl font-bold mt-8 mb-4 text-gray-900'
           : marks === '##'
             ? 'text-xl md:text-2xl font-bold mt-6 mb-3 text-gray-900'
             : 'text-lg md:text-xl font-bold mt-4 mb-2 text-gray-900';
-        return `<${tag} class="${cls}">${inline(text.trim())}</${tag}>${body}`;
+        return `<${tag}${idAttr} class="${cls}">${inline(text.trim())}</${tag}>${body}`;
       }
 
       const lines = block.split('\n').filter(line => line.trim());
@@ -122,4 +124,13 @@ export function renderArticleMarkdown(content: string, title: string): string {
 /** <script> / <style> を含む HTML ツール記事か（Markdown 変換せずそのまま出す） */
 export function isInteractiveArticle(content: string): boolean {
   return content.includes('<script') || content.includes('<style');
+}
+
+/** 変換後の HTML から目次（h2 の id と見出し文）を取り出す */
+export function extractToc(html: string): { id: string; text: string }[] {
+  const toc: { id: string; text: string }[] = [];
+  for (const m of html.matchAll(/<h2 id="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)) {
+    toc.push({ id: m[1], text: m[2].replace(/<[^>]+>/g, '') });
+  }
+  return toc;
 }

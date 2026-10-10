@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getArticleBySlug, getAllArticles, getArticleModifiedAt } from '@/lib/articles';
-import { renderArticleMarkdown, isInteractiveArticle } from '@/lib/articles/markdown';
+import { getArticleBySlug, getAllArticles, getArticleModifiedAt, getArticleEyecatch } from '@/lib/articles';
+import { renderArticleMarkdown, isInteractiveArticle, extractToc } from '@/lib/articles/markdown';
 import { fillLiveSections } from '@/lib/articles/live';
 import { getSizeStatistics, generateStatsHTML } from '@/lib/sizeStats';
 import type { Metadata } from 'next';
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const ogImage = article.ogImage ?? '/og-image.jpg';
+  const ogImage = getArticleEyecatch(article);
   return {
     title: `${article.title} - Short AV`,
     description: article.description,
@@ -90,17 +90,20 @@ export default async function ArticlePage({ params }: Props) {
     );
   }
 
-  // 次の記事と前の記事を取得
   const allArticles = getAllArticles();
-  const currentIndex = allArticles.findIndex(a => a.slug === slug);
-  const nextArticle = currentIndex > 0 ? allArticles[currentIndex - 1] : null;
-  const prevArticle = currentIndex < allArticles.length - 1 ? allArticles[currentIndex + 1] : null;
 
   // HTMLツール記事かどうかを判定（<script>や<style>が含まれている場合）
   const isInteractiveTool = isInteractiveArticle(content);
   // 本文の <!-- live:名前 --> を最新のデータ（作品の一覧・統計）に置き換える
   const bodyHtml = isInteractiveTool ? '' : await fillLiveSections(renderArticleMarkdown(content, article.title));
   const modifiedAt = getArticleModifiedAt(article);
+  // 目次（h2 が2つ以上あるときだけ出す）
+  const toc = isInteractiveTool ? [] : extractToc(bodyHtml);
+  // 関連記事（同じ分類を先に、足りなければ新しい順で3件）
+  const related = [
+    ...allArticles.filter((a) => a.slug !== slug && a.category === article.category),
+    ...allArticles.filter((a) => a.slug !== slug && a.category !== article.category),
+  ].slice(0, 3);
   // 本文の下の導線に出す人気作（表紙3枚）
   const ctaVideos = await getCtaVideos();
 
@@ -226,8 +229,20 @@ export default async function ArticlePage({ params }: Props) {
             </p>
           </header>
 
-          {/* サイトの本体（スワイプ画面）への導線（上）。記事は検索から来る人の入口なので、本体を先に知らせる */}
-          <SwipeCta slug={article.slug} position="top" />
+          {/* 目次 */}
+          {toc.length >= 2 && (
+            <nav aria-label="目次" className="mb-10 rounded-xl bg-gray-50 border border-gray-100 px-5 py-4 md:px-6 md:py-5">
+              <p className="text-sm font-bold text-gray-900 mb-3">目次</p>
+              <ol className="space-y-2 text-sm md:text-[15px] text-gray-700">
+                {toc.map((item, i) => (
+                  <li key={item.id} className="flex gap-3">
+                    <span className="text-gray-400 tabular-nums w-5 flex-shrink-0 text-right">{i + 1}.</span>
+                    <a href={`#${item.id}`} className="hover:text-gray-900 hover:underline underline-offset-4">{item.text}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
           {/* 本文 - レスポンシブ対応 */}
           <div className="max-w-none">
@@ -247,53 +262,30 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         </article>
 
+        {/* サイトの本体（スワイプ画面）への導線（画像バナー。本文を読み終えた位置） */}
+        <div className="mt-12">
+          <SwipeCta slug={article.slug} position="top" />
+        </div>
+
         {/* 記事の内容に合った FANZA の商品ウィジェット（本文の後） */}
         <ArticleWidget slug={article.slug} />
 
         {/* サイトの本体への導線（本文の後。人気作の表紙つき） */}
         <SwipeCta slug={article.slug} position="end" videos={ctaVideos} />
 
-        {/* 次の記事/前の記事ナビゲーション */}
-        {(nextArticle || prevArticle) && (
+        {/* 関連記事（アイキャッチつき） */}
+        {related.length > 0 && (
           <nav className="mt-12 md:mt-16 pt-8 md:pt-10 border-t border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* 前の記事 */}
-              {prevArticle ? (
-                <ArticleLink
-                  article={prevArticle}
-                  className="group rounded-lg p-4 md:p-5 border border-gray-100 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                    前の記事
-                  </div>
-                  <div className="text-sm md:text-base font-bold text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
-                    {prevArticle.title}
-                  </div>
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-5">関連記事</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 md:gap-6">
+              {related.map((item) => (
+                <ArticleLink key={item.slug} article={item} className="group block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={getArticleEyecatch(item)} alt="" loading="lazy" width={1200} height={630} className="w-full aspect-[1200/630] rounded-xl object-cover group-hover:opacity-90 transition-opacity" />
+                  <p className="mt-3 text-sm md:text-[15px] font-bold leading-snug text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2 whitespace-pre-line">{item.title}</p>
+                  {item.category && <p className="mt-1 text-xs text-gray-400">{item.category}</p>}
                 </ArticleLink>
-              ) : (
-                <div className="hidden md:block"></div>
-              )}
-
-              {/* 次の記事 */}
-              {nextArticle && (
-                <ArticleLink
-                  article={nextArticle}
-                  className="group rounded-lg p-4 md:p-5 border border-gray-100 hover:bg-gray-50 transition-colors md:text-right"
-                >
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-2 md:justify-end">
-                    次の記事
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                  <div className="text-sm md:text-base font-bold text-gray-900 group-hover:text-gray-600 transition-colors line-clamp-2">
-                    {nextArticle.title}
-                  </div>
-                </ArticleLink>
-              )}
+              ))}
             </div>
           </nav>
         )}
