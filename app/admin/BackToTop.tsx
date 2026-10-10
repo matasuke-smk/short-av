@@ -20,7 +20,7 @@ export default function BackToTop({ hidden }: { hidden?: boolean }) {
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="最上部に戻る"
-      className="fixed z-40 right-4 bottom-[max(env(safe-area-inset-bottom),1rem)] w-12 h-12 rounded-full bg-blue-600/90 hover:bg-blue-500 text-white shadow-lg flex items-center justify-center"
+      className="fixed z-40 right-4 bottom-[calc(max(env(safe-area-inset-bottom),0.5rem)+3.5rem)] md:bottom-[max(env(safe-area-inset-bottom),1rem)] w-12 h-12 rounded-full bg-blue-600/90 hover:bg-blue-500 text-white shadow-lg flex items-center justify-center"
     >
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
