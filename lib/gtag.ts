@@ -34,7 +34,7 @@ const LABELS = {
     actress: '女優',
     actress_videos: '女優の作品一覧',
   },
-  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌' },
+  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌', sample_end: 'サンプル終了' },
 } as const;
 
 const contextLabels = (context?: ViewContext) =>
@@ -133,7 +133,7 @@ export const browserLabel = () => {
 export const trackDMMClick = (
   videoId: string,
   contentId: string,
-  linkType: 'detail' | 'affiliate' | 'doujin',
+  linkType: 'detail' | 'affiliate' | 'doujin' | 'sample_end',
   context?: ViewContext,
 ) => {
   sendGAEvent('dmm_link_click', {
