@@ -11,7 +11,7 @@ import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
 import { getAdminUserIds } from '@/lib/admin-users';
 import { EXTRA_LONG_SAMPLE_SECONDS, LONG_SAMPLE_SECONDS } from '@/config/site';
-import { BROWSER_HINT, countXWeightedLength, getXPostVideoUrl, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { buildVideoPost, getXPostVideoUrl } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
 export type SlotType = 'new' | 'ranking' | 'random' | 'manual';
@@ -31,6 +31,7 @@ export type VideoRow = {
   thumbnail_url: string | null;
   maker: string | null;
   actress_ids: string[] | null;
+  genre_ids?: string[] | null;
   rank_position?: number | null;
   release_date?: string | null;
   sample_seconds?: number | null;
@@ -362,37 +363,24 @@ export async function getLikedVideos(userId: string): Promise<{ days: number; vi
   return { days: RECOMMEND_DAYS, videos };
 }
 
-export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType): string {
+export function buildPostText(video: VideoRow, actressNames: string[], type: SlotType, genreNames: string[] = []): string {
   const url = getXPostVideoUrl(video.dmm_content_id, 'card');
-  const actress = actressNames.slice(0, 2).join('・');
-  const heading =
-    type === 'new' ? '【新着作品】' : type === 'ranking' ? '【人気ランキング作品】' : pickHeading(video);
-
-  const build = (title: string) =>
-    [
-      heading,
-      title,
-      actress ? `出演: ${actress}` : video.maker ? `メーカー: ${video.maker}` : '',
-      '',
-      video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS
-        ? `${exactLength(video.sample_seconds)}の長尺サンプル動画はこちら👇`
-        : 'サンプル動画はこちら👇',
-      url,
-      BROWSER_HINT,
-      '',
-      '#PR #FANZA',
-    ]
-      .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')
-      .join('\n');
-
-  // 280 を超える場合はタイトルを切り詰める
-  let title = video.title;
-  let text = build(title);
-  while (countXWeightedLength(text) > X_MAX_WEIGHTED_LENGTH && title.length > 10) {
-    title = `${[...title].slice(0, -5).join('')}…`;
-    text = build(title);
-  }
-  return text;
+  const days = video.release_date ? (Date.now() - new Date(video.release_date).getTime()) / 86_400_000 : -1;
+  // 見出し型（D）のときに使う【…】。作品に合うものは pickHeading が選ぶ
+  const headings = type === 'new' ? ['【新着作品】'] : type === 'ranking' ? ['【人気ランキング作品】'] : [pickHeading(video)];
+  return buildVideoPost(
+    {
+      title: video.title,
+      actress: actressNames.slice(0, 2).join('・') || undefined,
+      maker: video.maker,
+      rank: video.rank_position,
+      isNew: days >= 0 && days <= NEW_RELEASE_DAYS,
+      sampleSeconds: video.sample_seconds,
+      genres: genreNames,
+    },
+    url,
+    headings,
+  );
 }
 
 /**
@@ -404,7 +392,7 @@ export async function composeForVideo(contentId: string) {
   const select = () =>
     supabase
       .from('videos')
-      .select('dmm_content_id, title, thumbnail_url, maker, actress_ids, rank_position, release_date, sample_seconds')
+      .select('dmm_content_id, title, thumbnail_url, maker, actress_ids, genre_ids, rank_position, release_date, sample_seconds')
       .eq('dmm_content_id', contentId)
       .maybeSingle();
   let { data: video, error } = await select();
@@ -418,9 +406,13 @@ export async function composeForVideo(contentId: string) {
   if (!video) return null;
 
   const actressIds = (video.actress_ids ?? []) as string[];
-  const [{ data: actresses }, { data: posts, error: postsError }] = await Promise.all([
+  const genreIds = ((video as VideoRow).genre_ids ?? []).slice(0, 8);
+  const [{ data: actresses }, { data: genres }, { data: posts, error: postsError }] = await Promise.all([
     actressIds.length > 0
       ? supabase.from('actresses').select('id, name').in('id', actressIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    genreIds.length > 0
+      ? supabase.from('genres').select('id, name').in('id', genreIds)
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     supabase.from('x_posts').select('slot_at, status').eq('dmm_content_id', contentId).neq('status', 'skipped'),
   ]);
@@ -432,7 +424,7 @@ export async function composeForVideo(contentId: string) {
 
   return {
     video: video as VideoRow,
-    text: buildPostText(video as VideoRow, names, 'manual'),
+    text: buildPostText(video as VideoRow, names, 'manual', (genres ?? []).map((g) => g.name as string)),
     alreadyPosted,
   };
 }
