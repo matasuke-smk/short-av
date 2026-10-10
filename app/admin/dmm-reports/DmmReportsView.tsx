@@ -115,6 +115,17 @@ export default function DmmReportsView() {
                     );
                   })}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-gray-500 font-bold">
+                    <td className="py-2">合計</td>
+                    <td className="text-right">{fmt(total.clicks)}</td>
+                    <td className="text-right">{total.direct_count}件 ¥{fmt(total.direct_yen)}</td>
+                    <td className="text-right">{total.category_count}件 ¥{fmt(total.category_yen)}</td>
+                    <td className="text-right">{total.new_count}件 ¥{fmt(total.new_yen)}</td>
+                    <td className={`text-right ${yen > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>¥{fmt(yen)}</td>
+                    <td className="text-right">{pct(conversions, total.clicks)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
