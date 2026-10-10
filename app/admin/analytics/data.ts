@@ -457,8 +457,16 @@ async function loadDb(range: (typeof RANGES)[RangeKey], contentIds: string[]) {
 // 1つの期間のデータ（GA とデータベース）。5分間は取得結果を使い回す（期間の切り替えや再読み込みを速くする）。
 // unstable_cache は期限切れでも一度は古い結果を返す（裏で取り直す）ため、しばらく開いていないと
 // 何時間も前の数字（日付が変わる前の「今日」など）が出ていた。区切り（bucket）を引数に入れて、古い結果は使わない。
-// 「今日」は5分ごと、それ以外（昨日・一昨日・週間・28日）はほとんど変わらないので1時間ごとに取り直す
+// 「今日」は10分ごと、それ以外（昨日・一昨日・週間・28日）はほとんど変わらないので1時間ごとに取り直す
 // （開くたびに全期間を GA に問い合わせると、GA の1時間あたりの上限に近づくため）
+// 同人誌の作品名・表紙（作品ごとに1時間使い回す。DMM への問い合わせは1冊ずつゆっくりなので、集計のたびに待たない）
+const getDoujinInfoCached = async (ids: string[]) => {
+  if (ids.length === 0) return [];
+  const sorted = [...ids].sort();
+  const cached = unstable_cache(async (list: string[]) => fetchDoujinByIds(list).catch(() => []), ['admin-analytics-doujin-info-v1'], { revalidate: 3600 });
+  return cached(sorted);
+};
+
 const getRangeData = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (key: RangeKey, _bucket: number, country: Country) => {
@@ -491,7 +499,7 @@ const getRangeData = unstable_cache(
       .sort(([, a], [, b]) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])
       .slice(0, 30)
       .map(([id]) => id);
-    const [db, doujins] = await Promise.all([loadDb(range, ids), fetchDoujinByIds(doujinIds).catch(() => [])]);
+    const [db, doujins] = await Promise.all([loadDb(range, ids), getDoujinInfoCached(doujinIds)]);
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
@@ -502,9 +510,10 @@ const getRangeData = unstable_cache(
 export const RANGE_KEYS = Object.keys(RANGES) as RangeKey[];
 export { byCountry, getYesterdaySoFar };
 
-// 1つの期間を取得する（失敗したらエラーの文言を返す）。「今日」は5分ごと、それ以外は1時間ごとに取り直す
+// 1つの期間を取得する（失敗したらエラーの文言を返す）。「今日」は10分ごと、それ以外は1時間ごとに取り直す
 export async function loadRange(key: RangeKey, country: Country): Promise<RangeData> {
-  const bucket = Math.floor(Date.now() / 300_000);
+  // 「今日」は10分ごとに取り直す（10分おきの cron（/api/cron/ga-realtime）で先に取っておくので、開いたときは待たずに済む）
+  const bucket = Math.floor(Date.now() / 600_000);
   const hourBucket = Math.floor(Date.now() / 3_600_000); // 時の区切りは日本時間の0時とそろう
   try {
     return await getRangeData(key, key === 'today' ? bucket : hourBucket, country);

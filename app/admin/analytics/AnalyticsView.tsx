@@ -1660,7 +1660,7 @@ export default function AnalyticsView({
         <h1 className="text-xl md:text-2xl font-bold">アクセス解析</h1>
         <p className="text-xs text-gray-400 mt-1">
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。
-          {' '}{fetchedAt} 時点（5分ごとに更新）
+          {' '}{fetchedAt} 時点（10分ごとに更新）
         </p>
         </div>
 
