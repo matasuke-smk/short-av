@@ -15,6 +15,8 @@ import { landscapeBannerIds, portraitBannerIds, pcWidgets } from '@/config/banne
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
+import { OverseasAd } from './JuicyAd';
+import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import DoujinReader from './DoujinReader';
@@ -146,6 +148,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // アフィリエイトリンク表示制御（環境変数で管理）
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
+  // 日本以外の訪問者には FANZA の代わりに JuicyAds の広告を出す（FANZA は国外 IP の購入を報酬にしない）
+  const isOverseas = useIsOverseas();
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -1122,18 +1126,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     {/* PC: サムネイルの下の空いた帯に FANZA の商品ウィジェット（728×90、人気順）。表示中の作品のときだけ読み込む */}
                     {index === currentIndex && (
                       <div className="hidden lg:flex justify-center flex-shrink-0 mt-3">
-                        <DMMWidget widgetId={pcWidgets.bottom.id} width={pcWidgets.bottom.width} height={pcWidgets.bottom.height} style={{ width: 'min(728px, 100%)' }} />
+                        <OverseasAd kind="leaderboard" isOverseas={isOverseas}>
+                          <DMMWidget widgetId={pcWidgets.bottom.id} width={pcWidgets.bottom.width} height={pcWidgets.bottom.height} style={{ width: 'min(728px, 100%)' }} />
+                        </OverseasAd>
                       </div>
                     )}
 
                     {/* 広告バナー領域 (640×200) - 縦画面のみ表示 */}
                     {index === currentIndex && !isLandscape && (fit?.showBanner ?? true) && (
                       <div className="w-full md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0">
-                        <DMMBanner
-                          key={`thumbnail-banner-${video.id}-${currentIndex}`}
-                          bannerId={landscapeBannerIds[currentIndex % 2]}
-                          className="w-full aspect-[640/200]"
-                        />
+                        <OverseasAd kind="mobile" isOverseas={isOverseas} className="py-2">
+                          <DMMBanner
+                            key={`thumbnail-banner-${video.id}-${currentIndex}`}
+                            bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
+                            className="w-full aspect-[640/200]"
+                          />
+                        </OverseasAd>
                       </div>
                     )}
                   </div>
@@ -1205,7 +1213,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* PC: 「動画｜同人誌」の切り替えの直下に FANZA の商品ウィジェット（300×600、人気順）。ボタンはその下。以前は欄の一番下で、縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
-          <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
+          <OverseasAd kind="rect" isOverseas={isOverseas}>
+            <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
+          </OverseasAd>
         </div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定（PC はサムネイルの上に重ねるのでここには出さない。行数で右の欄の高さが変わり、下のウィジェットの大きさが揺れていた） */}
