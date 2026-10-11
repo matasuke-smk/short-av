@@ -47,6 +47,8 @@ export const metadata: Metadata = {
   },
   verification: {
     google: 'F-asv0z8G7ZwTAzxpXpo2eMwuJloEIX29Blj_IszMMI',
+    // JuicyAds（海外からの訪問者向けの広告）のサイト確認（2026-10-11）
+    other: { 'juicyads-site-verification': '059e695d70fa9ebe73a4b44b0fc1bb2a' },
   },
 };
 
