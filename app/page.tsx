@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
+import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
@@ -101,16 +102,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
   // まずRPC関数を使用してランダム取得を試みる
   // （以前は存在しない get_random_videos を呼んでいたため、毎回フォールバックの「同じ200本」になっていた）
   try {
-    const { data, error } = await supabase
-      .rpc('get_random_videos_all', {
-        p_limit: poolSize
-      });
-
-    if (error) {
-      console.error('get_random_videos_all エラー:', error.message);
-    } else {
-      videosAll = data;
-    }
+    // 10分ごとにまとめて取った 200 本（lib/random-pool.ts）から、開くたびにランダムに選ぶ（Supabase の通信量を抑えるため）
+    videosAll = shuffle(await getCachedRandomPool()).slice(0, poolSize);
   } catch (error) {
     console.log('RPC関数が存在しない可能性があります。フォールバックを使用します。');
   }
