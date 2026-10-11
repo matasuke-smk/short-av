@@ -16,8 +16,9 @@
  */
 export const landscapeBannerIds: string[] = [
   '1082_640_200',
-  '1083_640_200',
   '1277_640_200', // FANZA TV（14日間無料体験・月額550円で2200作品以上見放題）。無料お試し登録の報酬が大きい（2026-10-10 追加）
+  '1083_640_200',
+  '1277_640_200', // FANZA TV は2枚に1枚（2026-10-11）
 ];
 
 /**
@@ -27,8 +28,9 @@ export const landscapeBannerIds: string[] = [
  */
 export const portraitBannerIds: string[] = [
   '1082_160_600',
-  '1083_160_600',
   '1277_160_600', // FANZA TV
+  '1083_160_600',
+  '1277_160_600', // FANZA TV は2枚に1枚
 ];
 
 /**
