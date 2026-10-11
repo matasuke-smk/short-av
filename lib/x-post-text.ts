@@ -113,7 +113,7 @@ export function buildDoujinPostText(doujin: Doujin, headingIndex: number): strin
       url,
       BROWSER_HINT,
       '',
-      '#PR #FANZA同人',
+      '#PR',
     ]
       .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')
       .join('\n');
@@ -224,7 +224,8 @@ function ctaLines(f: VideoPostFacts): string[] {
   return out;
 }
 
-const TAG_LINES = ['#PR #FANZA', '#PR #FANZA', '#PR #FANZA #AV', '#FANZA #PR'];
+// 2026-10-11: X でアカウントに検索の制限がかかったため、ハッシュタグは広告表記として必要な #PR だけにする（宣伝目的と判定されにくくするため）
+const TAG_LINES = ['#PR'];
 
 /**
  * 動画の X 投稿文。構造を4通りから選ぶ:
