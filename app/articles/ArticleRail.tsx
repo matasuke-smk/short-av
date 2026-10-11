@@ -1,4 +1,8 @@
+'use client';
+
 import DMMWidget from '@/app/components/DMMWidget';
+import { OverseasAd } from '@/app/components/JuicyAd';
+import { useIsOverseas } from '@/lib/useCountry';
 import { articleWidgets, articleWidgetBySlug } from '@/config/banners';
 
 /**
@@ -7,6 +11,7 @@ import { articleWidgets, articleWidgetBySlug } from '@/config/banners';
  * 記事の内容に合わせたキーワードのもの（config/banners.ts の articleWidgetBySlug）。左の余白は空けたまま（本文の読みやすさを優先）
  */
 export default function ArticleRail({ slug }: { slug: string }) {
+  const isOverseas = useIsOverseas();
   const widget = articleWidgets[articleWidgetBySlug[slug] ?? 'common'];
   return (
     <aside
@@ -18,7 +23,9 @@ export default function ArticleRail({ slug }: { slug: string }) {
         <span className="bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
         {widget.label}
       </p>
-      <DMMWidget widgetId={widget.rail} width={300} height={600} className="rounded-lg overflow-hidden" />
+      <OverseasAd kind="rect" isOverseas={isOverseas}>
+        <DMMWidget widgetId={widget.rail} width={300} height={600} className="rounded-lg overflow-hidden" />
+      </OverseasAd>
     </aside>
   );
 }

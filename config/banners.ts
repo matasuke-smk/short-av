@@ -75,3 +75,16 @@ export const articleWidgetBySlug: Record<string, keyof typeof articleWidgets> = 
   'refractory-period-by-age': 'slut',
   'sex-duration-average-reality': 'intimate',
 };
+
+/**
+ * JuicyAds（日本以外の訪問者向けの広告。2026-10-11 登録）。FANZA は国外 IP の購入を報酬にしないので、海外の訪問者にはこちらを出す。
+ * 怪しい広告が出たときなどは enabled を false にすれば、すべて FANZA の広告に戻る
+ */
+export const juicyAds = {
+  enabled: true,
+  zones: {
+    rect: { id: 1128680, width: 300, height: 250 }, // PC の右の欄・記事
+    leaderboard: { id: 1128681, width: 728, height: 90 }, // PC のサムネイルの下・記事（PC）
+    mobile: { id: 1128682, width: 300, height: 100 }, // スマホのサムネイルの下
+  },
+} as const;
