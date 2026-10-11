@@ -143,3 +143,10 @@ body {
 html {
   overscroll-behavior: none;
 }
+
+/* サンプル再生ボタンの脈打ち（InlineSamplePlayer。2026-10-11） */
+@keyframes playpulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); }
+  70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
