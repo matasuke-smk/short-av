@@ -10,7 +10,7 @@ import { importVideoFromDmm } from '@/lib/video-import';
 import { runReports } from '@/lib/ga-data';
 import { toContentIds } from '@/lib/likes';
 import { getAdminUserIds } from '@/lib/admin-users';
-import { EXTRA_LONG_SAMPLE_SECONDS, LONG_SAMPLE_SECONDS } from '@/config/site';
+import { EXTRA_LONG_SAMPLE_SECONDS } from '@/config/site';
 import { buildVideoPost, getXPostVideoUrl } from '@/lib/x-post-text';
 
 // manual = 管理者が選んだ作品（new / ranking / random は以前の毎週の自動作成で使っていた）
@@ -76,9 +76,7 @@ export function pickHeading(video: VideoRow): string {
     const days = (Date.now() - new Date(video.release_date).getTime()) / 86_400_000;
     if (days >= 0 && days <= NEW_RELEASE_DAYS) specific.push('【新作】', '【新作をチェック】');
   }
-  if (video.sample_seconds && video.sample_seconds >= LONG_SAMPLE_SECONDS) {
-    specific.push(`【サンプル動画 ${aboutMinutes(video.sample_seconds)}】`);
-  }
+  // サンプルの長さは4分以上の長尺のときだけ書く（短いサンプルの長さは売りにならないため。2026-10-11 ユーザーの要望）
   // 作品に合う見出しがあれば半分の確率でそちらを使う
   return specific.length > 0 && Math.random() < 0.5 ? pick(specific) : pick(GENERIC_HEADINGS);
 }
@@ -485,7 +483,8 @@ export function buildPostText(video: VideoRow, actressNames: string[], type: Slo
       maker: video.maker,
       rank: video.rank_position,
       isNew: days >= 0 && days <= NEW_RELEASE_DAYS,
-      sampleSeconds: video.sample_seconds,
+      // サンプルの長さは4分以上の長尺のときだけ投稿文に書く（2026-10-11）
+      sampleSeconds: video.sample_seconds && video.sample_seconds >= EXTRA_LONG_SAMPLE_SECONDS ? video.sample_seconds : null,
       genres: genreNames,
     },
     url,
