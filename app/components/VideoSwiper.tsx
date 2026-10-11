@@ -1284,7 +1284,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {isLandscape && currentVideo && (
             <DMMBanner
               key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
-              bannerId={landscapeBannerIds[currentIndex % 2]}
+              bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
               className="w-full aspect-[640/200]"
             />
           )}
@@ -1565,7 +1565,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <div className="w-full">
               <DMMBanner
                 key={`modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={landscapeBannerIds[(currentIndex + 1) % 2]}
+                bannerId={landscapeBannerIds[(currentIndex + 1) % landscapeBannerIds.length]}
                 className="w-full aspect-[640/200]"
               />
             </div>
@@ -1672,7 +1672,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <div className="flex-shrink-0 h-full w-auto flex items-center justify-center">
               <DMMBanner
                 key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={portraitBannerIds[(currentIndex + 1) % 2]}
+                bannerId={portraitBannerIds[(currentIndex + 1) % portraitBannerIds.length]}
                 className="h-[min(600px,90vh)] w-auto"
               />
             </div>
