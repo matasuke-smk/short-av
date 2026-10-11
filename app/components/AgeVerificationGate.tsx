@@ -70,66 +70,55 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
 
   if (!showGate) return null;
 
+  // 2026-10-11: 普段のブラウザで来た人の4人に1人がここで帰っていた。広告（PR の札・クーポン）が「はい」より上にあり、
+  // 最初の画面が広告に見えていたため、サイト名と何ができるかを先に出し、「はい」を上に大きく、クーポンは下に移した
   return (
-    <div className="fixed inset-0 backdrop-blur-[2px] bg-black/50 z-[9999] flex flex-col items-center justify-center p-6 space-y-6">
-      {/* 広告表記 */}
-      <div className="bg-yellow-400 text-black px-4 py-1.5 rounded-full text-xs font-medium">
-        広告・PR
-      </div>
-
-      {/* メッセージ */}
-      <div className="text-white text-center space-y-2">
-        <p className="text-xl font-medium">年齢確認</p>
-        <p className="text-sm">
-          あなたは18歳以上ですか？
+    <div className="fixed inset-0 backdrop-blur-[2px] bg-black/60 z-[9999] flex flex-col items-center justify-center p-6 gap-4 overflow-y-auto">
+      {/* サイト名と、何ができるか */}
+      <div className="text-white text-center space-y-1.5">
+        <p className="text-lg font-extrabold tracking-wide">Short AV</p>
+        <p className="text-sm text-gray-200 leading-relaxed">
+          FANZA の人気作のサンプル動画を
+          <br />
+          縦スワイプで次々と（無料・登録不要）
         </p>
       </div>
 
-      {/* DMMバナー広告 */}
-      <div className="w-full max-w-xs aspect-[6/5] rounded-lg overflow-hidden shadow-xl">
-        {enableAffiliateLinks ? (
-          <a
-            href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005"
-            target="_blank"
-            rel="sponsored"
-          >
-            <img
-              src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg"
-              alt="初回購入限定！500円OFF！"
-              height="250"
-              className="w-full h-auto"
-              loading="lazy"
-            />
-          </a>
-        ) : (
-          <div className="w-full aspect-[6/5] bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-lg flex items-center justify-center">
-            <span className="text-gray-400 text-sm">サイト認証後に表示</span>
-          </div>
-        )}
-      </div>
+      <p className="text-white text-xl font-bold">18歳以上ですか？</p>
 
       {/* ボタン */}
-      <div className="w-full max-w-xs space-y-3">
+      <div className="w-full max-w-xs space-y-2.5">
         <button
           onClick={handleAccept}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3.5 rounded-lg transition-colors shadow-lg"
+          className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-base py-4 rounded-xl transition-colors shadow-[0_4px_18px_rgba(59,130,246,0.5)]"
         >
-          はい（18歳以上）
+          はい、18歳以上です
         </button>
-
         <button
           onClick={handleReject}
-          className="w-full bg-white/20 hover:bg-white/30 text-white font-medium py-2.5 rounded-lg transition-colors backdrop-blur-sm text-sm"
+          className="w-full bg-white/15 hover:bg-white/25 text-gray-200 font-medium py-2.5 rounded-xl transition-colors text-sm"
         >
           いいえ
         </button>
       </div>
 
-      {/* 注意 */}
+      {/* DMM のバナー（初めての人向けのクーポン）。広告の表記は残す */}
       {enableAffiliateLinks && (
-        <p className="text-xs text-white/70 text-center">
-          ※ アフィリエイト広告を掲載しています
-        </p>
+        <div className="w-full max-w-[220px] mt-2 space-y-1.5">
+          <p className="text-xs text-gray-300 text-center">
+            <span className="bg-yellow-400 text-black font-bold px-1 rounded-sm mr-1">PR</span>
+            FANZA が初めてなら
+          </p>
+          <a
+            href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005"
+            target="_blank"
+            rel="sponsored"
+            className="block rounded-lg overflow-hidden shadow-xl"
+          >
+            <img src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg" alt="初回購入限定！500円OFF！" width={300} height={250} className="w-full h-auto" loading="lazy" />
+          </a>
+          <p className="text-[10px] text-white/60 text-center">※ アフィリエイト広告を掲載しています</p>
+        </div>
       )}
     </div>
   );

@@ -1009,6 +1009,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         title={video.title}
                         priority
                         onStart={recordInlineView}
+                        sampleSeconds={video.sample_seconds}
                       />
                     ) : (
                     <Image

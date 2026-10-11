@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 
 // FANZA のサンプルプレイヤーの縦横比
 const PLAYER_RATIO = 560 / 360;
-// 再生前にプレイヤーへタップを通す範囲（中央の▶の大きさ）
-const TAP_AREA = 96;
+// 再生前にプレイヤーへタップを通す範囲（中央の▶と、その下の「タップでサンプル再生」の文字まで。2026-10-11 に広げた）
+const TAP_W = 200;
+const TAP_H = 150;
 
 /**
  * サムネイルの下に FANZA のプレイヤーを置き、中央の▶をタップすると1回で再生する
@@ -25,12 +26,14 @@ export default function InlineSamplePlayer({
   title,
   priority,
   onStart,
+  sampleSeconds,
 }: {
   playerUrl: (size: { width: number; height: number }) => string;
   thumbnailUrl: string;
   title: string;
   priority: boolean;
   onStart: () => void;
+  sampleSeconds?: number | null;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -96,7 +99,12 @@ export default function InlineSamplePlayer({
   const clip = box && player
     ? playing
       ? { left, top, width: player.width, height: player.height }
-      : { left: box.width / 2 - TAP_AREA / 2, top: box.height / 2 - TAP_AREA / 2, width: TAP_AREA, height: TAP_AREA }
+      : {
+          left: box.width / 2 - Math.min(TAP_W, box.width) / 2,
+          top: box.height / 2 - Math.min(TAP_H, box.height) / 2 + 12,
+          width: Math.min(TAP_W, box.width),
+          height: Math.min(TAP_H, box.height),
+        }
     : null;
 
   return (
@@ -131,14 +139,20 @@ export default function InlineSamplePlayer({
         <Image src={thumbnailUrl} alt={title} fill className="object-contain" sizes="(max-width: 768px) 100vw, 640px" priority={priority} unoptimized />
       </div>
 
-      {/* 中央の▶（ここをタップすると、下のプレイヤーの再生ボタンに届く） */}
+      {/* 中央の▶（ここをタップすると、下のプレイヤーの再生ボタンに届く）。
+          2026-10-11: 年齢確認を通った人の4割強が再生せずにスワイプだけしていたので、▶ を大きく青くし、脈打たせ、文字を添えた */}
       {!playing && (
-        <div className="absolute inset-0 z-30 pointer-events-none flex items-center justify-center">
-          <div className={`w-20 h-20 rounded-full bg-black/60 border-2 border-white/80 flex items-center justify-center shadow-lg transition-transform duration-200 ${pulse ? 'scale-125' : 'scale-100'}`}>
-            <svg className="w-9 h-9 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">
+        <div className="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-center gap-2 pt-6">
+          <div
+            className={`w-20 h-20 rounded-full bg-blue-600/90 border-[3px] border-white flex items-center justify-center shadow-lg transition-transform duration-200 motion-safe:animate-[playpulse_1.8s_ease-out_infinite] ${pulse ? 'scale-125' : 'scale-100'}`}
+          >
+            <svg className="w-10 h-10 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
+          <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">
+            タップでサンプル再生{sampleSeconds ? `（${Math.floor(sampleSeconds / 60)}:${String(sampleSeconds % 60).padStart(2, '0')}）` : ''}
+          </span>
         </div>
       )}
     </div>
