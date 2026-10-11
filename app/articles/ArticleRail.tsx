@@ -21,7 +21,7 @@ export default function ArticleRail({ slug }: { slug: string }) {
     >
       <p className="text-xs text-gray-400 mb-2 flex items-center gap-2">
         <span className="bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
-        {widget.label}
+        {isOverseas ? 'Sponsored' : widget.label}
       </p>
       <OverseasAd kind="rect" isOverseas={isOverseas}>
         <DMMWidget widgetId={widget.rail} width={300} height={600} className="rounded-lg overflow-hidden" />
