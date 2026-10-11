@@ -1,8 +1,4 @@
-'use client';
-
 import DMMWidget from '@/app/components/DMMWidget';
-import { OverseasAd } from '@/app/components/JuicyAd';
-import { useIsOverseas } from '@/lib/useCountry';
 import { articleWidgets, articleWidgetBySlug } from '@/config/banners';
 
 /**
@@ -11,23 +7,18 @@ import { articleWidgets, articleWidgetBySlug } from '@/config/banners';
  * スマホは 300×250、PC は本文の幅に合わせて 728×90（スマホ用をそのまま出すと PC では小さかった）
  */
 export default function ArticleWidget({ slug }: { slug: string }) {
-  const isOverseas = useIsOverseas();
   const widget = articleWidgets[articleWidgetBySlug[slug] ?? 'common'];
   return (
     <aside className="mt-10 md:mt-12" aria-label="広告">
       <p className="text-xs text-gray-500 mb-2 flex items-center gap-2">
         <span className="bg-yellow-400 text-black px-1.5 rounded-sm font-bold leading-4">PR</span>
-        {isOverseas ? 'Sponsored' : widget.label}
+        {widget.label}
       </p>
       <div className="flex justify-center lg:hidden">
-        <OverseasAd kind="rect" isOverseas={isOverseas}>
-          <DMMWidget widgetId={widget.sp} width={300} height={250} className="rounded-lg overflow-hidden" style={{ width: 'min(300px, 100%)' }} />
-        </OverseasAd>
+        <DMMWidget widgetId={widget.sp} width={300} height={250} className="rounded-lg overflow-hidden" style={{ width: 'min(300px, 100%)' }} />
       </div>
       <div className="hidden lg:flex justify-center">
-        <OverseasAd kind="leaderboard" isOverseas={isOverseas}>
-          <DMMWidget widgetId={widget.pc} width={728} height={90} className="rounded-lg overflow-hidden" style={{ width: 'min(728px, 100%)' }} />
-        </OverseasAd>
+        <DMMWidget widgetId={widget.pc} width={728} height={90} className="rounded-lg overflow-hidden" style={{ width: 'min(728px, 100%)' }} />
       </div>
     </aside>
   );
