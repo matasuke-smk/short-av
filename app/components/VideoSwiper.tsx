@@ -156,6 +156,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const isOverseas = useIsOverseas();
   // ボタンなどの表示言語（ブラウザの言語設定。lib/i18n.ts）
   const { t } = useT();
+  // 日本以外の訪問者の動画では FANZA のボタン・案内を出さない（国外 IP の購入は報酬にならない。代わりに JuicyAds）
+  const hideFanzaFor = (v: Video | undefined): boolean => !!v && isOverseas && !isDoujinSlide(v);
   // 日本以外の訪問者が同人誌を見ているときの DLsite のリンク（それ以外は null = 従来どおり FANZA）。FANZA は国外 IP の購入を報酬にしない
   const dlsiteHrefFor = (v: Video | undefined): string | null => {
     if (!v || !isOverseas || !dlsite.enabled || !isDoujinSlide(v)) return null;
@@ -1069,7 +1071,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     )}
 
                     {/* サンプルを見終わった瞬間の誘導（案A）。表紙を暗くして中央に FANZA のボタン。枠内のタップは再生に伝えない */}
-                    {sampleEndedId === video.dmm_content_id && index === currentIndex && enableAffiliateLinks && video.dmm_product_url && (
+                    {sampleEndedId === video.dmm_content_id && index === currentIndex && enableAffiliateLinks && !hideFanzaFor(video) && video.dmm_product_url && (
                       <div
                         className="absolute inset-0 z-50 bg-black/75 flex flex-col items-center justify-center gap-2 px-6 text-center"
                         onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
@@ -1227,20 +1229,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* PC: 「動画｜同人誌」の切り替えの直下に FANZA の商品ウィジェット（300×600、人気順）。ボタンはその下。以前は欄の一番下で、縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
-          {/* 日本以外の訪問者の同人誌モードでは DLsite の英語バナー（同人誌は DLsite なら海外でも買える。config/banners.ts の dlsite） */}
-          {doujinMode && isOverseas && dlsite.enabled ? (
+          {/* 日本以外の訪問者: DLsite の英語バナーと JuicyAds の 300×250 を縦に並べる（以前の 300×600 の枠を埋める）。
+              同人誌モードは DLsite を上（同人誌は DLsite なら海外でも買える）、動画モードは JuicyAds を上にする。config/banners.ts の dlsite・juicyAds */}
+          {isOverseas && (dlsite.enabled || juicyAds.enabled) ? (
             <div className="flex flex-col items-center gap-3 max-h-full overflow-hidden">
-              <a href={dlsiteTopUrl()} target="_blank" rel="sponsored noopener noreferrer" onClick={() => trackDlsiteClick('banner')} aria-label="広告: DLsite">
-                {/* eslint-disable-next-line @next/next/no-img-element -- DLsite 公式バナーをそのまま表示する */}
-                <img src={dlsite.banner.src} alt={dlsite.banner.alt} width={dlsite.banner.width} height={dlsite.banner.height} className="block max-w-full h-auto" />
-              </a>
-              {/* バナーの下の余白（以前の 300×600 の枠の残り）に JuicyAds の 300×250 */}
+              {dlsite.enabled && (
+                <a href={dlsiteTopUrl()} target="_blank" rel="sponsored noopener noreferrer" onClick={() => trackDlsiteClick('banner')} aria-label="広告: DLsite" className={doujinMode ? undefined : 'order-2'}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- DLsite 公式バナーをそのまま表示する */}
+                  <img src={dlsite.banner.src} alt={dlsite.banner.alt} width={dlsite.banner.width} height={dlsite.banner.height} className="block max-w-full h-auto" />
+                </a>
+              )}
               {juicyAds.enabled && <JuicyAd zone={juicyAds.zones.rect.id} width={juicyAds.zones.rect.width} height={juicyAds.zones.rect.height} />}
             </div>
           ) : (
-            <OverseasAd kind="rect" isOverseas={isOverseas}>  
-              <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />  
-            </OverseasAd>
+            <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
           )}
         </div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
@@ -1288,7 +1290,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </button>
             );
           })()}
-          {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
+          {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) ? (
             <a
               href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
               target="_blank"
@@ -1299,6 +1301,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
               <span className="text-sm font-bold">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
             </a>
+          ) : hideFanzaFor(currentVideo) && juicyAds.enabled ? (
+            /* 日本以外の訪問者の動画: FANZA の価格ボタンの代わりに JuicyAds の 300×100 */
+            <div className="order-first col-span-2 flex justify-center">
+              <JuicyAd zone={juicyAds.zones.mobile.id} width={juicyAds.zones.mobile.width} height={juicyAds.zones.mobile.height} />
+            </div>
           ) : (
             <div />
           )}
@@ -1309,11 +1316,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
         <div className="w-full max-w-[640px] aspect-[640/200] flex-shrink-0 lg:!hidden">
           {isLandscape && currentVideo && (
-            <DMMBanner
-              key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
-              bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
-              className="w-full aspect-[640/200]"
-            />
+            <OverseasAd kind="mobile" isOverseas={isOverseas}>
+              <DMMBanner
+                key={`landscape-banner-${currentVideo.id}-${currentIndex}`}
+                bannerId={landscapeBannerIds[currentIndex % landscapeBannerIds.length]}
+                className="w-full aspect-[640/200]"
+              />
+            </OverseasAd>
           )}
         </div>
 
@@ -1339,7 +1348,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </button>
             );
           })()}
-          {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
+          {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) ? (
             <a
               href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
               target="_blank"
@@ -1465,7 +1474,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </button>
             )}
             {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
-            {enableAffiliateLinks && currentVideo?.dmm_product_url && (
+            {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) && (
               <a
                 href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
                 target="_blank"
@@ -1591,11 +1600,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 広告バナー - 縦画面時のみアイフレームの上に表示 */}
           {!isLandscape && currentVideo && (
             <div className="w-full">
-              <DMMBanner
-                key={`modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={landscapeBannerIds[(currentIndex + 1) % landscapeBannerIds.length]}
-                className="w-full aspect-[640/200]"
-              />
+              <OverseasAd kind="mobile" isOverseas={isOverseas}>
+                <DMMBanner
+                  key={`modal-banner-${currentVideo.id}-${currentIndex}`}
+                  bannerId={landscapeBannerIds[(currentIndex + 1) % landscapeBannerIds.length]}
+                  className="w-full aspect-[640/200]"
+                />
+              </OverseasAd>
             </div>
           )}
 
@@ -1611,7 +1622,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 }}
                 className="bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg transition-colors font-medium w-full max-w-[200px]"
               >
-                閉じる
+                {t('close')}
               </button>
             </div>
 
@@ -1623,7 +1634,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 </p>
               )}
               <div className="w-full max-w-[200px] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                {enableAffiliateLinks ? (
+                {hideFanzaFor(currentVideo) ? null : enableAffiliateLinks ? (
                   <a
                     href={currentVideo?.dmm_product_url}
                     target="_blank"
@@ -1698,11 +1709,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* バナー領域 - 横画面時のみ表示（上下中央配置） */}
           {isLandscape && currentVideo && (
             <div className="flex-shrink-0 h-full w-auto flex items-center justify-center">
-              <DMMBanner
-                key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
-                bannerId={portraitBannerIds[(currentIndex + 1) % portraitBannerIds.length]}
-                className="h-[min(600px,90vh)] w-auto"
-              />
+              <OverseasAd kind="rect" isOverseas={isOverseas}>
+                <DMMBanner
+                  key={`landscape-modal-banner-${currentVideo.id}-${currentIndex}`}
+                  bannerId={portraitBannerIds[(currentIndex + 1) % portraitBannerIds.length]}
+                  className="h-[min(600px,90vh)] w-auto"
+                />
+              </OverseasAd>
             </div>
           )}
 
@@ -1715,7 +1728,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               onTouchEnd={handleModalTouchEnd}
             >
               <div onClick={(e) => e.stopPropagation()}>
-                {enableAffiliateLinks ? (
+                {hideFanzaFor(currentVideo) ? null : enableAffiliateLinks ? (
                   <a
                     href={currentVideo?.dmm_product_url}
                     target="_blank"

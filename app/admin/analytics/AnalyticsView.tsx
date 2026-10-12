@@ -341,12 +341,13 @@ export function HourlyChart({
   total: number;
   totalEvents: number; // 期間全体の FANZA へのクリック（時間帯ごとの合計。名前は以前のイベント数のまま）
   days: number; // 7日間・28日間は1日あたりの平均で描く
-  axis: { users: number; events: number }; // 縦軸の最大値（4つの期間で共通。1日あたり）
+  axis?: { users: number; events: number }; // 使わない（以前は4つの期間で共通の縦軸。バズの日に合わせると少ない日のグラフが読めなかったので、2026-10-12 から期間ごとに自動）
 }) {
   const [active, setActive] = useState<number | null>(null);
   const perDay = hours.map((x) => ({ ...x, users: x.users / days, events: x.events / days, views: x.views / days }));
-  const max = Math.max(axis.users, ...perDay.map((x) => x.users), 1);
-  const maxEvents = Math.max(axis.events, ...perDay.map((x) => x.events), 1);
+  // 縦軸はこの期間のいちばん多い時間帯に合わせる（目盛りの線に最大値を出すので、期間をまたいだ比較は数字で見る）
+  const max = Math.max(...perDay.map((x) => x.users), 1);
+  const maxEvents = Math.max(...perDay.map((x) => x.events), 1);
   // FANZA へのクリックの折れ線（棒の中央を結ぶ。縦は右の目盛り＝クリックの最大値で 100%）
   const linePoints = perDay.map((x) => `${((x.h + 0.5) / 24) * 100},${100 - (x.events / maxEvents) * 100}`).join(' ');
   if (perDay.every((x) => x.users === 0)) return <p className="text-sm text-gray-400">まだデータがありません。</p>;
@@ -674,34 +675,41 @@ function RangeBody({
         {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
         <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
         <div>
-        {/* 収益につながる数字（FANZA へのクリック）をいちばん上に */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <KpiCard
-            label="FANZA クリック"
-            value={fmt(eventCount('dmm_link_click'))}
-            unit="回"
-            sub={
-              dmm.days > 0
-                ? `${fmt(eventUsers('dmm_link_click'))}人。DMM 側 ${fmt(dmm.clicks)}回・成約 ${fmt(dmmConversions)}件（¥${fmt(dmmYen)}）`
-                : `${fmt(eventUsers('dmm_link_click'))}人がクリック`
-            }
-            onClick={() => setDetail('clicked')}
-          />
-          <KpiCard
-            label="普段のブラウザで来た人"
-            value={fmt(prospects.reach)}
-            unit="人"
-            sub={`うち FANZA を押した見込み客 ${fmt(prospects.users)}人（${pct(prospects.users, prospects.reach)}）`}
-            onClick={() => setDetail('prospects')}
-          />
-          <KpiCard
-            label="クリック率"
-            value={share(eventUsers('dmm_link_click'), eventUsers('page_view'))}
-            unit="%"
-            sub={`訪問 ${fmt(eventUsers('page_view'))}人中 ${fmt(eventUsers('dmm_link_click'))}人`}
-            onClick={() => setDetail('channels')}
-          />
-        </div>
+        {/* 収益につながる3つ（FANZA・JuicyAds・DLsite）をいちばん上に。クリック総数・普段のブラウザからのクリック・クリック率。
+            FANZA は日本の訪問者、JuicyAds・DLsite は日本以外の訪問者に出すので、クリック率もそれぞれの訪問者で割る（レポート 33。バナー等の記録は 2026/10/12 午後から） */}
+        {(() => {
+          const rows33 = reports[33] ?? [];
+          const isJp = (r: ReportRow) => r.dimensions[2] === 'Japan';
+          const isNormal = (r: ReportRow) => !IN_APP_BROWSERS.includes(r.dimensions[1]);
+          const sum = (events: readonly string[], pred: (r: ReportRow) => boolean = () => true) =>
+            rows33.filter((r) => events.includes(r.dimensions[0]) && pred(r)).reduce((a, r) => [a[0] + r.metrics[0], a[1] + r.metrics[1]], [0, 0]);
+          const fanzaEvents = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
+          const visitorsJp = sum(['page_view'], isJp)[1];
+          const visitorsAbroad = sum(['page_view'], (r) => !isJp(r))[1];
+          const cards = [
+            { label: 'FANZA', events: fanzaEvents, visitors: visitorsJp, who: '日本', clickers: sum(fanzaEvents, isJp)[1], extra: dmm.days > 0 ? `DMM 側 ${fmt(dmm.clicks)}回・成約 ${fmt(dmmConversions)}件` : '', detail: 'clicked' },
+            { label: 'JuicyAds', events: ['juicyads_click'], visitors: visitorsAbroad, who: '海外', clickers: sum(['juicyads_click'], (r) => !isJp(r))[1], extra: '', detail: 'channels' },
+            { label: 'DLsite', events: ['dlsite_click'], visitors: visitorsAbroad, who: '海外', clickers: sum(['dlsite_click'], (r) => !isJp(r))[1], extra: '', detail: 'channels' },
+          ];
+          return (
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              {cards.map((c) => (
+                <KpiCard
+                  key={c.label}
+                  label={c.label}
+                  value={fmt(sum(c.events)[0])}
+                  unit="回"
+                  sub={[
+                    `普段のブラウザ ${fmt(sum(c.events, isNormal)[0])}回`,
+                    `クリック率 ${pct(c.clickers, c.visitors)}（${c.who} ${fmt(c.visitors)}人中 ${fmt(c.clickers)}人）`,
+                    c.extra,
+                  ].filter(Boolean).join('・')}
+                  onClick={() => setDetail(c.detail)}
+                />
+              ))}
+            </div>
+          );
+        })()}
         <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
           <HourlyChart hours={hours} total={users} totalEvents={totalClicks} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('funnel')} />
         </Section>

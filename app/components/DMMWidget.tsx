@@ -1,6 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { trackFanzaAdClick } from '@/lib/gtag';
+import { useIframeClick } from '@/lib/useIframeClick';
 
 interface DMMWidgetProps {
   widgetId: string; // DMM アフィリエイトの「ウィジェット作成」で発行した data-id
@@ -31,9 +33,13 @@ fit();addEventListener('resize',fit);
     [widgetId, width, height],
   );
 
+  // 中の作品を押したことを GA に送る（DMM のクリック数と見比べるため。lib/useIframeClick.ts）
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  useIframeClick(frameRef, () => trackFanzaAdClick('widget', widgetId));
+
   return (
     <div className={className} style={{ aspectRatio: `${width} / ${height}`, ...style }} aria-label="広告">
-      <iframe title="広告" srcDoc={srcDoc} className="w-full h-full" style={{ border: 0, display: 'block' }} scrolling="no" />
+      <iframe ref={frameRef} title="広告" srcDoc={srcDoc} className="w-full h-full" style={{ border: 0, display: 'block' }} scrolling="no" />
     </div>
   );
 }

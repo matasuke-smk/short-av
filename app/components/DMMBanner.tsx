@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef } from 'react';
+import { trackFanzaAdClick } from '@/lib/gtag';
 
 interface DMMBannerProps {
   bannerId: string; // 例: 1082_640_200（末尾が 幅_高さ）
@@ -44,7 +45,10 @@ fit();addEventListener('resize',fit);
   // タップされたらバナーのリンクを新しいタブで開く（スワイプのときはクリックが発生しない）
   const openLink = () => {
     const link = frameRef.current?.contentDocument?.querySelector<HTMLAnchorElement>('a[href]');
-    if (link?.href) window.open(link.href, '_blank', 'noopener');
+    if (link?.href) {
+      trackFanzaAdClick('banner', bannerId);
+      window.open(link.href, '_blank', 'noopener');
+    }
   };
 
   return (
