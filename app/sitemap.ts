@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 import { supabase } from '@/lib/supabase';
+import { listCatalog } from '@/lib/catalog';
 
 // 1時間ごとに作り直す（動画ページの一覧が変わるため）
 export const revalidate = 3600;
@@ -75,5 +76,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const videoPages = await getVideoPages(baseUrl).catch(() => []);
 
-  return [...staticPages, ...articlePages, ...videoPages];
+  // 女優ごと・ジャンルごとのページ（lib/catalog.ts。作品が一定数以上あるもの）。「女優名 サンプル」などの検索から来てもらう
+  const [actresses, genres] = await Promise.all([listCatalog('actress').catch(() => []), listCatalog('genre').catch(() => [])]);
+  const catalogPages: MetadataRoute.Sitemap = [
+    ...actresses.map((e) => ({ url: `${baseUrl}/actress/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
+    ...genres.map((e) => ({ url: `${baseUrl}/genre/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
+  ];
+
+  return [...staticPages, ...articlePages, ...catalogPages, ...videoPages];
 }
