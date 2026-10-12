@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { trackAgeVerification } from '@/lib/gtag';
+import { useT } from '@/lib/i18n';
+import { useIsOverseas } from '@/lib/useCountry';
 
 interface AgeVerificationGateProps {
   onAccept?: () => void;
@@ -9,6 +11,8 @@ interface AgeVerificationGateProps {
 
 export default function AgeVerificationGate({ onAccept }: AgeVerificationGateProps) {
   const [showGate, setShowGate] = useState(false);
+  const { t } = useT();
+  const isOverseas = useIsOverseas();
 
   // アフィリエイトリンク表示制御（環境変数で管理）
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
@@ -78,13 +82,13 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
       <div className="text-white text-center space-y-1.5">
         <p className="text-lg font-extrabold tracking-wide">Short AV</p>
         <p className="text-sm text-gray-200 leading-relaxed">
-          FANZA の人気作のサンプル動画を
+          {t('ageDesc1')}
           <br />
-          縦スワイプで次々と（無料・登録不要）
+          {t('ageDesc2')}
         </p>
       </div>
 
-      <p className="text-white text-xl font-bold">18歳以上ですか？</p>
+      <p className="text-white text-xl font-bold">{t('ageQuestion')}</p>
 
       {/* ボタン */}
       <div className="w-full max-w-xs space-y-2.5">
@@ -92,22 +96,23 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
           onClick={handleAccept}
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-base py-4 rounded-xl transition-colors shadow-[0_4px_18px_rgba(59,130,246,0.5)]"
         >
-          はい、18歳以上です
+          {t('ageYes')}
         </button>
         <button
           onClick={handleReject}
           className="w-full bg-white/15 hover:bg-white/25 text-gray-200 font-medium py-2.5 rounded-xl transition-colors text-sm"
         >
-          いいえ
+          {t('ageNo')}
         </button>
       </div>
 
       {/* DMM のバナー（初めての人向けのクーポン）。広告の表記は残す */}
-      {enableAffiliateLinks && (
+      {/* 日本以外の訪問者には出さない（FANZA は国外 IP の購入を報酬にしない） */}
+      {enableAffiliateLinks && !isOverseas && (
         <div className="w-full max-w-[220px] mt-2 space-y-1.5">
           <p className="text-xs text-gray-300 text-center">
             <span className="bg-yellow-400 text-black font-bold px-1 rounded-sm mr-1">PR</span>
-            FANZA が初めてなら
+            {t('ageFirstFanza')}
           </p>
           <a
             href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005"
@@ -117,7 +122,7 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
           >
             <img src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg" alt="初回購入限定！500円OFF！" width={300} height={250} className="w-full h-auto" loading="lazy" />
           </a>
-          <p className="text-[10px] text-white/60 text-center">※ アフィリエイト広告を掲載しています</p>
+          <p className="text-[10px] text-white/60 text-center">{t('ageAdNote')}</p>
         </div>
       )}
     </div>

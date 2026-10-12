@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useT } from '@/lib/i18n';
 
 const TUTORIAL_KEY = 'short-av-tutorial-shown';
 
@@ -18,6 +19,7 @@ interface InitialTutorialProps {
 
 export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialProps) {
   const [show, setShow] = useState(false);
+  const { t } = useT();
   // 親の再描画でこの effect が再実行されても、表示（と GA イベント送信）は1回だけにする
   const shownRef = useRef(false);
 
@@ -82,8 +84,8 @@ export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialPr
             </div>
           </div>
           <p className="text-white text-2xl font-bold leading-snug">
-            <span className="lg:hidden">上にスワイプで<br />次の動画へ</span>
-            <span className="hidden lg:inline">ホイール・↓キーで<br />次の動画へ</span>
+            <span className="lg:hidden">{t('tutSwipe1')}<br />{t('tutSwipe2')}</span>
+            <span className="hidden lg:inline">{t('tutWheel1')}<br />{t('tutSwipe2')}</span>
           </p>
         </div>
 
@@ -93,8 +95,8 @@ export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialPr
             <path d="M8 5v14l11-7z" />
           </svg>
           <p className="text-white text-base">
-            <span className="lg:hidden">中央の▶をタップで再生</span>
-            <span className="hidden lg:inline">中央の▶をクリックで再生</span>
+            <span className="lg:hidden">{t('tutTapPlay')}</span>
+            <span className="hidden lg:inline">{t('tutClickPlay')}</span>
           </p>
         </div>
       </div>
@@ -102,8 +104,8 @@ export default function InitialTutorial({ onDismiss, onShow }: InitialTutorialPr
       {/* 閉じ方（下部） */}
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 pointer-events-none">
         <p className="text-white/70 text-sm animate-pulse-slow">
-          <span className="lg:hidden">タップしてはじめる</span>
-          <span className="hidden lg:inline">クリックしてはじめる</span>
+          <span className="lg:hidden">{t('tutTapStart')}</span>
+          <span className="hidden lg:inline">{t('tutClickStart')}</span>
         </p>
       </div>
     </div>

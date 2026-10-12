@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/lib/i18n';
 
 // FANZA のサンプルプレイヤーの縦横比
 const PLAYER_RATIO = 560 / 360;
@@ -39,6 +40,7 @@ export default function InlineSamplePlayer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const [playing, setPlaying] = useState(false);
+  const { t } = useT();
   const [pulse, setPulse] = useState(false);
   const startedRef = useRef(false);
   // 親の再描画で検知の準備（フォーカスを戻す処理など）がやり直されないよう、最新の onStart は ref で持つ
@@ -151,7 +153,7 @@ export default function InlineSamplePlayer({
             </svg>
           </div>
           <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">
-            タップでサンプル再生{sampleSeconds ? `（${Math.floor(sampleSeconds / 60)}:${String(sampleSeconds % 60).padStart(2, '0')}）` : ''}
+            {t('tapToPlay')}{sampleSeconds ? `（${Math.floor(sampleSeconds / 60)}:${String(sampleSeconds % 60).padStart(2, '0')}）` : ''}
           </span>
         </div>
       )}

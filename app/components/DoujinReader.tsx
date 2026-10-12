@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import type { Doujin } from '@/lib/doujin-types';
+import { useT } from '@/lib/i18n';
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 
@@ -24,6 +25,7 @@ export default function DoujinReader({
   dlsiteHref?: string; // 日本以外の訪問者: 購入ページに「DLsite で探す」を出す（サークル名で DLsite を検索。lib/dlsite.ts）
   onDlsiteClick?: () => void;
 }) {
+  const { t } = useT();
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
   const [page, setPage] = useState(0);
   const [loadedUntil, setLoadedUntil] = useState(1);
@@ -82,7 +84,7 @@ export default function DoujinReader({
                 // eslint-disable-next-line @next/next/no-img-element -- FANZA の画像をそのまま表示する（最適化の対象外）
                 <img src={src} alt={`${doujin.title} サンプル ${i + 1}`} className="max-h-full max-w-full object-contain" draggable={false} />
               ) : (
-                <div className="text-sm text-gray-500">読み込み中...</div>
+                <div className="text-sm text-gray-500">{t('loading')}</div>
               )}
             </div>
           ))}
@@ -94,7 +96,7 @@ export default function DoujinReader({
               <img src={doujin.cover} alt={doujin.title} className="max-h-full max-w-full rounded-lg object-contain" draggable={false} />
             </div>
             <div className="w-full max-w-sm flex-shrink-0 pt-2">
-              {!compact && <p className="text-xs text-gray-400">サンプルはここまで（全{doujin.samples.length}ページ）</p>}
+              {!compact && <p className="text-xs text-gray-400">{t('djSampleEnd', { n: doujin.samples.length })}</p>}
               <h2 className={`mt-1 font-bold leading-snug ${compact ? 'text-sm line-clamp-2' : 'text-lg line-clamp-3'}`}>{doujin.title}</h2>
               {doujin.circle && !compact && <p className="mt-1 text-sm text-gray-400">{doujin.circle}</p>}
               {/* 価格は FANZA のもの。日本以外の訪問者（DLsite に案内する）には出さない */}
@@ -113,7 +115,7 @@ export default function DoujinReader({
                   onClick={onDlsiteClick}
                   className={`block w-full rounded-xl bg-blue-600 font-bold hover:bg-blue-500 active:bg-blue-700 ${compact ? 'mt-2 py-2.5 text-sm' : 'mt-3 py-3.5 text-base'}`}
                 >
-                  DLsite で探す
+                  {t('dlsiteSearch')}
                 </a>
               ) : (
                 <a
@@ -123,11 +125,11 @@ export default function DoujinReader({
                   onClick={onLinkClick}
                   className={`block w-full rounded-xl bg-pink-600 font-bold hover:bg-pink-500 active:bg-pink-700 ${compact ? 'mt-2 py-2.5 text-sm' : 'mt-3 py-3.5 text-base'}`}
                 >
-                  FANZA で続きを読む
+                  {t('djFanza')}
                 </a>
               )}
               {!compact && doujin.genres.length > 0 && <p className="mt-2 text-xs text-gray-500 line-clamp-1">{doujin.genres.join(' / ')}</p>}
-              <p className="mt-1.5 text-xs text-gray-500">↑ 上にスワイプで次の動画へ</p>
+              <p className="mt-1.5 text-xs text-gray-500">{t('djNextVideo')}</p>
             </div>
           </div>
         </div>
@@ -137,7 +139,7 @@ export default function DoujinReader({
       <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 to-transparent px-3 pb-6 pt-2">
         <div className="flex items-center gap-2 text-xs">
           <span className="min-w-0 flex-1 truncate text-gray-200">{doujin.title}</span>
-          <span className="flex-shrink-0 rounded-full bg-black/60 px-2 py-0.5">{isLast ? '購入ページ' : `${page + 1} / ${doujin.samples.length}`}</span>
+          <span className="flex-shrink-0 rounded-full bg-black/60 px-2 py-0.5">{isLast ? t('djPurchasePage') : `${page + 1} / ${doujin.samples.length}`}</span>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/20">
           <div className="h-full rounded-full bg-pink-500 transition-all" style={{ width: `${((page + 1) / total) * 100}%` }} />
@@ -148,7 +150,7 @@ export default function DoujinReader({
       {page > 0 && (
         <button
           type="button"
-          aria-label="前のページ"
+          aria-label={t('djPrevPage')}
           onClick={(e) => {
             e.stopPropagation();
             emblaApi?.scrollPrev();
@@ -164,7 +166,7 @@ export default function DoujinReader({
       {!isLast && (
         <button
           type="button"
-          aria-label="次のページ"
+          aria-label={t('djNextPage')}
           onClick={(e) => {
             e.stopPropagation();
             emblaApi?.scrollNext();
@@ -183,18 +185,18 @@ export default function DoujinReader({
       {/* 1ページ目: 何ができるかの案内（ページをめくると消える） */}
       {page === 0 && (
         <div className={`pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent text-center ${compact ? 'px-3 pb-2 pt-6' : 'px-5 pb-4 pt-10'}`}>
-          {!compact && <p className="text-base font-bold">📖 同人誌のサンプルが読めます</p>}
+          {!compact && <p className="text-base font-bold">{t('djIntro')}</p>}
           <p className={`text-gray-200 ${compact ? 'text-xs' : 'mt-1 text-sm'}`}>
-            <span className="doujin-nudge inline-block font-bold text-pink-300">← 左にスワイプ</span>
-            {' '}でページをめくる（全{doujin.samples.length}ページ）
+            <span className="doujin-nudge inline-block font-bold text-pink-300">{t('djSwipeLeft')}</span>
+            {' '}{t('djFlip', { n: doujin.samples.length })}
           </p>
-          {!compact && <p className="mt-1 text-xs text-gray-400">最後まで読むと価格と購入ボタン。読まずに次へは上にスワイプ</p>}
+          {!compact && <p className="mt-1 text-xs text-gray-400">{t('djIntroSub')}</p>}
         </div>
       )}
       {/* 最後のサンプル: 次で価格が見られること */}
       {page === doujin.samples.length - 1 && (
         <div className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs">
-          <span className="doujin-nudge inline-block rounded-full bg-pink-600/90 px-3 py-1 font-bold">次のページで価格をチェック →</span>
+          <span className="doujin-nudge inline-block rounded-full bg-pink-600/90 px-3 py-1 font-bold">{t('djCheckPrice')}</span>
         </div>
       )}
       {/* 左にスワイプを促す小さな動き */}
