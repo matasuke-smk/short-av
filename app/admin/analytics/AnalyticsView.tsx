@@ -172,8 +172,7 @@ export function KpiCard({ label, value, unit, sub, rows, share, onClick }: { lab
             <div className="h-full bg-emerald-400" style={{ width: `${share.total > 0 ? Math.max(share.part > 0 ? 3 : 0, (share.part / share.total) * 100) : 0}%` }} />
           </div>
           <div className="mt-1 flex items-center gap-1 text-[11px] sm:text-xs leading-snug">
-            <span className="inline-block w-2 h-2 rounded-sm bg-emerald-400 flex-shrink-0" aria-hidden />
-            <span className="text-gray-200 truncate">{share.label}</span>
+            <span className="text-emerald-300 truncate">{share.label}</span>
           </div>
         </>
       )}
