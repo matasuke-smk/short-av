@@ -310,7 +310,10 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
     // 上の3枚のカード（FANZA・JuicyAds・DLsite）用に、ブラウザ（普段のブラウザかアプリ内か）と国（訪問者の数を日本と海外に分ける）も取る
     { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'browser' }, { name: 'country' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIn([...FANZA_CLICK_EVENTS, 'juicyads_click', 'dlsite_click', 'page_view']), limit: 5000 },
   ];
+  // レポート 33（上の3枚のカード）は「日本のみ」でも絞らない。カードは FANZA を日本、JuicyAds・DLsite を海外の訪問者で数えるため
+  const cardRequest = workActionRequests[6];
   for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
+    if (request === cardRequest) continue;
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
   }
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
