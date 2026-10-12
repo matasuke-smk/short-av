@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
+import { getVideoByContentId } from '@/lib/video-by-content-id';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
@@ -36,16 +37,12 @@ export async function generateMetadata({
   const contentId = typeof v === 'string' ? v : undefined;
   if (!contentId || contentId.length > 64) return {};
 
-  const { data: video } = await supabase
-    .from('videos')
-    .select('dmm_content_id, title, description, thumbnail_url, maker, release_date, sample_seconds, actress_ids, genre_ids')
-    .eq('dmm_content_id', contentId)
-    .maybeSingle();
+  const video = (await getVideoByContentId(contentId).catch(() => null)) as VideoSeoRow | null;
   if (!video?.thumbnail_url) return {};
 
   const title = `${video.title} | Short AV`;
   // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる
-  const description = buildVideoDescription(video as VideoSeoRow, await getVideoNames(video));
+  const description = buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
@@ -139,13 +136,9 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
   // クライアント側で後から探すと、スワイプ画面の初期化（URL の書き換え）と競合して別の動画に戻ることがあった。
   let linkNotice: string | undefined;
   if (targetId) {
-    const { data: target } = await supabase
-      .from('videos')
-      .select('*')
-      .eq('dmm_content_id', targetId)
-      .eq('is_active', true)
-      .not('sample_video_url', 'is', null)
-      .maybeSingle();
+    // 作品の情報は1時間使い回す（lib/video-by-content-id.ts）。掲載終了・サンプルなしはここで判定する
+    const found = await getVideoByContentId(targetId).catch(() => null);
+    const target = found && found.is_active && found.sample_video_url ? found : null;
     if (target) {
       videoPool = [target, ...videoPool.filter((v: { dmm_content_id: string }) => v.dmm_content_id !== targetId)];
     } else {

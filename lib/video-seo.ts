@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -15,16 +16,26 @@ export type VideoSeoRow = {
   genre_ids: string[] | null;
 };
 
+// 女優名・ジャンル名はほとんど変わらないので、同じ組み合わせは1日使い回す
+// （トップページを開くたびに最初の作品の名前を Supabase に問い合わせていた。呼び出し1回ごとに Supabase のログが増える）
+const getNamesCached = unstable_cache(
+  async (actressIds: string[], genreIds: string[]): Promise<{ actresses: string[]; genres: string[] }> => {
+    const [actresses, genres] = await Promise.all([
+      actressIds.length > 0
+        ? supabase.from('actresses').select('id, name').in('id', actressIds).then(({ data }) => (data ?? []).map((r) => r.name as string))
+        : Promise.resolve([] as string[]),
+      genreIds.length > 0
+        ? supabase.from('genres').select('id, name').in('id', genreIds).then(({ data }) => (data ?? []).map((r) => r.name as string))
+        : Promise.resolve([] as string[]),
+    ]);
+    return { actresses, genres };
+  },
+  ['video-names-v1'],
+  { revalidate: 86400 },
+);
+
 export async function getVideoNames(video: { actress_ids: string[] | null; genre_ids: string[] | null }): Promise<{ actresses: string[]; genres: string[] }> {
-  const [actresses, genres] = await Promise.all([
-    video.actress_ids && video.actress_ids.length > 0
-      ? supabase.from('actresses').select('id, name').in('id', video.actress_ids.slice(0, 5)).then(({ data }) => (data ?? []).map((r) => r.name as string))
-      : Promise.resolve([] as string[]),
-    video.genre_ids && video.genre_ids.length > 0
-      ? supabase.from('genres').select('id, name').in('id', video.genre_ids.slice(0, 8)).then(({ data }) => (data ?? []).map((r) => r.name as string))
-      : Promise.resolve([] as string[]),
-  ]);
-  return { actresses, genres };
+  return getNamesCached((video.actress_ids ?? []).slice(0, 5), (video.genre_ids ?? []).slice(0, 8));
 }
 
 const sampleLength = (seconds: number | null) => (seconds && seconds > 0 ? `${Math.floor(seconds / 60)}分${seconds % 60}秒` : null);
