@@ -15,10 +15,14 @@ export default function DoujinReader({
   doujin,
   onLinkClick,
   onComplete,
+  dlsiteHref,
+  onDlsiteClick,
 }: {
   doujin: Doujin;
   onLinkClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   onComplete?: () => void; // 最後まで読んで購入ページに来たとき（1回だけ）
+  dlsiteHref?: string; // 日本以外の訪問者: 購入ページに「DLsite で探す」を出す（サークル名で DLsite を検索。lib/dlsite.ts）
+  onDlsiteClick?: () => void;
 }) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
   const [page, setPage] = useState(0);
@@ -108,6 +112,17 @@ export default function DoujinReader({
               >
                 FANZA で続きを読む
               </a>
+              {dlsiteHref && (
+                <a
+                  href={dlsiteHref}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  onClick={onDlsiteClick}
+                  className={`block w-full rounded-xl bg-blue-600 font-bold hover:bg-blue-500 active:bg-blue-700 ${compact ? 'mt-1.5 py-2 text-sm' : 'mt-2 py-3 text-base'}`}
+                >
+                  DLsite で探す
+                </a>
+              )}
               {!compact && doujin.genres.length > 0 && <p className="mt-2 text-xs text-gray-500 line-clamp-1">{doujin.genres.join(' / ')}</p>}
               <p className="mt-1.5 text-xs text-gray-500">↑ 上にスワイプで次の動画へ</p>
             </div>

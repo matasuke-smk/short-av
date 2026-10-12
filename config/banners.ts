@@ -90,3 +90,16 @@ export const juicyAds = {
     mobile: { id: 1128682, width: 300, height: 100 }, // スマホのサムネイルの下
   },
 } as const;
+
+/**
+ * DLsite アフィリエイト（2026-10-12 承認、アフィリエイトID shortav）。日本以外の訪問者の同人誌モードで使う。
+ * DLsite は英語版があり海外でも買えるので、FANZA（国外 IP の購入は報酬対象外）の代わりに案内する。
+ * リンクは dlaf.jp の中継 URL で DLsite の任意のページを包む形（href を書き換えるのは規約違反。文字や見た目は自由）。
+ * enabled を false にすれば、海外の訪問者も従来どおり（同人誌は FANZA、右の欄は JuicyAds）に戻る
+ */
+export const dlsite = {
+  enabled: true,
+  affiliateId: 'shortav',
+  // 海外向けの英語バナー（DLsite 公式。https://www.dlsite.com/home/banners の「海外向け」）
+  banner: { src: 'https://www.dlsite.com/img/abroad/eng/bn_sp_300_250_eng_01.jpg', width: 300, height: 250, alt: 'DLsite - Doujin Download Shop' },
+} as const;

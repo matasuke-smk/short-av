@@ -44,7 +44,7 @@ export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
 export type YesterdaySoFar = { until: string; users: number; events: number; views: number };
 
 export type RangeData =
-  | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; doujinInfo?: Record<string, { title: string; cover: string }>; db: { likes: number; adminLikes?: number; adminDevices?: number; adminError?: string | null; sizes: number; titleById: Record<string, string> } }
+  | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; doujinInfo?: Record<string, { title: string; cover: string }>; db: { titleById: Record<string, string> } }
   | { error: string };
 
 // まだ取得していない期間（画面を開いたあとに /api/admin/analytics で1つずつ取る）。表示は「読み込み中」にする

@@ -11,7 +11,8 @@ import { blendByPreference, getPreference, type Preference } from '@/lib/prefere
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds, portraitBannerIds, pcWidgets } from '@/config/banners';
+import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite } from '@/config/banners';
+import { dlsiteSearchUrl, dlsiteTopUrl } from '@/lib/dlsite';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
@@ -58,6 +59,7 @@ import {
   trackDoujinView,
   trackDoujinComplete,
   trackModeSwitch,
+  trackDlsiteClick,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
 
@@ -986,6 +988,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                           const contentId = doujinBySlideRef.current.get(video.id)!.contentId;
                           handleFanzaClick(e, 'FANZA で続きを読む', () => trackDMMClick(video.id, contentId, 'doujin', getViewContext()), contentId);
                         }}
+                        dlsiteHref={isOverseas && dlsite.enabled ? dlsiteSearchUrl(doujinBySlideRef.current.get(video.id)!.title, doujinBySlideRef.current.get(video.id)!.circle) : undefined}
+                        onDlsiteClick={() => trackDlsiteClick('search', doujinBySlideRef.current.get(video.id)!.contentId)}
                       />
                     </div>
                   </div>
@@ -1214,9 +1218,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
         {/* PC: 「動画｜同人誌」の切り替えの直下に FANZA の商品ウィジェット（300×600、人気順）。ボタンはその下。以前は欄の一番下で、縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
-          <OverseasAd kind="rect" isOverseas={isOverseas}>
-            <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />
-          </OverseasAd>
+          {/* 日本以外の訪問者の同人誌モードでは DLsite の英語バナー（同人誌は DLsite なら海外でも買える。config/banners.ts の dlsite） */}
+          {doujinMode && isOverseas && dlsite.enabled ? (
+            <a href={dlsiteTopUrl()} target="_blank" rel="sponsored noopener noreferrer" onClick={() => trackDlsiteClick('banner')} aria-label="広告: DLsite">
+              {/* eslint-disable-next-line @next/next/no-img-element -- DLsite 公式バナーをそのまま表示する */}
+              <img src={dlsite.banner.src} alt={dlsite.banner.alt} width={dlsite.banner.width} height={dlsite.banner.height} className="block max-w-full h-auto" />
+            </a>
+          ) : (
+            <OverseasAd kind="rect" isOverseas={isOverseas}>  
+              <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />  
+            </OverseasAd>
+          )}
         </div>
         {/* 以下の各要素は高さを固定する（作品ごとに高さが変わると、下のボタンの位置がずれて押し間違えていた） */}
         {/* タイトル - 2行固定（PC はサムネイルの上に重ねるのでここには出さない。行数で右の欄の高さが変わり、下のウィジェットの大きさが揺れていた） */}

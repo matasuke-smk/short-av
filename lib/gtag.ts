@@ -178,6 +178,11 @@ export const trackDoujinComplete = (contentId: string, pages: number) => {
   sendGAEvent('doujin_complete', { content_id: contentId, pages });
 };
 
+// DLsite へのリンク（日本以外の訪問者向け）。place: search = 同人誌の購入ページの「DLsite で探す」、banner = 右の欄のバナー
+export const trackDlsiteClick = (place: 'search' | 'banner', contentId?: string) => {
+  sendGAEvent('dlsite_click', { place: place === 'search' ? '同人誌の検索' : 'バナー', content_id: contentId });
+};
+
 // 「動画｜同人誌」の切り替え
 export const trackModeSwitch = (mode: 'video' | 'doujin') => {
   sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : '動画' });
