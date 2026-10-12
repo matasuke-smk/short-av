@@ -922,7 +922,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <span className="absolute left-3 bg-yellow-400 text-black px-1.5 rounded-sm text-xs font-bold leading-4">PR</span>
         {modeToggle}
         <Link
-          href="/articles"
+          href="/articles" prefetch={false}
           className="absolute right-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-lg p-1.5 shadow-lg active:scale-95"
           aria-label="記事を読む"
         >
@@ -1402,7 +1402,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
           {/* 記事ボタン */}
           <Link
-            href="/articles"
+            href="/articles" prefetch={false}
             className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1528,13 +1528,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
           {/* ポリシーリンク - レスポンシブ対応 */}
           <div className="flex items-center justify-center gap-4 md:gap-6 mt-2 md:mt-3 text-xs md:text-sm">
-            <Link href="/articles" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+            <Link href="/articles" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
               記事一覧
             </Link>
-            <Link href="/privacy" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+            <Link href="/privacy" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
               プライバシーポリシー
             </Link>
-            <Link href="/terms" className="text-gray-400 hover:text-gray-300 transition-colors underline">
+            <Link href="/terms" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
               利用規約
             </Link>
             <a href={CONTACT_FORM_URL} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 transition-colors underline">

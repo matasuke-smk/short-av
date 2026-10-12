@@ -1,18 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import AgeVerificationGate from './components/AgeVerificationGate';
 import GoogleAnalytics from './components/GoogleAnalytics';
 import PWAInstaller from './components/PWAInstaller';
 import AdminUserSync from './components/AdminUserSync';
 
-const notoSansJP = Noto_Sans_JP({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  display: 'swap',
-  preload: true,
-  variable: '--font-noto-sans-jp',
-});
 
 export const metadata: Metadata = {
   title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
@@ -77,7 +69,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html lang="ja">
       <head>
         <GoogleAnalytics />
         {/* PWA設定 */}
@@ -96,7 +88,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
       </head>
-      <body className={`${notoSansJP.className} antialiased`}>
+      <body className="antialiased">
         <AgeVerificationGate />
         <AdminUserSync />
         {/* <PWAInstaller /> */}
