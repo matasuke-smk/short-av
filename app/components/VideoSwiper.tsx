@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite, juicyAds } from '@/config/banners';
 import { dlsiteSearchUrl, dlsiteTopUrl } from '@/lib/dlsite';
+import { useT } from '@/lib/i18n';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
@@ -153,6 +154,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
   // 日本以外の訪問者には FANZA の代わりに JuicyAds の広告を出す（FANZA は国外 IP の購入を報酬にしない）
   const isOverseas = useIsOverseas();
+  // ボタンなどの表示言語（ブラウザの言語設定。lib/i18n.ts）
+  const { t } = useT();
   // 日本以外の訪問者が同人誌を見ているときの DLsite のリンク（それ以外は null = 従来どおり FANZA）。FANZA は国外 IP の購入を報酬にしない
   const dlsiteHrefFor = (v: Video | undefined): string | null => {
     if (!v || !isOverseas || !dlsite.enabled || !isDoujinSlide(v)) return null;
@@ -896,7 +899,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
 
   const modeToggle = (
-    <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label="動画と同人誌の切り替え">
+    <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label={t('modeToggle')}>
       {(['video', 'doujin'] as const).map((key) => (
         <button
           key={key}
@@ -906,14 +909,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           onClick={() => switchMode(key)}
           className={`rounded-full px-5 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
         >
-          {key === 'video' ? '動画' : '同人誌'}
+          {key === 'video' ? t('modeVideo') : t('modeDoujin')}
         </button>
       ))}
     </div>
   );
 
   if (!videos || videos.length === 0) {
-    return <div className="text-center py-12">動画がありません</div>;
+    return <div className="text-center py-12">{t('noVideos')}</div>;
   }
 
   return (
@@ -932,7 +935,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <Link
           href="/articles" prefetch={false}
           className="absolute right-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-lg p-1.5 shadow-lg active:scale-95"
-          aria-label="記事を読む"
+          aria-label={t('articlesAria')}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -972,7 +975,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       <button
                         onClick={(e) => toggleLike(video, e)}
                         className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90"
-                        aria-label="いいね"
+                        aria-label={t('like')}
                       >
                         {likedVideos.has(video.dmm_content_id) ? (
                           <svg className="w-7 h-7 text-red-500 fill-current" viewBox="0 0 24 24">
@@ -1039,7 +1042,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <button
                       onClick={(e) => toggleLike(video, e)}
                       className={`lg:hidden absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
-                      aria-label="いいね"
+                      aria-label={t('like')}
                     >
                       {likedVideos.has(video.dmm_content_id) ? (
                         <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
@@ -1059,8 +1062,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
                           </svg>
-                          <span className="lg:hidden">上にスワイプで次の動画</span>
-                          <span className="hidden lg:inline">ホイール・↓キーで次の動画</span>
+                          <span className="lg:hidden">{t('swipeNextVideo')}</span>
+                          <span className="hidden lg:inline">{t('wheelNextVideo')}</span>
                         </div>
                       </div>
                     )}
@@ -1071,17 +1074,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         className="absolute inset-0 z-50 bg-black/75 flex flex-col items-center justify-center gap-2 px-6 text-center"
                         onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
                         role="dialog"
-                        aria-label="サンプルはここまで"
+                        aria-label={t('sampleEnd')}
                       >
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
                           className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center"
-                          aria-label="閉じる"
+                          aria-label={t('close')}
                         >
                           ×
                         </button>
-                        <div className="text-white font-bold text-base lg:text-lg">サンプルはここまで</div>
+                        <div className="text-white font-bold text-base lg:text-lg">{t('sampleEnd')}</div>
                         <div className="text-gray-300 text-xs line-clamp-2 max-w-[90%]">{video.title}</div>
                         <a
                           href={video.dmm_product_url}
@@ -1100,8 +1103,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                           <FirstTimeLinks position="sample_end" className="mt-2" />
                         </div>
                         <div className="mt-1 text-gray-400 text-xs">
-                          <span className="lg:hidden">↑ 上にスワイプで次の作品</span>
-                          <span className="hidden lg:inline">↓ キーかホイールで次の作品</span>
+                          <span className="lg:hidden">{t('swipeNextWork')}</span>
+                          <span className="hidden lg:inline">{t('keyNextWork')}</span>
                         </div>
                       </div>
                     )}
@@ -1119,7 +1122,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                           <path d="M8 5v14l11-7z" />
                         </svg>
-                        サンプル {Math.floor(video.sample_seconds! / 60)}:{String(video.sample_seconds! % 60).padStart(2, '0')}
+                        {t('sampleBadge')} {Math.floor(video.sample_seconds! / 60)}:{String(video.sample_seconds! % 60).padStart(2, '0')}
                       </div>
                     )}
                     </div>
@@ -1167,7 +1170,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
                   <div className="text-white text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                    <p className="text-sm">読み込み中...</p>
+                    <p className="text-sm">{t('loading')}</p>
                   </div>
                 </div>
               </div>
@@ -1180,8 +1183,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <h3 className="text-2xl font-bold mb-2">これで最後です</h3>
-                  <p className="text-gray-400 mb-8">このリストの動画はすべて表示しました</p>
+                  <h3 className="text-2xl font-bold mb-2">{t('endTitle')}</h3>
+                  <p className="text-gray-400 mb-8">{t('endBody')}</p>
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => {
@@ -1255,7 +1258,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           <button
             onClick={(e) => currentVideo && toggleLike(currentVideo, e)}
             aria-pressed={!!currentVideo && likedVideos.has(currentVideo.dmm_content_id)}
-            className={`h-11 rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 ${
+            className={`h-11 rounded-lg flex items-center justify-center gap-2 font-bold text-sm transition-colors active:scale-95 ${isDoujinSlide(currentVideo) ? 'col-span-2 ' : ''}${
               currentVideo && likedVideos.has(currentVideo.dmm_content_id)
                 ? 'bg-red-500/90 hover:bg-red-500 text-white'
                 : 'bg-gray-700 hover:bg-gray-600 text-white'
@@ -1264,9 +1267,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill={currentVideo && likedVideos.has(currentVideo.dmm_content_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            {currentVideo && likedVideos.has(currentVideo.dmm_content_id) ? 'いいね済み' : 'いいね'}
+            {currentVideo && likedVideos.has(currentVideo.dmm_content_id) ? t('liked') : t('like')}
           </button>
-          {(() => {
+          {/* 同人誌には女優がいないので出さない */}
+          {!isDoujinSlide(currentVideo) && (() => {
             const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
             return (
               <button
@@ -1280,7 +1284,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                この作品の女優
+                {t('actressOfWork')}
               </button>
             );
           })()}
@@ -1293,7 +1297,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
               {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
-              <span className="text-sm font-bold">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
+              <span className="text-sm font-bold">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
             </a>
           ) : (
             <div />
@@ -1315,7 +1319,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
         {/* 女優ボタンと、価格・作品ページへのボタン（1行・高さ固定。ない場合も枠は残してボタンの位置を揃える） */}
         <div className="grid lg:!hidden grid-cols-2 gap-2 h-11 flex-shrink-0">
-          {(() => {
+          {/* 同人誌には女優がいないので出さない（価格のボタンを横いっぱいに） */}
+          {!isDoujinSlide(currentVideo) && (() => {
             const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
             return (
               <button
@@ -1330,7 +1335,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-xs font-medium">この作品の女優</span>
+                <span className="text-xs font-medium">{t('actressOfWork')}</span>
               </button>
             );
           })()}
@@ -1340,10 +1345,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
+              className={`${isDoujinSlide(currentVideo) ? 'col-span-2 ' : ''}bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95`}
             >
               {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
-              <span className="text-xs font-medium">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
+              <span className="text-xs font-medium">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
             </a>
           ) : (
             <div />
@@ -1363,7 +1368,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span className="text-xs">検索</span>
+            <span className="text-xs">{t('search')}</span>
           </button>
 
           {/* 人気（ランキング）ボタン */}
@@ -1377,7 +1382,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            <span className="text-xs">人気</span>
+            <span className="text-xs">{t('ranking')}</span>
           </button>
 
           {/* ホームボタン */}
@@ -1391,7 +1396,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs">ホーム</span>
+            <span className="text-xs">{t('home')}</span>
           </button>
 
           {/* いいねボタン */}
@@ -1405,7 +1410,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            <span className="text-xs">いいね一覧</span>
+            <span className="text-xs">{t('likedList')}</span>
           </button>
 
           {/* 履歴ボタン */}
@@ -1419,7 +1424,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-xs">履歴</span>
+            <span className="text-xs">{t('history')}</span>
           </button>
 
           {/* 記事ボタン */}
@@ -1430,7 +1435,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            <span className="text-xs">記事</span>
+            <span className="text-xs">{t('articles')}</span>
           </Link>
         </div>
       </div>
@@ -1456,7 +1461,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span className="text-sm font-medium">女優</span>
+                <span className="text-sm font-medium">{t('actress')}</span>
               </button>
             )}
             {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
@@ -1469,7 +1474,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
                 {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
-                <span className="text-sm font-medium">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
+                <span className="text-sm font-medium">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
               </a>
             )}
           </div>
@@ -1488,7 +1493,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span className="text-xs md:text-sm">検索</span>
+              <span className="text-xs md:text-sm">{t('search')}</span>
             </button>
 
             {/* 人気（ランキング）ボタン */}
@@ -1502,7 +1507,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
-              <span className="text-xs md:text-sm">人気</span>
+              <span className="text-xs md:text-sm">{t('ranking')}</span>
             </button>
 
             {/* ホームボタン（中央） - 新しい動画セットを取得 */}
@@ -1516,7 +1521,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
-              <span className="text-xs md:text-sm">ホーム</span>
+              <span className="text-xs md:text-sm">{t('home')}</span>
             </button>
 
             {/* いいねボタン */}
@@ -1530,7 +1535,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              <span className="text-xs md:text-sm">いいね</span>
+              <span className="text-xs md:text-sm">{t('likedShort')}</span>
             </button>
 
             {/* 履歴ボタン */}
@@ -1544,7 +1549,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs md:text-sm">履歴</span>
+              <span className="text-xs md:text-sm">{t('history')}</span>
             </button>
           </div>
 
@@ -1630,7 +1635,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       }
                     }}
                   >
-                    <div className="text-sm mb-2">フル動画はこちら</div>
+                    <div className="text-sm mb-2">{t('fullVideo')}</div>
                     <div className="text-2xl">¥{currentVideo?.price || 0}〜</div>
                   </a>
                 ) : (
@@ -1650,7 +1655,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     toggleLike(currentVideo, e);
                   }}
                   className="bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg"
-                  aria-label="いいね"
+                  aria-label={t('like')}
                 >
                   {likedVideos.has(currentVideo.dmm_content_id) ? (
                     <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
@@ -1722,7 +1727,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       }
                     }}
                   >
-                    <div className="text-sm mb-1">フル動画はこちら</div>
+                    <div className="text-sm mb-1">{t('fullVideo')}</div>
                     <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
                   </a>
                 ) : (
@@ -1742,7 +1747,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 toggleLike(currentVideo, e);
               }}
               className="landscape:hidden lg:hidden ml-4 mt-3 bg-black/70 backdrop-blur-sm rounded-full p-4 transition-all active:scale-90 hover:bg-black/90 shadow-lg self-start"
-              aria-label="いいね"
+              aria-label={t('like')}
             >
               {likedVideos.has(currentVideo.dmm_content_id) ? (
                 <svg className="w-9 h-9 text-red-500 fill-current" viewBox="0 0 24 24">
@@ -1758,7 +1763,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
           {/* 閉じるヒント - 縦画面時のみ表示（PC時は非表示） */}
           <div className="landscape:hidden lg:hidden flex-1 flex items-start justify-center pt-4">
-            <p className="text-white/60 text-sm">画面をタップで閉じる</p>
+            <p className="text-white/60 text-sm">{t('tapToClose')}</p>
           </div>
         </div>
       )}
