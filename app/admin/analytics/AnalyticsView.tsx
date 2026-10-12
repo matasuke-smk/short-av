@@ -151,7 +151,8 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 // どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
 // 収益の指標（いちばん上の3つ）。ほかのカードより大きく、緑の枠で目立たせる
 // rows: 説明を「名前　値」の行で並べる（スマホで3枚並べると文章が途中で切れて読めなかったため）
-export function KpiCard({ label, value, unit, sub, rows, onClick }: { label: string; value: string; unit: string; sub?: string; rows?: [string, string][]; onClick: () => void }) {
+// share: 全体のうちの一部（報酬になる普段のブラウザの分など）を棒で見せる。文字より直観的に分かるように
+export function KpiCard({ label, value, unit, sub, rows, share, onClick }: { label: string; value: string; unit: string; sub?: string; rows?: [string, string][]; share?: { part: number; total: number; label: string }; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -165,6 +166,17 @@ export function KpiCard({ label, value, unit, sub, rows, onClick }: { label: str
         <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>
       </div>
       {sub && <div className="text-xs leading-snug text-gray-400 line-clamp-2">{sub}</div>}
+      {share && (
+        <>
+          <div className="mt-1 h-1.5 rounded-full bg-gray-700 overflow-hidden" aria-hidden>
+            <div className="h-full bg-emerald-400" style={{ width: `${share.total > 0 ? Math.max(share.part > 0 ? 3 : 0, (share.part / share.total) * 100) : 0}%` }} />
+          </div>
+          <div className="mt-1 flex items-center gap-1 text-[11px] sm:text-xs leading-snug">
+            <span className="inline-block w-2 h-2 rounded-sm bg-emerald-400 flex-shrink-0" aria-hidden />
+            <span className="text-gray-200 truncate">{share.label}</span>
+          </div>
+        </>
+      )}
       {rows?.map(([k, v]) => (
         <div key={k} className="flex items-baseline justify-between gap-1 text-[11px] sm:text-xs leading-snug">
           <span className="text-gray-400 truncate">{k}</span>
@@ -693,11 +705,10 @@ function RangeBody({
           const fanzaEvents = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
           const abroad = (r: ReportRow) => !isJp(r);
           const cards = [
-            { label: 'FANZA', events: fanzaEvents, who: '日本', area: isJp, detail: 'clicked' },
-            { label: 'JuicyAds', events: ['juicyads_click'], who: '海外', area: abroad, detail: 'channels' },
-            { label: 'DLsite', events: ['dlsite_click'], who: '海外', area: abroad, detail: 'channels' },
+            { label: 'FANZA', events: fanzaEvents, area: isJp, detail: 'clicked' },
+            { label: 'JuicyAds', events: ['juicyads_click'], area: abroad, detail: 'channels' },
+            { label: 'DLsite', events: ['dlsite_click'], area: abroad, detail: 'channels' },
           ];
-          const normalIn = (area: (r: ReportRow) => boolean) => (r: ReportRow) => area(r) && isNormal(r);
           return (
             <div className="grid grid-cols-3 gap-2 mb-4">
               {cards.map((c) => (
@@ -706,12 +717,13 @@ function RangeBody({
                   label={c.label}
                   value={fmt(sum(c.events)[0])}
                   unit="回"
-                  rows={[
-                    [c.who, `${fmt(sum(c.events, c.area)[1])}/${fmt(sum(['page_view'], c.area)[1])}人`],
-                    ['普段', `${fmt(sum(c.events, isNormal)[0])}回`],
-                    // 率は普段のブラウザで来た人のうち押した人の割合（報酬になるのは普段のブラウザからのクリックだけのため）
-                    ['率', pct(sum(c.events, normalIn(c.area))[1], sum(['page_view'], normalIn(c.area))[1])],
-                  ]}
+                  // 棒: クリック全体のうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
+                  // かっこ内は通常のブラウザで来た人（FANZA は日本、JuicyAds・DLsite は海外）のうち押した人の割合
+                  share={{
+                    part: sum(c.events, isNormal)[0],
+                    total: sum(c.events)[0],
+                    label: `通常 ${fmt(sum(c.events, isNormal)[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[1], sum(['page_view'], (r) => c.area(r) && isNormal(r))[1])}）`,
+                  }}
                   onClick={() => setDetail(c.detail)}
                 />
               ))}
