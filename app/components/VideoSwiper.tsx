@@ -11,12 +11,12 @@ import { blendByPreference, getPreference, type Preference } from '@/lib/prefere
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite } from '@/config/banners';
+import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite, juicyAds } from '@/config/banners';
 import { dlsiteSearchUrl, dlsiteTopUrl } from '@/lib/dlsite';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
-import { OverseasAd } from './JuicyAd';
+import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
@@ -153,6 +153,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const enableAffiliateLinks = process.env.NEXT_PUBLIC_ENABLE_AFFILIATE_LINKS === 'true';
   // 日本以外の訪問者には FANZA の代わりに JuicyAds の広告を出す（FANZA は国外 IP の購入を報酬にしない）
   const isOverseas = useIsOverseas();
+  // 日本以外の訪問者が同人誌を見ているときの DLsite のリンク（それ以外は null = 従来どおり FANZA）。FANZA は国外 IP の購入を報酬にしない
+  const dlsiteHrefFor = (v: Video | undefined): string | null => {
+    if (!v || !isOverseas || !dlsite.enabled || !isDoujinSlide(v)) return null;
+    const d = doujinBySlideRef.current.get(v.id);
+    return d ? dlsiteSearchUrl(d.title, d.circle) : null;
+  };
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'y',
@@ -988,7 +994,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                           const contentId = doujinBySlideRef.current.get(video.id)!.contentId;
                           handleFanzaClick(e, 'FANZA で続きを読む', () => trackDMMClick(video.id, contentId, 'doujin', getViewContext()), contentId);
                         }}
-                        dlsiteHref={isOverseas && dlsite.enabled ? dlsiteSearchUrl(doujinBySlideRef.current.get(video.id)!.title, doujinBySlideRef.current.get(video.id)!.circle) : undefined}
+                        dlsiteHref={dlsiteHrefFor(video) ?? undefined}
                         onDlsiteClick={() => trackDlsiteClick('search', doujinBySlideRef.current.get(video.id)!.contentId)}
                       />
                     </div>
@@ -1220,10 +1226,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
           {/* 日本以外の訪問者の同人誌モードでは DLsite の英語バナー（同人誌は DLsite なら海外でも買える。config/banners.ts の dlsite） */}
           {doujinMode && isOverseas && dlsite.enabled ? (
-            <a href={dlsiteTopUrl()} target="_blank" rel="sponsored noopener noreferrer" onClick={() => trackDlsiteClick('banner')} aria-label="広告: DLsite">
-              {/* eslint-disable-next-line @next/next/no-img-element -- DLsite 公式バナーをそのまま表示する */}
-              <img src={dlsite.banner.src} alt={dlsite.banner.alt} width={dlsite.banner.width} height={dlsite.banner.height} className="block max-w-full h-auto" />
-            </a>
+            <div className="flex flex-col items-center gap-3 max-h-full overflow-hidden">
+              <a href={dlsiteTopUrl()} target="_blank" rel="sponsored noopener noreferrer" onClick={() => trackDlsiteClick('banner')} aria-label="広告: DLsite">
+                {/* eslint-disable-next-line @next/next/no-img-element -- DLsite 公式バナーをそのまま表示する */}
+                <img src={dlsite.banner.src} alt={dlsite.banner.alt} width={dlsite.banner.width} height={dlsite.banner.height} className="block max-w-full h-auto" />
+              </a>
+              {/* バナーの下の余白（以前の 300×600 の枠の残り）に JuicyAds の 300×250 */}
+              {juicyAds.enabled && <JuicyAd zone={juicyAds.zones.rect.id} width={juicyAds.zones.rect.width} height={juicyAds.zones.rect.height} />}
+            </div>
           ) : (
             <OverseasAd kind="rect" isOverseas={isOverseas}>  
               <DMMWidget widgetId={pcWidgets.side.id} width={pcWidgets.side.width} height={pcWidgets.side.height} className="max-h-full" style={{ height: 'min(600px, 100%)' }} />  
@@ -1276,20 +1286,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           })()}
           {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
             <a
-              href={currentVideo.dmm_product_url}
+              href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
+              onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
-              {currentVideo.price ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
-              <span className="text-sm font-bold">詳細はこちら</span>
+              {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
+              <span className="text-sm font-bold">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
             </a>
           ) : (
             <div />
           )}
           {/* PC: 価格ボタンの下に「初めての人」向けのリンク（初回500円OFF・FANZA TV 無料体験） */}
-          {enableAffiliateLinks && <FirstTimeLinks position="pc_price" className="col-span-2" />}
+          {enableAffiliateLinks && !isOverseas && <FirstTimeLinks position="pc_price" className="col-span-2" />}
         </div>
 
         {/* 広告バナー領域 (640×200) - 横画面時のみ表示。読み込み前から枠の高さを確保する */}
@@ -1326,14 +1336,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           })()}
           {enableAffiliateLinks && currentVideo?.dmm_product_url ? (
             <a
-              href={currentVideo.dmm_product_url}
+              href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
               target="_blank"
               rel="noopener noreferrer sponsored"
-              onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
+              onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
               className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
-              {currentVideo.price ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
-              <span className="text-xs font-medium">詳細はこちら</span>
+              {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              <span className="text-xs font-medium">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
             </a>
           ) : (
             <div />
@@ -1452,14 +1462,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
             {enableAffiliateLinks && currentVideo?.dmm_product_url && (
               <a
-                href={currentVideo.dmm_product_url}
+                href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
-                onClick={(e) => handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined)}
+                onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
-                {currentVideo.price ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
-                <span className="text-sm font-medium">詳細はこちら</span>
+                {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
+                <span className="text-sm font-medium">{dlsiteHrefFor(currentVideo) ? 'DLsite で探す' : '詳細はこちら'}</span>
               </a>
             )}
           </div>

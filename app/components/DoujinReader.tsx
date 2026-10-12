@@ -97,30 +97,33 @@ export default function DoujinReader({
               {!compact && <p className="text-xs text-gray-400">サンプルはここまで（全{doujin.samples.length}ページ）</p>}
               <h2 className={`mt-1 font-bold leading-snug ${compact ? 'text-sm line-clamp-2' : 'text-lg line-clamp-3'}`}>{doujin.title}</h2>
               {doujin.circle && !compact && <p className="mt-1 text-sm text-gray-400">{doujin.circle}</p>}
-              {doujin.price !== null && (
+              {/* 価格は FANZA のもの。日本以外の訪問者（DLsite に案内する）には出さない */}
+              {doujin.price !== null && !dlsiteHref && (
                 <p className={`font-bold ${compact ? 'mt-1 text-xl' : 'mt-2 text-2xl'}`}>
                   {onSale && <span className="mr-2 text-sm font-normal text-gray-500 line-through">{yen(doujin.listPrice!)}</span>}
                   <span className={onSale ? 'text-red-400' : ''}>{yen(doujin.price)}</span>
                 </p>
               )}
-              <a
-                href={doujin.url}
-                target="_blank"
-                rel="sponsored noopener noreferrer"
-                onClick={onLinkClick}
-                className={`block w-full rounded-xl bg-pink-600 font-bold hover:bg-pink-500 active:bg-pink-700 ${compact ? 'mt-2 py-2.5 text-sm' : 'mt-3 py-3.5 text-base'}`}
-              >
-                FANZA で続きを読む
-              </a>
-              {dlsiteHref && (
+              {/* 日本以外の訪問者には FANZA のボタンを出さず DLsite だけ（FANZA は国外 IP の購入を報酬にしない） */}
+              {dlsiteHref ? (
                 <a
                   href={dlsiteHref}
                   target="_blank"
                   rel="sponsored noopener noreferrer"
                   onClick={onDlsiteClick}
-                  className={`block w-full rounded-xl bg-blue-600 font-bold hover:bg-blue-500 active:bg-blue-700 ${compact ? 'mt-1.5 py-2 text-sm' : 'mt-2 py-3 text-base'}`}
+                  className={`block w-full rounded-xl bg-blue-600 font-bold hover:bg-blue-500 active:bg-blue-700 ${compact ? 'mt-2 py-2.5 text-sm' : 'mt-3 py-3.5 text-base'}`}
                 >
                   DLsite で探す
+                </a>
+              ) : (
+                <a
+                  href={doujin.url}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  onClick={onLinkClick}
+                  className={`block w-full rounded-xl bg-pink-600 font-bold hover:bg-pink-500 active:bg-pink-700 ${compact ? 'mt-2 py-2.5 text-sm' : 'mt-3 py-3.5 text-base'}`}
+                >
+                  FANZA で続きを読む
                 </a>
               )}
               {!compact && doujin.genres.length > 0 && <p className="mt-2 text-xs text-gray-500 line-clamp-1">{doujin.genres.join(' / ')}</p>}
