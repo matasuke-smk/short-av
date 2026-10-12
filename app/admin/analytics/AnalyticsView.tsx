@@ -118,6 +118,9 @@ const SOURCE_LABELS: Record<string, string> = {
   't.co': 'X（t.co のリンク）',
   'twitter.com': 'X（twitter.com）',
   'x.com': 'X（x.com）',
+  bluesky: 'Bluesky',
+  'bsky.app': 'Bluesky（bsky.app）',
+  'go.bsky.app': 'Bluesky（bsky.app）',
   google: 'Google',
   yahoo: 'Yahoo!',
   bing: 'Bing',
@@ -138,6 +141,8 @@ const CAMPAIGN_LABELS: Record<string, string> = {
   '(direct)': 'なし',
   '(organic)': 'なし',
   x_post: 'X の投稿',
+  bluesky_post: 'Bluesky の投稿',
+  bluesky_post_doujin: 'Bluesky の同人誌の投稿',
 };
 
 export const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
@@ -659,6 +664,9 @@ function RangeBody({
   const nonX = channelRows
     .filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel))
     .reduce((sum, r) => ({ users: sum.users + r.users, clickUsers: sum.clickUsers + r.clickUsers }), { users: 0, clickUsers: 0 });
+  // Bluesky から来た人（レポート 34）。GA では X と同じ「SNS」に分類されるので、X 以外から来た人に別に足す
+  const bskyRow = (event: string) => (reports[34] ?? []).find((r) => r.dimensions[0] === event)?.metrics[0] ?? 0;
+  const bsky = { users: bskyRow('page_view'), clickUsers: bskyRow('dmm_link_click') };
   // 作品ごとの再生・クリック（回数）
   const workMap = new Map<string, { id: string; plays: number; clicks: number }>();
   for (const r of workEvents) {
@@ -818,14 +826,19 @@ function RangeBody({
             }
           />
           <Card
-            label="X 以外から来た人（検索・ブックマーク・ほかのサイト）"
-            value={fmt(nonX.users)}
+            label="X 以外から来た人（検索・ブックマーク・ほかのサイト・Bluesky）"
+            value={fmt(nonX.users + bsky.users)}
             unit="人"
-            sub={`FANZA へのクリック ${fmt(nonX.clickUsers)}人（${pct(nonX.clickUsers, nonX.users)}）`}
+            sub={`FANZA へのクリック ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
             onClick={() => setDetail('channels')}
-            extra={channelRows.slice(0, 5).map((r) => (
-              <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
-            ))}
+            extra={
+              <>
+                <ExtraRow name="Bluesky" right={`${fmt(bsky.users)}人・クリック ${fmt(bsky.clickUsers)}人（${pct(bsky.clickUsers, bsky.users)}）`} />
+                {channelRows.slice(0, 4).map((r) => (
+                  <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
+                ))}
+              </>
+            }
           />
         </div>
         </div>

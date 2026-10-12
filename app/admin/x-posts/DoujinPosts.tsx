@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import PostedBar from './PostedBar';
 import type { Doujin } from '@/lib/doujin-types';
 import { getUserId } from '@/lib/user-id';
-import { buildDoujinPostText as buildText, countXWeightedLength, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
+import { buildDoujinPostText as buildText, countXWeightedLength, toBlueskyText, X_MAX_WEIGHTED_LENGTH } from '@/lib/x-post-text';
 
 type DoujinItem = Doujin & {
   postedCount: number;
@@ -133,6 +133,16 @@ function DoujinCard({ doujin, onChanged }: { doujin: DoujinItem; onChanged: () =
                 className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-3 py-1.5 rounded text-sm font-bold"
               >
                 本文をコピー
+              </button>
+              {/* Bluesky 用（リンクの目印を Bluesky にし、X 向けの「ブラウザで開くと快適」を外す） */}
+              <button
+                onClick={async () => {
+                  await copyToClipboard(toBlueskyText(text));
+                  setStatus('Bluesky 用にコピーしました。Bluesky に貼り付けて投稿してください（画像を付けるときは「アダルト」のラベルを付ける）');
+                }}
+                className="bg-sky-600 hover:bg-sky-500 px-3 py-1.5 rounded text-sm font-bold"
+              >
+                Bluesky 用にコピー
               </button>
               <button onClick={record} disabled={busy} className="bg-green-700 hover:bg-green-600 disabled:opacity-50 px-3 py-1.5 rounded text-sm">
                 紹介済みにする

@@ -309,6 +309,20 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
     // DMM のレポートのクリック数はバナー等も含むので、作品ボタンだけ（レポート 1 の dmm_link_click）だと少なく見えていた（2026-10-12）
     // 上の3枚のカード（FANZA・JuicyAds・DLsite）用に、ブラウザ（普段のブラウザかアプリ内か）と国（訪問者の数を日本と海外に分ける）も取る
     { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'browser' }, { name: 'country' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIn([...FANZA_CLICK_EVENTS, 'juicyads_click', 'dlsite_click', 'page_view']), limit: 5000 },
+    // Bluesky から来た人（レポート 34）。投稿のリンクの目印（utm_source=bluesky）と、来た元が bsky.app のもの。2026-10-13
+    {
+      dateRanges,
+      dimensions: [{ name: 'eventName' }],
+      metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
+      dimensionFilter: and(eventIn(['page_view', 'dmm_link_click']), {
+        orGroup: {
+          expressions: [
+            { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'bluesky' } } },
+            { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'bsky' } } },
+          ],
+        },
+      }),
+    },
   ];
   // レポート 33（上の3枚のカード）は「日本のみ」でも絞らない。カードは FANZA を日本、JuicyAds・DLsite を海外の訪問者で数えるため
   const cardRequest = workActionRequests[6];
@@ -354,6 +368,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   reports[29] ??= [];
   reports[30] = workActionReports[2];
   reports[33] = workActionReports[6] ?? [];
+  reports[34] = workActionReports[7] ?? [];
   reports[31] = workActionReports[4];
   // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
   reports[32] = workActionReports[5].map((r) => {

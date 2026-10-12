@@ -49,6 +49,24 @@ export function getXPostDoujinUrl(contentId: string): string {
   return `${SITE_URL}/?${params.toString()}`;
 }
 
+/**
+ * X の投稿文を Bluesky 用にする（2026-10-13）。リンクの目印を Bluesky に変え（アクセス解析で X と分けて数える）、
+ * X のアプリ内ブラウザ向けの一言（BROWSER_HINT）を外す
+ */
+export function toBlueskyText(text: string): string {
+  return text
+    .replace(/https:\/\/short-av\.com\/\?\S+/g, (url) => {
+      const parsed = new URL(url);
+      parsed.searchParams.set('utm_source', 'bluesky');
+      const campaign = parsed.searchParams.get('utm_campaign');
+      parsed.searchParams.set('utm_campaign', campaign === 'x_post_doujin' ? 'bluesky_post_doujin' : 'bluesky_post');
+      return parsed.toString();
+    })
+    .split('\n')
+    .filter((line) => line.trim() !== BROWSER_HINT)
+    .join('\n');
+}
+
 export function getPostFormat(text: string): XPostFormat {
   return /[?&]utm_content=img4\b/.test(text) ? 'img4' : 'card';
 }
