@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 import { supabase } from '@/lib/supabase';
 import { listCatalog } from '@/lib/catalog';
+import { listDoujinForSitemap } from '@/lib/doujin-pages';
 
 // 1時間ごとに作り直す（動画ページの一覧が変わるため）
 export const revalidate = 3600;
@@ -83,5 +84,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...genres.map((e) => ({ url: `${baseUrl}/genre/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
   ];
 
-  return [...staticPages, ...articlePages, ...catalogPages, ...videoPages];
+  // 同人誌の作品ごと・サークルごとのページ（lib/doujin-pages.ts。人気上位500冊とそのサークル）。「作品名 無料」「サークル名」などの検索から来てもらう
+  const doujin = await listDoujinForSitemap().catch(() => ({ works: [], circles: [] }));
+  const doujinPages: MetadataRoute.Sitemap = [
+    ...doujin.works.map((w) => ({ url: `${baseUrl}/doujin/${encodeURIComponent(w.contentId)}`, lastModified: w.date ? new Date(w.date) : new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
+    ...doujin.circles.map((id) => ({ url: `${baseUrl}/circle/${id}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.5 })),
+  ];
+
+  return [...staticPages, ...articlePages, ...catalogPages, ...doujinPages, ...videoPages];
 }
