@@ -120,7 +120,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-noto-sans-jp: 'Noto Sans JP', sans-serif;
+  /* 端末に入っている日本語フォントを使う（Android は Noto Sans CJK JP、iPhone・Mac はヒラギノ）。
+     以前は Web フォントの Noto Sans JP を配っていたが、日本語の文字を数十個のファイルに分けて送るため、
+     Vercel の転送量の約3割がフォントだった（2026-10-12） */
+  --font-noto-sans-jp: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Noto Sans CJK JP', 'Yu Gothic UI', 'Meiryo', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -131,6 +134,7 @@
 }
 
 body {
+  font-family: var(--font-noto-sans-jp);
   color: var(--foreground);
   background: var(--background);
   overflow-x: hidden;

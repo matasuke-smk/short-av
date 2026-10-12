@@ -128,10 +128,10 @@ export default function HistoryPage() {
       <div className="border-t border-gray-800 mt-12">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
-            <Link href="/privacy" className="hover:text-gray-400 transition-colors underline">
+            <Link href="/privacy" prefetch={false} className="hover:text-gray-400 transition-colors underline">
               プライバシーポリシー
             </Link>
-            <Link href="/terms" className="hover:text-gray-400 transition-colors underline">
+            <Link href="/terms" prefetch={false} className="hover:text-gray-400 transition-colors underline">
               利用規約
             </Link>
             <a href={CONTACT_FORM_URL} target="_blank" rel="noopener noreferrer" className="hover:text-gray-400 transition-colors underline">
