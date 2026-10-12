@@ -1,7 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getAdminUserIdsWithError } from '@/lib/admin-users';
 import { fetchDoujinByIds } from '@/lib/doujin';
 import type { DataKey, RangeData, WeekdayHourly, YesterdaySoFar } from './AnalyticsView';
 import { xPostContentId, type Country } from './view-keys';
@@ -422,42 +421,6 @@ const getYesterdaySoFar = unstable_cache(
   { revalidate: 300 },
 );
 
-// サイトのデータベースの件数（いいね・サイズ比較ツールの登録）。日本のみ／すべてで同じ数字なので国に関係なく使い回す。
-// 区切り（bucket）は GA と同じく「今日」は10分、それ以外は1時間（Supabase は呼び出し1回ごとにログが増えるため、取り直しを減らす）
-const getDbCounts = unstable_cache(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async (key: RangeKey, _bucket: number) => {
-    const range = RANGES[key];
-    const supabase = getSupabaseAdmin();
-    // 期間の開始・終了（日本時間の0時）
-    const jstMidnight = (daysAgo: number) => {
-      const now = new Date(Date.now() + 9 * 3_600_000);
-      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
-      return new Date(d.getTime() - 9 * 3_600_000).toISOString();
-    };
-    const from = jstMidnight(range.days - 1 + range.offset);
-    const to = jstMidnight(range.offset - 1);
-
-    // 運営者（管理画面を開いた端末）のいいねは別に数え、一般の利用者のいいねから除く
-    const { ids: adminIds, error: adminError } = await getAdminUserIdsWithError();
-    const likesQuery = () => supabase.from('likes').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
-    const [allLikes, adminLikes, sizes] = await Promise.all([
-      likesQuery(),
-      adminIds.length > 0 ? likesQuery().in('user_identifier', adminIds) : Promise.resolve({ count: 0 }),
-      supabase.from('size_statistics').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to),
-    ]);
-    return {
-      likes: (allLikes.count ?? 0) - (adminLikes.count ?? 0),
-      adminLikes: adminLikes.count ?? 0,
-      adminDevices: adminIds.length,
-      adminError,
-      sizes: sizes.count ?? 0,
-    };
-  },
-  ['admin-analytics-db-counts-v1'],
-  { revalidate: 3600 },
-);
-
 // クリックされた作品などの作品名（同じ作品の組み合わせは1時間使い回す。作品名はほぼ変わらない）
 const getTitlesCached = async (ids: string[]): Promise<Record<string, string>> => {
   if (ids.length === 0) return {};
@@ -472,10 +435,10 @@ const getTitlesCached = async (ids: string[]): Promise<Record<string, string>> =
   return cached([...ids].sort());
 };
 
-// サイトのデータベースから（いいね・サイズ比較ツールの登録・クリックされた作品名）
-async function loadDb(key: RangeKey, bucket: number, contentIds: string[]) {
-  const [counts, titleById] = await Promise.all([getDbCounts(key, bucket), getTitlesCached(contentIds)]);
-  return { ...counts, titleById };
+// サイトのデータベースから（クリックされた作品などの作品名）。
+// いいね数・サイズ登録数のカードは 10/9 に画面から外したので取らない（Supabase は呼び出し1回ごとにログが増える。2026-10-12）
+async function loadDb(contentIds: string[]) {
+  return { titleById: await getTitlesCached(contentIds) };
 }
 
 // 1つの期間のデータ（GA とデータベース）。5分間は取得結果を使い回す（期間の切り替えや再読み込みを速くする）。
@@ -492,7 +455,8 @@ const getDoujinInfoCached = async (ids: string[]) => {
 };
 
 const getRangeData = unstable_cache(
-  async (key: RangeKey, bucket: number, country: Country) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async (key: RangeKey, _bucket: number, country: Country) => {
     const range = RANGES[key];
     const { reports, warning } = await loadGa(range, country);
     const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
@@ -522,7 +486,7 @@ const getRangeData = unstable_cache(
       .sort(([, a], [, b]) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2])
       .slice(0, 30)
       .map(([id]) => id);
-    const [db, doujins] = await Promise.all([loadDb(key, bucket, ids), getDoujinInfoCached(doujinIds)]);
+    const [db, doujins] = await Promise.all([loadDb(ids), getDoujinInfoCached(doujinIds)]);
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
     return { reports, db, weekday, warning, doujinInfo };
   },
