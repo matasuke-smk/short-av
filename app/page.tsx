@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
 import { getVideoByContentId } from '@/lib/video-by-content-id';
+import { getCatalogPage, type CatalogKind } from '@/lib/catalog';
 import VideoSwiper from './components/VideoSwiper';
 import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
@@ -85,7 +86,7 @@ async function loadDoujin(doujinId?: string, doujinIds?: string[]): Promise<Douj
   }
 }
 
-async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: { targetId?: string; doujinId?: string; doujinMode?: boolean; doujinIds?: string[] }) {
+async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, catalog }: { targetId?: string; doujinId?: string; doujinMode?: boolean; doujinIds?: string[]; catalog?: { kind: CatalogKind; slug: string } }) {
   const doujinPromise = loadDoujin(doujinId, doujinIds);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   // プールサイズ。1人あたりのスワイプは平均2〜3回なので、200本（約260KB）を毎回データベースから取ると
@@ -143,6 +144,17 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
       videoPool = [target, ...videoPool.filter((v: { dmm_content_id: string }) => v.dmm_content_id !== targetId)];
     } else {
       linkNotice = 'お探しの作品は掲載が終了しました。ほかの作品をお楽しみください。';
+    }
+  }
+
+  // &actress= / &genre=: 女優・ジャンルのページの「スワイプで全部見る」から来たとき、その作品だけを並べる（ページと同じ順。押した作品から始める）
+  let isFiniteList = false;
+  if (catalog) {
+    const page = await getCatalogPage(catalog.kind, catalog.slug).catch(() => null);
+    if (page && page.videos.length > 0) {
+      const start = Math.max(0, page.videos.findIndex((x) => x.dmm_content_id === targetId));
+      videoPool = [...page.videos.slice(start), ...page.videos.slice(0, start)];
+      isFiniteList = true;
     }
   }
 
@@ -212,6 +224,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
         doujinList={doujinList}
         doujinMode={doujinMode}
         doujinOnly={doujinOnly}
+        isFiniteList={isFiniteList}
         startIndex={doujinOnly ? Math.max(0, doujinList.findIndex((d) => d.contentId === doujinId)) : 0}
       />
     </>
@@ -221,9 +234,11 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds }: 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[]; list?: string | string[] }>;
+  searchParams: Promise<{ v?: string | string[]; mode?: string | string[]; d?: string | string[]; list?: string | string[]; actress?: string | string[]; genre?: string | string[] }>;
 }) {
-  const { v, mode, d, list } = await searchParams;
+  const { v, mode, d, list, actress, genre } = await searchParams;
+  // &actress=女優番号 / &genre=ジャンル番号: 女優・ジャンルのページから来たとき、その作品だけを並べる
+  const catalog = typeof actress === 'string' && /^\d{1,10}$/.test(actress) ? { kind: 'actress' as const, slug: actress } : typeof genre === 'string' && /^\d{1,10}$/.test(genre) ? { kind: 'genre' as const, slug: genre } : undefined;
   const targetId = typeof v === 'string' && VIDEO_PARAM_PATTERN.test(v) ? v : undefined;
   // ?mode=doujin&d=作品番号: 同人誌中心の画面（X の同人誌の投稿から。その回だけ）
   const doujinMode = mode === 'doujin';
@@ -235,7 +250,7 @@ export default async function Home({
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} doujinIds={doujinIds} />
+        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} doujinIds={doujinIds} catalog={catalog} />
       </Suspense>
     </>
   );
