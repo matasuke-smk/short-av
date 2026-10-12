@@ -30,7 +30,8 @@ export async function generateMetadata({
     return {
       title,
       description,
-      alternates: { canonical: `/d/${encodeURIComponent(d)}` },
+      // 正規の URL は同人誌の作品ページ（app/doujin/[id]。サンプルを縦に並べたページ）
+      alternates: { canonical: `/doujin/${encodeURIComponent(d)}` },
       openGraph: { title, description, siteName: 'Short AV', images: [{ url: doujin.cover, alt: doujin.title }], locale: 'ja_JP', type: 'website' },
       twitter: { card: 'summary_large_image', title, description, images: [doujin.cover] },
     };
