@@ -25,6 +25,7 @@ import DoujinSearchModal from './DoujinSearchModal';
 import { addDoujinHistory } from '@/lib/doujin-history';
 import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
+import { fetchMyLikes, markHasLikes } from '@/lib/my-likes';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -293,11 +294,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
     const fetchLikes = async () => {
       try {
-        const response = await fetch(`/api/likes/my-likes?userId=${userId}`);
-        const data = await response.json();
-        if (data.videoIds) {
-          setLikedVideos(new Set(data.videoIds));
-        }
+        // いいねしたことのない端末は取りに行かない（lib/my-likes.ts）
+        const data = await fetchMyLikes();
+        setLikedVideos(new Set(data.videoIds));
       } catch (error) {
         console.error('Failed to fetch likes:', error);
       }
@@ -568,6 +567,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         return newSet;
       });
     setLiked(!wasLiked);
+    if (!wasLiked) markHasLikes();
 
     // Google Analytics: いいねイベント
     trackLike(videoId, wasLiked ? 'unlike' : 'like');

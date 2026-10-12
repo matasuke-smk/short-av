@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { getUserId } from '@/lib/user-id';
+import { fetchMyLikes } from '@/lib/my-likes';
 import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 import type { Database } from '@/lib/supabase';
 
@@ -34,8 +35,7 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
       try {
         setLoading(true);
 
-        const likesResponse = await fetch(`/api/likes/my-likes?userId=${userId}`);
-        const likesData = await likesResponse.json();
+        const likesData = await fetchMyLikes();
 
         if (!likesData.videoIds || likesData.videoIds.length === 0) {
           setLikedVideos([]);

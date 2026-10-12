@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getUserId } from '@/lib/user-id';
+import { fetchMyLikes } from '@/lib/my-likes';
 import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
 import Link from 'next/link';
 
@@ -33,8 +34,7 @@ export default function LikedPage() {
         setLoading(true);
 
         // いいね済み動画IDといいね日時を取得
-        const likesResponse = await fetch(`/api/likes/my-likes?userId=${userId}`);
-        const likesData = await likesResponse.json();
+        const likesData = await fetchMyLikes();
 
         if (!likesData.videoIds || likesData.videoIds.length === 0) {
           setLikedVideos([]);

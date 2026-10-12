@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { Doujin } from '@/lib/doujin-types';
-import { getUserId } from '@/lib/user-id';
+import { fetchMyLikes } from '@/lib/my-likes';
 import { getDoujinHistory } from '@/lib/doujin-history';
 
 export type DoujinListKind = 'search' | 'ranking' | 'liked' | 'history';
@@ -66,8 +66,7 @@ export default function DoujinListModal({
       // いいね・履歴: 作品番号（d_ で始まる）を新しい順に
       let ids: string[] = [];
       if (kind === 'liked') {
-        const r = await fetch(`/api/likes/my-likes?userId=${encodeURIComponent(getUserId())}`);
-        ids = ((await r.json()).videoIds ?? []).filter((id: string) => id.startsWith('d_'));
+        ids = (await fetchMyLikes()).videoIds.filter((id) => id.startsWith('d_'));
       } else {
         ids = getDoujinHistory();
       }

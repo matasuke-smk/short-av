@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { fetchVideosByIds } from '@/lib/fetch-videos-by-ids';
-import { getUserId } from '@/lib/user-id';
+import { fetchMyLikes } from '@/lib/my-likes';
 import { loadHistory } from '@/lib/view-history';
 
 /**
@@ -21,9 +21,8 @@ type Row = { id: string; dmm_content_id: string; genre_ids: string[] | null; act
 
 async function compute(): Promise<Preference | null> {
   const [likedIds, historyIds] = await Promise.all([
-    fetch(`/api/likes/my-likes?userId=${encodeURIComponent(getUserId())}`)
-      .then((r) => (r.ok ? r.json() : { videoIds: [] }))
-      .then((d) => (d.videoIds ?? []) as string[])
+    fetchMyLikes()
+      .then((d) => d.videoIds)
       .catch(() => [] as string[]),
     loadHistory().catch(() => [] as string[]),
   ]);
