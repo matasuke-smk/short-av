@@ -150,7 +150,8 @@ const notSet = (v: string) => (v === '(not set)' || v === '' ? '（記録なし�
 // onClick があるカードは押すと詳細（全画面）を開く。右上の「›」が目印
 // どのカードも同じ見た目にそろえる（項目名は2行分の高さを取り、数字・説明の位置と大きさを固定。押せるカードも上寄せ）
 // 収益の指標（いちばん上の3つ）。ほかのカードより大きく、緑の枠で目立たせる
-export function KpiCard({ label, value, unit, sub, onClick }: { label: string; value: string; unit: string; sub: string; onClick: () => void }) {
+// rows: 説明を「名前　値」の行で並べる（スマホで3枚並べると文章が途中で切れて読めなかったため）
+export function KpiCard({ label, value, unit, sub, rows, onClick }: { label: string; value: string; unit: string; sub?: string; rows?: [string, string][]; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -163,7 +164,13 @@ export function KpiCard({ label, value, unit, sub, onClick }: { label: string; v
         {value}
         <span className="ml-0.5 text-sm font-normal text-gray-400">{unit}</span>
       </div>
-      <div className="text-xs leading-snug text-gray-400 line-clamp-2">{sub}</div>
+      {sub && <div className="text-xs leading-snug text-gray-400 line-clamp-2">{sub}</div>}
+      {rows?.map(([k, v]) => (
+        <div key={k} className="flex items-baseline justify-between gap-1 text-[11px] sm:text-xs leading-snug">
+          <span className="text-gray-400 truncate">{k}</span>
+          <span className="text-gray-200 whitespace-nowrap">{v}</span>
+        </div>
+      ))}
       <span className="absolute top-1.5 right-2 text-emerald-300 text-sm" aria-hidden>›</span>
     </button>
   );
@@ -684,13 +691,13 @@ function RangeBody({
           const sum = (events: readonly string[], pred: (r: ReportRow) => boolean = () => true) =>
             rows33.filter((r) => events.includes(r.dimensions[0]) && pred(r)).reduce((a, r) => [a[0] + r.metrics[0], a[1] + r.metrics[1]], [0, 0]);
           const fanzaEvents = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
-          const visitorsJp = sum(['page_view'], isJp)[1];
-          const visitorsAbroad = sum(['page_view'], (r) => !isJp(r))[1];
+          const abroad = (r: ReportRow) => !isJp(r);
           const cards = [
-            { label: 'FANZA', events: fanzaEvents, visitors: visitorsJp, who: '日本', clickers: sum(fanzaEvents, isJp)[1], extra: dmm.days > 0 ? `DMM 側 ${fmt(dmm.clicks)}回・成約 ${fmt(dmmConversions)}件` : '', detail: 'clicked' },
-            { label: 'JuicyAds', events: ['juicyads_click'], visitors: visitorsAbroad, who: '海外', clickers: sum(['juicyads_click'], (r) => !isJp(r))[1], extra: '', detail: 'channels' },
-            { label: 'DLsite', events: ['dlsite_click'], visitors: visitorsAbroad, who: '海外', clickers: sum(['dlsite_click'], (r) => !isJp(r))[1], extra: '', detail: 'channels' },
+            { label: 'FANZA', events: fanzaEvents, who: '日本', area: isJp, detail: 'clicked' },
+            { label: 'JuicyAds', events: ['juicyads_click'], who: '海外', area: abroad, detail: 'channels' },
+            { label: 'DLsite', events: ['dlsite_click'], who: '海外', area: abroad, detail: 'channels' },
           ];
+          const normalIn = (area: (r: ReportRow) => boolean) => (r: ReportRow) => area(r) && isNormal(r);
           return (
             <div className="grid grid-cols-3 gap-2 mb-4">
               {cards.map((c) => (
@@ -699,11 +706,12 @@ function RangeBody({
                   label={c.label}
                   value={fmt(sum(c.events)[0])}
                   unit="回"
-                  sub={[
-                    `普段のブラウザ ${fmt(sum(c.events, isNormal)[0])}回`,
-                    `クリック率 ${pct(c.clickers, c.visitors)}（${c.who} ${fmt(c.visitors)}人中 ${fmt(c.clickers)}人）`,
-                    c.extra,
-                  ].filter(Boolean).join('・')}
+                  rows={[
+                    [c.who, `${fmt(sum(c.events, c.area)[1])}/${fmt(sum(['page_view'], c.area)[1])}人`],
+                    ['普段', `${fmt(sum(c.events, isNormal)[0])}回`],
+                    // 率は普段のブラウザで来た人のうち押した人の割合（報酬になるのは普段のブラウザからのクリックだけのため）
+                    ['率', pct(sum(c.events, normalIn(c.area))[1], sum(['page_view'], normalIn(c.area))[1])],
+                  ]}
                   onClick={() => setDetail(c.detail)}
                 />
               ))}
