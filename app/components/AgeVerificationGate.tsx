@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { trackAgeVerification } from '@/lib/gtag';
+import { trackAgeVerification, trackFanzaAdClick } from '@/lib/gtag';
 import { useT } from '@/lib/i18n';
 import { useIsOverseas } from '@/lib/useCountry';
 
@@ -118,6 +118,7 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
             href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005"
             target="_blank"
             rel="sponsored"
+            onClick={() => trackFanzaAdClick('coupon', 'age_gate')}
             className="block rounded-lg overflow-hidden shadow-xl"
           >
             <img src="https://pics.dmm.com/af/a_digital_500off01/300_250.jpg" alt="初回購入限定！500円OFF！" width={300} height={250} className="w-full h-auto" loading="lazy" />

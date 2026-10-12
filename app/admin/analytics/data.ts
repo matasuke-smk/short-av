@@ -124,6 +124,8 @@ const eventIs = (value: string) => ({ filter: { fieldName: 'eventName', stringFi
 const eventIn = (values: readonly string[]) => ({ filter: { fieldName: 'eventName', inListFilter: { values } } });
 const byMetricDesc = { metric: { metricName: 'eventCount' }, desc: true };
 // 同人誌のイベント（作品番号が d_ で始まる）。動画の集計からは除き、同人誌の集計ではこれだけを数える
+// FANZA へのクリックとして数えるイベント（作品ボタン・バナー・商品ウィジェット・年齢確認のクーポン・初めての人向けのリンク）
+export const FANZA_CLICK_EVENTS = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 const isDoujinContent = { filter: { fieldName: 'customEvent:content_id', stringFilter: { matchType: 'BEGINS_WITH', value: 'd_' } } };
 const notDoujin = { notExpression: isDoujinContent };
 // 「日本のみ」: 国が日本のアクセスだけを数える（FANZA は日本向けで、海外からのアクセスは見込み客になりにくいため）
@@ -303,6 +305,10 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
     },
     // 同人誌: 時間帯ごと（レポート 32。[表示した人数, FANZA へのクリック, 表示回数] に直して toJstHourly で日本時間にする）
     { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: doujinEvents, limit: 10000 },
+    // FANZA へのクリックの全部（動画・同人誌の作品ボタン、バナー、商品ウィジェット、年齢確認のクーポン、初めての人向けのリンク）と JuicyAds・DLsite（レポート 33）。
+    // DMM のレポートのクリック数はバナー等も含むので、作品ボタンだけ（レポート 1 の dmm_link_click）だと少なく見えていた（2026-10-12）
+    // 上の3枚のカード（FANZA・JuicyAds・DLsite）用に、ブラウザ（普段のブラウザかアプリ内か）と国（訪問者の数を日本と海外に分ける）も取る
+    { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'browser' }, { name: 'country' }], metrics: [{ name: 'eventCount' }, { name: 'totalUsers' }], dimensionFilter: eventIn([...FANZA_CLICK_EVENTS, 'juicyads_click', 'dlsite_click', 'page_view']), limit: 5000 },
   ];
   for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
     request.dimensionFilter = byCountry(country, request.dimensionFilter);
@@ -344,6 +350,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
   // 30: 端末×ブラウザ（国ごとの 29 は「すべて」のときだけなので、番号を固定して入れる。「日本のみ」では 29 が空になる）
   reports[29] ??= [];
   reports[30] = workActionReports[2];
+  reports[33] = workActionReports[6] ?? [];
   reports[31] = workActionReports[4];
   // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
   reports[32] = workActionReports[5].map((r) => {

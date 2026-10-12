@@ -183,6 +183,17 @@ export const trackDlsiteClick = (place: 'search' | 'banner', contentId?: string)
   sendGAEvent('dlsite_click', { place: place === 'search' ? '同人誌の検索' : 'バナー', content_id: contentId });
 };
 
+// FANZA の広告（作品ボタン以外）のクリック: バナー・商品ウィジェット・年齢確認画面のクーポン。
+// DMM のレポートのクリック数にはこれらも入るので、アクセス解析の「FANZA クリック」の合計に足す
+export const trackFanzaAdClick = (kind: 'banner' | 'widget' | 'coupon', id: string) => {
+  sendGAEvent(`fanza_${kind}_click`, { content_id: id });
+};
+
+// JuicyAds（日本以外の訪問者向けの広告）のクリック。JuicyAds の管理画面の数字と見比べる
+export const trackJuicyAdsClick = (zone: number) => {
+  sendGAEvent('juicyads_click', { content_id: String(zone) });
+};
+
 // 「動画｜同人誌」の切り替え
 export const trackModeSwitch = (mode: 'video' | 'doujin') => {
   sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : '動画' });

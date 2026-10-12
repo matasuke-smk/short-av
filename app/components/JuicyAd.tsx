@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { juicyAds } from '@/config/banners';
+import { trackJuicyAdsClick } from '@/lib/gtag';
+import { useIframeClick } from '@/lib/useIframeClick';
 
 /**
  * JuicyAds のバナー（日本以外の訪問者向け。OverseasAd から使う）。
@@ -18,9 +20,13 @@ export default function JuicyAd({ zone, width, height, className = '' }: { zone:
 </body></html>`,
     [zone, width, height],
   );
+  // 広告を押したことを GA に送る（JuicyAds の管理画面の数字と見比べるため）
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  useIframeClick(frameRef, () => trackJuicyAdsClick(zone));
   return (
     <div className={`flex justify-center ${className}`} aria-label="広告">
       <iframe
+        ref={frameRef}
         title="広告"
         srcDoc={srcDoc}
         width={width}
