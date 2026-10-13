@@ -693,7 +693,28 @@ function RangeBody({
   const viaCount = (event: string, value: string) =>
     via.filter((r) => r.dimensions[0] === event && r.dimensions[1] === value).reduce((s, r) => s + r.metrics[0], 0);
 
-
+  // 収益につながる3つ（FANZA・JuicyAds・DLsite）のカードと、開いたときの内訳（レポート 33。バナー等の記録は 2026/10/12 午後から）。
+  // FANZA は日本の訪問者、JuicyAds・DLsite は日本以外の訪問者に出すので、クリック率もそれぞれの訪問者で割る
+  const rows33 = reports[33] ?? [];
+  const isJp = (r: ReportRow) => r.dimensions[2] === 'Japan';
+  const abroad = (r: ReportRow) => !isJp(r);
+  const isNormal = (r: ReportRow) => !IN_APP_BROWSERS.includes(r.dimensions[1]);
+  // [回数, 人数]
+  const sum33 = (events: readonly string[], pred: (r: ReportRow) => boolean = () => true) =>
+    rows33.filter((r) => events.includes(r.dimensions[0]) && pred(r)).reduce((a, r) => [a[0] + r.metrics[0], a[1] + r.metrics[1]], [0, 0]);
+  const FANZA_KINDS: [string, string][] = [
+    ['dmm_link_click', '作品のリンク'],
+    ['fanza_banner_click', 'バナー'],
+    ['fanza_widget_click', 'ウィジェット'],
+    ['fanza_coupon_click', 'クーポン'],
+    ['first_time_link_click', '初めての人向け（クーポン・FANZA TV）'],
+  ];
+  const moneyCards = [
+    { label: 'FANZA', events: FANZA_KINDS.map(([e]) => e), area: isJp, areaLabel: '日本', otherLabel: '海外' },
+    { label: 'JuicyAds', events: ['juicyads_click'], area: abroad, areaLabel: '海外', otherLabel: '日本' },
+    { label: 'DLsite', events: ['dlsite_click'], area: abroad, areaLabel: '海外', otherLabel: '日本' },
+  ];
+  const openCard = detail?.startsWith('card:') ? moneyCards.find((c) => `card:${c.label}` === detail) : undefined;
 
   return (
     <>
@@ -701,24 +722,12 @@ function RangeBody({
         {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
         <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
         <div>
-        {/* 収益につながる3つ（FANZA・JuicyAds・DLsite）をいちばん上に。クリック総数・普段のブラウザからのクリック・クリック率。
-            FANZA は日本の訪問者、JuicyAds・DLsite は日本以外の訪問者に出すので、クリック率もそれぞれの訪問者で割る（レポート 33。バナー等の記録は 2026/10/12 午後から） */}
+        {/* 収益につながる3つ（FANZA・JuicyAds・DLsite）をいちばん上に。クリック総数・普段のブラウザからのクリック・クリック率 */}
         {(() => {
-          const rows33 = reports[33] ?? [];
-          const isJp = (r: ReportRow) => r.dimensions[2] === 'Japan';
-          const isNormal = (r: ReportRow) => !IN_APP_BROWSERS.includes(r.dimensions[1]);
-          const sum = (events: readonly string[], pred: (r: ReportRow) => boolean = () => true) =>
-            rows33.filter((r) => events.includes(r.dimensions[0]) && pred(r)).reduce((a, r) => [a[0] + r.metrics[0], a[1] + r.metrics[1]], [0, 0]);
-          const fanzaEvents = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
-          const abroad = (r: ReportRow) => !isJp(r);
-          const cards = [
-            { label: 'FANZA', events: fanzaEvents, area: isJp, detail: 'clicked' },
-            { label: 'JuicyAds', events: ['juicyads_click'], area: abroad, detail: 'channels' },
-            { label: 'DLsite', events: ['dlsite_click'], area: abroad, detail: 'channels' },
-          ];
+          const sum = sum33;
           return (
             <div className="grid grid-cols-3 gap-2 mb-4">
-              {cards.map((c) => (
+              {moneyCards.map((c) => (
                 <KpiCard
                   key={c.label}
                   label={c.label}
@@ -731,7 +740,7 @@ function RangeBody({
                     total: sum(c.events)[0],
                     label: `通常 ${fmt(sum(c.events, isNormal)[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[1], sum(['page_view'], (r) => c.area(r) && isNormal(r))[1])}）`,
                   }}
-                  onClick={() => setDetail(c.detail)}
+                  onClick={() => setDetail(`card:${c.label}`)}
                 />
               ))}
             </div>
@@ -1006,6 +1015,72 @@ function RangeBody({
             <PageList rows={pages ?? []} />
           </DetailModal>
         )}
+        {openCard && (() => {
+          const c = openCard;
+          const [total] = sum33(c.events);
+          const [normal] = sum33(c.events, isNormal);
+          const areaRows = [
+            { label: c.areaLabel, pred: c.area },
+            { label: c.otherLabel, pred: (r: ReportRow) => !c.area(r) },
+          ].map((a) => ({
+            label: a.label,
+            users: sum33(['page_view'], (r) => a.pred(r) && isNormal(r))[1],
+            clickUsers: sum33(c.events, (r) => a.pred(r) && isNormal(r))[1],
+            clicks: sum33(c.events, (r) => a.pred(r) && isNormal(r))[0],
+          }));
+          return (
+            <DetailModal title={`${c.label} のクリックの内訳`} note="期間内の合計。" onClose={closeDetail}>
+              <h3 className="text-sm font-bold mb-1">ブラウザ</h3>
+              <p className="text-xs text-gray-400 mb-3">報酬になるのは通常のブラウザ（Safari・Chrome など）から押した分。X などのアプリの中のブラウザからは報酬になりません。</p>
+              <Bar label="通常のブラウザ" value={normal} max={Math.max(total, 1)} right={`${fmt(normal)}回`} />
+              <Bar label="アプリの中のブラウザ" value={total - normal} max={Math.max(total, 1)} right={`${fmt(total - normal)}回`} />
+
+              <h3 className="text-sm font-bold mt-6 mb-1">どこの人か（通常のブラウザ）</h3>
+              <p className="text-xs text-gray-400 mb-2">
+                {c.label} は{c.areaLabel}の人に出しています。クリック率 = 来た人のうち押した人の割合。
+              </p>
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead className="text-gray-400">
+                  <tr>
+                    <th className="text-left font-normal py-1">地域</th>
+                    <th className="text-right font-normal">来た人</th>
+                    <th className="text-right font-normal">押した人</th>
+                    <th className="text-right font-normal">回数</th>
+                    <th className="text-right font-normal">クリック率</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {areaRows.map((a) => (
+                    <tr key={a.label} className="border-t border-gray-700">
+                      <td className="py-2 pr-2">{a.label}</td>
+                      <td className="text-right">{fmt(a.users)}人</td>
+                      <td className="text-right">{fmt(a.clickUsers)}人</td>
+                      <td className="text-right">{fmt(a.clicks)}回</td>
+                      <td className={`text-right font-bold ${a.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(a.clickUsers, a.users)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {c.label === 'FANZA' && (
+                <>
+                  <h3 className="text-sm font-bold mt-6 mb-1">どこを押したか</h3>
+                  <p className="text-xs text-gray-400 mb-3">全体の回数。かっこ内は通常のブラウザから押した回数。</p>
+                  {FANZA_KINDS.map(([event, name]) => (
+                    <Bar key={event} label={name} value={sum33([event])[0]} max={Math.max(total, 1)} right={`${fmt(sum33([event])[0])}回（通常 ${fmt(sum33([event], isNormal)[0])}回）`} />
+                  ))}
+
+                  <h3 className="text-sm font-bold mt-6 mb-1">作品ごと</h3>
+                  <p className="text-xs text-gray-400 mb-3">作品のリンクを押した回数（クリックの多い順）。クリック率 = 再生に対するクリックの割合。</p>
+                  <WorkTable works={works} sortBy="clicks" titleById={db.titleById} />
+                  <h3 className="text-sm font-bold mt-6 mb-1">スワイプで見つけた作品か</h3>
+                  <p className="text-xs text-gray-400 mb-2">「スワイプ」= スワイプして見つけた作品、「直接」= スワイプせずに最初の1本を開いた。</p>
+                  <ViaTable viaCount={viaCount} />
+                </>
+              )}
+            </DetailModal>
+          );
+        })()}
         {(detail === 'played' || detail === 'clicked') && (
           <DetailModal title={detail === 'played' ? '作品ごとの再生とクリック（再生の多い順）' : '作品ごとの再生とクリック（クリックの多い順）'} onClose={closeDetail}>
             <p className="text-xs text-gray-400 mb-3">
