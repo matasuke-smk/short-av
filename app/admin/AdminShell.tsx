@@ -21,6 +21,13 @@ type TabKey = (typeof TABS)[number]['key'];
 // スマホの上の帯に常に出すタブ（残りは「…」のメニューから。2026-10-10 ユーザーの要望）
 const PRIMARY_TABS: readonly TabKey[] = ['analytics', 'dmm-reports'];
 
+// 各サービスの管理画面（報酬・実績の確認用）。ログインは各サービスの画面で行う（パスワードはここに置かない）。新しいタブで開く
+const SERVICE_LINKS = [
+  { label: 'FANZA', href: 'https://affiliate.dmm.com/report/top/' },
+  { label: 'JuicyAds', href: 'https://ux13.juicyads.com/drift.php?controller=login' },
+  { label: 'DLsite', href: 'https://www.dlsite.com/home/mypage/affiliate/status' },
+] as const;
+
 const HOME = '/admin/analytics';
 const isTabKey = (value: string | null): value is TabKey => TABS.some((t) => t.key === value);
 
@@ -119,13 +126,21 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           >
             …
           </button>
+          {/* PC: 各サービスの管理画面（新しいタブ） */}
+          <div className="hidden md:flex ml-auto items-center gap-1">
+            {SERVICE_LINKS.map((l) => (
+              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-300 hover:text-white hover:border-gray-500 whitespace-nowrap">
+                {l.label} ↗
+              </a>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => {
               setSiteLoaded(true);
               setSiteOpen(true);
             }}
-            className="hidden md:block ml-auto px-3 py-2 text-xs text-gray-300 hover:text-white whitespace-nowrap"
+            className="hidden md:block px-3 py-2 text-xs text-gray-300 hover:text-white whitespace-nowrap"
           >
             サイトを開く
           </button>
@@ -163,6 +178,17 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                   </Link>
                 ),
               )}
+            </div>
+            {/* 各サービスの管理画面（新しいタブ） */}
+            <div className="border-t border-gray-800 px-5 py-3">
+              <p className="text-xs text-gray-500">各サービスの管理画面</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {SERVICE_LINKS.map((l) => (
+                  <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gray-800 py-2.5 text-center text-sm font-bold text-gray-100 hover:bg-gray-700">
+                    {l.label}
+                  </a>
+                ))}
+              </div>
             </div>
             <a href="/api/admin/logout" className="block px-5 py-3 text-sm text-gray-400 hover:text-white border-t border-gray-800">
               ログアウト
