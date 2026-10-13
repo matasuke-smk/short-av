@@ -25,7 +25,8 @@ const PRIMARY_TABS: readonly TabKey[] = ['analytics', 'dmm-reports'];
 const SERVICE_LINKS = [
   { label: 'FANZA', href: 'https://affiliate.dmm.com/report/top/' },
   { label: 'JuicyAds', href: 'https://ux13.juicyads.com/drift.php?controller=login' },
-  { label: 'DLsite', href: 'https://www.dlsite.com/home/mypage/affiliate/status' },
+  // 成果ページを直接開くと、ログインしていないときは会員登録の画面に送られる。ログイン画面を経由して成果ページに戻るアドレスにする
+  { label: 'DLsite', href: 'https://www.dlsite.com/home/login/=/_query/https%3A%2F%2Fwww.dlsite.com%2Fhome%2Fmypage%2Faffiliate%2Fstatus' },
 ] as const;
 
 const HOME = '/admin/analytics';
