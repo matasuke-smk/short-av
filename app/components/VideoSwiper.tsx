@@ -607,6 +607,38 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   overlayOpenRef.current =
     showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal;
 
+  // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
+  const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
+  useEffect(() => {
+    if (!emblaApi) return;
+    const pc = window.matchMedia('(min-width: 1024px)');
+    let observed: Element | null = null;
+    const measure = () => {
+      const el = document.querySelector(`[data-nav-anchor="${emblaApi.selectedScrollSnap()}"]`);
+      if (!pc.matches || !el) { setNavPos(null); return; }
+      if (el !== observed) { if (observed) ro.unobserve(observed); ro.observe(el); observed = el; }
+      const r = el.getBoundingClientRect();
+      // 作品を切り替えている途中（画像が画面からはみ出している間）は測らず、前の位置のままにする
+      if (r.top < -1 || r.bottom > window.innerHeight + 1) return;
+      // 同人誌の枠はボタン用の右の余白（padding）を含むので、その分を引いた中身の右端に合わせる
+      const padRight = parseFloat(getComputedStyle(el).paddingRight) || 0;
+      setNavPos({ left: Math.round(r.right - padRight + 20), top: Math.round(r.top + r.height / 2) });
+    };
+    const ro = new ResizeObserver(measure);
+    // 開いた直後は作品の位置が動くので、少し待ってからも測り直す
+    const timers = [0, 300, 1000, 2500].map((ms) => window.setTimeout(measure, ms));
+    emblaApi.on('settle', measure);
+    emblaApi.on('reInit', measure);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      timers.forEach((t) => window.clearTimeout(t));
+      emblaApi.off('settle', measure);
+      emblaApi.off('reInit', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [emblaApi, currentIndex]);
+
   // PC: マウスホイールと ↑↓ キーで前後の動画へ移動（ドラッグ以外の操作手段）
   useEffect(() => {
     if (!emblaApi) return;
@@ -973,7 +1005,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <div className="flex h-full flex-col landscape:flex-row lg:flex-row">
                     <div
                       style={doujinFit ? { height: doujinFit.height } : undefined}
-                      className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:max-w-none">
+                      data-nav-anchor={index}
+                      className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:max-w-none">
                       <button
                         onClick={(e) => toggleLike(video, e)}
                         className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90"
@@ -1008,9 +1041,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 /* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */
                 <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
                   {/* 左側: サムネイル・クレジット */}
-                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-27rem)] lg:!ml-20 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
+                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
                     {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
-                    <div
+                    <div data-nav-anchor={index}
                       className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-10rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
                       style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
                       onClick={handleThumbnailClick}
@@ -1223,6 +1256,31 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
       </div>
 
+      {/* PC: 作品を送るボタン（表示中の作品の画像のすぐ右、画像の縦の真ん中。位置は navPos）。ホイール・キーを使わない人にも送り方が見てわかるように。
+          「次の作品」をよく使うので青で目立たせる */}
+      {navPos && (
+      <div className="hidden lg:flex fixed -translate-y-1/2 z-30 w-28 flex-col items-center gap-3" style={{ left: navPos.left, top: navPos.top }}>
+        <button
+          type="button"
+          onClick={() => emblaApi?.scrollPrev()}
+          disabled={currentIndex === 0}
+          className="w-full py-3 rounded-2xl bg-gray-700/90 hover:bg-gray-600 disabled:opacity-30 disabled:hover:bg-gray-700/90 text-white flex flex-col items-center gap-1 shadow-lg transition-colors"
+        >
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+          <span className="text-sm font-bold">{t('prevWork')}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => emblaApi?.scrollNext()}
+          className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white flex flex-col items-center gap-1 shadow-lg transition-colors"
+        >
+          <span className="text-base font-bold">{t('nextWork')}</span>
+          <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+        <p className="w-36 text-center text-xs leading-relaxed text-gray-300 whitespace-pre-line">{t('navKeyHint')}</p>
+      </div>
+      )}
+
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
@@ -1365,19 +1423,19 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         </div>
 
         {/* ボタンエリア - 3列グリッド（PC は画面の左端に縦1列のメニューとして固定） */}
-        <div className="grid grid-cols-3 gap-2 lg:!fixed lg:!left-0 lg:!top-0 lg:!h-full lg:!w-20 lg:!grid-cols-1 lg:!content-center lg:!gap-2 lg:!px-2 lg:!bg-gray-950/80 lg:!border-r lg:!border-gray-800 lg:!z-30">
+        <div className="grid grid-cols-3 gap-2 lg:!fixed lg:!left-0 lg:!top-0 lg:!h-full lg:!w-28 lg:!grid-cols-1 lg:!content-center lg:!gap-3 lg:!px-3 lg:!bg-gray-950/80 lg:!border-r lg:!border-gray-800 lg:!z-30">
           {/* 検索ボタン */}
           <button
             onClick={() => {
               if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
               trackModalOpen('search');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span className="text-xs">{t('search')}</span>
+            <span className="text-xs lg:!text-sm">{t('search')}</span>
           </button>
 
           {/* 人気（ランキング）ボタン */}
@@ -1386,12 +1444,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
               trackModalOpen('ranking');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            <span className="text-xs">{t('ranking')}</span>
+            <span className="text-xs lg:!text-sm">{t('ranking')}</span>
           </button>
 
           {/* ホームボタン */}
@@ -1400,12 +1458,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               // トップを読み直して通常のフィード（新しい動画セット）に戻る
               window.location.href = doujinMode ? '/?mode=doujin' : '/';
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-            <span className="text-xs">{t('home')}</span>
+            <span className="text-xs lg:!text-sm">{t('home')}</span>
           </button>
 
           {/* いいねボタン */}
@@ -1414,12 +1472,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
               trackModalOpen('liked');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
-            <span className="text-xs">{t('likedList')}</span>
+            <span className="text-xs lg:!text-sm">{t('likedList')}</span>
           </button>
 
           {/* 履歴ボタン */}
@@ -1428,23 +1486,23 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
               trackModalOpen('history');
             }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-xs">{t('history')}</span>
+            <span className="text-xs lg:!text-sm">{t('history')}</span>
           </button>
 
           {/* 記事ボタン */}
           <Link
             href="/articles" prefetch={false}
-            className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 lg:!py-2 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            <span className="text-xs">{t('articles')}</span>
+            <span className="text-xs lg:!text-sm">{t('articles')}</span>
           </Link>
         </div>
       </div>
