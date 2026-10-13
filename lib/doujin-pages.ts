@@ -57,6 +57,16 @@ export const getCircleWorks = unstable_cache(
   { revalidate: REVALIDATE },
 );
 
+/** 同人誌の一覧ページ（/doujin）: 人気上位100冊 */
+export const getDoujinRanking = unstable_cache(
+  async (): Promise<DoujinDetail[]> => {
+    const data = await fetchDMMProducts({ ...FLOOR, sort: 'rank', hits: 100 });
+    return (data.result?.items ?? []).map(toDetail).filter((d): d is DoujinDetail => d !== null);
+  },
+  ['doujin-ranking-v1'],
+  { revalidate: REVALIDATE },
+);
+
 /** サイトマップ用: 人気上位の作品と、そのサークル */
 export const listDoujinForSitemap = unstable_cache(
   async (): Promise<{ works: { contentId: string; date: string | null }[]; circles: string[] }> => {

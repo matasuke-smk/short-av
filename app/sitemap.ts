@@ -80,6 +80,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 女優ごと・ジャンルごとのページ（lib/catalog.ts。作品が一定数以上あるもの）。「女優名 サンプル」などの検索から来てもらう
   const [actresses, genres] = await Promise.all([listCatalog('actress').catch(() => []), listCatalog('genre').catch(() => [])]);
   const catalogPages: MetadataRoute.Sitemap = [
+    // 一覧のページ（女優・ジャンル・同人誌）。ここから各ページへリンクしている
+    ...['actress', 'genre', 'doujin'].map((path) => ({ url: `${baseUrl}/${path}`, lastModified: new Date(), changeFrequency: 'daily' as const, priority: 0.7 })),
     ...actresses.map((e) => ({ url: `${baseUrl}/actress/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
     ...genres.map((e) => ({ url: `${baseUrl}/genre/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
   ];
