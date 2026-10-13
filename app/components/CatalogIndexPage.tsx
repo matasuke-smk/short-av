@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import CatalogIndexList from './CatalogIndexList';
 import type { CatalogEntry, CatalogKind } from '@/lib/catalog';
 import { Shell } from './DoujinPages';
 
@@ -19,16 +19,7 @@ export default function CatalogIndexPage({ kind, entries }: { kind: CatalogKind;
           ? '女優ごとに、出演作のサンプル動画を縦スワイプで次々と無料で見られます（会員登録不要）。作品の多い順に並べています。'
           : 'ジャンルごとに、人気作のサンプル動画を縦スワイプで次々と無料で見られます（会員登録不要）。作品の多い順に並べています。'}
       </p>
-      <ul className="mt-5 flex flex-wrap gap-2">
-        {entries.map((e) => (
-          <li key={e.slug}>
-            <Link href={`/${kind}/${e.slug}`} prefetch={false} className="inline-block rounded-full bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-sm transition-colors">
-              {e.name}
-              <span className="ml-1 text-xs text-gray-400">{e.works}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <CatalogIndexList kind={kind} entries={entries} />
     </Shell>
   );
 }
