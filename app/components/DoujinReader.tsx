@@ -81,8 +81,8 @@ export default function DoujinReader({
           {doujin.samples.map((src, i) => (
             <div key={src} className="flex h-full min-w-0 flex-[0_0_100%] items-center justify-center pt-11">
               {i <= loadedUntil ? (
-                // eslint-disable-next-line @next/next/no-img-element -- FANZA の画像をそのまま表示する（最適化の対象外）
-                <img src={src} alt={`${doujin.title} サンプル ${i + 1}`} className="max-h-full max-w-full object-contain" draggable={false} />
+                // eslint-disable-next-line @next/next/no-img-element -- FANZA の画像をそのまま表示する（最適化の対象外）。元の画像が小さくても枠いっぱいまで拡大する
+                <img src={src} alt={`${doujin.title} サンプル ${i + 1}`} className="h-full w-full object-contain" draggable={false} />
               ) : (
                 <div className="text-sm text-gray-500">{t('loading')}</div>
               )}
@@ -93,7 +93,7 @@ export default function DoujinReader({
           <div className="flex h-full min-w-0 flex-[0_0_100%] flex-col items-center px-5 pb-3 pt-12 text-center">
             <div className="flex min-h-0 w-full flex-1 items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={doujin.cover} alt={doujin.title} className="max-h-full max-w-full rounded-lg object-contain" draggable={false} />
+              <img src={doujin.cover} alt={doujin.title} className="h-full w-full object-contain" draggable={false} />
             </div>
             <div className="w-full max-w-sm flex-shrink-0 pt-2">
               {!compact && <p className="text-xs text-gray-400">{t('djSampleEnd', { n: doujin.samples.length })}</p>}

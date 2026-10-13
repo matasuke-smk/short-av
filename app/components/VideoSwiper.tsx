@@ -1009,7 +1009,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:max-w-none">
                       <button
                         onClick={(e) => toggleLike(video, e)}
-                        className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90"
+                        className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90 lg:hidden"
                         aria-label={t('like')}
                       >
                         {likedVideos.has(video.dmm_content_id) ? (
@@ -1202,7 +1202,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 縦画面では下の帯（固定表示）が画面の下側を覆うので、スライド全体（100dvh）ではなく動画の表示領域（上の帯から下の帯まで）の中央に出す */}
             {isLoadingMore && (
               <div className="h-[100dvh] w-full snap-start snap-always relative">
-                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
+                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36">
                   <div className="text-white text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                     <p className="text-sm">{t('loading')}</p>
@@ -1213,7 +1213,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 最後の動画の次に表示（有限リストの場合） */}
             {(isFiniteList || doujinMode) && (
               <div className="h-[100dvh] w-full snap-start snap-always relative">
-                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full">
+                <div className="flex h-[calc(75vw+31.25vw)] w-full items-center justify-center landscape:h-full lg:h-full lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36">
                 <div className="text-white text-center px-8">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
