@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BrowseLinks from './BrowseLinks';
 import type { ReactNode } from 'react';
 import { CONTACT_FORM_URL } from '@/config/site';
 import type { DoujinDetail } from '@/lib/doujin-pages';
@@ -11,12 +12,12 @@ import DoujinBuyLink from './DoujinBuyLink';
 const yen = (n: number | null) => (n ? `${n.toLocaleString('ja-JP')}円` : null);
 const ymd = (s: string | null) => (s ? s.replace(/-/g, '/') : null);
 
-function Shell({ children }: { children: ReactNode }) {
+export function Shell({ children, back = { href: '/?mode=doujin', label: '同人誌のスワイプ画面へ' } }: { children: ReactNode; back?: { href: string; label: string } }) {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <header className="sticky top-0 z-10 bg-gray-950/95 backdrop-blur-sm border-b border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/?mode=doujin" prefetch={false} className="text-gray-400 hover:text-white transition-colors" aria-label="同人誌のスワイプ画面へ">
+          <Link href={back.href} prefetch={false} className="text-gray-400 hover:text-white transition-colors" aria-label={back.label}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -28,7 +29,8 @@ function Shell({ children }: { children: ReactNode }) {
       <main className="max-w-5xl mx-auto px-4 py-5">{children}</main>
       <footer className="border-t border-gray-800 mt-10">
         <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
+          <BrowseLinks className="mb-4" />
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 whitespace-nowrap">
             <Link href="/articles" prefetch={false} className="hover:text-gray-400 underline">記事一覧</Link>
             <Link href="/privacy" prefetch={false} className="hover:text-gray-400 underline">プライバシーポリシー</Link>
             <Link href="/terms" prefetch={false} className="hover:text-gray-400 underline">利用規約</Link>
@@ -56,7 +58,7 @@ function ReadButton({ href, label }: { href: string; label: string }) {
   );
 }
 
-function WorkGrid({ works }: { works: DoujinDetail[] }) {
+export function WorkGrid({ works }: { works: DoujinDetail[] }) {
   return (
     <ul className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {works.map((w) => (
@@ -175,6 +177,33 @@ export function CirclePage({ name, total, works }: { name: string; total: number
       {ids.length > 0 && <ReadButton href={`/?mode=doujin&d=${encodeURIComponent(ids[0])}&list=${ids.map(encodeURIComponent).join(',')}`} label="スワイプで全部試し読み" />}
       <WorkGrid works={works} />
       {total > works.length && <p className="mt-3 text-xs text-gray-500">人気の上位{works.length}作品を表示しています。</p>}
+    </Shell>
+  );
+}
+
+/** 同人誌の一覧ページ（/doujin）: 人気の作品と、人気のサークル */
+export function DoujinIndexPage({ works }: { works: DoujinDetail[] }) {
+  const circles = [...new Map(works.filter((w) => w.circle && w.circleId).map((w) => [w.circleId, w.circle as string])).entries()];
+  return (
+    <Shell>
+      <h1 className="text-xl sm:text-2xl font-bold">人気の同人誌 無料サンプル・試し読み</h1>
+      <p className="mt-2 text-sm text-gray-300 leading-relaxed">
+        FANZA 同人で人気の同人誌{works.length}作品のサンプルを、会員登録なしで無料で試し読みできます。人気の順に並べています。
+      </p>
+      <ReadButton href="/?mode=doujin" label="スワイプで次々と試し読み" />
+      <WorkGrid works={works} />
+      {circles.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-base font-bold">人気のサークル</h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {circles.map(([id, name]) => (
+              <li key={id}>
+                <Link href={`/circle/${id}`} prefetch={false} className="inline-block rounded-full bg-gray-800 hover:bg-gray-700 px-3 py-1.5 text-sm transition-colors">{name}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </Shell>
   );
 }

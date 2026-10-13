@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BROWSE_LINKS } from '@/app/components/BrowseLinks';
 import { getAllArticles, getArticleModifiedAt, getArticleEyecatch } from '@/lib/articles';
 import ArticleLink from './ArticleLink';
 import SwipeBanner from './SwipeBanner';
@@ -110,6 +111,20 @@ export default async function ArticlesPage() {
         <p className="text-center mt-6 text-xs text-gray-400">
           全{articles.length}件
         </p>
+
+        {/* 女優・ジャンル・同人誌の一覧ページへ（サイトの中からたどれるようにする） */}
+        <section className="mt-10 md:mt-14">
+          <h2 className="text-base md:text-lg font-bold">作品を探す</h2>
+          <ul className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {BROWSE_LINKS.map((l) => (
+              <li key={l.href}>
+                <Link href={l.href} prefetch={false} className="block rounded-lg border border-gray-200 hover:border-gray-400 px-4 py-3 text-sm font-bold text-gray-900 transition-colors">
+                  {l.label} →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <div className="mt-10 md:mt-14 text-center">
           <Link

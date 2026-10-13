@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BrowseLinks from './BrowseLinks';
 import { CONTACT_FORM_URL } from '@/config/site';
 import { generateVideoListSchema } from '@/lib/video-schema';
 import type { CatalogEntry, CatalogKind, CatalogVideo } from '@/lib/catalog';
@@ -111,7 +112,8 @@ export default function CatalogPage({
 
       <footer className="border-t border-gray-800 mt-10">
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-center gap-6 text-xs text-gray-500">
+          <BrowseLinks className="mb-4" />
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500 whitespace-nowrap">
             <Link href="/articles" prefetch={false} className="hover:text-gray-400 underline">記事一覧</Link>
             <Link href="/privacy" prefetch={false} className="hover:text-gray-400 underline">プライバシーポリシー</Link>
             <Link href="/terms" prefetch={false} className="hover:text-gray-400 underline">利用規約</Link>
