@@ -7,6 +7,7 @@ import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
 import SampleLengthsView from './sample-lengths/SampleLengthsView';
 import DmmReportsView from './dmm-reports/DmmReportsView';
+import MensLabView from './menslab/MensLabView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -16,6 +17,7 @@ const TABS = [
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
   { key: 'sample-lengths', label: 'サンプルの長さ' },
+  { key: 'menslab', label: '男のからだ研究室' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 // スマホの上の帯に常に出すタブ（残りは「…」のメニューから。2026-10-10 ユーザーの要望）
@@ -49,8 +51,36 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [siteOpen, setSiteOpen] = useState(false);
   const [siteLoaded, setSiteLoaded] = useState(false);
   const [siteKey, setSiteKey] = useState(0);
-  // スマホの「…」で右から出るメニュー
+  // スマホの左上の「☰」で左から出るメニュー（左手の親指で操作しやすいよう左に。2026-10-14 ユーザーの要望）
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // スマホ: 画面の左端から右へなぞるとメニューが開き、開いているときに左へなぞると閉じる
+  useEffect(() => {
+    if (siteOpen) return;
+    let start: { x: number; y: number } | null = null;
+    const onStart = (e: TouchEvent) => {
+      if (window.innerWidth >= 768 || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      // 閉じているときは左端（24px 以内）から始まったときだけ受け付ける
+      start = menuOpen || t.clientX <= 24 ? { x: t.clientX, y: t.clientY } : null;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!start) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - start.x;
+      const dy = Math.abs(t.clientY - start.y);
+      start = null;
+      if (Math.abs(dx) < 60 || dy > Math.abs(dx)) return;
+      if (!menuOpen && dx > 0) setMenuOpen(true);
+      if (menuOpen && dx < 0) setMenuOpen(false);
+    };
+    window.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onStart);
+      window.removeEventListener('touchend', onEnd);
+    };
+  }, [menuOpen, siteOpen]);
 
   const select = (key: TabKey, updateUrl = true) => {
     setMenuOpen(false);
@@ -104,6 +134,15 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <BackToTop hidden={siteOpen} />
       <nav className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-5xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto pt-[max(env(safe-area-inset-top),0.5rem)]">
+          {/* スマホ: 左端の「☰」で残りのタブとログアウトのメニューを開く（2026-10-14 左に移動）。残りの幅を2つのタブで等分する */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="md:hidden flex-shrink-0 px-3 py-2 rounded-lg text-lg leading-none text-gray-300 hover:bg-gray-800"
+            aria-label="メニュー"
+          >
+            ☰
+          </button>
           {TABS.map(({ key, label }) => {
             const primary = PRIMARY_TABS.includes(key);
             const cls = `${className(isHome ? tab === key : (pathname?.startsWith(`/admin/${key}`) ?? false))} ${primary ? 'flex-1 text-center md:flex-none' : 'hidden md:block'}`;
@@ -118,15 +157,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-          {/* スマホ: 右端の「…」で残りのタブとログアウトのメニューを開く（2026-10-11 右に移動）。残りの幅を2つのタブで等分する */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            className="md:hidden flex-shrink-0 px-3 py-2 rounded-lg text-lg leading-none text-gray-300 hover:bg-gray-800"
-            aria-label="メニュー"
-          >
-            …
-          </button>
           {/* PC: 各サービスの管理画面（新しいタブ） */}
           <div className="hidden md:flex ml-auto items-center gap-1">
             {SERVICE_LINKS.map((l) => (
@@ -151,11 +181,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      {/* スマホのメニュー（右から出る） */}
+      {/* スマホのメニュー（左から出る） */}
       {menuOpen && (
         <div className="md:hidden fixed inset-0 z-[90]" role="dialog" aria-label="メニュー">
           <button type="button" className="absolute inset-0 bg-black/60" onClick={() => setMenuOpen(false)} aria-label="閉じる" />
-          <div className="absolute inset-y-0 right-0 w-72 max-w-[85%] bg-gray-950 border-l border-gray-800 shadow-2xl flex flex-col pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)]">
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-gray-950 border-r border-gray-800 shadow-2xl flex flex-col pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)]">
             <div className="flex items-center justify-between px-4 pb-3 border-b border-gray-800">
               <span className="text-sm font-bold text-white">メニュー</span>
               <button type="button" onClick={() => setMenuOpen(false)} className="px-2 py-1 text-gray-400 hover:text-white" aria-label="閉じる">
@@ -183,10 +213,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             {/* 各サービスの管理画面（新しいタブ） */}
             <div className="border-t border-gray-800 px-5 py-3">
               <p className="text-xs text-gray-500">各サービスの管理画面</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 flex flex-col gap-2">
                 {SERVICE_LINKS.map((l) => (
-                  <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gray-800 py-2.5 text-center text-sm font-bold text-gray-100 hover:bg-gray-700">
+                  <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg bg-gray-800 px-4 py-2.5 text-sm font-bold text-gray-100 hover:bg-gray-700">
                     {l.label}
+                    <span className="text-gray-400" aria-hidden>↗</span>
                   </a>
                 ))}
               </div>
@@ -220,11 +251,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           role="dialog"
           aria-label="サイト"
         >
-          <div className="flex items-center gap-2 px-2 pb-1 pt-[max(env(safe-area-inset-top),0.25rem)] bg-gray-950 border-b border-gray-800">
+          {/* スマホでは下（「サイトを開く」と同じ位置）、PC では上に出す */}
+          <div className="order-last md:order-first flex items-center gap-2 px-3 md:px-2 pt-2 md:pt-[max(env(safe-area-inset-top),0.25rem)] pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-1 bg-gray-950 border-t md:border-t-0 md:border-b border-gray-800">
             <button
               type="button"
               onClick={() => setSiteOpen(false)}
-              className="px-3 py-1.5 rounded-lg bg-gray-800 text-sm text-white"
+              className="flex-1 md:flex-none rounded-lg bg-gray-800 py-2.5 md:py-1.5 px-3 text-sm font-bold md:font-normal text-white"
             >
               × 管理画面に戻る
             </button>
@@ -247,6 +279,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
           {opened.includes('sample-lengths') && <div hidden={tab !== 'sample-lengths'}><SampleLengthsView /></div>}
           {opened.includes('dmm-reports') && <div hidden={tab !== 'dmm-reports'}><DmmReportsView /></div>}
+          {opened.includes('menslab') && <div hidden={tab !== 'menslab'}><MensLabView /></div>}
         </div>
       ) : (
         <div className="pb-16 md:pb-0">{children}</div>

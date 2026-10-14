@@ -10,6 +10,8 @@ import { createSign } from 'crypto';
  */
 
 const DEFAULT_PROPERTY_ID = '511166539';
+/** 男のからだ研究室（mens-sizelab.app）のプロパティ。サービスアカウントは閲覧者として追加済み（2026-10-14） */
+export const MENSLAB_PROPERTY_ID = '558909333';
 const SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 
 type ServiceAccountKey = { client_email: string; private_key: string };
@@ -118,8 +120,8 @@ async function gaFetch(url: string, body: unknown, token: string): Promise<{ ok:
 }
 
 /** 複数のレポートをまとめて取得する（1回のリクエストで最大5件）。5件ずつの組は同時に送る（同時に送る数は withSlot で4つまで） */
-export async function runReports(requests: ReportRequest[]): Promise<ReportRow[][]> {
-  const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
+export async function runReports(requests: ReportRequest[], property?: string): Promise<ReportRow[][]> {
+  const propertyId = property || process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
   const token = await getAccessToken();
   const batches: ReportRequest[][] = [];
   for (let i = 0; i < requests.length; i += 5) batches.push(requests.slice(i, i + 5));
@@ -146,8 +148,9 @@ export async function runReports(requests: ReportRequest[]): Promise<ReportRow[]
 /** リアルタイムレポート（直近30分）。dateRanges は指定しない */
 export async function runRealtimeReport(
   request: Omit<ReportRequest, 'dateRanges'> & { minuteRanges?: { startMinutesAgo: number; endMinutesAgo: number }[] },
+  property?: string,
 ): Promise<ReportRow[]> {
-  const propertyId = process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
+  const propertyId = property || process.env.GA_PROPERTY_ID || DEFAULT_PROPERTY_ID;
   const token = await getAccessToken();
   const { ok, status, data } = await gaFetch(
     `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runRealtimeReport`,
