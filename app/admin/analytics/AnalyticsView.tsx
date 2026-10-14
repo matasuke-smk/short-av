@@ -145,6 +145,7 @@ const CAMPAIGN_LABELS: Record<string, string> = {
   bluesky_post_doujin: 'Bluesky の同人誌の投稿',
 };
 
+const FANZA_CLICK_EVENT_NAMES = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 export const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
 const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
 export const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
@@ -638,7 +639,8 @@ function RangeBody({
   };
   const gaTotalEvents = allEvents.reduce((sum, r) => sum + r.metrics[0], 0);
   // FANZA へのクリック（動画と同人誌の合計）。時間帯グラフの合計が取れなかったときに使う
-  const gaTotalClicks = allEvents.find((r) => r.dimensions[0] === 'dmm_link_click')?.metrics[0] ?? 0;
+  // FANZA へのすべてのクリック（作品のリンク・バナー・ウィジェット・クーポン・初めての人向け）。時間帯のグラフと上のカードで数え方をそろえる
+  const gaTotalClicks = allEvents.filter((r) => FANZA_CLICK_EVENT_NAMES.includes(r.dimensions[0])).reduce((sum, r) => sum + r.metrics[0], 0);
   // すべてのイベントの一覧から回数を引く（流れに含まれないイベント用）
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);

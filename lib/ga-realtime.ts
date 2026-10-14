@@ -41,7 +41,8 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
     runRealtimeReport({
       dimensions: [{ name: 'minutesAgo' }],
       metrics: [{ name: 'eventCount' }],
-      dimensionFilter: { andGroup: { expressions: [dimensionFilter, { filter: { fieldName: 'eventName', stringFilter: { value: 'dmm_link_click' } } }] } },
+      // FANZA へのすべてのクリック（作品のリンク・バナー・クーポンなど。アクセス解析のグラフ・カードと同じ数え方）
+      dimensionFilter: { andGroup: { expressions: [dimensionFilter, { filter: { fieldName: 'eventName', inListFilter: { values: ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'] } } }] } },
       limit: 30,
     }),
     ...windows.map((w) => runRealtimeReport({ metrics, dimensionFilter, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
