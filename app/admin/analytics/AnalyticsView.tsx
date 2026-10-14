@@ -733,14 +733,15 @@ function RangeBody({
                 <KpiCard
                   key={c.label}
                   label={c.label}
-                  value={fmt(sum(c.events)[0])}
+                  // 報酬の対象の地域だけで数える（FANZA は日本、JuicyAds・DLsite は海外。2026-10-14 ユーザーの指摘）
+                  value={fmt(sum(c.events, c.area)[0])}
                   unit="回"
-                  // 棒: クリック全体のうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
-                  // かっこ内は通常のブラウザで来た人（FANZA は日本、JuicyAds・DLsite は海外）のうち押した人の割合
+                  // 棒: そのクリックのうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
+                  // かっこ内は通常のブラウザで来た人のうち押した人の割合
                   share={{
-                    part: sum(c.events, isNormal)[0],
-                    total: sum(c.events)[0],
-                    label: `通常 ${fmt(sum(c.events, isNormal)[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[1], sum(['page_view'], (r) => c.area(r) && isNormal(r))[1])}）`,
+                    part: sum(c.events, (r) => c.area(r) && isNormal(r))[0],
+                    total: sum(c.events, c.area)[0],
+                    label: `通常 ${fmt(sum(c.events, (r) => c.area(r) && isNormal(r))[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[1], sum(['page_view'], (r) => c.area(r) && isNormal(r))[1])}）`,
                   }}
                   onClick={() => setDetail(`card:${c.label}`)}
                 />
@@ -1019,8 +1020,9 @@ function RangeBody({
         )}
         {openCard && (() => {
           const c = openCard;
-          const [total] = sum33(c.events);
-          const [normal] = sum33(c.events, isNormal);
+          // ブラウザ・押した場所は、報酬の対象の地域（FANZA は日本、JuicyAds・DLsite は海外）だけで数える
+          const [total] = sum33(c.events, c.area);
+          const [normal] = sum33(c.events, (r) => c.area(r) && isNormal(r));
           const areaRows = [
             { label: c.areaLabel, pred: c.area },
             { label: c.otherLabel, pred: (r: ReportRow) => !c.area(r) },
@@ -1033,7 +1035,7 @@ function RangeBody({
           return (
             <DetailModal title={`${c.label} のクリックの内訳`} note="期間内の合計。" onClose={closeDetail}>
               <h3 className="text-sm font-bold mb-1">ブラウザ</h3>
-              <p className="text-xs text-gray-400 mb-3">報酬になるのは通常のブラウザ（Safari・Chrome など）から押した分。X などのアプリの中のブラウザからは報酬になりません。</p>
+              <p className="text-xs text-gray-400 mb-3">{c.areaLabel}の人のクリック。報酬になるのは通常のブラウザ（Safari・Chrome など）から押した分。X などのアプリの中のブラウザからは報酬になりません。</p>
               <Bar label="通常のブラウザ" value={normal} max={Math.max(total, 1)} right={`${fmt(normal)}回`} />
               <Bar label="アプリの中のブラウザ" value={total - normal} max={Math.max(total, 1)} right={`${fmt(total - normal)}回`} />
 
@@ -1067,9 +1069,9 @@ function RangeBody({
               {c.label === 'FANZA' && (
                 <>
                   <h3 className="text-sm font-bold mt-6 mb-1">どこを押したか</h3>
-                  <p className="text-xs text-gray-400 mb-3">全体の回数。かっこ内は通常のブラウザから押した回数。</p>
+                  <p className="text-xs text-gray-400 mb-3">日本の人のクリック。かっこ内は通常のブラウザから押した回数。</p>
                   {FANZA_KINDS.map(([event, name]) => (
-                    <Bar key={event} label={name} value={sum33([event])[0]} max={Math.max(total, 1)} right={`${fmt(sum33([event])[0])}回（通常 ${fmt(sum33([event], isNormal)[0])}回）`} />
+                    <Bar key={event} label={name} value={sum33([event], c.area)[0]} max={Math.max(total, 1)} right={`${fmt(sum33([event], c.area)[0])}回（通常 ${fmt(sum33([event], (r) => c.area(r) && isNormal(r))[0])}回）`} />
                   ))}
 
                   <h3 className="text-sm font-bold mt-6 mb-1">作品ごと</h3>
