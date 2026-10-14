@@ -1848,7 +1848,8 @@ export default function AnalyticsView({
           <div className="grid grid-cols-2 gap-1.5 md:gap-2 md:flex-[2.4]">{(['7d', 'weekday'] as const).map(button)}</div>
         </nav>
         <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
-          集計の対象: {rangeDates(viewKey)}（日本時間の0時で区切り）・{country === 'jp' ? '日本からのアクセスのみ' : '海外を含むすべてのアクセス'}
+          {/* スマホで1行に収まるよう短く（日本時間の0時で区切ることは、いちばん下の注に書く） */}
+          集計の対象: {rangeDates(viewKey)}・{country === 'jp' ? '日本のみ' : 'すべての国'}
         </p>
 
         {section === 'doujin' ? (
@@ -1912,7 +1913,7 @@ export default function AnalyticsView({
 
 
         <p className="text-xs text-gray-500">
-          GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。
+          日付は日本時間の0時で区切っています。GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。
         </p>
       </div>
     </main>
