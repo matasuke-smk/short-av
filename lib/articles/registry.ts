@@ -14,6 +14,7 @@ import { article as maleVioDepilationGuide } from './content/male-vio-depilation
 import { article as popularSamplesThisWeek } from './content/popular-samples-this-week';
 import { article as prematureEjaculationSolutions } from './content/premature-ejaculation-solutions';
 import { article as refractoryPeriodByAge } from './content/refractory-period-by-age';
+import { article as sagami002Xl } from './content/sagami-002-xl';
 import { article as sexDurationAverageReality } from './content/sex-duration-average-reality';
 import { article as sizeComparisonTool } from './content/size-comparison-tool';
 import { article as sizeStatisticsReport } from './content/size-statistics-report';
@@ -34,6 +35,7 @@ export const articles: Article[] = [
   popularSamplesThisWeek,
   prematureEjaculationSolutions,
   refractoryPeriodByAge,
+  sagami002Xl,
   sexDurationAverageReality,
   sizeComparisonTool,
   sizeStatisticsReport,
