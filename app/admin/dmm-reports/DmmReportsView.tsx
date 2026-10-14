@@ -27,10 +27,13 @@ export default function DmmReportsView() {
       .catch(() => setMessage('読み込めませんでした'));
   }, []);
 
-  async function save() {
+  // 手動の貼り付け欄（クリップボードを読めない端末用。ふだんは閉じておく）
+  const [manualOpen, setManualOpen] = useState(false);
+
+  async function save(input: string = text) {
     setBusy(true);
     setMessage('');
-    const response = await fetch('/api/admin/dmm-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    const response = await fetch('/api/admin/dmm-reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: input }) });
     const data = await response.json().catch(() => null);
     setBusy(false);
     if (!response.ok || !data?.rows) {
@@ -39,7 +42,25 @@ export default function DmmReportsView() {
     }
     setRows(data.rows);
     setText('');
+    setManualOpen(false);
     setMessage(`${data.saved}日分を保存しました（${data.dates.map(md).join('・')}）`);
+  }
+
+  // DMM のレポートの表をコピーした状態でボタンを押すだけで保存する（2026-10-14 ユーザーの要望。貼り付けの手間をなくす）
+  async function saveFromClipboard() {
+    let copied = '';
+    try {
+      copied = await navigator.clipboard.readText();
+    } catch {
+      setManualOpen(true);
+      setMessage('コピーした内容を読み取れませんでした。下の欄に貼り付けて保存してください');
+      return;
+    }
+    if (!/\d{4}\/\d{1,2}\/\d{1,2}/.test(copied)) {
+      setMessage('レポートの表がコピーされていないようです。DMM のレポート（日別）の表を選択してコピーしてから押してください');
+      return;
+    }
+    await save(copied);
   }
 
   const total = sumDmmReports(rows ?? []);
@@ -51,15 +72,31 @@ export default function DmmReportsView() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-xl md:text-2xl font-bold">FANZA 実績（DMM アフィリエイト）</h1>
         <p className="text-xs text-gray-400 mt-1">
-          DMM のレポートは API で取れないため、管理画面のレポートの表を貼り付けて記録します。クリック数は翌日に確定、報酬は即時に反映されます。
+          DMM のレポートは API で取れないため、管理画面のレポートの表をコピーして記録します。クリック数は翌日に確定、報酬は即時に反映されます。
           保存した数字はアクセス解析の「FANZA クリック」に、GA のクリック数と並べて出ます。
         </p>
 
         <section className="bg-gray-800 rounded-lg p-3 md:p-4 mt-4">
-          <h2 className="text-base font-bold">レポートの表を貼り付けて保存</h2>
+          <h2 className="text-base font-bold">コピーしたレポートの表を保存</h2>
           <p className="text-xs text-gray-400 mt-1">
-            DMM アフィリエイトのレポート（日別）の表をそのまま選択してコピーし、ここに貼り付けてください。日付のある行だけを読み取ります（見出しや期間合計は無視）。同じ日は上書きされます。
+            DMM アフィリエイトのレポート（日別）の表を選択してコピーし、下のボタンを押してください。日付のある行だけを読み取ります（見出しや期間合計は無視）。同じ日は上書きされます。
           </p>
+          <button
+            type="button"
+            onClick={saveFromClipboard}
+            disabled={busy}
+            className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-bold hover:bg-blue-500 disabled:opacity-50"
+          >
+            {busy ? '保存しています...' : 'コピーした表を保存する'}
+          </button>
+          {message && <p className="mt-2 text-sm text-yellow-300">{message}</p>}
+
+          {/* クリップボードを読めない端末用の、手で貼り付ける欄 */}
+          <button type="button" onClick={() => setManualOpen((v) => !v)} className="mt-3 text-xs text-gray-400 underline">
+            {manualOpen ? '貼り付け欄を閉じる' : 'うまくいかないとき（手で貼り付ける）'}
+          </button>
+          {manualOpen && (
+          <>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -67,12 +104,11 @@ export default function DmmReportsView() {
             placeholder={'例:\n2026/10/09\t632\t0 件\t0円\t0 件\t0円\t0 件\t0円\t0 件\t0円\n2026/10/10\t0\t0 件\t0円\t1 件\t436円\t0 件\t0円\t1 件\t436円'}
             className="mt-3 w-full rounded-lg bg-gray-900 border border-gray-700 p-3 text-sm font-mono text-gray-100 placeholder:text-gray-600"
           />
-          <div className="flex items-center gap-3 mt-3">
-            <button onClick={save} disabled={busy || text.trim() === ''} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded px-4 py-2 text-sm font-bold">
-              {busy ? '保存しています...' : '保存する'}
-            </button>
-            {message && <span className="text-sm text-yellow-300">{message}</span>}
-          </div>
+          <button onClick={() => save()} disabled={busy || text.trim() === ''} className="mt-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded px-4 py-2 text-sm font-bold">
+            貼り付けた内容を保存する
+          </button>
+          </>
+          )}
         </section>
 
         <section className="bg-gray-800 rounded-lg p-3 md:p-4 mt-4">
