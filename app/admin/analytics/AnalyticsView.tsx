@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
 // 時間帯ごとのリアルタイムの記録（lib/ga-realtime.ts）
 type LiveHourly = Record<number, { users: number; events: number }>;
@@ -46,10 +45,13 @@ export type YesterdaySoFar = { until: string; users: number; events: number; vie
 export type RangeData =
   | { reports: ReportRow[][]; weekday?: WeekdayHourly; warning?: string; doujinInfo?: Record<string, { title: string; cover: string }>; db: { titleById: Record<string, string> } }
   | { error: string };
+// 1つの期間の「日本のみ」と「すべて」（GA から1回で取って両方を作る。切り替えは取り直さずに入れ替えるだけ）
+export type RangePair = Record<Country, RangeData>;
 
 // まだ取得していない期間（画面を開いたあとに /api/admin/analytics で1つずつ取る）。表示は「読み込み中」にする
 const LOADING_MESSAGE = '読み込み中…';
 const LOADING: RangeData = { error: LOADING_MESSAGE };
+const LOADING_PAIR: RangePair = { jp: LOADING, all: LOADING };
 // 取得する順番（「曜日ごとの平均」は28日間を使う）
 const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'dayBefore', '7d', '28d'];
 const dataKeyOf = (view: ViewKey): DataKey => (view === 'weekday' ? '28d' : view);
@@ -1664,20 +1666,30 @@ export default function AnalyticsView({
   fetchedAt,
   realtime,
   live,
-  yesterdaySoFar,
-  country,
+  yesterdaySoFar: yesterdaySoFarPair,
+  country: initialCountry,
   dmmReports,
 }: {
   dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（直近35日）
-  country: Country; // 日本のみ（標準）か、海外も含めたすべてか
-  yesterdaySoFar: YesterdaySoFar | null; // 昨日の同じ時刻までの数字（取得できなければ null）
+  country: Country; // 開いたときの「日本のみ（標準）｜すべて」（URL の country）
+  yesterdaySoFar: Record<Country, YesterdaySoFar> | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
-  data: Partial<Record<DataKey, RangeData>>; // 開いたときに取得した期間だけ（残りはこの画面で取る）
+  data: Partial<Record<DataKey, RangePair>>; // 開いたときに取得した期間だけ（残りはこの画面で取る）
   initialRange: ViewKey;
   fetchedAt: string;
   realtime: ReportRow[] | null; // いま見られているページ（直近30分）。取得できなければ null
 }) {
   const [viewKey, setViewKey] = useState<ViewKey>(initialRange);
+  // 「日本のみ｜すべて」: どちらも取得済みなので、切り替えは表示するデータを入れ替えるだけ（URL の country に残す）
+  const [country, setCountry] = useState<Country>(initialCountry);
+  const selectCountry = (next: Country) => {
+    setCountry(next);
+    const url = new URL(window.location.href);
+    if (next === 'all') url.searchParams.set('country', 'all');
+    else url.searchParams.delete('country');
+    window.history.replaceState(window.history.state, '', url.toString());
+  };
+  const yesterdaySoFar = yesterdaySoFarPair?.[country] ?? null;
   // 期間ごとのデータ。開いたときに無かった期間は、表示してから1つずつ取得する（選んでいる期間を先に取る）
   const [loaded, setLoaded] = useState(initialData);
   const viewKeyRef = useRef(viewKey);
@@ -1693,25 +1705,23 @@ export default function AnalyticsView({
         const wanted = dataKeyOf(viewKeyRef.current);
         const key = missing.includes(wanted) ? wanted : missing[0];
         have.add(key);
-        const range: RangeData = await fetch(`/api/admin/analytics?key=${key}&country=${country}`, { cache: 'no-store' })
+        const pair: RangePair = await fetch(`/api/admin/analytics?key=${key}`, { cache: 'no-store' })
           .then((r) => r.json())
-          .catch((error) => ({ error: `取得できませんでした: ${error instanceof Error ? error.message : String(error)}` }));
-        if (!cancelled) setLoaded((prev) => ({ ...prev, [key]: range }));
-      }
-      // すべて取り終えてから、もう一方（日本のみ⇔すべて）の集計を裏で取得しておく（下の warm と同じ）
-      if (!cancelled) {
-        const url = new URL(window.location.href);
-        if (country === 'jp') url.searchParams.set('country', 'all');
-        else url.searchParams.delete('country');
-        url.searchParams.set('warm', '1');
-        fetch(url.pathname + url.search, { cache: 'no-store' }).catch(() => {});
+          // ログインが切れたときなどは { error } だけが返るので、日本のみ・すべての両方を同じエラーにする
+          .then((json) => (json && json.jp && json.all ? json : { jp: { error: json?.error ?? '取得できませんでした' }, all: { error: json?.error ?? '取得できませんでした' } }))
+          .catch((error) => {
+            const failed: RangeData = { error: `取得できませんでした: ${error instanceof Error ? error.message : String(error)}` };
+            return { jp: failed, all: failed };
+          });
+        if (!cancelled) setLoaded((prev) => ({ ...prev, [key]: pair }));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [initialData, country]);
-  const data: Record<DataKey, RangeData> = { today: LOADING, yesterday: LOADING, dayBefore: LOADING, '7d': LOADING, '28d': LOADING, ...loaded };
+  }, [initialData]);
+  const pairs: Record<DataKey, RangePair> = { today: LOADING_PAIR, yesterday: LOADING_PAIR, dayBefore: LOADING_PAIR, '7d': LOADING_PAIR, '28d': LOADING_PAIR, ...loaded };
+  const data = Object.fromEntries((Object.keys(pairs) as DataKey[]).map((key) => [key, pairs[key]?.[country] ?? LOADING])) as Record<DataKey, RangeData>;
   // 「動画｜同人誌」: どちらの数字を見るか（URL の kind に残す）
   const [section, setSection] = useState<'video' | 'doujin'>('video');
   useEffect(() => {
@@ -1724,35 +1734,6 @@ export default function AnalyticsView({
     else url.searchParams.delete('kind');
     window.history.replaceState(window.history.state, '', url.toString());
   };
-  // 「日本のみ｜すべて」: 集計し直すため、URL の country を変えてサーバーから取り直す
-  const router = useRouter();
-  const [countryPending, startCountry] = useTransition();
-  const selectCountry = (next: Country) => {
-    if (next === country) return;
-    const url = new URL(window.location.href);
-    if (next === 'all') url.searchParams.set('country', 'all');
-    else url.searchParams.delete('country');
-    startCountry(() => router.push(url.pathname + url.search, { scroll: false }));
-  };
-  // 開いている間は、もう一方（日本のみ⇔すべて）の集計を2分おきに裏で取得しておく。
-  // サーバーの取得結果の使い回しは「今日」が5分で切れるため、しばらく置いてから切り替えると取り直しで待たされていた
-  // （?warm=1 は GA の集計を取得するだけで、データベースは使わない）
-  useEffect(() => {
-    const warm = () => {
-      if (document.visibilityState !== 'visible') return;
-      const url = new URL(window.location.href);
-      if (country === 'jp') url.searchParams.set('country', 'all');
-      else url.searchParams.delete('country');
-      url.searchParams.set('warm', '1');
-      fetch(url.pathname + url.search, { cache: 'no-store' }).catch(() => {});
-    };
-    const timer = window.setInterval(warm, 2 * 60_000);
-    document.addEventListener('visibilitychange', warm);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', warm);
-    };
-  }, [country]);
   const month = data['28d'];
   const weekday = 'reports' in month ? month.weekday : undefined;
   const hourlyAxis = { users: 0, events: 0 };
@@ -1851,14 +1832,12 @@ export default function AnalyticsView({
                 key={key}
                 type="button"
                 onClick={() => selectCountry(key)}
-                disabled={countryPending}
                 className={`rounded-full px-4 py-1 text-xs font-bold ${country === key ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
               >
                 {key === 'jp' ? '日本のみ' : 'すべて（海外を含む）'}
               </button>
             ))}
           </div>
-          {countryPending && <span className="text-xs text-gray-400">読み込み中…</span>}
         </div>
         </div>
 

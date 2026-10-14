@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache';
 import { GaNotConfiguredError, runReports, type ReportRequest, type ReportRow } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { fetchDoujinByIds } from '@/lib/doujin';
-import type { DataKey, RangeData, WeekdayHourly, YesterdaySoFar } from './AnalyticsView';
+import type { DataKey, RangeData, RangePair, WeekdayHourly, YesterdaySoFar } from './AnalyticsView';
 import { xPostContentId, type Country } from './view-keys';
 import { FUNNEL } from './funnel';
 
@@ -128,9 +128,54 @@ const byMetricDesc = { metric: { metricName: 'eventCount' }, desc: true };
 export const FANZA_CLICK_EVENTS = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 const isDoujinContent = { filter: { fieldName: 'customEvent:content_id', stringFilter: { matchType: 'BEGINS_WITH', value: 'd_' } } };
 const notDoujin = { notExpression: isDoujinContent };
-// 「日本のみ」: 国が日本のアクセスだけを数える（FANZA は日本向けで、海外からのアクセスは見込み客になりにくいため）
-const inJapan = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
-const byCountry = (country: Country, filter: unknown) => (country === 'jp' ? and(filter, inJapan) : filter);
+// 「日本のみ｜すべて」は GA から1回で取る（2026-10-14）。どの集計も国（country）でも分けて取り、
+// 日本の行だけを足したものを「日本のみ」、全部の行を足したものを「すべて」にする（以前は国の条件を変えて2回取っていた）。
+// 人数（利用者数）は国ごとの人数の合計になるので、旅行や VPN で国が変わった人は2人と数えることがある（差はごく小さい）
+const COUNTRY_DIMENSION = { name: 'country' };
+type CountrySplit = { countryIndex: number; topN?: number; order?: { metricIndex?: number; dimIndex?: number; desc: boolean } } | null;
+
+// 集計に国の切り口を足す。もともと国で分けている集計（上の3枚のカード・国ごとの表）はそのまま（null）
+function splitByCountry(request: ReportRequest): CountrySplit {
+  const dims = request.dimensions ?? [];
+  if (dims.some((d) => d.name === 'country')) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GA の並べ方の指定（metric / dimension）
+  const orderBy = request.orderBys?.[0] as any;
+  const order = orderBy?.metric
+    ? { metricIndex: request.metrics.findIndex((m) => m.name === orderBy.metric.metricName), desc: !!orderBy.desc }
+    : orderBy?.dimension
+      ? { dimIndex: dims.findIndex((d) => d.name === orderBy.dimension.dimensionName), desc: !!orderBy.desc }
+      : undefined;
+  // 「上位10件」などは国ごとに分けると上位が入れ替わるので、多めに取って足し合わせてから並べ直して切る
+  const topN = orderBy && request.limit ? request.limit : undefined;
+  request.dimensions = [...dims, COUNTRY_DIMENSION];
+  request.limit = Math.min((request.limit ?? 10000) * 60, 100000);
+  return { countryIndex: dims.length, topN, order };
+}
+
+// 国で分けた行から、日本のみ（jp）かすべて（all）の行を作る（国の列を除いて、同じ切り口の行を足し合わせる）
+function collapseCountry(rows: ReportRow[], split: CountrySplit, country: Country): ReportRow[] {
+  if (!split) return rows;
+  const merged = new Map<string, ReportRow>();
+  for (const row of rows) {
+    if (country === 'jp' && row.dimensions[split.countryIndex] !== 'Japan') continue;
+    const dimensions = row.dimensions.filter((_, i) => i !== split.countryIndex);
+    const key = dimensions.join('\u0001');
+    const prev = merged.get(key);
+    if (prev) prev.metrics = prev.metrics.map((v, i) => v + (row.metrics[i] ?? 0));
+    else merged.set(key, { dimensions, metrics: [...row.metrics] });
+  }
+  let out = [...merged.values()];
+  const order = split.order;
+  if (order?.metricIndex !== undefined && order.metricIndex >= 0) {
+    const i = order.metricIndex;
+    out.sort((a, b) => (order.desc ? -1 : 1) * ((a.metrics[i] ?? 0) - (b.metrics[i] ?? 0)));
+  } else if (order?.dimIndex !== undefined && order.dimIndex >= 0) {
+    const i = order.dimIndex;
+    out.sort((a, b) => (order.desc ? -1 : 1) * (a.dimensions[i] ?? '').localeCompare(b.dimensions[i] ?? ''));
+  }
+  if (split.topN) out = out.slice(0, split.topN);
+  return out;
+}
 // X の動画の投稿（utm_campaign=x_post）から来た人の訪問・再生・FANZA へのクリック
 const fromXVideoPost = and(eventIn(['page_view', 'video_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post' } } });
 const doujinEvents = {
@@ -142,7 +187,7 @@ const doujinEvents = {
   },
 };
 
-async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
+async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Record<Country, ReportRow[][]>; warning?: string }> {
   const dateRanges = [{ startDate: range.startDate, endDate: range.endDate }];
   const funnelEvents = FUNNEL.map((f) => f.event);
   const requests: ReportRequest[] = [
@@ -259,18 +304,14 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
       limit: 20,
     },
-    // 29: 国ごと（「すべて」のときだけ。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
-    ...(country === 'all'
-      ? [
-          {
-            dateRanges,
-            dimensions: [{ name: 'country' }],
-            metrics: [{ name: 'activeUsers' }, { name: 'engagedSessions' }, { name: 'userEngagementDuration' }],
-            orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
-            limit: 20,
-          },
-        ]
-      : []),
+    // 29: 国ごと（「すべて」のときに表で出す。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
+    {
+      dateRanges,
+      dimensions: [{ name: 'country' }],
+      metrics: [{ name: 'activeUsers' }, { name: 'engagedSessions' }, { name: 'userEngagementDuration' }],
+      orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      limit: 20,
+    },
   ];
   // 作品ごとのクリック・最後まで読んだ（レポート 19・21 に足す）。表示・再生と一緒に回数の多い順で取ると、
   // 作品の数が多いときに回数の少ないクリック・最後まで読んだの行が上限で切り捨てられ、合計と合わなかったため別に取る
@@ -324,12 +365,13 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       }),
     },
   ];
-  // レポート 33（上の3枚のカード）は「日本のみ」でも絞らない。カードは FANZA を日本、JuicyAds・DLsite を海外の訪問者で数えるため
-  const cardRequest = workActionRequests[6];
-  for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
-    if (request === cardRequest) continue;
-    request.dimensionFilter = byCountry(country, request.dimensionFilter);
-  }
+  // どの集計も国でも分けて取る（日本のみ・すべてを1回の取得から作る）。レポート 33（カード）と 29（国ごと）はもともと国で分けている
+  const splits = {
+    main: requests.map(splitByCountry),
+    extra: extraRequests.map(splitByCountry),
+    answer: answerRequests.map(splitByCountry),
+    work: workActionRequests.map(splitByCountry),
+  };
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
   // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
   const days = jstDays(range);
@@ -361,59 +403,62 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       return workActionRequests.map(() => [] as ReportRow[]);
     }),
   ]);
-  const reports = [...mainReports, ...extraReports, ...answerReports];
-  reports[19] = [...(reports[19] ?? []), ...workActionReports[0]];
-  reports[21] = [...(reports[21] ?? []), ...workActionReports[1]];
-  // 30: 端末×ブラウザ（国ごとの 29 は「すべて」のときだけなので、番号を固定して入れる。「日本のみ」では 29 が空になる）
-  reports[29] ??= [];
-  reports[30] = workActionReports[2];
-  reports[33] = workActionReports[6] ?? [];
-  reports[34] = workActionReports[7] ?? [];
-  reports[31] = workActionReports[4];
-  // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
-  reports[32] = workActionReports[5].map((r) => {
-    const [, event] = r.dimensions;
-    const [count, users] = r.metrics;
-    return { dimensions: [r.dimensions[0]], metrics: [event === 'doujin_view' ? users : 0, event === 'dmm_link_click' ? count : 0, event === 'doujin_view' ? count : 0] };
-  });
-  // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]
-  const clicksByHour = new Map(workActionReports[3].map((r) => [r.dimensions[0], r.metrics[0]]));
-  reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [r.metrics[0], clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
-
-  // 日別の表: ずれのある日は1日ずつ日時で絞り込んで数え直し、それ以外の日は日付の集計をそのまま使う
-  if (affectedDays.length > 0) {
-    const perDay = await runReports(
-      affectedDays.flatMap((day): ReportRequest[] => {
-        const one = jstDaysFilter([day]);
-        return [
-          { dateRanges: one.dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], dimensionFilter: byCountry(country, one.filter ?? undefined) },
-          {
-            dateRanges: one.dateRanges,
-            dimensions: [{ name: 'eventName' }],
-            metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }],
-            dimensionFilter: byCountry(country, and(eventIn(funnelEvents), one.filter)),
-          },
-        ];
-      }),
-    );
-    const keep = (row: ReportRow) => days.has(row.dimensions[0]) && !affectedDays.includes(row.dimensions[0]);
-    reports[2] = [
-      ...reports[2].filter(keep),
-      ...affectedDays.map((day, i) => ({ dimensions: [day], metrics: perDay[i * 2][0]?.metrics ?? [0, 0] })),
-    ].sort((a, b) => a.dimensions[0].localeCompare(b.dimensions[0]));
-    reports[3] = [
-      ...reports[3].filter(keep),
-      ...affectedDays.flatMap((day, i) => perDay[i * 2 + 1].map((row) => ({ dimensions: [day, row.dimensions[0]], metrics: row.metrics }))),
+  // 日別の表: ずれのある日（ロサンゼルス時間の記録を含む日）は1日ずつ日時で絞り込んで数え直す（国でも分けて取る）
+  const perDayRequests: ReportRequest[] = affectedDays.flatMap((day): ReportRequest[] => {
+    const one = jstDaysFilter([day]);
+    return [
+      { dateRanges: one.dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }], dimensionFilter: one.filter ?? undefined },
+      { dateRanges: one.dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: and(eventIn(funnelEvents), one.filter) },
     ];
-  }
-  return { reports, warning };
+  });
+  const perDaySplits = perDayRequests.map(splitByCountry);
+  const perDayRaw = perDayRequests.length > 0 ? await runReports(perDayRequests) : [];
+
+  const assemble = (country: Country): ReportRow[][] => {
+    const collapse = (rows: ReportRow[][], list: CountrySplit[]) => rows.map((r, i) => collapseCountry(r ?? [], list[i] ?? null, country));
+    const mainR = collapse(mainReports, splits.main);
+    const extraR = collapse(extraReports, splits.extra);
+    const answerR = collapse(answerReports, splits.answer);
+    const work = collapse(workActionReports, splits.work);
+    const perDay = collapse(perDayRaw, perDaySplits);
+    const reports = [...mainR, ...extraR, ...answerR];
+    reports[19] = [...(reports[19] ?? []), ...work[0]];
+    reports[21] = [...(reports[21] ?? []), ...work[1]];
+    reports[29] ??= [];
+    reports[30] = work[2];
+    reports[33] = work[6] ?? [];
+    reports[34] = work[7] ?? [];
+    reports[31] = work[4];
+    // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
+    reports[32] = work[5].map((r) => {
+      const [, event] = r.dimensions;
+      const [count, users] = r.metrics;
+      return { dimensions: [r.dimensions[0]], metrics: [event === 'doujin_view' ? users : 0, event === 'dmm_link_click' ? count : 0, event === 'doujin_view' ? count : 0] };
+    });
+    // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]
+    const clicksByHour = new Map(work[3].map((r) => [r.dimensions[0], r.metrics[0]]));
+    reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [r.metrics[0], clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
+    if (affectedDays.length > 0) {
+      const keep = (row: ReportRow) => days.has(row.dimensions[0]) && !affectedDays.includes(row.dimensions[0]);
+      reports[2] = [
+        ...reports[2].filter(keep),
+        ...affectedDays.map((day, i) => ({ dimensions: [day], metrics: perDay[i * 2][0]?.metrics ?? [0, 0] })),
+      ].sort((a, b) => a.dimensions[0].localeCompare(b.dimensions[0]));
+      reports[3] = [
+        ...reports[3].filter(keep),
+        ...affectedDays.flatMap((day, i) => perDay[i * 2 + 1].map((row) => ({ dimensions: [day, row.dimensions[0]], metrics: row.metrics }))),
+      ];
+    }
+    return reports;
+  };
+  return { reports: { jp: assemble('jp'), all: assemble('all') }, warning };
 }
 
 // 昨日の0時から「昨日の今と同じ時刻」までの利用者数・イベント数・表示回数（今日の途中経過と比べる）。
 // 人数は重複を除くため、時間帯ごとの合計ではなく、今の時刻より前の時間帯（dateHour）と今の時間帯の分（dateHourMinute）で絞り込んで GA に数えさせる
 const gaLabelOf = (jstDateHour: string) => (jstDateHour >= JST_LABEL_FROM ? jstDateHour : shiftHours(jstDateHour, -LA_BEHIND_JST_HOURS));
 
-async function loadYesterdaySoFar(country: Country): Promise<YesterdaySoFar> {
+async function loadYesterdaySoFar(): Promise<Record<Country, YesterdaySoFar>> {
   const now = new Date(Date.now() + 9 * 3_600_000);
   const hour = now.getUTCHours();
   const minute = now.getUTCMinutes();
@@ -430,19 +475,22 @@ async function loadYesterdaySoFar(country: Country): Promise<YesterdaySoFar> {
   const dateRanges = [{ startDate: ymdOf(prevDay(day)), endDate: ymdOf(day) }];
   const sameTime = { orGroup: { expressions } };
   // events は FANZA へのクリックの回数（時間帯グラフと同じ。2026/10/9 まではすべてのイベントの回数だった）
+  // 日本のみ・すべてを1回で取る（国で分けて取り、日本の行・全部の行を足す）。クリックは FANZA へのすべてのクリック
   const [rows, clickRows] = await runReports([
-    { dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: byCountry(country, sameTime) },
-    { dateRanges, metrics: [{ name: 'eventCount' }], dimensionFilter: byCountry(country, and(sameTime, eventIs('dmm_link_click'))) },
+    { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: sameTime, limit: 1000 },
+    { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'eventCount' }], dimensionFilter: and(sameTime, eventIn(FANZA_CLICK_EVENTS)), limit: 1000 },
   ]);
-  const [users = 0, , views = 0] = rows[0]?.metrics ?? [];
-  const events = clickRows[0]?.metrics[0] ?? 0;
-  return { until: `${hour}:${pad(minute)}`, users, events, views };
+  const until = `${hour}:${pad(minute)}`;
+  const sumOf = (list: ReportRow[], i: number, country: Country) =>
+    list.filter((r) => country === 'all' || r.dimensions[0] === 'Japan').reduce((sum, r) => sum + (r.metrics[i] ?? 0), 0);
+  const make = (country: Country): YesterdaySoFar => ({ until, users: sumOf(rows, 0, country), events: sumOf(clickRows, 0, country), views: sumOf(rows, 2, country) });
+  return { jp: make('jp'), all: make('all') };
 }
 
 const getYesterdaySoFar = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async (_bucket: number, country: Country) => loadYesterdaySoFar(country),
-  ['admin-analytics-yesterday-so-far-v3'],
+  async (_bucket: number) => loadYesterdaySoFar(),
+  ['admin-analytics-yesterday-so-far-v4'],
   { revalidate: 300 },
 );
 
@@ -481,12 +529,18 @@ const getDoujinInfoCached = async (ids: string[]) => {
 
 const getRangeData = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async (key: RangeKey, _bucket: number, country: Country) => {
+  async (key: RangeKey, _bucket: number) => {
     const range = RANGES[key];
-    const { reports, warning } = await loadGa(range, country);
-    const weekday = key === '28d' ? toWeekdayHourly(reports[10], range) : undefined;
-    reports[10] = toJstHourly(reports[10], range);
-    reports[32] = toJstHourly(reports[32] ?? [], range);
+    const { reports: byCountry, warning } = await loadGa(range);
+    // 曜日ごとの平均（28日間）と時間帯は日本のみ・すべてのそれぞれで作る
+    const weekdayOf = (reports: ReportRow[][]) => (key === '28d' ? toWeekdayHourly(reports[10], range) : undefined);
+    const weekdays = { jp: weekdayOf(byCountry.jp), all: weekdayOf(byCountry.all) };
+    for (const reports of [byCountry.jp, byCountry.all]) {
+      reports[10] = toJstHourly(reports[10], range);
+      reports[32] = toJstHourly(reports[32] ?? [], range);
+    }
+    // 作品名・同人誌の表紙は「すべて」の作品で引く（日本のみの作品はその中に含まれる）
+    const reports = byCountry.all;
     const topClicked = reports[7];
     // 作品名を引く作品: よくクリックされた作品と、作品ごとの表（再生の多い順・クリックの多い順の上位30）に出る作品
     const topOf = (event: string) => {
@@ -513,28 +567,30 @@ const getRangeData = unstable_cache(
       .map(([id]) => id);
     const [db, doujins] = await Promise.all([loadDb(ids), getDoujinInfoCached(doujinIds)]);
     const doujinInfo = Object.fromEntries(doujins.map((d) => [d.contentId, { title: d.title, cover: d.cover }]));
-    return { reports, db, weekday, warning, doujinInfo };
+    const result = (country: Country) => ({ reports: byCountry[country], db, weekday: weekdays[country], warning, doujinInfo });
+    return { jp: result('jp'), all: result('all') };
   },
-  ['admin-analytics-v25'],
+  ['admin-analytics-v26'],
   { revalidate: 300 },
 );
 
 export const RANGE_KEYS = Object.keys(RANGES) as RangeKey[];
-export { byCountry, getYesterdaySoFar };
+export { getYesterdaySoFar };
 
 // 1つの期間を取得する（失敗したらエラーの文言を返す）。「今日」は10分ごと、それ以外は1時間ごとに取り直す
-export async function loadRange(key: RangeKey, country: Country): Promise<RangeData> {
+export async function loadRange(key: RangeKey): Promise<RangePair> {
   // 「今日」は10分ごとに取り直す（10分おきの cron（/api/cron/ga-realtime）で先に取っておくので、開いたときは待たずに済む）
   const bucket = Math.floor(Date.now() / 600_000);
   const hourBucket = Math.floor(Date.now() / 3_600_000); // 時の区切りは日本時間の0時とそろう
   try {
-    return await getRangeData(key, key === 'today' ? bucket : hourBucket, country);
+    return await getRangeData(key, key === 'today' ? bucket : hourBucket);
   } catch (error) {
-    return {
+    const failed: RangeData = {
       error:
         error instanceof GaNotConfiguredError
           ? 'Google Analytics を読むための鍵（環境変数 GA_SERVICE_ACCOUNT_KEY）がまだ設定されていません。'
           : `Google Analytics のデータを取得できませんでした: ${error instanceof Error ? error.message : String(error)}`,
     };
+    return { jp: failed, all: failed };
   }
 }
