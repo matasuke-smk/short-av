@@ -24,7 +24,7 @@ const PRIMARY_TABS: readonly TabKey[] = ['analytics', 'dmm-reports'];
 // 各サービスの管理画面（報酬・実績の確認用）。ログインは各サービスの画面で行う（パスワードはここに置かない）。新しいタブで開く
 const SERVICE_LINKS = [
   { label: 'FANZA', href: 'https://affiliate.dmm.com/report/top/' },
-  { label: 'JuicyAds', href: 'https://ux13.juicyads.com/drift.php?controller=login' },
+  { label: 'JuicyAds', href: 'https://ux13.juicyads.com/drift.php?controller=bannersStats' },
   // 成果ページを直接開くと、ログインしていないときは会員登録の画面に送られる。ログイン画面を経由して成果ページに戻るアドレスにする
   { label: 'DLsite', href: 'https://www.dlsite.com/home/login/=/_query/https%3A%2F%2Fwww.dlsite.com%2Fhome%2Fmypage%2Faffiliate%2Fstatus' },
 ] as const;
