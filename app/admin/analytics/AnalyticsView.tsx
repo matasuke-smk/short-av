@@ -743,11 +743,12 @@ function RangeBody({
                   value={fmt(sum(c.events, c.area)[0] + (c.label === 'FANZA' ? pendingFanzaClicks : 0))}
                   unit="回"
                   // 棒: そのクリックのうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
-                  // かっこ内は通常のブラウザで来た人のうち押した人の割合
+                  // かっこ内は、押された回数のうち通常のブラウザから押された割合（棒と同じ。2026-10-14 ユーザーの指摘で変更。
+                  // 以前は「通常のブラウザで来た人のうち押した人の割合」で、棒と意味がずれていた）
                   share={{
                     part: sum(c.events, (r) => c.area(r) && isNormal(r))[0],
                     total: sum(c.events, c.area)[0],
-                    label: `通常 ${fmt(sum(c.events, (r) => c.area(r) && isNormal(r))[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[1], sum(['page_view'], (r) => c.area(r) && isNormal(r))[1])}）`,
+                    label: `通常 ${fmt(sum(c.events, (r) => c.area(r) && isNormal(r))[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[0], sum(c.events, c.area)[0])}）`,
                   }}
                   onClick={() => setDetail(`card:${c.label}`)}
                 />
