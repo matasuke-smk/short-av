@@ -293,8 +293,8 @@ async function loadGa(range: (typeof RANGES)[RangeKey], country: Country) {
       dimensionFilter: eventIn(['page_view', 'video_view', 'swipe', 'dmm_link_click']),
       limit: 400,
     },
-    // 時間帯ごとの FANZA へのクリック（動画と同人誌の合計）。レポート 10 の2つ目の数字（以前はすべてのイベントの回数）に入れる
-    { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIs('dmm_link_click'), limit: 10000 },
+    // 時間帯ごとの FANZA へのクリック（作品のリンク・バナー・クーポンなど FANZA へのすべてのクリック。上のカードと同じ数え方）。レポート 10 の2つ目の数字に入れる
+    { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 10000 },
     // 同人誌: 端末×ブラウザごとの表示・最後まで読んだ・FANZA へのクリック（レポート 31。アクセス解析の「同人誌」の iPhone / Android）
     {
       dateRanges,
