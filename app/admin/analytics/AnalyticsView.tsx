@@ -651,6 +651,9 @@ function RangeBody({
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
   // 時間帯グラフ: 利用者と FANZA へのクリック（events。2026/10/9 まではすべてのイベントの回数だった）
   const { hours, users, events: totalClicks } = withLive(hourly, live, gaUsers, gaTotalClicks, RANGE_SPAN_DAYS_AGO[rangeKey]);
+  // リアルタイムで補った、まだ GA の集計に入っていない FANZA へのクリック。上の FANZA のカードにも足して、グラフの合計とそろえる（2026-10-14 ユーザーの要望）
+  const aggregatedHourlyClicks = hourly.length > 0 ? hourly.reduce((sum, r) => sum + (r.metrics[1] ?? 0), 0) : gaTotalClicks;
+  const pendingFanzaClicks = Math.max(0, totalClicks - aggregatedHourlyClicks);
   const eventUsers = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const eventCount = (name: string) => byEvent.find((r) => r.dimensions[0] === name)?.metrics[1] ?? 0;
 
@@ -736,7 +739,8 @@ function RangeBody({
                   key={c.label}
                   label={c.label}
                   // 報酬の対象の地域だけで数える（FANZA は日本、JuicyAds・DLsite は海外。2026-10-14 ユーザーの指摘）
-                  value={fmt(sum(c.events, c.area)[0])}
+                  // FANZA はリアルタイムで補った分も足す（時間帯グラフの合計と同じ数になる）
+                  value={fmt(sum(c.events, c.area)[0] + (c.label === 'FANZA' ? pendingFanzaClicks : 0))}
                   unit="回"
                   // 棒: そのクリックのうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
                   // かっこ内は通常のブラウザで来た人のうち押した人の割合
