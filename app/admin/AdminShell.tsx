@@ -53,6 +53,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [siteKey, setSiteKey] = useState(0);
   // スマホの左上の「☰」で左から出るメニュー（左手の親指で操作しやすいよう左に。2026-10-14 ユーザーの要望）
   const [menuOpen, setMenuOpen] = useState(false);
+  // PC の右上の「外部サービス」メニュー
+  const [servicesOpen, setServicesOpen] = useState(false);
 
   // スマホ: 画面の左端から右へなぞるとメニューが開き、開いているときに左へなぞると閉じる
   useEffect(() => {
@@ -133,7 +135,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <PullToRefresh disabled={siteOpen} />
       <BackToTop hidden={siteOpen} />
       <nav className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
-        <div className="max-w-5xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto pt-[max(env(safe-area-inset-top),0.5rem)]">
+        <div className="max-w-6xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto md:overflow-visible pt-[max(env(safe-area-inset-top),0.5rem)]">
           {/* スマホ: 左端の「☰」で残りのタブとログアウトのメニューを開く（2026-10-14 左に移動）。残りの幅を2つのタブで等分する */}
           <button
             type="button"
@@ -157,27 +159,46 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-          {/* PC: 各サービスの管理画面（新しいタブ） */}
-          <div className="hidden md:flex ml-auto items-center gap-1">
-            {SERVICE_LINKS.map((l) => (
-              <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-300 hover:text-white hover:border-gray-500 whitespace-nowrap">
-                {l.label} ↗
-              </a>
-            ))}
+          {/* PC: 右側は「サイトを開く」と「外部サービス」のメニュー（各サービスの管理画面とログアウト）にまとめる（2026-10-14 整理） */}
+          <div className="hidden md:flex ml-auto items-center gap-2 pl-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSiteLoaded(true);
+                setSiteOpen(true);
+              }}
+              className="rounded-lg bg-gray-800 px-3 py-2 text-sm font-bold text-white hover:bg-gray-700 whitespace-nowrap"
+            >
+              サイトを開く
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setServicesOpen((v) => !v)}
+                aria-expanded={servicesOpen}
+                className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white whitespace-nowrap"
+              >
+                外部サービス ▾
+              </button>
+              {servicesOpen && (
+                <>
+                  <button type="button" className="fixed inset-0 z-40 cursor-default" onClick={() => setServicesOpen(false)} aria-label="閉じる" />
+                  <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-gray-700 bg-gray-900 py-1 shadow-2xl">
+                    <p className="px-4 pb-1 pt-2 text-xs text-gray-500">各サービスの管理画面</p>
+                    {SERVICE_LINKS.map((l) => (
+                      <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" onClick={() => setServicesOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-800">
+                        {l.label}
+                        <span className="text-gray-500" aria-hidden>↗</span>
+                      </a>
+                    ))}
+                    <a href="/api/admin/logout" className="mt-1 block border-t border-gray-800 px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white">
+                      ログアウト
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSiteLoaded(true);
-              setSiteOpen(true);
-            }}
-            className="hidden md:block px-3 py-2 text-xs text-gray-300 hover:text-white whitespace-nowrap"
-          >
-            サイトを開く
-          </button>
-          <a href="/api/admin/logout" className="hidden md:block px-3 py-2 text-xs text-gray-500 hover:text-gray-300 whitespace-nowrap">
-            ログアウト
-          </a>
         </div>
       </nav>
 
