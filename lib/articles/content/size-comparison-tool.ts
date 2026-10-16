@@ -3,7 +3,8 @@ import type { Article } from '../types';
 export const article: Article = {
   slug: 'size-comparison-tool',
   title: 'ちんこ偏差値チェッカー',
-  description: 'ちんこ偏差値チェッカー: 勃起時の長さと太さを入れるだけで、日本基準と世界基準（海外の研究の平均）の両方の偏差値と、100人中なん位かが分かるツール。cm でも mm でも入力でき、コンドームのサイズの目安も表示。登録不要・匿名。結果は統計上の目安で、医学的な診断ではありません。',
+  seoTitle: 'ちんこ偏差値チェッカー｜長さと太さで100人中何位かわかる（無料・登録不要）',
+  description: '勃起時の長さと太さを入れるだけで、ちんこ（ペニス）の偏差値と100人中何位かがすぐわかる無料ツール。日本人の平均（長さ約13cm）と世界の研究の平均の両方と比べられ、合うコンドームのサイズの目安も表示。cm でも mm でも入力OK、登録不要・匿名。結果は統計上の目安です。',
   content: `
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 

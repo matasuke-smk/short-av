@@ -1,6 +1,8 @@
 export interface Article {
   slug: string;
   title: string;
+  /** 検索結果やリンクカードに出す題名（なければ title）。ページの見出しは title のまま */
+  seoTitle?: string;
   description: string;
   content: string;
   publishedAt: string;

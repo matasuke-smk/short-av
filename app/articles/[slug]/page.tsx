@@ -38,14 +38,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const ogImage = getArticleEyecatch(article);
+  const pageTitle = `${article.seoTitle ?? article.title} - Short AV`;
   return {
-    title: `${article.title} - Short AV`,
+    title: pageTitle,
     description: article.description,
     alternates: {
       canonical: `/articles/${article.slug}`,
     },
     openGraph: {
-      title: `${article.title} - Short AV`,
+      title: pageTitle,
       description: article.description,
       url: `https://short-av.com/articles/${article.slug}`,
       siteName: 'Short AV',
@@ -65,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${article.title} - Short AV`,
+      title: pageTitle,
       description: article.description,
       images: [ogImage],
     },
