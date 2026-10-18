@@ -214,6 +214,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   const doujinOnly = !!doujinIds && doujinList.length > 0;
   return (
     <>
+      {/* ページの見出し（画面には出さない。スワイプ画面には見出しがないため、検索エンジンと読み上げ用。Bing の推奨） */}
+      <h1 className="sr-only">DMM（FANZA）動画のサンプルを縦スワイプで次々と見られる Short AV</h1>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}

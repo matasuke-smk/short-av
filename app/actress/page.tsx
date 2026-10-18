@@ -6,7 +6,7 @@ import { listCatalog } from '@/lib/catalog';
 export const revalidate = 21600;
 
 const title = '女優から探す（サンプル動画） | Short AV';
-const description = '女優ごとに出演作のサンプル動画を無料で。縦スワイプで次々と見られる、会員登録不要の Short AV。';
+const description = '女優ごとに出演作のサンプル動画を無料で。名前で絞り込んで女優を選ぶと、出演作を新しい順に縦スワイプで次々と見られます。FANZA の女優を一覧にした、会員登録不要の Short AV。';
 
 export const metadata: Metadata = {
   title,

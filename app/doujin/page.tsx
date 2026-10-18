@@ -6,7 +6,7 @@ import { getDoujinRanking } from '@/lib/doujin-pages';
 export const revalidate = 43200;
 
 const title = '人気の同人誌 無料サンプル・試し読み | Short AV';
-const description = 'FANZA 同人で人気の同人誌のサンプルを無料で試し読み。人気のサークルからも探せる、会員登録不要の Short AV。';
+const description = 'FANZA 同人で人気の同人誌のサンプルを無料で試し読み。人気の順に並べた表紙から選ぶと、サンプルのページを縦に並べて読めます。人気のサークルからも探せる、会員登録不要の Short AV。';
 
 export const metadata: Metadata = {
   title,

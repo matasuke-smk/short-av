@@ -6,7 +6,7 @@ import { listCatalog } from '@/lib/catalog';
 export const revalidate = 21600;
 
 const title = 'ジャンルから探す（サンプル動画） | Short AV';
-const description = 'ジャンルごとに人気作のサンプル動画を無料で。縦スワイプで次々と見られる、会員登録不要の Short AV。';
+const description = 'ジャンルごとに人気作のサンプル動画を無料で。名前で絞り込んでジャンルを選ぶと、人気の順に縦スワイプで次々と見られます。FANZA の主なジャンルを一覧にした、会員登録不要の Short AV。';
 
 export const metadata: Metadata = {
   title,
