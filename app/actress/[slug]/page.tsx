@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const page = /^\d{1,10}$/.test(slug) ? await getCatalogPage('actress', slug).catch(() => null) : null;
   if (!page) return {};
   const title = `${page.name}のサンプル動画（${page.total}本） | Short AV`;
-  const description = `${page.name}の出演作${page.total}本のサンプル動画を無料で。縦スワイプで次々と見られる、会員登録不要の Short AV。`;
+  const description = `${page.name}の出演作${page.total}本のサンプル動画を無料で。新しい順に並べた表紙から選ぶと、縦スワイプで次々と見られます。よく出ているジャンルからも探せる、会員登録不要の Short AV。`;
   const image = page.videos[0]?.thumbnail_url;
   return {
     title,
