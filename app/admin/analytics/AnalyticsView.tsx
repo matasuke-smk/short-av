@@ -342,7 +342,9 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
   return {
     hours,
     users: totalUsers + pendingUsers,
-    events: rows.length > 0 ? hourlyEvents : totalEvents,
+    // GA の時間帯の集計がまだ1件もない（「今日」の朝など）ときも、リアルタイムで補った分を合計に入れる。
+    // 以前は GA の合計（0回）をそのまま使い、グラフにはクリックがあるのに上の合計とカードが0回になっていた（2026-10-19 ユーザーの指摘）
+    events: rows.length > 0 ? hourlyEvents : Math.max(totalEvents, hourlyEvents),
   };
 }
 
