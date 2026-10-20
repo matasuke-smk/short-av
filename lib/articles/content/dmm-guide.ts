@@ -3,7 +3,8 @@ import type { Article } from '../types';
 export const article: Article = {
   slug: 'dmm-guide',
   title: 'FANZAで作品を買うまでの流れ',
-  description: 'Short AVで見つけた作品をFANZAで買うときの流れです。DMMアカウントの登録、支払い方法の選び方、ストリーミングとダウンロードの違い、共有の端末で気をつけたいことをまとめました。',
+  seoTitle: 'DMM（FANZA）で動画を購入する方法｜登録・支払い方法・買ったあとの見方',
+  description: 'DMM（FANZA）でアダルト動画を購入する方法を順番に説明します。DMMアカウントの登録、クレジットカード以外も選べる支払い方法、ストリーミングとダウンロードの違い、家族と共有の端末で気をつけたいことをまとめました。',
   content: `
 Short AVで気に入った作品の本編は、FANZAの公式サイトで買います。FANZAはDMMグループのアダルト部門で、2018年にDMMのアダルトサービスがFANZAという名前に変わりました。ログインに使うのはDMMのアカウントなので、画面に「DMM」と出てくることもあります。
 
