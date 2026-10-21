@@ -9,6 +9,7 @@ export const article: Article = {
 
 > 自分のサイズが日本人の中でどのあたりかは、[ペニスサイズ偏差値チェッカー](/articles/size-comparison-tool)で確かめられます（長さと太さを入れるだけ・登録不要）。
 
+![作品の撮影は、長い時間をかけて行われます](/images/articles/photos/av-actors-vs-average-men.webp)
 
 ## 映像はつなぎ合わせて作られている
 

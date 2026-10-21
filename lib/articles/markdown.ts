@@ -1,6 +1,6 @@
 /**
  * 記事本文（簡易 Markdown）を HTML に変換する
- * 対応: 見出し（# / ## / ###）、表（カード表示）、箇条書き（- / 1.）、太字、リンク
+ * 対応: 見出し（# / ## / ###）、表（カード表示）、箇条書き（- / 1.）、太字、リンク、図（段落に ![説明](パス) だけ）
  * - 段落は空行区切り。段落の途中から始まる箇条書きもリストとして表示する
  * - 本文先頭の「# 記事タイトル」はページ側の h1 と重複するため出さない
  */
@@ -108,6 +108,13 @@ export function renderArticleMarkdown(content: string, title: string): string {
       const lines = block.split('\n').filter(line => line.trim());
       if (block.includes('|') && lines.length > 2 && lines[1].includes('---')) {
         return renderTable(lines);
+      }
+
+      // 図: 段落に ![説明](画像のパス) だけがあるとき。説明は画像の下にも出す（男のからだ研究室と同じ書き方）
+      const image = block.trim().match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/);
+      if (image) {
+        const [, alt, src] = image;
+        return `<figure class="my-6"><img src="${src}" alt="${alt}" loading="lazy" class="w-full h-auto rounded-xl border border-gray-200 bg-white" />${alt ? `<figcaption class="mt-2 text-center text-sm text-gray-500">${alt}</figcaption>` : ''}</figure>`;
       }
 
       // 引用（> で始まる行のまとまり）: 本文と区別した薄い囲みで出す
