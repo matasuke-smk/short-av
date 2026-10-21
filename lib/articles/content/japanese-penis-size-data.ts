@@ -9,6 +9,8 @@ export const article: Article = {
 
 <!-- live:checker-cta -->
 
+![比べるときは、決まった測り方でそろえることが大切です](/images/articles/photos/japanese-penis-size-data.webp)
+
 ## 日本人のちんこの平均サイズ一覧（長さ・太さ）
 
 | 調査 | 対象と測り方 | 勃起時の長さ | 太さ |

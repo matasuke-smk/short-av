@@ -9,6 +9,8 @@ export const article: Article = {
 
 > 自分の太さが日本人の中でどのあたりかは、[ペニスサイズ偏差値チェッカー](/articles/size-comparison-tool)で確かめられます（長さと太さを入れるだけ・登録不要）。
 
+![サイズが合うと、外れにくく破れにくくなります](/images/articles/photos/sagami-002-xl.webp)
+
 ## ふつう・L・XL の大きさの違い
 
 メーカー（相模ゴム工業）が公開している数字です。
