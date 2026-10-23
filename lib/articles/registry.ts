@@ -15,6 +15,7 @@ import { article as popularSamplesThisWeek } from './content/popular-samples-thi
 import { article as prematureEjaculationSolutions } from './content/premature-ejaculation-solutions';
 import { article as refractoryPeriodByAge } from './content/refractory-period-by-age';
 import { article as firstSexAverageAge } from './content/first-sex-average-age';
+import { article as masturbationFrequencyAverage } from './content/masturbation-frequency-average';
 import { article as sagami002Xl } from './content/sagami-002-xl';
 import { article as sexDurationAverageReality } from './content/sex-duration-average-reality';
 import { article as sizeComparisonTool } from './content/size-comparison-tool';
@@ -29,6 +30,7 @@ export const articles: Article[] = [
   fanzaSaveMoney,
   faq,
   firstSexAverageAge,
+  masturbationFrequencyAverage,
   gettingStarted,
   howToChooseVideos,
   japanesePenisSizeData,
