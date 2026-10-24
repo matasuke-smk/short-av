@@ -17,6 +17,7 @@ import { useT } from '@/lib/i18n';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
+import SampleEndCta, { type SampleEndVariant } from './SampleEndCta';
 import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
@@ -826,6 +827,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // DMM のプレイヤーからは「終わった」合図を受け取れないので、再生開始からサンプルの長さ＋2秒で出す。
   // 1作品につき1回だけ（閉じたら、その作品では再び出さない）。作品が変わったら消す
   const [sampleEndedId, setSampleEndedId] = useState<string | null>(null);
+  // サンプル終了時の案内の形。本番は sheet（下からせり上がる）。開発中は ?endvariant=full で全面の形も確認できる
+  const [sampleEndVariant] = useState<SampleEndVariant>(() =>
+    process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('endvariant') === 'full' ? 'full' : 'sheet',
+  );
   const sampleEndTimerRef = useRef<number | null>(null);
   const sampleEndDismissedRef = useRef<Set<string>>(new Set());
   const closeSampleEndCta = useCallback(() => {
@@ -1103,45 +1108,19 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       </div>
                     )}
 
-                    {/* サンプルを見終わった瞬間の誘導（案A）。表紙を暗くして中央に FANZA のボタン。枠内のタップは再生に伝えない */}
+                    {/* サンプルを見終わった瞬間の誘導（SampleEndCta。2026-10-24 に下からせり上がる形に見直し） */}
                     {sampleEndedId === video.dmm_content_id && index === currentIndex && enableAffiliateLinks && !hideFanzaFor(video) && video.dmm_product_url && (
-                      <div
-                        className="absolute inset-0 z-50 bg-black/75 flex flex-col items-center justify-center gap-2 px-6 text-center"
-                        onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
-                        role="dialog"
-                        aria-label={t('sampleEnd')}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); closeSampleEndCta(); }}
-                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/60 text-white text-lg flex items-center justify-center"
-                          aria-label={t('close')}
-                        >
-                          ×
-                        </button>
-                        <div className="text-white font-bold text-base lg:text-lg">{t('sampleEnd')}</div>
-                        <div className="text-gray-300 text-xs line-clamp-2 max-w-[90%]">{video.title}</div>
-                        <a
-                          href={video.dmm_product_url}
-                          target="_blank"
-                          rel="noopener noreferrer sponsored"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            sendGAEvent('sample_end_cta', { action: 'click', content_id: video.dmm_content_id });
-                            handleFanzaClick(e, 'サンプル終了', () => trackDMMClick(video.id, video.dmm_content_id || '', 'sample_end', getViewContext()));
-                          }}
-                          className="mt-2 w-[88%] max-w-sm rounded-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold text-base lg:text-lg py-3.5 shadow-[0_4px_18px_rgba(37,99,235,0.6)] active:scale-95 transition-transform"
-                        >
-                          本編を FANZA で見る{video.price ? `　¥${video.price.toLocaleString()}〜` : ''}
-                        </a>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <FirstTimeLinks position="sample_end" className="mt-2" />
-                        </div>
-                        <div className="mt-1 text-gray-400 text-xs">
-                          <span className="lg:hidden">{t('swipeNextWork')}</span>
-                          <span className="hidden lg:inline">{t('keyNextWork')}</span>
-                        </div>
-                      </div>
+                      <SampleEndCta
+                        title={video.title}
+                        price={video.price}
+                        productUrl={video.dmm_product_url}
+                        variant={sampleEndVariant}
+                        onClose={closeSampleEndCta}
+                        onFanzaClick={(e) => {
+                          sendGAEvent('sample_end_cta', { action: 'click', content_id: video.dmm_content_id });
+                          handleFanzaClick(e, 'サンプル終了', () => trackDMMClick(video.id, video.dmm_content_id || '', 'sample_end', getViewContext()));
+                        }}
+                      />
                     )}
 
                     {/* PC: 作品名をサムネイルの上端に重ねる（再生中は動画を隠さないよう消す） */}

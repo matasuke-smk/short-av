@@ -60,6 +60,7 @@ const DICT = {
   ftCoupon: { ja: 'FANZA が初めてなら 500円OFF', en: '¥500 off your first FANZA purchase', zhHant: '首次使用 FANZA 折抵 500 日圓', zhHans: '首次使用 FANZA 立减 500 日元', id: 'Diskon ¥500 untuk pembelian pertama di FANZA', th: 'ลด 500 เยนสำหรับการซื้อครั้งแรกบน FANZA', ko: 'FANZA 첫 구매 500엔 할인' },
   ftTv: { ja: '見放題で見るなら FANZA TV（14日間無料）', en: 'Unlimited viewing with FANZA TV (14-day free trial)', zhHant: 'FANZA TV 無限暢看（14 天免費）', zhHans: 'FANZA TV 无限畅看（14 天免费）', id: 'Nonton sepuasnya di FANZA TV (gratis 14 hari)', th: 'ดูไม่จำกัดกับ FANZA TV (ฟรี 14 วัน)', ko: 'FANZA TV 무제한 시청 (14일 무료)' },
   // 再生
+  continueFull: { ja: '続きを本編で見る', en: 'Watch the full video', zhHant: '觀看完整影片', zhHans: '观看完整视频', id: 'Tonton video lengkap', th: 'ดูวิดีโอฉบับเต็ม', ko: '본편 보기' },
   sampleBadge: { ja: 'サンプル', en: 'Sample', zhHant: '試看', zhHans: '试看', id: 'Sampel', th: 'ตัวอย่าง', ko: '샘플' },
   tapToPlay: { ja: 'タップでサンプル再生', en: 'Tap to play sample', zhHant: '點擊播放試看', zhHans: '点击播放试看', id: 'Ketuk untuk putar sampel', th: 'แตะเพื่อเล่นตัวอย่าง', ko: '탭하여 샘플 재생' },
   // 最初の案内

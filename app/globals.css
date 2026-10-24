@@ -30,6 +30,15 @@
   }
 
   /* 1本目のスワイプのヒント: 上方向に小さく揺れる */
+  /* サンプル終了時の案内が下からせり上がる（SampleEndCta の sheet） */
+  .animate-sheet-up {
+    animation: sheet-up 0.28s ease-out both;
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
   .animate-hint-nudge {
     animation: hint-nudge 1.6s ease-in-out infinite;
   }

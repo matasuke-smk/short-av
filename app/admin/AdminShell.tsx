@@ -8,6 +8,7 @@ import SizeStatsView from './size-stats/SizeStatsView';
 import SampleLengthsView from './sample-lengths/SampleLengthsView';
 import DmmReportsView from './dmm-reports/DmmReportsView';
 import MensLabView from './menslab/MensLabView';
+import AiBotsView from './ai-bots/AiBotsView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'size-stats', label: 'サイズ統計' },
   { key: 'sample-lengths', label: 'サンプルの長さ' },
   { key: 'menslab', label: '男のからだ研究室' },
+  { key: 'ai-bots', label: 'AI の読み取り' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 // スマホの上の帯に常に出すタブ（残りは「…」のメニューから。2026-10-10 ユーザーの要望）
@@ -301,6 +303,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {opened.includes('sample-lengths') && <div hidden={tab !== 'sample-lengths'}><SampleLengthsView /></div>}
           {opened.includes('dmm-reports') && <div hidden={tab !== 'dmm-reports'}><DmmReportsView /></div>}
           {opened.includes('menslab') && <div hidden={tab !== 'menslab'}><MensLabView /></div>}
+          {opened.includes('ai-bots') && <div hidden={tab !== 'ai-bots'}><AiBotsView /></div>}
         </div>
       ) : (
         <div className="pb-16 md:pb-0">{children}</div>

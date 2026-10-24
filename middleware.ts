@@ -1,11 +1,14 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server';
 import { ADMIN_SESSION_COOKIE, checkAdminCredentials, isValidAdminSession } from '@/lib/admin-session';
+import { isAiBot, recordAiBotHit } from '@/lib/ai-bots';
 
 /**
- * 管理画面・管理用APIの認証
- * - ログイン画面でログインした cookie（iPhone のホーム画面アプリでも使える）
- * - Basic 認証（従来どおり。スクリプトなどから呼ぶとき用）
- * 環境変数 ADMIN_USER / ADMIN_PASSWORD が未設定の場合は常にアクセス拒否する
+ * 1. 管理画面・管理用APIの認証（/admin, /api/admin）
+ *    - ログイン画面でログインした cookie（iPhone のホーム画面アプリでも使える）
+ *    - Basic 認証（従来どおり。スクリプトなどから呼ぶとき用）
+ *    環境変数 ADMIN_USER / ADMIN_PASSWORD が未設定の場合は常にアクセス拒否する
+ * 2. AI のボット（ChatGPT など）が読んだページの記録（それ以外のページ。lib/ai-bots.ts、sql/018。2026-10-24）
+ *    記録は応答を返したあとに行い（waitUntil）、表示を待たせない
  */
 
 // ログイン画面とログイン処理は認証なしで開ける
@@ -26,8 +29,20 @@ function isBasicAuthorized(request: NextRequest): boolean {
   return checkAdminCredentials(decoded.slice(0, separator), decoded.slice(separator + 1));
 }
 
-export async function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const { pathname, search } = request.nextUrl;
+  const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
+
+  if (!isAdmin) {
+    const bot = isAiBot(request.headers.get('user-agent'));
+    if (bot) {
+      event.waitUntil(
+        recordAiBotHit({ bot, path: `${pathname}${search}`, userAgent: request.headers.get('user-agent'), referer: request.headers.get('referer') }),
+      );
+    }
+    return NextResponse.next();
+  }
+
   if (PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
 
   if (
@@ -47,5 +62,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/api/admin/:path*',
+    // ページ（ボットの記録用）。API・Next.js の内部ファイル・画像などの静的ファイル（.が入るパス）は除く
+    '/((?!api/|_next/|images/|.*\\..*).*)',
+  ],
 };

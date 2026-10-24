@@ -54,6 +54,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      // サンプル動画が長い作品の一覧（2026-10-24）
+      url: `${baseUrl}/long-samples`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/privacy`,
       lastModified: new Date('2025-10-28'),
       changeFrequency: 'monthly',

@@ -1,5 +1,33 @@
 import { MetadataRoute } from 'next';
 
+// 一般の検索エンジン向けに閉じるページ（管理画面・API・利用者ごとのページ）
+const DISALLOW = [
+  '/api/',           // APIエンドポイントをクロール対象外に
+  '/*.json',         // JSONファイルを除外
+  '/private/',       // プライベートディレクトリ（存在する場合）
+  '/test-*',         // テストページを除外
+  '/admin/',         // 管理ページを除外
+  '/history',        // ユーザー固有の履歴ページを除外
+  '/liked',          // ユーザー固有のいいね済みページを除外
+];
+
+/**
+ * AI の「検索・回答」に使われるボット（学習用ではない）は、一般の検索エンジンと同じ範囲で明示的に許可する（2026-10-24）。
+ * ChatGPT からの訪問が 10/16 ごろから増えていて（4週間で約190セッション、滞在5分・15ページ）、この流れを伸ばすため。
+ * robots.txt は「いちばん具体的に当てはまる User-Agent の組だけ」を読むボットが多いので、
+ * 「*」で許可していても、ここに名前を挙げて同じ内容を書いておく（GPTBot など学習用のボットは引き続き拒否）
+ */
+const AI_SEARCH_BOTS = [
+  'OAI-SearchBot',    // ChatGPT の検索（回答に出すサイトを集める）
+  'ChatGPT-User',     // ChatGPT が回答のためにその場でページを読む
+  'PerplexityBot',
+  'Perplexity-User',
+  'Claude-SearchBot',
+  'Claude-User',
+  'DuckAssistBot',
+  'Applebot',
+];
+
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = 'https://short-av.com';
 
@@ -8,16 +36,9 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: [
-          '/api/',           // APIエンドポイントをクロール対象外に
-          '/*.json',         // JSONファイルを除外
-          '/private/',       // プライベートディレクトリ（存在する場合）
-          '/test-*',         // テストページを除外
-          '/admin/',         // 管理ページを除外
-          '/history',        // ユーザー固有の履歴ページを除外
-          '/liked',          // ユーザー固有のいいね済みページを除外
-        ],
+        disallow: DISALLOW,
       },
+      ...AI_SEARCH_BOTS.map((userAgent) => ({ userAgent, allow: '/', disallow: DISALLOW })),
       {
         userAgent: 'GPTBot',  // OpenAI のボット
         disallow: '/',        // AI学習用のクロールを拒否
