@@ -71,6 +71,20 @@ export async function generateMetadata({
   };
 }
 
+// サイト全体の構造化データ（WebSite）。AI や検索エンジンに「何のサイトか」を伝える（2026-10-24）
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Short AV',
+  alternateName: 'ショートAV',
+  url: 'https://short-av.com',
+  inLanguage: 'ja',
+  description:
+    'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが3分以上・4分以上の作品だけに絞る検索、女優・ジャンル別のページ、同人誌の試し読みも。',
+  isFamilyFriendly: false,
+  publisher: { '@type': 'Organization', name: 'Short AV', url: 'https://short-av.com' },
+};
+
 // ?v= の作品IDとして受け付ける形式
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
 
@@ -214,8 +228,30 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   const doujinOnly = !!doujinIds && doujinList.length > 0;
   return (
     <>
-      {/* ページの見出し（画面には出さない。スワイプ画面には見出しがないため、検索エンジンと読み上げ用。Bing の推奨） */}
+      {/* ページの見出しと説明（画面には出さない。スワイプ画面には見出しがないため、検索エンジン・AI・読み上げ用。Bing の推奨）。
+          ロボットが読むトップの本文は作品名の羅列だけだったので、「何ができるサイトか」と主なページへの道筋を短く書いておく（2026-10-24） */}
       <h1 className="sr-only">DMM（FANZA）動画のサンプルを縦スワイプで次々と見られる Short AV</h1>
+      <p className="sr-only">
+        Short AV は、FANZA（DMM）のアダルト動画のサンプルを無料・会員登録不要で、スマホの縦スワイプで次々と見られるサイトです（18歳以上）。
+        サンプルが3分以上・4分以上の作品だけに絞る検索、女優やジャンルごとのページ、人気ランキング、同人誌の試し読みがあります。
+        本編の購入や見放題は FANZA の公式サイトで行います。
+      </p>
+      <nav className="sr-only" aria-label="主なページ">
+        <ul>
+          <li><a href="/long-samples">サンプル動画が長い作品一覧（4分以上・3分以上）</a></li>
+          <li><a href="/actress">女優から探す</a></li>
+          <li><a href="/genre">ジャンルから探す</a></li>
+          <li><a href="/ranking">人気ランキング</a></li>
+          <li><a href="/doujin">同人誌の試し読み</a></li>
+          <li><a href="/articles/getting-started">使い方</a></li>
+          <li><a href="/articles/faq">よくある質問</a></li>
+          <li><a href="/articles">記事一覧</a></li>
+        </ul>
+      </nav>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}

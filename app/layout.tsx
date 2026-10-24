@@ -8,7 +8,7 @@ import AdminUserSync from './components/AdminUserSync';
 
 export const metadata: Metadata = {
   title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
-  description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。会員登録不要で今すぐ使えます。',
+  description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが3分以上・4分以上の作品だけに絞る検索、女優・ジャンル別のページ、同人誌の試し読みも。',
   metadataBase: new URL('https://short-av.com'),
   // ホーム画面に追加したときの設定。管理画面（app/admin/layout.tsx）では別のものに差し替える
   manifest: '/manifest.json',
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'Short AV - DMM動画レビュー＆紹介サイト',
-    description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
+    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが長い作品の検索、女優・ジャンル別のページ、同人誌の試し読みも。',
     url: 'https://short-av.com',
     siteName: 'Short AV',
     images: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Short AV - DMM動画レビュー＆紹介サイト',
-    description: 'DMM動画を紹介するレビューサイト。縦スワイプで快適に閲覧！SNS感覚で使えるシンプルなUI、いいね機能、高度な検索で好みの作品をすぐに発見。',
+    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが長い作品の検索、女優・ジャンル別のページ、同人誌の試し読みも。',
     images: ['/og-image.jpg'],
   },
   verification: {
@@ -62,7 +62,7 @@ export default function RootLayout({
     name: 'Short AV',
     url: 'https://short-av.com',
     logo: 'https://short-av.com/logo.png',
-    description: 'DMM動画を紹介するレビューサイト。スワイプ操作で快適に閲覧できる次世代UI',
+    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で縦スワイプで見られるサイト',
     sameAs: [
       // SNSアカウントがあれば追加
     ],

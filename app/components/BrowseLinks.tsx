@@ -8,6 +8,7 @@ export const BROWSE_LINKS = [
   { href: '/actress', label: '女優から探す' },
   { href: '/genre', label: 'ジャンルから探す' },
   { href: '/doujin', label: '同人誌の試し読み' },
+  { href: '/long-samples', label: '長いサンプル（3分以上）' },
 ] as const;
 
 export default function BrowseLinks({ className = '' }: { className?: string }) {

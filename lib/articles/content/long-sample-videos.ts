@@ -11,6 +11,8 @@ Short AVでは各作品のサンプル動画の長さを毎日調べて記録し
 
 <!-- live:long-samples -->
 
+4分以上の作品すべてと、3分以上の人気作は[サンプル動画が長い作品一覧](/long-samples)にまとめています。
+
 ## サンプルが長いと何がいいのか
 
 ![サンプルが長ければ、買う前に中身をじっくり確かめられます](/images/articles/photos/long-sample-videos.webp)
