@@ -17,7 +17,8 @@ export type DoujinDetail = Doujin & {
 const REVALIDATE = 12 * 3600;
 const FLOOR = { service: 'doujin', floor: 'digital_doujin' } as const;
 // サイトマップに入れる作品の数（人気順の上位）
-const SITEMAP_WORKS = 500;
+// サイトマップに入れる同人誌の数（人気順）。2026-10-24 に 500 → 100 に絞った（理由は app/sitemap.ts）
+const SITEMAP_WORKS = 100;
 
 function toDetail(item: DMMItem): DoujinDetail | null {
   const base = toDoujin(item);

@@ -12,6 +12,14 @@ export const revalidate = 3600;
  * sitemap-videos.xml が Google Search Console で「取得できませんでした」のままなので（10/10・10/11 送信。サイト側は 200 で正常）、
  * Google が読めているこのサイトマップにも人気作を入れておく（2026-10-11）
  */
+/**
+ * サイトマップに入れる件数（2026-10-24 に絞った）。
+ * 10/12〜10/16 の Search Console: サイトマップ約 3,400 件に対し Google が知っているページは 94（登録 61）、
+ * 女優・同人誌の個別ページは1件も登録されず。巡回の手間を減らして主要なページに集中してもらうため、人気上位だけにする。
+ * ページ自体は残す（サイトの中のリンクからはたどれる）。効果は 11 月中旬に登録数で確認
+ */
+const VIDEO_PAGES = 100;
+const ACTRESS_PAGES = 100;
 async function getVideoPages(baseUrl: string): Promise<MetadataRoute.Sitemap> {
   const { data, error } = await supabase
     .from('videos')
@@ -19,7 +27,7 @@ async function getVideoPages(baseUrl: string): Promise<MetadataRoute.Sitemap> {
     .eq('is_active', true)
     .not('rank_position', 'is', null)
     .order('rank_position', { ascending: true })
-    .limit(500);
+    .limit(VIDEO_PAGES);
   if (error || !data) return [];
   return data.map((r) => ({
     url: `${baseUrl}/v/${encodeURIComponent(r.dmm_content_id as string)}`,
@@ -89,7 +97,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const catalogPages: MetadataRoute.Sitemap = [
     // 一覧のページ（女優・ジャンル・同人誌）。ここから各ページへリンクしている
     ...['actress', 'genre', 'doujin'].map((path) => ({ url: `${baseUrl}/${path}`, lastModified: new Date(), changeFrequency: 'daily' as const, priority: 0.7 })),
-    ...actresses.map((e) => ({ url: `${baseUrl}/actress/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
+    // 女優は出演作の多い順（get_catalog_entries の並び）に上位だけ
+    ...actresses.slice(0, ACTRESS_PAGES).map((e) => ({ url: `${baseUrl}/actress/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
     ...genres.map((e) => ({ url: `${baseUrl}/genre/${e.slug}`, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: 0.6 })),
   ];
 
