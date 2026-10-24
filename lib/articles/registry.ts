@@ -3,6 +3,7 @@ import type { Article } from './types';
 import { article as adultIndustryKnowledge } from './content/adult-industry-knowledge';
 import { article as avActorsVsAverageMen } from './content/av-actors-vs-average-men';
 import { article as condomSizeGuide } from './content/condom-size-guide';
+import { article as condomSSize } from './content/condom-s-size';
 import { article as dmmGuide } from './content/dmm-guide';
 import { article as fanzaSaveMoney } from './content/fanza-save-money';
 import { article as faq } from './content/faq';
@@ -26,6 +27,7 @@ export const articles: Article[] = [
   adultIndustryKnowledge,
   avActorsVsAverageMen,
   condomSizeGuide,
+  condomSSize,
   dmmGuide,
   fanzaSaveMoney,
   faq,
