@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import ArticleIdeas from './ArticleIdeas';
 
 type Row = { key: string; values: number[] };
 type Data = {
@@ -63,6 +64,9 @@ export default function MensLabView() {
       <p className="text-xs text-gray-500">
         「男のからだ研究室を開く」から開くと、その端末の自分のアクセスは数えない設定になります（端末ごとに一度でOK）。
       </p>
+
+      {/* 検索語からの記事のネタ（2026-10-25）。アクセスの数字より先に、今週やることとして上に出す */}
+      <ArticleIdeas />
 
       <div className="flex gap-1">
         {RANGES.map((r) => (
