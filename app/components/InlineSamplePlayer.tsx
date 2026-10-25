@@ -130,8 +130,8 @@ export default function InlineSamplePlayer({
             // 全画面の許可先を * にする。src は /api/sample-player で FANZA（www.dmm.co.jp）へ転送するので、既定の 'src'（= このサイトの origin）だと
             // FANZA 側に全画面の許可が渡らず、プレイヤーの全画面ボタンが効かなかった（2026-10-25）。
             // 自動再生（autoplay）は渡さない。渡すとプレイヤーの動きが変わり、再生に2回クリックが必要になった（同日ユーザー報告）
-            // 2026-10-26 切り分けの実験: 全画面の許可を一時的に元（FANZA に渡さない）に戻す。再生直後の読み込み中表示が変わるかをユーザーが確認する
-            allow="autoplay; fullscreen"
+            // 2026-10-26: 一度元に戻して確かめたが、再生直後の読み込み中表示は全画面の許可と無関係だった（FANZA 側・回線）ので fullscreen * に戻す
+            allow="fullscreen *"
             allowFullScreen
             scrolling="no"
             className="absolute border-0"

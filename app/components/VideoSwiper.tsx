@@ -1735,7 +1735,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   style={{ width: size.width, height: size.height }}
                   className="max-w-full"
                   allowFullScreen
-                  allow="autoplay; fullscreen"
+                  allow="fullscreen *"
                   frameBorder="0"
                   scrolling="no"
                   onClick={(e) => e.stopPropagation()}
