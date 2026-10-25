@@ -195,6 +195,43 @@ export function KpiCard({ label, value, unit, sub, rows, share, onClick }: { lab
   );
 }
 
+/**
+ * 日別の折れ線（SVG）。X 以外から来た人の推移に使う（2026-10-25）。
+ * height が小さいときはカードの内訳用（線と最新値だけ）。labels を付けると両端の日付・最大値・最新値を出す
+ */
+function TrendLine({ data, height, labels = false }: { data: { date: string; users: number }[]; height: number; labels?: boolean }) {
+  const w = 300;
+  const padX = labels ? 6 : 2;
+  const padY = 4;
+  const max = Math.max(1, ...data.map((d) => d.users));
+  const n = data.length;
+  const x = (i: number) => padX + (i * (w - padX * 2)) / Math.max(1, n - 1);
+  const y = (v: number) => height - padY - (v / max) * (height - padY * 2);
+  const points = data.map((d, i) => `${x(i).toFixed(1)},${y(d.users).toFixed(1)}`).join(' ');
+  const last = data[n - 1];
+  const md = (s: string) => `${Number(s.slice(4, 6))}/${Number(s.slice(6, 8))}`;
+  return (
+    <div className="w-full">
+      <svg viewBox={`0 0 ${w} ${height}`} className="w-full" style={{ height }} preserveAspectRatio="none" aria-hidden>
+        <polyline points={points} fill="none" stroke="#60a5fa" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        {last && <circle cx={x(n - 1)} cy={y(last.users)} r={2.5} fill="#60a5fa" />}
+      </svg>
+      {labels ? (
+        <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
+          <span>{data[0] ? md(data[0].date) : ''}</span>
+          <span>最大 {fmt(max)}人・今日 {fmt(last?.users ?? 0)}人</span>
+          <span>{last ? md(last.date) : ''}</span>
+        </div>
+      ) : (
+        <div className="flex justify-between text-[10px] text-gray-500 -mt-0.5 mb-1">
+          <span>28日の推移</span>
+          <span>今日 {fmt(last?.users ?? 0)}人・最大 {fmt(max)}人</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
 // extra: PC（lg 以上）だけカードの下に出す内訳（PC はカードが大きく空きが多かったため）
 export function Card({ label, value, unit, sub, onClick, extra }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void; extra?: React.ReactNode }) {
@@ -673,6 +710,22 @@ function RangeBody({
   const nonX = channelRows
     .filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel))
     .reduce((sum, r) => ({ users: sum.users + r.users, clickUsers: sum.clickUsers + r.clickUsers }), { users: 0, clickUsers: 0 });
+  // X 以外から来た人の日別推移（レポート 35: 直近28日・人数。表示中の期間に関係なく28日分）。2026-10-25
+  const nonXDaily = (() => {
+    const byDate = new Map<string, number>();
+    for (const r of reports[35] ?? []) {
+      const [date, channel] = r.dimensions;
+      if (NOT_NON_X_CHANNELS.includes(channel)) continue;
+      byDate.set(date, (byDate.get(date) ?? 0) + r.metrics[0]);
+    }
+    // 28日ぶんを日付順に並べる（記録のない日は0）。日付は日本時間
+    const today = new Date(Date.now() + 9 * 3_600_000);
+    return Array.from({ length: 28 }, (_, i) => {
+      const d = new Date(today.getTime() - (27 - i) * 86_400_000);
+      const key = d.toISOString().slice(0, 10).replace(/-/g, '');
+      return { date: key, users: byDate.get(key) ?? 0 };
+    });
+  })();
   // Bluesky から来た人（レポート 34）。GA では X と同じ「SNS」に分類されるので、X 以外から来た人に別に足す
   const bskyRow = (event: string) => (reports[34] ?? []).find((r) => r.dimensions[0] === event)?.metrics[0] ?? 0;
   const bsky = { users: bskyRow('page_view'), clickUsers: bskyRow('dmm_link_click') };
@@ -854,8 +907,9 @@ function RangeBody({
             onClick={() => setDetail('channels')}
             extra={
               <>
+                <TrendLine data={nonXDaily} height={34} />
                 <ExtraRow name="Bluesky" right={`${fmt(bsky.users)}人・クリック ${fmt(bsky.clickUsers)}人（${pct(bsky.clickUsers, bsky.users)}）`} />
-                {channelRows.slice(0, 4).map((r) => (
+                {channelRows.slice(0, 3).map((r) => (
                   <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
                 ))}
               </>
@@ -1111,6 +1165,10 @@ function RangeBody({
             note="流入元ごとの人数。クリック率 = その流入元から来た人のうち FANZA へのクリックをした人の割合。クリックの多い順。"
             onClose={closeDetail}
           >
+            <div className="mb-4">
+              <div className="text-xs text-gray-400 mb-1">X 以外から来た人の推移（直近28日・1日の人数。表示中の期間に関係なく28日分）</div>
+              <TrendLine data={nonXDaily} height={110} labels />
+            </div>
             {channelRows.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (

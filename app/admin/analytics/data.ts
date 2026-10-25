@@ -365,12 +365,23 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
       }),
     },
   ];
+  // 35: 日別の流入元（人数）。「X 以外から来た人」の推移（直近28日）に使う。表示中の期間に関係なく28日固定で取る（2026-10-25）。
+  // 日本時間のずれの補正（jstDaysFilter）はかけない（10/7 以前の日が1日ずれることがあるが、推移を見る用途なので許容）
+  const trendRequests: ReportRequest[] = [
+    {
+      dateRanges: [{ startDate: '27daysAgo', endDate: 'today' }],
+      dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+      metrics: [{ name: 'totalUsers' }],
+      limit: 2000,
+    },
+  ];
   // どの集計も国でも分けて取る（日本のみ・すべてを1回の取得から作る）。レポート 33（カード）と 29（国ごと）はもともと国で分けている
   const splits = {
     main: requests.map(splitByCountry),
     extra: extraRequests.map(splitByCountry),
     answer: answerRequests.map(splitByCountry),
     work: workActionRequests.map(splitByCountry),
+    trend: trendRequests.map(splitByCountry),
   };
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
   // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
@@ -387,7 +398,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
   // 失敗したことは画面にも出す（以前は黙って空にしていたため、イベント数の合計が少なく出ても気づけなかった）
   let warning: string | undefined;
   // 3つの組は互いに関係ないので同時に取得する（以前は順番に待っていて、開くのに10秒ほどかかっていた）
-  const [mainReports, extraReports, answerReports, workActionReports] = await Promise.all([
+  const [mainReports, extraReports, answerReports, workActionReports, trendReports] = await Promise.all([
     runReports(requests),
     runReports(extraRequests).catch((error) => {
       console.error('[analytics] 画面・検索の集計を取得できませんでした:', error);
@@ -401,6 +412,10 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
     runReports(workActionRequests).catch((error) => {
       console.error('[analytics] 作品ごとのクリック・最後まで読んだを取得できませんでした:', error);
       return workActionRequests.map(() => [] as ReportRow[]);
+    }),
+    runReports(trendRequests).catch((error) => {
+      console.error('[analytics] 日別の流入元（推移）を取得できませんでした:', error);
+      return trendRequests.map(() => [] as ReportRow[]);
     }),
   ]);
   // 日別の表: ずれのある日（ロサンゼルス時間の記録を含む日）は1日ずつ日時で絞り込んで数え直す（国でも分けて取る）
@@ -421,7 +436,10 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
     const answerR = collapse(answerReports, splits.answer);
     const work = collapse(workActionReports, splits.work);
     const perDay = collapse(perDayRaw, perDaySplits);
+    const trend = collapse(trendReports, splits.trend);
     const reports = [...mainR, ...extraR, ...answerR];
+    // 35: 日別の流入元（直近28日・人数）[date, channel] → [users]
+    reports[35] = trend[0] ?? [];
     reports[19] = [...(reports[19] ?? []), ...work[0]];
     reports[21] = [...(reports[21] ?? []), ...work[1]];
     reports[29] ??= [];
@@ -570,7 +588,7 @@ const getRangeData = unstable_cache(
     const result = (country: Country) => ({ reports: byCountry[country], db, weekday: weekdays[country], warning, doujinInfo });
     return { jp: result('jp'), all: result('all') };
   },
-  ['admin-analytics-v26'],
+  ['admin-analytics-v27'],
   { revalidate: 300 },
 );
 
