@@ -131,7 +131,8 @@ export default function ArticleIdeas() {
           {showQueries && (
             <div className="grid gap-3 md:grid-cols-2">
               {(['mens', 'shortav'] as const).map((site) => (
-                <table key={site} className="w-full text-xs">
+                <div key={site} className="self-start">
+                  <table className="w-full text-xs">
                   <thead>
                     <tr className="text-gray-500">
                       <th className="px-2 py-1 text-left font-normal">{SITE_LABEL[site]} の検索語</th>
@@ -151,6 +152,7 @@ export default function ArticleIdeas() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               ))}
             </div>
           )}
