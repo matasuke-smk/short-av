@@ -48,8 +48,16 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/',        // AI学習用のクロールを拒否
       },
       {
-        userAgent: 'anthropic-ai',  // Anthropic のボット
+        userAgent: 'anthropic-ai',  // Anthropic のボット（古い名前。今は ClaudeBot）
         disallow: '/',              // AI学習用のクロールを拒否
+      },
+      {
+        userAgent: 'ClaudeBot',  // Anthropic の学習用（2026-10-24〜25 の6時間で 428 回。Claude-User・Claude-SearchBot は許可のまま）
+        disallow: '/',
+      },
+      {
+        userAgent: 'meta-externalagent',  // Meta（Facebook）の AI 学習用（同じ6時間で 2,548 回。女優ページの作品ごとの URL を片っ端に読み、トップを毎回描画させていた）
+        disallow: '/',
       },
       {
         userAgent: 'Google-Extended',  // Google Bard用
