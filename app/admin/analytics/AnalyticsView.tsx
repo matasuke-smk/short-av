@@ -233,8 +233,12 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
 }
 
 /** 今朝の点検の要約。最初は見出し1行だけ、押すと全文（折りたたみ）。レイアウトはカードの上に1本の帯を足すだけ（2026-10-25） */
-function DailySummaryStrip({ item }: { item: { date: string; summary: string; yen: number | null; created_at: string } }) {
+function DailySummaryStrip({ item }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
   const [open, setOpen] = useState(false);
+  // 表示のあとに出す（サーバーの描画とブラウザの描画で props の有無が食い違い、hydration の警告になったため。管理画面なので一瞬遅れてよい）
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || !item) return null;
   const md = `${Number(item.date.slice(5, 7))}/${Number(item.date.slice(8, 10))}`;
   const firstLine = item.summary.split('\n').find((l) => l.trim() && !/^(昨日の数字|変化|気になる点|今日の提案)$/.test(l.trim())) ?? '';
   return (
@@ -1944,7 +1948,7 @@ export default function AnalyticsView({
           集計の対象: {rangeDates(viewKey)}・{country === 'jp' ? '日本のみ' : 'すべての国'}
         </p>
         {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く。1行目だけ見せ、押すと全文。カードの並びは変えない）2026-10-25 */}
-        {dailySummary && <DailySummaryStrip item={dailySummary} />}
+        <DailySummaryStrip item={dailySummary} />
 
         {section === 'doujin' ? (
           (() => {

@@ -1,5 +1,4 @@
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getVideoNames } from '@/lib/video-seo';
 import { askClaude, estimateYen } from '@/lib/claude';
 
 /**
@@ -39,6 +38,18 @@ const ACTRESS_SYSTEM = `あなたは、アダルト動画のサンプル紹介�
 - 人を見下す表現、差別的な言い方は使わない。
 - 出力は紹介文だけ。前置き・引用符・見出しは付けない。`;
 
+// 女優名・ジャンル名を引く（video-seo.ts の名前引きは Next の unstable_cache を使うため、Next の外（手元のスクリプト）では動かない）
+async function namesFor(actressIds: string[] | null, genreIds: string[] | null): Promise<{ actresses: string[]; genres: string[] }> {
+  const supabase = getSupabaseAdmin();
+  const a = (actressIds ?? []).slice(0, 5);
+  const g = (genreIds ?? []).slice(0, 8);
+  const [ar, gr] = await Promise.all([
+    a.length ? supabase.from('actresses').select('id, name').in('id', a) : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    g.length ? supabase.from('genres').select('id, name').in('id', g) : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  ]);
+  return { actresses: ((ar.data ?? []) as { name: string }[]).map((r) => r.name), genres: ((gr.data ?? []) as { name: string }[]).map((r) => r.name) };
+}
+
 type VideoRow = {
   id: string;
   dmm_content_id: string;
@@ -56,7 +67,7 @@ export type GenResult = { id: string; name: string; text: string | null; skipped
 const sampleLen = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}分${s % 60}秒` : null);
 
 async function describeVideo(v: VideoRow): Promise<GenResult> {
-  const names = await getVideoNames(v);
+  const names = await namesFor(v.actress_ids, v.genre_ids);
   if (isExcluded(v.title, names.genres)) return { id: v.dmm_content_id, name: v.title, text: null, skipped: '題材の方針で対象外', yen: 0 };
   const info = [
     `作品名: ${v.title}`,
@@ -67,8 +78,9 @@ async function describeVideo(v: VideoRow): Promise<GenResult> {
     sampleLen(v.sample_seconds) ? `サンプルの長さ: ${sampleLen(v.sample_seconds)}` : null,
     v.description ? `メーカーの説明文: ${v.description.slice(0, 600)}` : null,
   ].filter(Boolean).join('\n');
-  const r = await askClaude(VIDEO_SYSTEM, info, { effort: 'low', maxTokens: 400, cacheSystem: true });
+  const r = await askClaude(VIDEO_SYSTEM, info, { effort: 'low', maxTokens: 2000, cacheSystem: true });
   if (!r) return { id: v.dmm_content_id, name: v.title, text: '', skipped: '安全上の理由で断られた', yen: 0 };
+  if (!r.text) return { id: v.dmm_content_id, name: v.title, text: null, skipped: '空の応答', yen: estimateYen(r) };
   return { id: v.dmm_content_id, name: v.title, text: r.text.replace(/\s+/g, ' ').trim(), yen: estimateYen(r) };
 }
 
@@ -117,7 +129,7 @@ async function describeActress(a: ActressRow): Promise<GenResult> {
   const genreCount = new Map<string, number>();
   for (const w of list) for (const g of w.genre_ids ?? []) genreCount.set(g, (genreCount.get(g) ?? 0) + 1);
   const topGenreIds = [...genreCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
-  const { genres } = await getVideoNames({ actress_ids: [], genre_ids: topGenreIds });
+  const { genres } = await namesFor([], topGenreIds);
   const safeWorks = list.filter((w) => !EXCLUDE_PATTERN.test(w.title)).slice(0, 5);
   if (safeWorks.length === 0 || genres.some((g) => EXCLUDE_PATTERN.test(g))) return { id: a.slug, name: a.name, text: null, skipped: '題材の方針で対象外', yen: 0 };
   const info = [
@@ -126,23 +138,26 @@ async function describeActress(a: ActressRow): Promise<GenResult> {
     genres.length ? `よく出ているジャンル: ${genres.join('、')}` : null,
     `最近の作品:\n${safeWorks.map((w) => `- ${w.title}（${w.maker ?? 'メーカー不明'}、${w.release_date ? w.release_date.slice(0, 4) : '発売年不明'}）`).join('\n')}`,
   ].filter(Boolean).join('\n');
-  const r = await askClaude(ACTRESS_SYSTEM, info, { effort: 'low', maxTokens: 400, cacheSystem: true });
+  const r = await askClaude(ACTRESS_SYSTEM, info, { effort: 'low', maxTokens: 2000, cacheSystem: true });
   if (!r) return { id: a.slug, name: a.name, text: '', skipped: '安全上の理由で断られた', yen: 0 };
+  if (!r.text) return { id: a.slug, name: a.name, text: null, skipped: '空の応答', yen: estimateYen(r) };
   return { id: a.slug, name: a.name, text: r.text.replace(/\s+/g, ' ').trim(), yen: estimateYen(r) };
 }
 
 /** 掲載作品の多い順で紹介文がまだ無い女優に書く */
 export async function generateActressIntros(limit = 20, dryRun = false): Promise<GenResult[]> {
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('actresses')
-    .select('id, name, slug, video_count')
-    .is('ai_intro', null)
-    .gte('video_count', 3)
-    .order('video_count', { ascending: false })
-    .limit(limit);
+  // 作品数の多い順（女優ページと同じ数え方。actresses.video_count は入っていない）
+  const { data: entries, error: rpcError } = await supabase.rpc('get_catalog_entries', { p_kind: 'actress', p_min_works: 3 });
+  if (rpcError) throw rpcError;
+  const ordered = (entries ?? []) as { slug: string; name: string; works: number }[];
+  const { data: done } = await supabase.from('actresses').select('slug').not('ai_intro', 'is', null);
+  const doneSet = new Set(((done ?? []) as { slug: string }[]).map((r) => r.slug));
+  const slugs = ordered.filter((e) => !doneSet.has(e.slug)).slice(0, limit).map((e) => e.slug);
+  const { data, error } = slugs.length ? await supabase.from('actresses').select('id, name, slug, video_count').in('slug', slugs) : { data: [], error: null };
   if (error) throw error;
-  const rows = (data ?? []) as ActressRow[];
+  const worksOf = new Map(ordered.map((e) => [e.slug, e.works]));
+  const rows = ((data ?? []) as ActressRow[]).map((r) => ({ ...r, video_count: worksOf.get(r.slug) ?? r.video_count })).sort((a, b) => (b.video_count ?? 0) - (a.video_count ?? 0));
   const results: GenResult[] = [];
   for (let i = 0; i < rows.length; i += 3) {
     const part = await Promise.all(rows.slice(i, i + 3).map((a) => describeActress(a)));
