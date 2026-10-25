@@ -8,14 +8,19 @@ import { askClaude, estimateYen } from '@/lib/claude';
  * 決まり:
  * - 露骨な性的描写は書かない。作品名とジャンル名の事実だけを、落ち着いた言い方でまとめる
  * - 題材が未成年・学校・家族関係・非同意・昏睡や酩酊を思わせる作品は対象外（EXCLUDE_PATTERN）。X の投稿と同じ方針
+ * - ただし「美少女」はジャンル名としてよく使われる語なので対象外にしない（2026-10-25 ユーザー決定「B」。判定の前に取り除く）
  * - 安全上の理由で断られた作品は、空文字を入れて次回以降の対象から外す
  */
 
 export const EXCLUDE_PATTERN =
   /学園|学校|女子校|女子高|JK|J[KC]|制服|少女|幼|ロリ|スクール|生徒|教師|先生|部活|妹|姉|母|娘|義母|義父|義妹|義姉|親子|家族|近親|叔母|叔父|姪|甥|レ[イ●]プ|凌辱|陵辱|犯[さし●]|強[制姦●]|無理やり|拉致|監禁|昏睡|睡眠|泥酔|酔[わっ]|催眠|洗脳|憑依|薬|痴漢|盗撮|のぞき|覗き|輪[姦●]|拷問|調教|奴隷|脅[し迫]|弱み/;
 
+/** 「美少女」は「少女」に当たるが、ジャンル名として一般的なので判定から外す */
+const normalize = (s: string) => s.replace(/美少女/g, '');
+export const matchesExclude = (s: string) => EXCLUDE_PATTERN.test(normalize(s));
+
 export function isExcluded(title: string, genres: string[]): boolean {
-  return EXCLUDE_PATTERN.test(title) || genres.some((g) => EXCLUDE_PATTERN.test(g));
+  return matchesExclude(title) || genres.some(matchesExclude);
 }
 
 const VIDEO_SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト「Short AV」の編集者です。作品ページに載せる、検索エンジンと AI が読むための短い紹介文を書きます。
@@ -130,8 +135,8 @@ async function describeActress(a: ActressRow): Promise<GenResult> {
   for (const w of list) for (const g of w.genre_ids ?? []) genreCount.set(g, (genreCount.get(g) ?? 0) + 1);
   const topGenreIds = [...genreCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id]) => id);
   const { genres } = await namesFor([], topGenreIds);
-  const safeWorks = list.filter((w) => !EXCLUDE_PATTERN.test(w.title)).slice(0, 5);
-  if (safeWorks.length === 0 || genres.some((g) => EXCLUDE_PATTERN.test(g))) return { id: a.slug, name: a.name, text: null, skipped: '題材の方針で対象外', yen: 0 };
+  const safeWorks = list.filter((w) => !matchesExclude(w.title)).slice(0, 5);
+  if (safeWorks.length === 0 || genres.some(matchesExclude)) return { id: a.slug, name: a.name, text: null, skipped: '題材の方針で対象外', yen: 0 };
   const info = [
     `名前: ${a.name}`,
     `掲載作品数: ${a.video_count ?? list.length}本`,
@@ -179,7 +184,8 @@ export async function aiTextCounts(): Promise<{ videos: { done: number; candidat
     n(supabase.from('videos').select('id', { count: 'exact', head: true }).not('ai_description', 'is', null).neq('ai_description', '')),
     n(supabase.from('videos').select('id', { count: 'exact', head: true }).eq('is_active', true).not('rank_position', 'is', null)),
     n(supabase.from('actresses').select('id', { count: 'exact', head: true }).not('ai_intro', 'is', null).neq('ai_intro', '')),
-    n(supabase.from('actresses').select('id', { count: 'exact', head: true }).gte('video_count', 3)),
+    // 女優の候補は作品3本以上（actresses.video_count は入っていないので、女優ページと同じ RPC で数える）
+    supabase.rpc('get_catalog_entries', { p_kind: 'actress', p_min_works: 3 }).then((r) => (r.data as unknown[] | null)?.length ?? 0),
   ]);
   return { videos: { done: vd, candidates: vc }, actresses: { done: ad, candidates: ac } };
 }
