@@ -618,8 +618,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       const el = document.querySelector(`[data-nav-anchor="${emblaApi.selectedScrollSnap()}"]`);
       if (!pc.matches || !el) { setNavPos(null); return; }
       if (el !== observed) { if (observed) ro.unobserve(observed); ro.observe(el); observed = el; }
+      // 作品を切り替えるアニメーションの途中は測らず、前の位置のままにする（settle で測り直す）。
+      // 画像は画面より小さいので「画面に入っているか」だけでは途中でも測ってしまい、ボタンが画像と一緒に動いていた（2026-10-25）
+      const target = emblaApi.scrollSnapList()[emblaApi.selectedScrollSnap()];
+      if (target !== undefined && Math.abs(emblaApi.scrollProgress() - target) > 0.001) return;
       const r = el.getBoundingClientRect();
-      // 作品を切り替えている途中（画像が画面からはみ出している間）は測らず、前の位置のままにする
       if (r.top < -1 || r.bottom > window.innerHeight + 1) return;
       // 同人誌の枠はボタン用の右の余白（padding）を含むので、その分を引いた中身の右端に合わせる
       const padRight = parseFloat(getComputedStyle(el).paddingRight) || 0;
