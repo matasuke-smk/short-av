@@ -127,7 +127,9 @@ export default function InlineSamplePlayer({
             ref={iframeRef}
             src={playerUrl(player)}
             title={`${title} のサンプル動画`}
-            allow="autoplay; fullscreen"
+            // 許可する相手を * にする。src は /api/sample-player で FANZA（www.dmm.co.jp）へ転送するので、既定の 'src'（= このサイトの origin）だと
+            // FANZA 側に全画面の許可が渡らず、プレイヤーの全画面ボタンが効かなかった（2026-10-25）
+            allow="autoplay *; fullscreen *"
             allowFullScreen
             scrolling="no"
             className="absolute border-0"
