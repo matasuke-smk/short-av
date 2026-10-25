@@ -46,7 +46,9 @@ export const listCatalog = unstable_cache(
 /** 1人（1ジャンル）のページの中身。見つからない・本数が足りないときは null */
 export const getCatalogPage = unstable_cache(
   async (kind: CatalogKind, slug: string) => {
-    const { data: row } = await supabase.from(tableOf(kind)).select('id, name, slug').eq('slug', slug).maybeSingle();
+    // ai_intro: Claude が書いた女優ページの紹介文（sql/019。ジャンルには無い列なので select は種類で分ける）
+    const { data: raw } = await supabase.from(tableOf(kind)).select('*').eq('slug', slug).maybeSingle();
+    const row = raw as Record<string, unknown> | null;
     if (!row) return null;
     if (kind === 'genre' && NON_CONTENT_GENRES.has(row.name as string)) return null;
     // 女優は新しい順（新作を見たい人が多い）、ジャンルは DMM の人気順位の順
@@ -63,7 +65,8 @@ export const getCatalogPage = unstable_cache(
     if (!videos) ({ data: videos, count } = await base().limit(PAGE_SIZE));
     const total = count ?? videos?.length ?? 0;
     if (total < MIN_WORKS[kind]) return null;
-    return { id: row.id as string, name: row.name as string, slug: row.slug as string, total, videos: (videos ?? []) as CatalogVideo[] };
+    const aiIntro = kind === 'actress' && typeof row.ai_intro === 'string' ? (row.ai_intro || null) : null;
+    return { id: row.id as string, name: row.name as string, slug: row.slug as string, total, videos: (videos ?? []) as CatalogVideo[], aiIntro };
   },
   ['catalog-page-v1'],
   { revalidate: REVALIDATE },

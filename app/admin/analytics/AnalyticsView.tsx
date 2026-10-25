@@ -232,6 +232,31 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
   );
 }
 
+/** 今朝の点検の要約。最初は見出し1行だけ、押すと全文（折りたたみ）。レイアウトはカードの上に1本の帯を足すだけ（2026-10-25） */
+function DailySummaryStrip({ item }: { item: { date: string; summary: string; yen: number | null; created_at: string } }) {
+  const [open, setOpen] = useState(false);
+  const md = `${Number(item.date.slice(5, 7))}/${Number(item.date.slice(8, 10))}`;
+  const firstLine = item.summary.split('\n').find((l) => l.trim() && !/^(昨日の数字|変化|気になる点|今日の提案)$/.test(l.trim())) ?? '';
+  return (
+    <div className="mb-3 rounded-lg bg-gray-800 border border-gray-700">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-2 px-3 py-2 text-left">
+        <span className="text-xs font-bold text-amber-300 whitespace-nowrap">今朝の要約（{md}）</span>
+        {!open && <span className="text-xs text-gray-300 truncate">{firstLine.replace(/^・/, '')}</span>}
+        <span className="ml-auto text-xs text-gray-500 whitespace-nowrap">{open ? '閉じる' : '開く'}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+          {item.summary}
+          <div className="mt-2 text-[11px] text-gray-500">
+            Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
+            {item.yen != null ? `・費用 約${item.yen}円` : ''}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // unit: 数字の後ろに小さく付ける単位（人・回・件）。数字だけだと人数か回数か分からなかったため
 // extra: PC（lg 以上）だけカードの下に出す内訳（PC はカードが大きく空きが多かったため）
 export function Card({ label, value, unit, sub, onClick, extra }: { label: string; value: string; unit?: string; sub?: string; onClick?: () => void; extra?: React.ReactNode }) {
@@ -1726,6 +1751,7 @@ function CountryTable({ rows }: { rows: ReportRow[] }) {
 }
 
 export default function AnalyticsView({
+  dailySummary = null,
   data: initialData,
   initialRange,
   fetchedAt,
@@ -1735,6 +1761,7 @@ export default function AnalyticsView({
   country: initialCountry,
   dmmReports,
 }: {
+  dailySummary?: { date: string; summary: string; yen: number | null; created_at: string } | null;
   dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（直近35日）
   country: Country; // 開いたときの「日本のみ（標準）｜すべて」（URL の country）
   yesterdaySoFar: Record<Country, YesterdaySoFar> | null; // 昨日の同じ時刻までの数字（取得できなければ null）
@@ -1916,6 +1943,8 @@ export default function AnalyticsView({
           {/* スマホで1行に収まるよう短く（日本時間の0時で区切ることは、いちばん下の注に書く） */}
           集計の対象: {rangeDates(viewKey)}・{country === 'jp' ? '日本のみ' : 'すべての国'}
         </p>
+        {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く。1行目だけ見せ、押すと全文。カードの並びは変えない）2026-10-25 */}
+        {dailySummary && <DailySummaryStrip item={dailySummary} />}
 
         {section === 'doujin' ? (
           (() => {

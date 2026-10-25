@@ -18,6 +18,10 @@
     {
       "path": "/api/cron/indexnow",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/daily-summary",
+      "schedule": "40 0 * * *"
     }
   ],
   "git": {
