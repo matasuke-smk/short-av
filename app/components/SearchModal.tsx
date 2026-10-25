@@ -115,6 +115,11 @@ export default function SearchModal({
   const [results, setResults] = useState<{ videos: Video[]; label: string } | null>(null);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
+  // 「人妻で4分以上」のような言葉を AI で条件に変える（/api/ai-search）。結果は通常のジャンル検索として実行する（2026-10-25）
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
+  const aiPendingRef = useRef(false);
 
   // マスターデータ
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -225,6 +230,51 @@ export default function SearchModal({
   }, [keyword, searchMode, selectedGenreIds, selectedActressIds, longMin]);
 
   // 検索実行
+  // AI の条件を state に入れたあと、反映されてから検索を実行する
+  useEffect(() => {
+    if (!aiPendingRef.current) return;
+    aiPendingRef.current = false;
+    if (keyword.trim() && selectedGenreIds.length === 0 && longMin === 0) void handleSearch('keyword');
+    else void handleSearch('filter');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGenreIds, longMin, keyword]);
+
+  const aiSearch = async () => {
+    const q = aiQuery.trim();
+    if (!q || aiBusy) return;
+    setAiBusy(true);
+    setAiNote(null);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/ai-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q }) });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data) {
+        setMessage(data?.error ?? '読み取れませんでした');
+        return;
+      }
+      const f = data as { genreIds: string[]; minSampleSeconds: number; keywords: string[]; note: string };
+      setAiNote(f.note || null);
+      if (f.genreIds.length === 0 && f.minSampleSeconds === 0) {
+        if (f.keywords.length === 0) {
+          setMessage('条件に変えられませんでした。言い方を変えてみてください');
+          return;
+        }
+        // ジャンルに当たらない言葉（女優名・シリーズ名など）は作品名で探す
+        setKeyword(f.keywords.join(' '));
+        aiPendingRef.current = true;
+        return;
+      }
+      setSearchMode('genre');
+      setSelectedGenreIds(f.genreIds);
+      setLongMin(f.minSampleSeconds);
+      aiPendingRef.current = true;
+    } catch {
+      setMessage('読み取れませんでした');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   // keyword: タイトル検索（入力欄の検索ボタン・Enter）
   // filter: 選択中のジャンル/女優で検索（下部の検索ボタン）
   const handleSearch = async (by: 'keyword' | 'filter') => {
@@ -480,6 +530,31 @@ export default function SearchModal({
               </div>
 
 
+              {/* 言葉で探す（AI が条件に変える）。ジャンル検索のときだけ。2026-10-25 */}
+              {searchMode === 'genre' && (
+                <div className="mb-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={aiQuery}
+                      onChange={(e) => setAiQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                          void aiSearch();
+                        }
+                      }}
+                      placeholder="言葉で探す（例: 人妻で4分以上）"
+                      maxLength={60}
+                      className="flex-1 min-w-0 px-4 py-2 bg-gray-700 border border-violet-500/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-white text-sm"
+                    />
+                    <button type="button" onClick={() => void aiSearch()} disabled={aiBusy || !aiQuery.trim()} className="px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-bold whitespace-nowrap">
+                      {aiBusy ? '…' : 'AI'}
+                    </button>
+                  </div>
+                  {aiNote && <p className="mt-1 text-[11px] text-violet-200">{aiNote}</p>}
+                </div>
+              )}
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
                 <input
@@ -700,6 +775,31 @@ export default function SearchModal({
               </div>
 
 
+              {/* 言葉で探す（AI が条件に変える）。ジャンル検索のときだけ。2026-10-25 */}
+              {searchMode === 'genre' && (
+                <div className="mb-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={aiQuery}
+                      onChange={(e) => setAiQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                          void aiSearch();
+                        }
+                      }}
+                      placeholder="言葉で探す（例: 人妻で4分以上）"
+                      maxLength={60}
+                      className="flex-1 min-w-0 h-12 px-4 bg-gray-800 border border-violet-500/60 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 text-white text-sm"
+                    />
+                    <button type="button" onClick={() => void aiSearch()} disabled={aiBusy || !aiQuery.trim()} className="h-12 px-4 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-bold whitespace-nowrap">
+                      {aiBusy ? '…' : 'AI'}
+                    </button>
+                  </div>
+                  {aiNote && <p className="mt-1 text-[11px] text-violet-200">{aiNote}</p>}
+                </div>
+              )}
               {/* フィルター検索ボックス */}
               {searchMode === 'genre' && (
                 <input
