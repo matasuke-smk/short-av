@@ -20,6 +20,7 @@ export default function CatalogPage({
   total,
   videos,
   related,
+  aiIntro = null,
 }: {
   kind: CatalogKind;
   name: string;
@@ -27,6 +28,8 @@ export default function CatalogPage({
   total: number;
   videos: CatalogVideo[];
   related: CatalogEntry[];
+  /** Claude が書いた紹介文（女優のみ。sql/019）。あれば定型の説明の前に出す */
+  aiIntro?: string | null;
 }) {
   const param = kind === 'actress' ? 'actress' : 'genre';
   const swipeHref = (cid: string) => `/?v=${encodeURIComponent(cid)}&${param}=${encodeURIComponent(slug)}`;
@@ -58,7 +61,8 @@ export default function CatalogPage({
           {heading}
           <span className="ml-2 text-base font-normal text-gray-400">（{total}本）</span>
         </h1>
-        <p className="mt-2 text-sm text-gray-300 leading-relaxed">{intro}</p>
+        {aiIntro && <p className="mt-2 text-sm text-gray-200 leading-relaxed">{aiIntro}</p>}
+        <p className={`${aiIntro ? 'mt-1 text-gray-400' : 'mt-2 text-gray-300'} text-sm leading-relaxed`}>{intro}</p>
 
         {videos[0] && (
           <Link

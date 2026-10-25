@@ -13,6 +13,7 @@
     "x-promo:download": "node tools/x-promo/index.js --download"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@supabase/supabase-js": "^2.117.2",
     "embla-carousel-react": "^8.6.0",
     "next": "^15.5.27",

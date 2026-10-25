@@ -43,8 +43,11 @@ export async function generateMetadata({
   if (!video?.thumbnail_url) return {};
 
   const title = `${video.title} | Short AV`;
-  // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる
-  const description = buildVideoDescription(video, await getVideoNames(video));
+  // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる。
+  // Claude が書いた紹介文（ai_description、sql/019）があればそちらを優先する（2026-10-25）
+  const aiRaw = (video as unknown as { ai_description?: unknown }).ai_description;
+  const ai = typeof aiRaw === 'string' ? aiRaw : '';
+  const description = ai ? (ai.length > 160 ? `${ai.slice(0, 157)}…` : ai) : buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
@@ -213,10 +216,13 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
 
   // 最初に表示する作品の構造化データ（?v= 指定時はその作品）。説明文・出演・ジャンル・長さを足す
   const firstVideoSchema = generateVideoSchema(videos[0]);
+  // Claude が書いた紹介文（ai_description、sql/019）。構造化データの説明文と、?v= のときの sr-only の本文に使う（2026-10-25）
+  const firstAiRaw = videos[0] ? (videos[0] as unknown as { ai_description?: unknown }).ai_description : undefined;
+  const firstAi = typeof firstAiRaw === 'string' ? firstAiRaw : '';
   if (firstVideoSchema && videos[0]) {
     const first = videos[0];
     const names = await getVideoNames(first);
-    firstVideoSchema.description = buildVideoDescription(first as VideoSeoRow, names);
+    firstVideoSchema.description = firstAi || buildVideoDescription(first as VideoSeoRow, names);
     if (names.actresses.length > 0) firstVideoSchema.actor = names.actresses.map((name) => ({ '@type': 'Person', name }));
     if (names.genres.length > 0) firstVideoSchema.genre = names.genres;
     if (first.sample_seconds && first.sample_seconds > 0) firstVideoSchema.duration = `PT${Math.floor(first.sample_seconds / 60)}M${first.sample_seconds % 60}S`;
@@ -256,6 +262,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
       />
+      {/* ?v= で開かれた作品の紹介文（Claude が書いたもの。画面には出さない。検索エンジン・AI 向けの独自の文章。2026-10-25） */}
+      {targetId && firstAi && <p className="sr-only">{firstAi}</p>}
       <VideoSwiper
         videos={videos}
         videoPool={videoPool}

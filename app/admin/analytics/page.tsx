@@ -4,6 +4,7 @@ import AnalyticsView, { type DataKey, type RangePair } from './AnalyticsView';
 import { getYesterdaySoFar, loadRange } from './data';
 import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
 import { getDmmReports } from '@/lib/dmm-reports';
+import { getLatestDailySummary } from '@/lib/daily-summary';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   // /api/admin/analytics で1つずつ取る（以前は5つの期間をまとめて取得し、GA への問い合わせが約40回になって開くのが遅かった）
   const firstKey: DataKey = initialRange === 'weekday' ? '28d' : initialRange;
   // 期間の集計・昨日の同じ時刻まで・いま見られているページ・リアルタイムの記録は互いに関係ないので、まとめて待つ
-  const [first, yesterdaySoFar, realtime, live, dmmReports] = await Promise.all([
+  const [first, yesterdaySoFar, realtime, live, dmmReports, dailySummary] = await Promise.all([
     loadRange(firstKey),
     getYesterdaySoFar(bucket).catch((error) => {
       console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
@@ -36,10 +37,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
     })(),
     // DMM アフィリエイトの実績（管理画面の「FANZA 実績」で貼り付けたもの。表がまだなければ空）
     getDmmReports(35).catch(() => []),
+    // 今朝の点検の要約（Claude が毎朝 9:40 に書く。sql/019 未実行や未生成なら null）
+    getLatestDailySummary(),
   ]);
   after(() => recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error)));
   const data: Partial<Record<DataKey, RangePair>> = { [firstKey]: first };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} dmmReports={dmmReports} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} dmmReports={dmmReports} dailySummary={dailySummary} />;
 }
