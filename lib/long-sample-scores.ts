@@ -30,10 +30,16 @@ export async function updateReactionCounts(supabase: SupabaseClient): Promise<nu
     const map = event === 'video_view' ? plays : clicks;
     map.set(id, (map.get(id) ?? 0) + r.metrics[0]);
   }
-  const { data, error } = await supabase.from('videos').select('id, dmm_content_id, view_count, click_count').gte('sample_seconds', MIN_SECONDS).limit(5000);
-  if (error) throw error;
+  // Supabase は1回に1,000件までなので分けて取る（今は約700件だが、増えても全部見る）
+  const data: { id: string; dmm_content_id: string; view_count: number; click_count: number }[] = [];
+  for (let offset = 0; offset < 20_000; offset += 1000) {
+    const page = await supabase.from('videos').select('id, dmm_content_id, view_count, click_count').gte('sample_seconds', MIN_SECONDS).order('id').range(offset, offset + 999);
+    if (page.error) throw page.error;
+    data.push(...(page.data ?? []));
+    if (!page.data || page.data.length < 1000) break;
+  }
   let changed = 0;
-  for (const v of data ?? []) {
+  for (const v of data) {
     const view = plays.get(v.dmm_content_id as string) ?? 0;
     const click = clicks.get(v.dmm_content_id as string) ?? 0;
     if (view === v.view_count && click === v.click_count) continue;
