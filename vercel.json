@@ -20,6 +20,10 @@
       "schedule": "0 1 * * *"
     },
     {
+      "path": "/api/cron/long-scores",
+      "schedule": "50 0 * * *"
+    },
+    {
       "path": "/api/cron/daily-summary",
       "schedule": "40 0 * * *"
     },
