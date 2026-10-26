@@ -23,7 +23,9 @@ export async function GET(request: Request) {
   // 古い記録を消す（60日より前）。失敗しても表示は続ける
   await supabase.from('ai_bot_hits').delete().lt('at', new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString()).then(() => undefined, () => undefined);
 
-  const since = new Date(Date.now() - days * 86_400_000).toISOString();
+  // 日本時間の0時で区切る（days=2 なら昨日の0時から。以前は「今から days×24 時間前」で、昨日の分が途中からになっていた。2026-10-26）
+  const jstMidnight = Date.parse(`${new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10)}T00:00:00+09:00`);
+  const since = new Date(jstMidnight - (days - 1) * 86_400_000).toISOString();
   // Supabase は1回に1,000件までしか返さないので、1,000件ずつ分けて全部取る（2026-10-26。以前は1回だけで、どの期間も1,000件で止まっていた）
   const hits: Hit[] = [];
   for (let offset = 0; offset < MAX_ROWS; offset += PAGE) {
@@ -41,7 +43,12 @@ export async function GET(request: Request) {
     if (!data || data.length < PAGE) break;
   }
   // 日本時間の日付ごとの回数（グラフ用）
-  const byDate = count(hits.map((h) => ({ key: new Date(new Date(h.at).getTime() + 9 * 3_600_000).toISOString().slice(0, 10) }))).sort((a, b) => a.key.localeCompare(b.key));
+  // 記録のない日も0として並べる（期間のすべての日）
+  const counted = new Map(count(hits.map((h) => ({ key: new Date(new Date(h.at).getTime() + 9 * 3_600_000).toISOString().slice(0, 10) }))).map((c) => [c.key, c.n]));
+  const byDate = Array.from({ length: days }, (_, i) => {
+    const key = new Date(jstMidnight + 9 * 3_600_000 - (days - 1 - i) * 86_400_000).toISOString().slice(0, 10);
+    return { key, n: counted.get(key) ?? 0 };
+  });
   return NextResponse.json({
     days,
     total: hits.length,
