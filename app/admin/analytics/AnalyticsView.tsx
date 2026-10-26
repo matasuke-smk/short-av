@@ -780,6 +780,23 @@ function RangeBody({
   // Bluesky から来た人（レポート 34）。GA では X と同じ「SNS」に分類されるので、X 以外から来た人に別に足す
   const bskyRow = (event: string) => (reports[34] ?? []).find((r) => r.dimensions[0] === event)?.metrics[0] ?? 0;
   const bsky = { users: bskyRow('page_view'), clickUsers: bskyRow('dmm_link_click') };
+  // X から来た人（レポート 36: 来た元が x・t.co・twitter、[イベント, ブラウザ] → [人数]）。
+  // アプリの中のブラウザ以外（Safari・Chrome など）は、X から開き直して見た人。ブラウザごとの人数を足すので、両方で見た人は2回数える（ごくわずか）
+  const xFrom = (reports[36] ?? []).reduce(
+    (acc, r) => {
+      const [event, browser] = r.dimensions;
+      const normal = !['Safari (in-app)', 'Android Webview'].includes(browser);
+      if (event === 'page_view') {
+        acc.users += r.metrics[0];
+        if (normal) acc.normalUsers += r.metrics[0];
+      } else if (event === 'dmm_link_click') {
+        acc.clickUsers += r.metrics[0];
+        if (normal) acc.normalClickUsers += r.metrics[0];
+      }
+      return acc;
+    },
+    { users: 0, clickUsers: 0, normalUsers: 0, normalClickUsers: 0 },
+  );
   // 作品ごとの再生・クリック（回数）
   const workMap = new Map<string, { id: string; plays: number; clicks: number }>();
   for (const r of workEvents) {
@@ -835,12 +852,12 @@ function RangeBody({
         {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
         <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
         <div>
-        {/* 収益につながる3つ（FANZA・JuicyAds・DLsite）をいちばん上に。クリック総数・普段のブラウザからのクリック・クリック率 */}
+        {/* いちばん上: FANZA のクリックと、X から来た人・X 以外から来た人（2026-10-26 ユーザーの要望で JuicyAds・DLsite と入れ替え。両方の詳細は下の「どこの人か」などで見られる） */}
         {(() => {
           const sum = sum33;
           return (
             <div className="grid grid-cols-3 gap-2 mb-4">
-              {moneyCards.map((c) => (
+              {moneyCards.filter((c) => c.label === 'FANZA').map((c) => (
                 <KpiCard
                   key={c.label}
                   label={c.label}
@@ -859,6 +876,26 @@ function RangeBody({
                   onClick={() => setDetail(`card:${c.label}`)}
                 />
               ))}
+              <KpiCard
+                label="X から来た人"
+                value={fmt(xFrom.users)}
+                unit="人"
+                sub={`FANZA をクリックした人 ${fmt(xFrom.clickUsers)}人`}
+                // 棒: X から来た人のうち、アプリの中ではなく Safari・Chrome などで開き直して見た人（そのクリックは報酬になる）
+                share={{
+                  part: xFrom.normalUsers,
+                  total: xFrom.users,
+                  label: `Safari などで開き直した ${fmt(xFrom.normalUsers)}人（クリック ${fmt(xFrom.normalClickUsers)}人）`,
+                }}
+                onClick={() => setDetail('channels')}
+              />
+              <KpiCard
+                label="X 以外から来た人"
+                value={fmt(nonX.users + bsky.users)}
+                unit="人"
+                sub={`FANZA をクリックした人 ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
+                onClick={() => setDetail('channels')}
+              />
             </div>
           );
         })()}
@@ -954,7 +991,7 @@ function RangeBody({
             label="X 以外から来た人（検索・ブックマーク・ほかのサイト・Bluesky）"
             value={fmt(nonX.users + bsky.users)}
             unit="人"
-            sub={`FANZA へのクリック ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
+            sub={`FANZA をクリックした人 ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
             onClick={() => setDetail('channels')}
             extra={
               <>
@@ -1234,14 +1271,50 @@ function RangeBody({
                       <th className="text-right font-normal">クリック率</th>
                     </tr>
                   </thead>
+                  {/* 上: カードの「X 以外から来た人」に数える流入元と合計。下: カードに含めないもの（SNS＝ほぼ X・不明）を灰色で（2026-10-26 ユーザーの指摘。以前は全部を1つの表に並べていて、カードの数と合わなかった） */}
                   <tbody>
-                    {channelRows.map((r) => (
+                    {channelRows.filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel)).map((r) => (
                       <tr key={r.channel} className="border-t border-gray-700">
                         <td className="py-2 pr-2">{channelLabel(r.channel).split('（')[0]}</td>
                         <td className="text-right">{fmt(r.users)}人</td>
                         <td className="text-right">{fmt(r.playUsers)}人</td>
                         <td className="text-right">{fmt(r.clickUsers)}人</td>
                         <td className={`text-right font-bold ${r.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(r.clickUsers, r.users)}</td>
+                      </tr>
+                    ))}
+                    {bsky.users > 0 && (
+                      <tr className="border-t border-gray-700">
+                        <td className="py-2 pr-2">Bluesky</td>
+                        <td className="text-right">{fmt(bsky.users)}人</td>
+                        <td className="text-right text-gray-500">-</td>
+                        <td className="text-right">{fmt(bsky.clickUsers)}人</td>
+                        <td className={`text-right font-bold ${bsky.clickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(bsky.clickUsers, bsky.users)}</td>
+                      </tr>
+                    )}
+                    <tr className="border-t-2 border-gray-500 font-bold">
+                      <td className="py-2 pr-2">X 以外の合計（カードの数）</td>
+                      <td className="text-right">{fmt(nonX.users + bsky.users)}人</td>
+                      <td className="text-right text-gray-500">-</td>
+                      <td className="text-right">{fmt(nonX.clickUsers + bsky.clickUsers)}人</td>
+                      <td className="text-right text-emerald-300">{pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}</td>
+                    </tr>
+                    <tr className="border-t border-gray-700">
+                      <td className="py-2 pr-2">X から来て Safari などで見た人</td>
+                      <td className="text-right">{fmt(xFrom.normalUsers)}人</td>
+                      <td className="text-right text-gray-500">-</td>
+                      <td className="text-right">{fmt(xFrom.normalClickUsers)}人</td>
+                      <td className={`text-right font-bold ${xFrom.normalClickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(xFrom.normalClickUsers, xFrom.normalUsers)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={5} className="pt-4 pb-1 text-xs text-gray-500 whitespace-normal">X 以外のカードの数に含めていないもの（SNS はほぼ X、「不明」は来た元が記録されなかった訪問で、多くは X のアプリの中からと考えられます）</td>
+                    </tr>
+                    {channelRows.filter((r) => NOT_NON_X_CHANNELS.includes(r.channel)).map((r) => (
+                      <tr key={r.channel} className="border-t border-gray-800 text-gray-500">
+                        <td className="py-2 pr-2">{channelLabel(r.channel).split('（')[0]}</td>
+                        <td className="text-right">{fmt(r.users)}人</td>
+                        <td className="text-right">{fmt(r.playUsers)}人</td>
+                        <td className="text-right">{fmt(r.clickUsers)}人</td>
+                        <td className="text-right">{pct(r.clickUsers, r.users)}</td>
                       </tr>
                     ))}
                   </tbody>

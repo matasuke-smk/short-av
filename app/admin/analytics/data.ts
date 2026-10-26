@@ -364,6 +364,14 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
         },
       }),
     },
+    // 36: X から来た人（来た元が x・t.co・twitter）のブラウザごとの人数（ページを見た人・FANZA へのクリックをした人）。
+    // アプリの中のブラウザ以外（Safari・Chrome など）は、X から開き直した人。そのクリックは報酬になる（2026-10-26）
+    {
+      dateRanges,
+      dimensions: [{ name: 'eventName' }, { name: 'browser' }],
+      metrics: [{ name: 'totalUsers' }],
+      dimensionFilter: and(eventIn(['page_view', 'dmm_link_click']), { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } }),
+    },
   ];
   // 35: 日別の流入元（人数）。「X 以外から来た人」の推移（直近28日）に使う。表示中の期間に関係なく28日固定で取る（2026-10-25）。
   // 日本時間のずれの補正（jstDaysFilter）はかけない（10/7 以前の日が1日ずれることがあるが、推移を見る用途なので許容）
@@ -446,6 +454,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
     reports[30] = work[2];
     reports[33] = work[6] ?? [];
     reports[34] = work[7] ?? [];
+    reports[36] = work[8] ?? [];
     reports[31] = work[4];
     // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
     reports[32] = work[5].map((r) => {
