@@ -980,8 +980,16 @@ function RangeBody({
               return i >= 0 && series ? series[i] : 0;
             };
             const daysInMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)), 0)).getUTCDate();
+            // その日の FANZA の報酬（FANZA 実績 dmm_reports。動画・同人誌どちらの入口からでも買われれば報酬になるので分けない。2026-10-27 ユーザー要望）
+            const rewardOn = (ym: string, day: number) => {
+              const row = dmmReports.find((r) => r.date === `${ym}-${String(day).padStart(2, '0')}`);
+              if (!row) return null;
+              const parts = [row.direct_count && `ダイレクト ${row.direct_count}件`, row.category_count && `カテゴリ ${row.category_count}件`, row.new_count && `新規 ${row.new_count}件`].filter(Boolean).join('・');
+              return { yen: row.direct_yen + row.category_yen + row.new_yen, note: parts };
+            };
             slots = Array.from({ length: daysInMonth }, (_, i) => {
               const day = i + 1;
+              const reward = day <= dom ? rewardOn(thisMonth, day) : null;
               return {
                 tick: day === 1 || day % 5 === 0 ? String(day) : '',
                 name: `${day}日`,
@@ -990,6 +998,9 @@ function RangeBody({
                 ghostUsers: valueOn(trends?.users, lastMonth, day),
                 ghostClicks: valueOn(trends?.fanzaClicks, lastMonth, day),
                 future: day > dom,
+                yen: reward?.yen,
+                yenNote: reward?.note || undefined,
+                ghostYen: rewardOn(lastMonth, day)?.yen,
               };
             });
           }
