@@ -36,6 +36,9 @@ export type DailyData = {
   database: { mb: number; percentOfFree: number } | null;
   // X のシャドウバンの確認（今朝と、前回の要約のときの結果。2026-10-26 追加）
   xShadowban: { now: ShadowbanResult[]; previous: ShadowbanResult[] | null };
+  // 主なページが開けるか（status 200 が正常、0 はつながらない）と、サンプルの長さがまだ分からない作品の数（2026-10-26 追加）
+  pages: { url: string; status: number }[];
+  unmeasuredSamples: number | null;
 };
 
 type Gsc = { yesterday: { clicks: number; impressions: number }; week: { clicks: number; impressions: number; position: number }; topQueries: { query: string; clicks: number; impressions: number }[] };
@@ -61,7 +64,33 @@ async function collectSearch(site: GscSite, y: string): Promise<Gsc | null> {
 }
 
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
-const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
+const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
+
+// サイトの主なページ（開けるかを毎朝確かめる。2026-10-26）
+const HEALTH_URLS = [
+  'https://short-av.com/',
+  'https://short-av.com/ranking',
+  'https://short-av.com/articles',
+  'https://short-av.com/long-samples',
+  'https://short-av.com/sitemap.xml',
+  'https://mens-sizelab.app/',
+  'https://mens-sizelab.app/checker',
+  'https://mens-sizelab.app/articles',
+  'https://mens-sizelab.app/sitemap.xml',
+];
+
+async function checkPages(): Promise<{ url: string; status: number }[]> {
+  return Promise.all(
+    HEALTH_URLS.map(async (url) => {
+      try {
+        const res = await fetch(url, { cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(15_000) });
+        return { url, status: res.status };
+      } catch {
+        return { url, status: 0 };
+      }
+    }),
+  );
+}
 
 // 直近24時間の AI のロボットの記録。Supabase は1回に1,000件までなので分けて全部取る（2026-10-26。以前は1,000件で止まっていた）
 async function loadBotRows(): Promise<{ bot: string }[]> {
@@ -108,7 +137,7 @@ export async function collectDailyData(): Promise<DailyData> {
     const { count: c } = await supabase.from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
     return c ?? 0;
   };
-  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database, shadowban, previousSummary] = await Promise.all([
+  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database, shadowban, previousSummary, pages, unmeasured] = await Promise.all([
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     loadBotRows(),
@@ -122,6 +151,8 @@ export async function collectDailyData(): Promise<DailyData> {
     checkShadowbans().catch((error) => [{ account: '-', error: String(error) }] as ShadowbanResult[]),
     // 前回の要約の材料（シャドウバンの変化を見るため）
     supabase.from('daily_summaries').select('data').lt('date', y).order('date', { ascending: false }).limit(1).maybeSingle(),
+    checkPages(),
+    supabase.from('videos').select('id', { count: 'exact', head: true }).is('sample_seconds', null).not('sample_video_url', 'is', null),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of botsRes) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
@@ -146,25 +177,46 @@ export async function collectDailyData(): Promise<DailyData> {
     bing: { shortav: bingShortav, mens: bingMens },
     vercel,
     database,
+    pages,
+    unmeasuredSamples: unmeasured.count ?? null,
     xShadowban: { now: shadowban, previous: (previousSummary.data?.data as { xShadowban?: { now: ShadowbanResult[] } } | null)?.xShadowban?.now ?? null },
   };
 }
 
 const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト「Short AV」と、男性向けの健康情報サイト「男のからだ研究室」の運営者のための、毎朝の点検担当です。
-渡された数字をもとに、運営者（開発者ではない）が朝に30秒で読める日本語の要約を書きます。
+渡された数字をもとに、運営者（開発者ではない）が朝に1分で読める日本語の点検の報告を書きます。
 
-書き方の決まり:
-- 見出しは「昨日の数字」「変化」「気になる点」「今日の提案」の4つ。各見出しの下に1〜3行。全体で10行前後。
-- 数字は必ず渡されたものだけを使う。推測で数字を作らない。比べるときは一昨日と7日平均を使う。
-- 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「FANZA へのクリック」、「video_view」は「サンプルの再生」、「sample_end_cta」は「サンプル終了時の案内」、「first_time_link_click」は「初回クーポン等のリンク」、「chatgpt.com」は「ChatGPT」、「x」は「X」、「(direct)」は「直接」）。
-- 「気になる点」は、取り込みが0のとき、訪問やクリックが7日平均の半分以下か2倍以上のとき、AI のロボットの読み取りが1日1,000回を超えるとき、DMM の成約が付いたとき、に必ず触れる。該当が無ければ「特になし」と書く。
-- dmm が null か dmm.updated が false のときは、DMM の数字（クリック・成約）は書かず、「気になる点」に「FANZA 実績が昨日分まで更新されていない」と書く。
-- search は Google 検索（Search Console）の数字。昨日分は速報値なので、比べるときは week（7日間の合計）を使い、「Google 検索からのクリック」と書く。position は「平均の順位」。
-- bing は Bing 検索の数字（「Bing 検索からのクリック」と書く）。データが1〜2日遅れるので、latestDate が昨日より前なら week で比べる。
-- vercel.failed（サイトの公開の失敗）が1件以上なら「気になる点」に必ず書く。database.percentOfFree（データベースの大きさ。無料プランの上限 500MB に対する割合）が 70 以上なら「気になる点」に書く。null の項目は触れない。
-- xShadowban は X のシャドウバンの確認（short_av_dmm＝Short AV、mens_sizelab＝男のからだ研究室）。search は検索バン、suggestion は検索候補バン、ghost は返信が見えなくなるバン。ok は問題なし、ban は制限あり、unknown は判定できなかった。「昨日の数字」の最後に1行で「X：Short AV は…、男のからだ研究室は…」と書く。previous と比べて変わった項目があれば（解除された・新しく制限された）「気になる点」に必ず書く。error のときは「確認できなかった」と書く。
-- 「今日の提案」は1つだけ。やらなくてよい日は「様子見でよい」と書く。
-- 丁寧だが簡潔に。箇条書きは「・」を使う。Markdown の記号（#や**）は使わない。`;
+形（2026-10-26 運営者の指定。この順・この見出しで書く）:
+サイトの動き
+・問題がなければ見出しの横ではなく1行目に「問題なし」と書き、その下に次を1行ずつ:
+・主なページ: pages の status がすべて 200 なら「両サイトの主なページ・サイトマップは正常」。200 以外があれば、そのページと状態を書く（0 は「つながらない」）
+・作品の取り込み: imports.yesterday（昨日）と imports.today（今日の朝の分）の本数。昨日が 0 なら「取り込みが止まっている」と書く
+・サンプルの長さが未計測の作品: unmeasuredSamples 本
+・データベースの大きさ: database.mb MB（無料の上限 500MB の database.percentOfFree%）
+・vercel.failed（サイトの公開の失敗）が1件以上あれば書く
+
+Short AV
+・昨日: 人数（訪問）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
+・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
+・FANZA 実績: dmm の昨日のクリック・成約。dmm が null か dmm.updated が false なら「FANZA 実績が昨日分まで更新されていない」と書き、数字は書かない。成約が付いたら必ず書く
+・Google 検索・Bing 検索からのクリック（7日間の合計 week。Bing は latestDate が古ければそう書く）
+・サンプル終了時の案内（sampleEnd）の表示とクリック
+
+男のからだ研究室
+・昨日: 人数（訪問）と主な来た元（多い順に3つまで）
+・Google 検索・Bing 検索からのクリック（7日間）と平均の順位
+
+X
+・xShadowban: Short AV（short_av_dmm）と男のからだ研究室（mens_sizelab）のそれぞれについて、検索バン（search）・検索候補バン（suggestion）を「問題なし／制限あり／判定できず」で。error なら「確認できなかった（明日もう一度）」。previous と比べて変わった項目（解除・新しく制限）があれば必ず書く
+
+今日の提案
+・1つだけ。やらなくてよい日は「様子見でよい」
+
+決まり:
+- 数字は必ず渡されたものだけを使う。推測で数字を作らない。null の項目は書かない
+- 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「作品のリンク」、「fanza_banner_click」は「バナー」、「fanza_widget_click」は「ウィジェット」、「fanza_coupon_click」は「クーポン」、「first_time_link_click」は「初めての人向け」、「video_view」は「サンプルの再生」、「sample_end_cta」は「サンプル終了時の案内」、「chatgpt.com」は「ChatGPT」、「x」「t.co」は「X」、「(direct)」は「直接」）
+- AI のロボットの読み取り（bots の合計）が1日1,000回を超えたら「サイトの動き」に1行書く
+- 丁寧だが簡潔に。各見出しの下は「・」の箇条書き。Markdown の記号（#や**）は使わない`;
 
 export async function writeDailySummary(data: DailyData): Promise<{ summary: string; yen: number }> {
   const user = `対象の日: ${data.date}（日本時間）\n数字（JSON）:\n${JSON.stringify(data, null, 1)}`;
