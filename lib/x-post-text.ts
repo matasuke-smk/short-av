@@ -121,6 +121,7 @@ export function buildDoujinPostText(doujin: Doujin, headingIndex: number): strin
   const onSale = doujin.price !== null && doujin.listPrice !== null && doujin.listPrice > doujin.price;
   const price = doujin.price === null ? '' : onSale ? `セール中 ${yenText(doujin.price)}（通常 ${yenText(doujin.listPrice!)}）` : yenText(doujin.price);
   const build = (title: string) =>
+    AD_MARK +
     [
       DOUJIN_HEADINGS[headingIndex % DOUJIN_HEADINGS.length](doujin.samples.length),
       title,
@@ -130,8 +131,6 @@ export function buildDoujinPostText(doujin: Doujin, headingIndex: number): strin
       'スワイプで試し読みはこちら👇',
       url,
       BROWSER_HINT,
-      '',
-      '#PR',
     ]
       .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')
       .join('\n');
@@ -242,8 +241,9 @@ function ctaLines(f: VideoPostFacts): string[] {
   return out;
 }
 
-// 2026-10-11: X でアカウントに検索の制限がかかったため、ハッシュタグは広告表記として必要な #PR だけにする（宣伝目的と判定されにくくするため）
-const TAG_LINES = ['#PR'];
+// 広告の表示。2026-10-11 にハッシュタグを #PR だけにし、2026-10-26 からはハッシュタグをやめて先頭に【PR】を付ける
+// （X はハッシュタグの多用で検索から外すとの情報があるため。ステマ規制の表示は # でなくても、広告とはっきりわかればよい）
+export const AD_MARK = '【PR】';
 
 /**
  * 動画の X 投稿文。構造を4通りから選ぶ:
@@ -257,7 +257,6 @@ export function buildVideoPost(f: VideoPostFacts, url: string, headings: string[
   const structure = pickOne(['A', 'B', 'C', 'D'] as const);
   const opener = pickOne(openers(f));
   const cta = pickOne(ctaLines(f));
-  const tags = pickOne(TAG_LINES);
   const cast = f.actress ? `出演: ${f.actress}` : f.maker ? `メーカー: ${f.maker}` : '';
   const sample = f.sampleSeconds ? `サンプル ${minutesText(f.sampleSeconds)}` : '';
   const note = [cast, sample].filter(Boolean).join('／');
@@ -267,18 +266,18 @@ export function buildVideoPost(f: VideoPostFacts, url: string, headings: string[
     let lines: string[];
     switch (structure) {
       case 'A':
-        lines = [opener, title, cast, '', cta, url, BROWSER_HINT, '', tags];
+        lines = [opener, title, cast, '', cta, url, BROWSER_HINT];
         break;
       case 'B':
-        lines = [title, note, '', opener, cta, url, BROWSER_HINT, '', tags];
+        lines = [title, note, '', opener, cta, url, BROWSER_HINT];
         break;
       case 'C':
-        lines = [opener, '', title, '', cta, url, BROWSER_HINT, '', tags];
+        lines = [opener, '', title, '', cta, url, BROWSER_HINT];
         break;
       default:
-        lines = [heading ?? opener, title, cast, '', cta, url, BROWSER_HINT, '', tags];
+        lines = [heading ?? opener, title, cast, '', cta, url, BROWSER_HINT];
     }
-    return lines.filter((line, i, arr) => line !== '' || (i > 0 && arr[i - 1] !== '')).join('\n');
+    return AD_MARK + lines.filter((line, i, arr) => line !== '' || (i > 0 && arr[i - 1] !== '')).join('\n');
   };
 
   let title = f.title;
