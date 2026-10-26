@@ -405,13 +405,16 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
     // 37〜40: FANZA へのリンク（作品・バナー・ウィジェット・クーポン・初めての人向け）のどれかを押した人の数。
     // イベントで分けずに数えるので、作品のリンクとバナーの両方を押した人も1人になる（2026-10-26 ユーザーの指摘。以前は作品のリンクだけを数えていた）
     // 37: 流入元×ブラウザごと（「どこから来たか」の表と X 以外のカード）
-    { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 200 },
+    // 37〜39 は [人数, 回数]（回数は 2026-10-27 に追加。カードの「○人（○回）」用）
+    { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 200 },
     // 38: X から来た人のうち、ブラウザごと
-    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromXSource) },
+    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromXSource) },
     // 39: 全員（FANZA のカードの人数）、ブラウザごと
-    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS) },
+    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS) },
     // 40: Bluesky から来た人
     { dateRanges, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromBluesky) },
+    // 41: ページを見た人を 流入元×ブラウザ で。来た元が記録されず（Unassigned など）アプリ内ブラウザで来た人を「X から来た人」とみなすために使う（2026-10-27）
+    { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIs('page_view'), limit: 200 },
   ];
   // 35: 日別の流入元（人数）。「X 以外から来た人」の推移（直近28日）に使う。表示中の期間に関係なく28日固定で取る（2026-10-25）。
   // 日本時間のずれの補正（jstDaysFilter）はかけない（10/7 以前の日が1日ずれることがあるが、推移を見る用途なので許容）
@@ -642,7 +645,7 @@ const getRangeData = unstable_cache(
     return { jp: result('jp'), all: result('all') };
   },
   // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
-  ['admin-analytics-v29'],
+  ['admin-analytics-v30'],
   { revalidate: 300 },
 );
 
@@ -699,12 +702,15 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
       }
       return dates.map((date) => byDate.get(date) ?? 0);
     };
+    const users = series(usersRows);
+    const xUsers = series(xRows);
     return {
       dates,
-      users: series(usersRows),
+      users,
       fanzaClicks: series(clickRows),
-      xUsers: series(xRows),
-      nonXUsers: series(channelRows, (r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[1])),
+      xUsers,
+      // X 以外 = 全体 − X（カードと同じ数え方。2026-10-27）
+      nonXUsers: users.map((u, i) => Math.max(0, u - xUsers[i])),
     };
   };
   return { jp: make('jp'), all: make('all') };

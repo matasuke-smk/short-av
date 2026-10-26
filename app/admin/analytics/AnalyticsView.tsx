@@ -899,9 +899,10 @@ function RangeBody({
               // 「通常のブラウザ」の行に「・集計待ち ○回」と添えて、合計と内訳が合わないように見えないようにする
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
-                ['押した人', `${fmtOverview(now.clickers)}人（通常 ${fmtOverview(now.normalClickers)}人）`],
+                ['押した人', `${fmtOverview(now.clickers)}人（X ${fmtOverview(now.xClickers)}・X 以外 ${fmtOverview(now.nonXClickers)}）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
-                ['内訳', `通常 ${fmtOverview(now.fanzaNormalClicks)}回・アプリ内 ${fmtOverview(now.fanzaClicks - now.fanzaNormalClicks)}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
+                // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
+                ['内訳', `X ${fmtOverview(now.xClicks)}回・X 以外 ${fmtOverview(now.nonXClicks)}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
@@ -914,7 +915,7 @@ function RangeBody({
               compare: cmp('人', (k) => k.xUsers),
               rows: [
                 ['開き直した', `${fmtOverview(now.xNormalUsers)}人（押した ${fmtOverview(now.xNormalClickers)}人）`],
-                ['FANZA を押した', `${fmtOverview(now.xClickers)}人`],
+                ['FANZA を押した', `${fmtOverview(now.xClickers)}人（${fmtOverview(now.xClicks)}回）`],
               ],
               trend: last28(trends?.xUsers),
               color: '#60a5fa',
@@ -926,7 +927,7 @@ function RangeBody({
               unit: '人',
               compare: cmp('人', (k) => k.nonXUsers),
               rows: [
-                ['FANZA を押した', `${fmtOverview(now.nonXClickers)}人（${pctOverview(now.nonXClickers, now.nonXUsers)}）`],
+                ['FANZA を押した', `${fmtOverview(now.nonXClickers)}人（${fmtOverview(now.nonXClicks)}回・${pctOverview(now.nonXClickers, now.nonXUsers)}）`],
                 ['いちばん多い', topLabel],
               ],
               trend: last28(trends?.nonXUsers),
@@ -1016,8 +1017,10 @@ function RangeBody({
                   <>
                     合計{' '}
                     <button type="button" onClick={() => setDetail('daily')} className="underline decoration-dotted">
-                      <span className="text-base font-bold text-white">{fmtOverview(users)}</span>人
+                      <span className="text-base font-bold text-white">{fmtOverview(isToday ? gaUsers : users)}</span>人
                     </button>
+                    {/* 合計はカード（X から来た人＋X 以外）と同じ GA の集計の人数にし、リアルタイムで補った分は別に出す（2026-10-27 ユーザー指摘: カードの合計とグラフが合わない） */}
+                    {isToday && users > gaUsers && <span className="ml-1 text-gray-500">＋集計待ち {fmtOverview(users - gaUsers)}人</span>}
                     {compare?.soFar && <span className="ml-2">昨日の{compare.soFar.until}まで {fmtOverview(compare.soFar.users)}人</span>}
                   </>
                 }
