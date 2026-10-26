@@ -5,6 +5,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 
 const KEEP_DAYS = 60;
+const PAGE = 1000;
+// 取り出す件数の上限（多すぎると管理画面が遅くなるため）
+const MAX_ROWS = 100_000;
 
 type Hit = { at: string; bot: string; path: string; referer: string | null };
 
@@ -21,17 +24,22 @@ export async function GET(request: Request) {
   await supabase.from('ai_bot_hits').delete().lt('at', new Date(Date.now() - KEEP_DAYS * 86_400_000).toISOString()).then(() => undefined, () => undefined);
 
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const { data, error } = await supabase
-    .from('ai_bot_hits')
-    .select('at, bot, path, referer')
-    .gte('at', since)
-    .order('at', { ascending: false })
-    .limit(5000);
-  if (error) {
-    // 表がまだ無い（sql/018 未実行）ときはその旨を返す
-    return NextResponse.json({ error: error.message, missingTable: /ai_bot_hits/.test(error.message) }, { status: 500 });
+  // Supabase は1回に1,000件までしか返さないので、1,000件ずつ分けて全部取る（2026-10-26。以前は1回だけで、どの期間も1,000件で止まっていた）
+  const hits: Hit[] = [];
+  for (let offset = 0; offset < MAX_ROWS; offset += PAGE) {
+    const { data, error } = await supabase
+      .from('ai_bot_hits')
+      .select('at, bot, path, referer')
+      .gte('at', since)
+      .order('at', { ascending: false })
+      .range(offset, offset + PAGE - 1);
+    if (error) {
+      // 表がまだ無い（sql/018 未実行）ときはその旨を返す
+      return NextResponse.json({ error: error.message, missingTable: /ai_bot_hits/.test(error.message) }, { status: 500 });
+    }
+    hits.push(...((data ?? []) as Hit[]));
+    if (!data || data.length < PAGE) break;
   }
-  const hits = (data ?? []) as Hit[];
   // 日本時間の日付ごとの回数（グラフ用）
   const byDate = count(hits.map((h) => ({ key: new Date(new Date(h.at).getTime() + 9 * 3_600_000).toISOString().slice(0, 10) }))).sort((a, b) => a.key.localeCompare(b.key));
   return NextResponse.json({
