@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { CLAUDE_MODEL, getClaude, estimateYen } from '@/lib/claude';
-import { BROWSER_HINT, getVideoUrl } from '@/lib/x-post-text';
+import { AD_MARK, BROWSER_HINT, getVideoUrl } from '@/lib/x-post-text';
 import { isExcluded } from '@/lib/ai-descriptions';
 
 /**
  * X の作品紹介の投稿文を Claude に書かせる（管理画面「X 投稿」の「AI で書く」。2026-10-25）
- * - Claude が書くのは「書き出し＋作品名＋ひとこと」の本文部分だけ。URL・ブラウザの一言・#PR は決まった形でこちらが付ける
+ * - Claude が書くのは「書き出し＋作品名＋ひとこと」の本文部分だけ。URL・ブラウザの一言・先頭の【PR】は決まった形でこちらが付ける
  * - 全体で X の上限（全角 140 文字相当）に収まるよう、本文は 70 文字以内
  * - 2 案返し、管理画面で選ぶ。露骨な言葉を避ける（X の検索制限の対策）のは従来の投稿文と同じ方針
  */
@@ -64,7 +64,8 @@ export async function draftXPost(contentId: string): Promise<XAiDraftResult | nu
   });
   if (response.stop_reason === 'refusal' || !response.parsed_output) return { skipped: 'AI が書けませんでした' };
   const url = getVideoUrl(contentId);
-  const tail = ['', url, BROWSER_HINT, '', '#PR'];
-  const drafts = response.parsed_output.drafts.map((body) => [body.trim(), ...tail].join('\n'));
+  const tail = ['', url, BROWSER_HINT];
+  // 広告の表示は先頭の【PR】（ハッシュタグはやめた。2026-10-26）
+  const drafts = response.parsed_output.drafts.map((body) => AD_MARK + [body.trim(), ...tail].join('\n'));
   return { drafts, yen: estimateYen({ inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, cachedTokens: response.usage.cache_read_input_tokens ?? 0 }) };
 }

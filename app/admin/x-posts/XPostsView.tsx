@@ -332,7 +332,7 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Claude に本文を2案書かせる（/api/admin/x-posts/ai-draft）。URL・#PR などは API 側で付く。選んだ案が本文に入る
+  // Claude に本文を2案書かせる（/api/admin/x-posts/ai-draft）。URL・先頭の【PR】などは API 側で付く。選んだ案が本文に入る
   const [aiDrafts, setAiDrafts] = useState<string[] | null>(null);
   async function aiDraft() {
     setStatus('AI が書いています...');
