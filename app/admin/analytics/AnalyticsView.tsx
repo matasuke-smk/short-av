@@ -885,9 +885,8 @@ function RangeBody({
             return row ? conv(row) : 0;
           });
           const topLabel = now.topNonX ? `${channelLabel(now.topNonX.channel).split('（')[0]} ${fmtOverview(now.topNonX.users)}人` : '-';
-          const toDmm = () => {
-            window.location.href = '/admin/dmm-reports';
-          };
+          // FANZA 実績は画面を移らず、要約をモーダルで出す（2026-10-26 ユーザーの要望）
+          const toDmm = () => setDetail('dmm');
           const cards: TopCardProps[] = [
             {
               label: 'FANZA へのクリック',
@@ -913,7 +912,7 @@ function RangeBody({
               ],
               trend: last28(trends?.xUsers),
               color: '#60a5fa',
-              onClick: () => setDetail('channels'),
+              onClick: () => setDetail('xfrom'),
             },
             {
               label: 'X 以外から来た人',
@@ -1007,6 +1006,96 @@ function RangeBody({
           );
         })()}
 
+        {/* X から来た人（2026-10-26。以前は X 以外と同じ「どこから来たか」を開いていた） */}
+        {detail === 'xfrom' && (
+          <DetailModal
+            title="X から来た人"
+            note="来た元が X（x・t.co・twitter）の人。X のアプリの中のブラウザで見た人は、FANZA で買っても報酬になりにくい。Safari・Chrome などで開き直した人のクリックは報酬になる。"
+            onClose={closeDetail}
+          >
+            <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
+              {([
+                ['X から来た人', `${fmt(xFrom.users)}人`],
+                ['FANZA を押した人', `${fmt(xFrom.clickUsers)}人（${pct(xFrom.clickUsers, xFrom.users)}）`],
+                ['アプリの中で見た人', `${fmt(Math.max(0, xFrom.users - xFrom.normalUsers))}人`],
+                ['Safari などで開き直した人', `${fmt(xFrom.normalUsers)}人（${pct(xFrom.normalUsers, xFrom.users)}）`],
+                ['開き直して FANZA を押した人', `${fmt(xFrom.normalClickUsers)}人`],
+                ['アプリの中で FANZA を押した人', `${fmt(Math.max(0, xFrom.clickUsers - xFrom.normalClickUsers))}人`],
+              ] as const).map(([k, v]) => (
+                <div key={k} className="rounded-lg bg-gray-800 px-3 py-2">
+                  <div className="text-xs text-gray-400">{k}</div>
+                  <div className="font-bold">{v}</div>
+                </div>
+              ))}
+            </div>
+            {trends && (
+              <div className="mb-5">
+                <div className="text-xs text-gray-400 mb-1">X から来た人の推移（直近28日・1日の人数）</div>
+                <TrendLine data={trends.dates.slice(-28).map((date, i) => ({ date, users: trends.xUsers.slice(-28)[i] ?? 0 }))} height={110} labels />
+              </div>
+            )}
+            <h3 className="text-sm font-bold mb-1">X の動画の投稿ごと</h3>
+            <p className="text-xs text-gray-400 mb-2">管理画面の「X 投稿」で作った投稿の URL から来た人。</p>
+            <XPostDetail x={x} titleById={db.titleById} />
+          </DetailModal>
+        )}
+        {/* FANZA 実績の要約（DMM のレポートを貼り付けた分。2026-10-26） */}
+        {detail === 'dmm' &&
+          (() => {
+            const ymd = (daysAgo: number) => new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10);
+            const thisMonth = ymd(0).slice(0, 7);
+            const dom = Number(ymd(0).slice(8, 10));
+            const lastMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)) - 2, 1)).toISOString().slice(0, 7);
+            const conv = (r: DmmReportRow) => r.direct_count + r.category_count + r.new_count;
+            const yen = (r: DmmReportRow) => r.direct_yen + r.category_yen + r.new_yen;
+            const sumOf = (rows: DmmReportRow[]) => ({ clicks: rows.reduce((a, r) => a + r.clicks, 0), conv: rows.reduce((a, r) => a + conv(r), 0), yen: rows.reduce((a, r) => a + yen(r), 0) });
+            const month = sumOf(dmmReports.filter((r) => r.date.startsWith(thisMonth)));
+            const lastSame = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth) && Number(r.date.slice(8, 10)) <= dom));
+            const lastAll = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth)));
+            const recent = Array.from({ length: 14 }, (_, i) => ymd(i + 1)).map((date) => ({ date, row: dmmReports.find((r) => r.date === date) }));
+            const latest = [...dmmReports].sort((a, b) => b.date.localeCompare(a.date))[0];
+            return (
+              <DetailModal title="FANZA 実績（DMM）" note="DMM の管理画面のレポートを「FANZA 実績」で保存した分。クリックは DMM 側の数（翌日に確定）。" onClose={closeDetail}>
+                <div className="grid grid-cols-3 gap-2 mb-4 text-sm">
+                  {([
+                    ['今月', month],
+                    ['先月の同じ日まで', lastSame],
+                    ['先月（全体）', lastAll],
+                  ] as const).map(([k, v]) => (
+                    <div key={k} className="rounded-lg bg-gray-800 px-3 py-2">
+                      <div className="text-xs text-gray-400">{k}</div>
+                      <div className="font-bold">{fmt(v.conv)}件・{fmt(v.yen)}円</div>
+                      <div className="text-xs text-gray-400">クリック {fmt(v.clicks)}回</div>
+                    </div>
+                  ))}
+                </div>
+                <h3 className="text-sm font-bold mb-1">日ごと（直近14日）</h3>
+                <p className="text-xs text-gray-400 mb-2">
+                  いちばん新しい記録: {latest ? latest.date : 'なし'}。「—」の日はまだ保存されていません。
+                </p>
+                <table className="w-full text-sm">
+                  <thead className="text-gray-400">
+                    <tr>
+                      <th className="text-left font-normal py-1">日付</th>
+                      <th className="text-right font-normal">クリック</th>
+                      <th className="text-right font-normal">成約</th>
+                      <th className="text-right font-normal">報酬</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map(({ date, row }) => (
+                      <tr key={date} className="border-t border-gray-700">
+                        <td className="py-1.5">{Number(date.slice(5, 7))}/{Number(date.slice(8, 10))}</td>
+                        <td className="text-right">{row ? `${fmt(row.clicks)}回` : '—'}</td>
+                        <td className={`text-right ${row && conv(row) > 0 ? 'font-bold text-emerald-300' : ''}`}>{row ? `${fmt(conv(row))}件` : '—'}</td>
+                        <td className="text-right">{row ? `${fmt(yen(row))}円` : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DetailModal>
+            );
+          })()}
         {detail === 'xpost' && (
           <DetailModal
             title="X の動画の投稿から来た人"
