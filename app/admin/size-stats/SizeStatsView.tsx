@@ -207,28 +207,19 @@ function Bars({ title, note, bars, highlight }: { title: string; note: string; b
   );
 }
 
-/** 長さの分布（1cm ごと。8cm 未満と 22cm 以上はまとめる）。公開中の平均が入る棒を黄色に */
+/** 長さの分布（1cm ごと。平均に使う範囲＝10〜17cm だけを、その範囲の目盛りで描く）。公開中の平均が入る棒を黄色に */
 function LengthHistogram({ rows, range, avgMm }: { rows: Row[]; range: { min: number; max: number }; avgMm: number }) {
-  const from = 8;
-  const to = 22;
+  const from = Math.floor(range.min / 10);
+  const to = Math.floor(range.max / 10);
   const inRange = rows.filter((r) => r.length_mm >= range.min && r.length_mm <= range.max);
-  const bins = Array.from({ length: to - from + 2 }, (_, i) => ({ cm: from - 1 + i, value: 0 }));
-  for (const r of inRange) {
-    const cm = Math.floor(r.length_mm / 10);
-    const i = Math.min(Math.max(cm - (from - 1), 0), bins.length - 1);
-    bins[i].value++;
-  }
-  const avgIndex = Math.min(Math.max(Math.floor(avgMm / 10) - (from - 1), 0), bins.length - 1);
+  const bins = Array.from({ length: to - from + 1 }, (_, i) => ({ cm: from + i, value: 0 }));
+  for (const r of inRange) bins[Math.min(Math.floor(r.length_mm / 10) - from, bins.length - 1)].value++;
   return (
     <Bars
       title="長さの分布"
-      note={`1cm ごとの件数（${inRange.length}件）。黄色は公開中の平均が入る所`}
-      highlight={avgIndex}
-      bars={bins.map((b, i) => ({
-        label: i === 0 ? `${from}cm 未満` : i === bins.length - 1 ? `${to}cm 以上` : `${b.cm}cm台`,
-        tick: i === 0 ? `<${from}` : i === bins.length - 1 ? `${to}+` : b.cm % 2 === 0 ? String(b.cm) : '',
-        value: b.value,
-      }))}
+      note={`1cm ごとの件数（平均に使う ${range.min / 10}〜${range.max / 10}cm の ${inRange.length}件）。黄色は公開中の平均が入る所`}
+      highlight={Math.min(Math.max(Math.floor(avgMm / 10) - from, 0), bins.length - 1)}
+      bars={bins.map((b) => ({ label: `${b.cm}cm台`, tick: String(b.cm), value: b.value }))}
     />
   );
 }
@@ -246,7 +237,7 @@ function DiameterHistogram({ rows, range, avgMm }: { rows: Row[]; range: { min: 
   return (
     <Bars
       title="直径の分布"
-      note={`2mm ごとの件数（${inRange.length}件）。黄色は公開中の平均が入る所`}
+      note={`2mm ごとの件数（長さが平均に使う範囲の ${inRange.length}件）。黄色は公開中の平均が入る所`}
       highlight={binOf(avgMm)}
       bars={bins.map((value, i) => {
         const mm = from + (i - 1) * step;
