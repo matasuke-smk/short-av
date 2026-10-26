@@ -60,7 +60,7 @@ export default function SizeStatsAdminPage() {
         <div className="text-center py-12 text-gray-400">読み込み中...</div>
       ) : stats && stats.statistics ? (
         <div className="lg:flex-1 lg:min-h-0 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-4">
-          {/* 左: 数字と補正、その下に長さの分布と1日の登録数（2026-10-26。空いていた所を埋める） */}
+          {/* 左: 数字と補正、その下に長さと直径の分布（2026-10-26。空いていた所を埋める。右のグラフは1日の登録数から直径に変更） */}
           <div className="lg:overflow-hidden lg:min-h-0 lg:flex lg:flex-col">
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="bg-gray-800 rounded-lg p-3">
@@ -140,7 +140,7 @@ export default function SizeStatsAdminPage() {
             {/* 残りの高さをグラフが使い、左右の下の端がそろう（画面の高さに合わせて自動でグラフの高さが変わる） */}
             <div className="grid grid-cols-2 gap-3 mb-4 lg:mb-0 lg:flex-1 lg:min-h-0">
               <LengthHistogram rows={stats.rawData} range={stats.admin.lengthRangeMm} avgMm={parseFloat(stats.statistics.avgLength)} />
-              <DailyRegistrations rows={stats.rawData} />
+              <DiameterHistogram rows={stats.rawData} range={stats.admin.lengthRangeMm} avgMm={parseFloat(stats.statistics.avgDiameter)} />
             </div>
           </div>
 
@@ -233,19 +233,29 @@ function LengthHistogram({ rows, range, avgMm }: { rows: Row[]; range: { min: nu
   );
 }
 
-/** 1日の登録数（直近28日・日本時間）。サイズ比較ツールがどれくらい使われているか */
-function DailyRegistrations({ rows }: { rows: Row[] }) {
-  const day = (t: number) => new Date(t + 9 * 3_600_000).toISOString().slice(0, 10);
-  const counts = new Map<string, number>();
-  for (const r of rows) counts.set(day(new Date(r.created_at).getTime()), (counts.get(day(new Date(r.created_at).getTime())) ?? 0) + 1);
-  const days = Array.from({ length: 28 }, (_, i) => day(Date.now() - (27 - i) * 86_400_000));
-  const total = days.reduce((a, d) => a + (counts.get(d) ?? 0), 0);
+/** 直径の分布（2mm ごと。28mm 未満と 52mm 以上はまとめる）。公開中の平均が入る棒を黄色に。長さが範囲外の登録は除く（平均と同じ対象） */
+function DiameterHistogram({ rows, range, avgMm }: { rows: Row[]; range: { min: number; max: number }; avgMm: number }) {
+  const from = 28;
+  const to = 52;
+  const step = 2;
+  const inRange = rows.filter((r) => r.length_mm >= range.min && r.length_mm <= range.max);
+  const count = (to - from) / step + 2;
+  const binOf = (mm: number) => Math.min(Math.max(Math.floor((mm - from) / step) + 1, 0), count - 1);
+  const bins = Array.from({ length: count }, () => 0);
+  for (const r of inRange) bins[binOf(r.diameter_mm)]++;
   return (
     <Bars
-      title="1日の登録数"
-      note={`直近28日（合計 ${total}件・1日平均 ${(total / 28).toFixed(1)}件）`}
-      highlight={27}
-      bars={days.map((d, i) => ({ label: `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`, tick: i % 7 === 0 || i === 27 ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : '', value: counts.get(d) ?? 0 }))}
+      title="直径の分布"
+      note={`2mm ごとの件数（${inRange.length}件）。黄色は公開中の平均が入る所`}
+      highlight={binOf(avgMm)}
+      bars={bins.map((value, i) => {
+        const mm = from + (i - 1) * step;
+        return {
+          label: i === 0 ? `${from}mm 未満` : i === count - 1 ? `${to}mm 以上` : `${mm}〜${mm + step - 1}mm`,
+          tick: i === 0 ? `<${from}` : i === count - 1 ? `${to}+` : mm % 8 === 0 ? String(mm) : '',
+          value,
+        };
+      })}
     />
   );
 }
