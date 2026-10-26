@@ -332,26 +332,6 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Claude に本文を2案書かせる（/api/admin/x-posts/ai-draft）。URL・先頭の【PR】などは API 側で付く。選んだ案が本文に入る
-  const [aiDrafts, setAiDrafts] = useState<string[] | null>(null);
-  async function aiDraft() {
-    setStatus('AI が書いています...');
-    setAiDrafts(null);
-    const response = await fetch(`/api/admin/x-posts/ai-draft?contentId=${encodeURIComponent(video.dmm_content_id)}`);
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      setStatus(data?.error ?? 'AI で書けませんでした');
-      return;
-    }
-    if (data?.skipped) {
-      setStatus(data.skipped);
-      return;
-    }
-    setAiDrafts(data.drafts as string[]);
-    setText((t) => t ?? (data.drafts as string[])[0]);
-    setStatus(`AI の案を2つ作りました（約${data.yen}円）。下の「案1」「案2」で入れ替えられます`);
-  }
-
   async function compose() {
     setStatus('作成中...');
     const response = await fetch(`/api/admin/x-posts/compose?contentId=${encodeURIComponent(video.dmm_content_id)}`);
@@ -474,9 +454,6 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
             <button onClick={compose} className="flex-1 bg-blue-600 hover:bg-blue-500 rounded px-3 py-2 text-sm font-bold">
               投稿文を作る
             </button>
-            <button onClick={aiDraft} className="flex-1 bg-violet-700 hover:bg-violet-600 rounded px-3 py-2 text-sm font-bold" title="Claude が作品の事実から本文を2案書きます（1回 約2円）">
-              AI で書く（2案）
-            </button>
           </div>
         )}
 
@@ -523,11 +500,6 @@ function VideoCard({ video, onPosted, onUndone }: { video: VideoItem; onPosted: 
               >
                 紹介済みにする
               </button>
-              {aiDrafts && aiDrafts.map((d, i) => (
-                <button key={i} onClick={() => setText(d)} className={`px-2.5 py-1.5 rounded text-xs ${text === d ? 'bg-violet-700 text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}>
-                  案{i + 1}
-                </button>
-              ))}
               <button
                 onClick={rerollHeading}
                 className="ml-auto text-xs text-gray-400 hover:text-gray-200 underline"
