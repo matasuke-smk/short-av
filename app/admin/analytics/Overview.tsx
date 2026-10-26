@@ -10,6 +10,8 @@ import { NOT_NON_X_CHANNELS } from './view-keys';
  */
 
 const IN_APP_BROWSERS = ['Safari (in-app)', 'Android Webview'];
+// 来た元が記録されなかった訪問の流入元（SNS は含めない。X 自身が Organic Social に入るため）
+const UNKNOWN_SOURCE_CHANNELS = ['Unassigned', '(not set)', ''];
 const FANZA_EVENTS = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 
 const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
@@ -45,8 +47,9 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
   // 0: 期間全体 [activeUsers, newUsers, sessions, engagement]
   const totalUsers = (reports[0] ?? [])[0]?.metrics[0] ?? 0;
-  // 来た元が記録されず（Unassigned・(not set) など）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）
-  const unknownInApp = (r: ReportRow) => NOT_NON_X_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
+  // 来た元が記録されず（Unassigned・(not set)）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）。
+  // SNS（Organic Social）は X 自身が含まれるので入れない（入れると X を二重に数え、押した人の X が全体より大きくなった。2026-10-27）
+  const unknownInApp = (r: ReportRow) => UNKNOWN_SOURCE_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
   const xUsers = sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
   const clickers = sum(reports[39] ?? []);
   const xClickers = sum(reports[38] ?? []) + sum(reports[37] ?? [], unknownInApp);
