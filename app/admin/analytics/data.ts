@@ -177,6 +177,16 @@ function collapseCountry(rows: ReportRow[], split: CountrySplit, country: Countr
   return out;
 }
 // X の動画の投稿（utm_campaign=x_post）から来た人の訪問・再生・FANZA へのクリック
+// X から来た訪問（来た元が x・t.co・twitter）と Bluesky から来た訪問
+const fromXSource = { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } };
+const fromBluesky = {
+  orGroup: {
+    expressions: [
+      { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'bluesky' } } },
+      { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'bsky' } } },
+    ],
+  },
+};
 const fromXVideoPost = and(eventIn(['page_view', 'video_view', 'dmm_link_click']), { filter: { fieldName: 'sessionCampaignName', stringFilter: { value: 'x_post' } } });
 const doujinEvents = {
   orGroup: {
@@ -364,14 +374,19 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
         },
       }),
     },
-    // 36: X から来た人（来た元が x・t.co・twitter）のブラウザごとの人数（ページを見た人・FANZA へのクリックをした人）。
+    // 36: X から来た人（来た元が x・t.co・twitter）のブラウザごとの人数（ページを見た人）。
     // アプリの中のブラウザ以外（Safari・Chrome など）は、X から開き直した人。そのクリックは報酬になる（2026-10-26）
-    {
-      dateRanges,
-      dimensions: [{ name: 'eventName' }, { name: 'browser' }],
-      metrics: [{ name: 'totalUsers' }],
-      dimensionFilter: and(eventIn(['page_view', 'dmm_link_click']), { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } }),
-    },
+    { dateRanges, dimensions: [{ name: 'eventName' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIs('page_view'), fromXSource) },
+    // 37〜40: FANZA へのリンク（作品・バナー・ウィジェット・クーポン・初めての人向け）のどれかを押した人の数。
+    // イベントで分けずに数えるので、作品のリンクとバナーの両方を押した人も1人になる（2026-10-26 ユーザーの指摘。以前は作品のリンクだけを数えていた）
+    // 37: 流入元×ブラウザごと（「どこから来たか」の表と X 以外のカード）
+    { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 200 },
+    // 38: X から来た人のうち、ブラウザごと
+    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromXSource) },
+    // 39: 全員（FANZA のカードの人数）、ブラウザごと
+    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS) },
+    // 40: Bluesky から来た人
+    { dateRanges, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromBluesky) },
   ];
   // 35: 日別の流入元（人数）。「X 以外から来た人」の推移（直近28日）に使う。表示中の期間に関係なく28日固定で取る（2026-10-25）。
   // 日本時間のずれの補正（jstDaysFilter）はかけない（10/7 以前の日が1日ずれることがあるが、推移を見る用途なので許容）
@@ -455,6 +470,10 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
     reports[33] = work[6] ?? [];
     reports[34] = work[7] ?? [];
     reports[36] = work[8] ?? [];
+    reports[37] = work[9] ?? [];
+    reports[38] = work[10] ?? [];
+    reports[39] = work[11] ?? [];
+    reports[40] = work[12] ?? [];
     reports[31] = work[4];
     // 32: 同人誌の時間帯ごと [表示した人数, FANZA へのクリック, 表示回数]（日時のまま。getRangeData で日本時間の0〜23時に直す）
     reports[32] = work[5].map((r) => {
@@ -597,8 +616,8 @@ const getRangeData = unstable_cache(
     const result = (country: Country) => ({ reports: byCountry[country], db, weekday: weekdays[country], warning, doujinInfo });
     return { jp: result('jp'), all: result('all') };
   },
-  // v28: レポート36（X から来た人のブラウザごと）を足したので、足す前の使い回しの結果を使わないよう変える（2026-10-26。0人と出た）
-  ['admin-analytics-v28'],
+  // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
+  ['admin-analytics-v29'],
   { revalidate: 300 },
 );
 
