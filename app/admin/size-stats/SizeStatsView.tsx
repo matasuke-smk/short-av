@@ -31,202 +31,143 @@ interface SizeStatistics {
   }>;
 }
 
+/**
+ * サイズ統計（管理画面）。2026-10-26: PC はスクロールせずに見られるよう、左に数字と補正、右に収集データ（表の中だけスクロール）。
+ * フィルター（測定時の状態・年齢層）はユーザーが使っていないのでなくした（サイトに出しているのと同じ「勃起時・全年齢」で集計）
+ */
 export default function SizeStatsAdminPage() {
   const [stats, setStats] = useState<SizeStatistics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [erectionState, setErectionState] = useState('erect');
-  const [ageGroup, setAgeGroup] = useState('');
 
   useEffect(() => {
-    fetchStats();
-  }, [erectionState, ageGroup]);
-
-  async function fetchStats() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        erectionState,
-        ...(ageGroup && { ageGroup }),
-      });
-
-      const response = await fetch(`/api/admin/size-stats?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+    (async () => {
+      try {
+        const response = await fetch('/api/admin/size-stats?erectionState=erect');
+        if (response.ok) setStats(await response.json());
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+    })();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">サイズ統計ダッシュボード</h1>
+    <div className="min-h-screen lg:h-[100dvh] lg:min-h-0 lg:flex lg:flex-col bg-gray-900 text-white px-3 py-4 md:p-6 lg:px-5 lg:py-4">
+      <h1 className="text-xl md:text-2xl font-bold mb-4 lg:mb-3">サイズ統計</h1>
 
-        {/* フィルター */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-8">
-          <h2 className="text-xl font-bold mb-4">フィルター</h2>
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">測定時の状態</label>
-              <select
-                value={erectionState}
-                onChange={(e) => setErectionState(e.target.value)}
-                className="bg-gray-700 text-white px-4 py-2 rounded"
-              >
-                <option value="erect">勃起時</option>
-                <option value="flaccid">通常時</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">年齢層</label>
-              <select
-                value={ageGroup}
-                onChange={(e) => setAgeGroup(e.target.value)}
-                className="bg-gray-700 text-white px-4 py-2 rounded"
-              >
-                <option value="">全年齢</option>
-                <option value="20s">20代</option>
-                <option value="30s">30代</option>
-                <option value="40s">40代</option>
-                <option value="50s">50代以上</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* 統計サマリー */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400">読み込み中...</div>
-          </div>
-        ) : stats && stats.statistics ? (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="text-gray-400 text-sm mb-2">平均に使った件数</div>
-                <div className="text-3xl font-bold">{stats.count}</div>
-                <div className="text-gray-500 text-sm">
-                  （{erectionState === 'flaccid' ? '通常時' : '勃起時'}・{stats.admin.lengthRangeMm.min / 10}〜{stats.admin.lengthRangeMm.max / 10}cm）
+      {loading ? (
+        <div className="text-center py-12 text-gray-400">読み込み中...</div>
+      ) : stats && stats.statistics ? (
+        <div className="lg:flex-1 lg:min-h-0 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-4">
+          {/* 左: 数字と補正 */}
+          <div className="lg:overflow-y-auto lg:overflow-x-hidden lg:min-h-0">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="text-gray-400 text-xs mb-1">平均に使った件数</div>
+                <div className="text-2xl font-bold">{stats.count}<span className="ml-0.5 text-sm font-normal text-gray-400">件</span></div>
+                <div className="text-gray-500 text-xs mt-1">
+                  勃起時・{stats.admin.lengthRangeMm.min / 10}〜{stats.admin.lengthRangeMm.max / 10}cm
                 </div>
-                <div className="text-gray-400 text-sm mt-2">
-                  登録 全{stats.admin.total}件（範囲外 {stats.admin.outOfRange}件）
+                <div className="text-gray-400 text-xs mt-1">登録 全{stats.admin.total}件（範囲外 {stats.admin.outOfRange}件）</div>
+              </div>
+
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="text-gray-400 text-xs mb-1">標準偏差</div>
+                <div className="text-sm leading-relaxed">
+                  <div>長さ: <span className="font-bold">{stats.statistics.stdLength}mm</span></div>
+                  <div>直径: <span className="font-bold">{stats.statistics.stdDiameter}mm</span></div>
                 </div>
               </div>
 
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="text-gray-400 text-sm mb-2">平均長さ</div>
-                <div className="text-3xl font-bold">{stats.statistics.avgLength}mm</div>
-                <div className="text-gray-500 text-sm">({(parseFloat(stats.statistics.avgLength) / 10).toFixed(1)}cm)</div>
-                <div className="text-gray-400 text-sm mt-2">
-                  補正 −{stats.admin.correctionMm}mm（補正前 {stats.admin.rawAvgLength}mm と基準 {stats.admin.referenceLengthMm}mm の中間）
-                </div>
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="text-gray-400 text-xs mb-1">平均長さ（公開中）</div>
+                <div className="text-2xl font-bold">{stats.statistics.avgLength}<span className="ml-0.5 text-sm font-normal text-gray-400">mm</span></div>
+                <div className="text-gray-500 text-xs mt-1">{(parseFloat(stats.statistics.avgLength) / 10).toFixed(1)}cm・補正 −{stats.admin.correctionMm}mm</div>
               </div>
 
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="text-gray-400 text-sm mb-2">平均直径</div>
-                <div className="text-3xl font-bold">{stats.statistics.avgDiameter}mm</div>
-                <div className="text-gray-400 text-sm mt-2">
-                  補正 −{stats.admin.diameterCorrectionMm}mm（補正前 {stats.admin.rawAvgDiameter}mm と基準 {stats.admin.referenceDiameterMm}mm の中間）
-                </div>
-              </div>
-
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="text-gray-400 text-sm mb-2">標準偏差</div>
-                <div className="text-lg">
-                  <div>長さ: {stats.statistics.stdLength}mm</div>
-                  <div>直径: {stats.statistics.stdDiameter}mm</div>
-                </div>
+              <div className="bg-gray-800 rounded-lg p-4">
+                <div className="text-gray-400 text-xs mb-1">平均直径（公開中）</div>
+                <div className="text-2xl font-bold">{stats.statistics.avgDiameter}<span className="ml-0.5 text-sm font-normal text-gray-400">mm</span></div>
+                <div className="text-gray-500 text-xs mt-1">補正 −{stats.admin.diameterCorrectionMm}mm</div>
               </div>
             </div>
 
             {/* 長さ・直径の補正 */}
-            <div className="bg-gray-800 rounded-lg p-6 mb-8">
-              <h2 className="text-xl font-bold mb-1">長さ・直径の補正</h2>
-              <p className="text-gray-400 text-sm mb-4">
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 lg:mb-0">
+              <h2 className="text-base font-bold mb-1">長さ・直径の補正</h2>
+              <p className="text-gray-400 text-xs mb-3 leading-relaxed">
                 自己申告は大きめに出やすいため、平均を「集めたデータの平均と基準の中間」にしています（差し引く量 = 差の半分。補正前が基準以下なら補正なし）。
                 基準は Veale ら（2015年）の平均（サイズ比較ツールに載せている値。直径は周囲から換算）。サイトには補正の説明は出していません。
               </p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm whitespace-nowrap">
-                  <thead className="text-gray-400">
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-2 pr-4 font-normal"></th>
-                      <th className="text-right py-2 px-4 font-normal">長さ</th>
-                      <th className="text-right py-2 pl-4 font-normal">直径</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-gray-700">
-                      <td className="py-2 pr-4">補正前の平均</td>
-                      <td className="text-right px-4">{stats.admin.rawAvgLength}mm</td>
-                      <td className="text-right pl-4">{stats.admin.rawAvgDiameter}mm</td>
-                    </tr>
-                    <tr className="border-b border-gray-700">
-                      <td className="py-2 pr-4 text-gray-400">基準</td>
-                      <td className="text-right px-4 text-gray-400">{stats.admin.referenceLengthMm}mm</td>
-                      <td className="text-right pl-4 text-gray-400">{stats.admin.referenceDiameterMm}mm</td>
-                    </tr>
-                    <tr className="border-b border-gray-700">
-                      <td className="py-2 pr-4">差し引く量</td>
-                      <td className="text-right px-4">{stats.admin.correctionMm}mm</td>
-                      <td className="text-right pl-4">{stats.admin.diameterCorrectionMm}mm</td>
-                    </tr>
-                    <tr className="bg-blue-900/20">
-                      <td className="py-2 pr-4">補正後の平均<span className="ml-1 text-xs text-blue-300">公開中</span></td>
-                      <td className="text-right px-4">{stats.statistics.avgLength}mm</td>
-                      <td className="text-right pl-4">{stats.statistics.avgDiameter}mm</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <table className="w-full text-sm">
+                <thead className="text-gray-400">
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-2 pr-4 font-normal"></th>
+                    <th className="text-right py-2 px-2 font-normal">長さ</th>
+                    <th className="text-right py-2 pl-2 font-normal">直径</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-700">
+                    <td className="py-2 pr-2">補正前の平均</td>
+                    <td className="text-right px-2">{stats.admin.rawAvgLength}mm</td>
+                    <td className="text-right pl-2">{stats.admin.rawAvgDiameter}mm</td>
+                  </tr>
+                  <tr className="border-b border-gray-700">
+                    <td className="py-2 pr-2 text-gray-400">基準</td>
+                    <td className="text-right px-2 text-gray-400">{stats.admin.referenceLengthMm}mm</td>
+                    <td className="text-right pl-2 text-gray-400">{stats.admin.referenceDiameterMm}mm</td>
+                  </tr>
+                  <tr className="border-b border-gray-700">
+                    <td className="py-2 pr-2">差し引く量</td>
+                    <td className="text-right px-2">{stats.admin.correctionMm}mm</td>
+                    <td className="text-right pl-2">{stats.admin.diameterCorrectionMm}mm</td>
+                  </tr>
+                  <tr className="bg-blue-900/20">
+                    <td className="py-2 pr-2">補正後の平均<span className="ml-1 text-xs text-blue-300">公開中</span></td>
+                    <td className="text-right px-2">{stats.statistics.avgLength}mm</td>
+                    <td className="text-right pl-2">{stats.statistics.avgDiameter}mm</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-
-            {/* 生データテーブル */}
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h2 className="text-xl font-bold mb-4">収集データ</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left py-3 px-4">ID</th>
-                      <th className="text-left py-3 px-4">長さ(mm)</th>
-                      <th className="text-left py-3 px-4">直径(mm)</th>
-                      <th className="text-left py-3 px-4">状態</th>
-                      <th className="text-left py-3 px-4">年齢層</th>
-                      <th className="text-left py-3 px-4">登録日時</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.rawData.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-700">
-                        <td className="py-3 px-4">{item.id}</td>
-                        <td className="py-3 px-4">{item.length_mm}</td>
-                        <td className="py-3 px-4">{item.diameter_mm}</td>
-                        <td className="py-3 px-4">
-                          {item.erection_state === 'erect' ? '勃起時' : '通常時'}
-                        </td>
-                        <td className="py-3 px-4">{item.age_group || '-'}</td>
-                        <td className="py-3 px-4">
-                          {new Date(item.created_at).toLocaleString('ja-JP')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="bg-gray-800 rounded-lg p-12 text-center">
-            <div className="text-gray-400">データがありません</div>
           </div>
-        )}
-      </div>
+
+          {/* 右: 収集データ（PC は表の中だけスクロール） */}
+          <div className="bg-gray-800 rounded-lg p-4 lg:min-h-0 lg:flex lg:flex-col">
+            <h2 className="text-base font-bold mb-2">
+              収集データ<span className="ml-2 text-xs font-normal text-gray-400">{stats.rawData.length}件（新しい順）</span>
+            </h2>
+            <div className="overflow-x-auto lg:overflow-y-auto lg:flex-1 lg:min-h-0">
+              <table className="w-full text-sm whitespace-nowrap">
+                <thead className="sticky top-0 bg-gray-800 text-gray-400">
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-2 px-3 font-normal">ID</th>
+                    <th className="text-right py-2 px-3 font-normal">長さ(mm)</th>
+                    <th className="text-right py-2 px-3 font-normal">直径(mm)</th>
+                    <th className="text-left py-2 px-3 font-normal">年齢層</th>
+                    <th className="text-left py-2 px-3 font-normal">登録日時</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.rawData.map((item) => (
+                    <tr key={item.id} className="border-b border-gray-700">
+                      <td className="py-2 px-3 text-gray-400">{item.id}</td>
+                      <td className="py-2 px-3 text-right">{item.length_mm}</td>
+                      <td className="py-2 px-3 text-right">{item.diameter_mm}</td>
+                      <td className="py-2 px-3">{item.age_group || '-'}</td>
+                      <td className="py-2 px-3 text-gray-400">{new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-lg p-12 text-center text-gray-400">データがありません</div>
+      )}
     </div>
   );
 }
