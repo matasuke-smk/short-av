@@ -59,7 +59,7 @@ export default function ArticleIdeas() {
 
   const row = rows?.[index];
   return (
-    <section className="rounded-xl border border-gray-800 bg-gray-900">
+    <section className="rounded-xl border border-gray-700 bg-gray-800">
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-800 px-4 py-2.5">
         <h2 className="text-sm font-bold">記事のネタ（検索語から AI が毎週出す）</h2>
         {rows && rows.length > 1 && (
