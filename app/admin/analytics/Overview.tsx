@@ -20,10 +20,12 @@ export type KeyNumbers = {
   fanzaNormalClicks: number; // そのうち普段のブラウザ（Safari・Chrome など）から
   clickers: number; // FANZA へのリンクのどれかを押した人
   normalClickers: number;
-  xUsers: number; // X から来た人
+  xUsers: number; // X から来た人 = 来た元が X の人 ＋ 来た元が記録されずアプリ内ブラウザで来た人（X のアプリ内とみなす。2026-10-27 ユーザー要望「数字を合わせる」）
   xNormalUsers: number; // そのうち Safari などで開き直して見た人
   xClickers: number;
   xNormalClickers: number;
+  xClicks: number; // X から来た人の FANZA へのクリック回数
+  nonXClicks: number; // = 全体のクリック回数 − X
   totalUsers: number; // 期間全体の人数（GA の重複を除いた人数）
   nonXUsers: number; // X 以外から来た人 = 全体 − X から来た人（来た元が記録されなかった人も含む。X ＋ X 以外 ＝ 全体 になるように。2026-10-27）
   nonXClickers: number; // = 押した人 − X から来て押した人
@@ -43,11 +45,17 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
   // 0: 期間全体 [activeUsers, newUsers, sessions, engagement]
   const totalUsers = (reports[0] ?? [])[0]?.metrics[0] ?? 0;
-  const xUsers = sum(xSeen);
+  // 来た元が記録されず（Unassigned・(not set) など）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）
+  const unknownInApp = (r: ReportRow) => NOT_NON_X_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
+  const xUsers = sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
   const clickers = sum(reports[39] ?? []);
-  const xClickers = sum(reports[38] ?? []);
+  const xClickers = sum(reports[38] ?? []) + sum(reports[37] ?? [], unknownInApp);
+  const fanzaClicks = sum(fanzaRows);
+  const xClicks = sum(reports[38] ?? [], undefined, 1) + sum(reports[37] ?? [], unknownInApp, 1);
   return {
-    fanzaClicks: sum(fanzaRows),
+    fanzaClicks,
+    xClicks: Math.min(xClicks, fanzaClicks),
+    nonXClicks: Math.max(0, fanzaClicks - xClicks),
     fanzaNormalClicks: sum(fanzaRows, (r) => isNormal(r.dimensions[1])),
     clickers,
     normalClickers: sum(reports[39] ?? [], (r) => isNormal(r.dimensions[0])),
