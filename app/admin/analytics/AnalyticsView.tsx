@@ -987,22 +987,7 @@ function RangeBody({
               )
             }
           />
-          <Card
-            label="X 以外から来た人（検索・ブックマーク・ほかのサイト・Bluesky）"
-            value={fmt(nonX.users + bsky.users)}
-            unit="人"
-            sub={`FANZA をクリックした人 ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
-            onClick={() => setDetail('channels')}
-            extra={
-              <>
-                <TrendLine data={nonXDaily} height={34} />
-                <ExtraRow name="Bluesky" right={`${fmt(bsky.users)}人・クリック ${fmt(bsky.clickUsers)}人（${pct(bsky.clickUsers, bsky.users)}）`} />
-                {channelRows.slice(0, 3).map((r) => (
-                  <ExtraRow key={r.channel} name={channelLabel(r.channel).split('（')[0]} right={`${fmt(r.users)}人・クリック ${fmt(r.clickUsers)}人（${pct(r.clickUsers, r.users)}）`} />
-                ))}
-              </>
-            }
-          />
+          {/* 「X 以外から来た人」のカードはいちばん上に移した（推移・Bluesky・流入元は、押すと開く一覧にある。2026-10-26） */}
         </div>
         </div>
         </div>
