@@ -11,6 +11,7 @@ type Video = Database['public']['Tables']['videos']['Row'];
 
 interface LikedModalProps {
   isOpen: boolean;
+  onSwitchTab?: () => void; // 「いいね｜履歴」のもう一方に切り替える（下のボタンを「保存」1つにまとめたため。2026-10-26）
   onClose: () => void;
   videoPool: Video[];
   videos: Video[];
@@ -18,7 +19,7 @@ interface LikedModalProps {
   onShowDoujin?: () => void; // 「同人誌」のタブを押したとき
 }
 
-export default function LikedModal({ isOpen, onClose, videoPool, videos, onReplaceVideos, onShowDoujin }: LikedModalProps) {
+export default function LikedModal({ isOpen, onSwitchTab, onClose, videoPool, videos, onReplaceVideos, onShowDoujin }: LikedModalProps) {
   const [likedVideos, setLikedVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
@@ -70,7 +71,14 @@ export default function LikedModal({ isOpen, onClose, videoPool, videos, onRepla
           {/* ヘッダー（縦画面のみ、PC時は非表示） */}
           <div className="landscape:hidden lg:!block bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 shrink-0">
             <div className="px-4 py-4 flex items-center justify-between">
+{onSwitchTab ? (
+                <div className="flex rounded-full bg-gray-800 p-1 text-sm font-bold">
+                  <button type="button" className="rounded-full px-4 py-1 bg-white text-black">いいね</button>
+                  <button type="button" onClick={onSwitchTab} className="rounded-full px-4 py-1 text-gray-300">履歴</button>
+                </div>
+              ) : (
               <h2 className="text-xl font-bold text-white">いいね済み動画<span className="ml-2 align-middle bg-yellow-400 text-black px-1.5 py-0.5 rounded text-[10px] font-bold">PR</span></h2>
+              )}
               <button
                 onClick={(e) => {
                   e.preventDefault();
