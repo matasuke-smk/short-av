@@ -50,6 +50,7 @@ const ActressModal = dynamic(() => import('./ActressModal'), {
   ssr: false,
 });
 import {
+  trackNavButton,
   sendGAEvent,
   trackVideoView,
   trackLike,
@@ -508,7 +509,30 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setCurrentIndex(targetIndex);
     setIsFiniteList(true);
     setScrollSeq((n) => n + 1);
+    // 検索・いいねなどで並べ直したときは「4分以上」の表示を消す（「4分以上」のときは呼んだあとで付け直す）
+    setLongCount(null);
   }, []);
+
+  // 下のボタン「4分以上」: サンプルが4分以上の作品だけを並べ直してスワイプで見る（2026-10-26）
+  const [longLoading, setLongLoading] = useState(false);
+  // 「4分以上」で並べ直した作品の数（並べ直している間だけ。上の「動画｜同人誌」の代わりに表示して、今どの作品を見ているかを示す）
+  const [longCount, setLongCount] = useState<number | null>(null);
+  const showLongSamples = useCallback(async () => {
+    if (longLoading) return;
+    setLongLoading(true);
+    trackNavButton('long_sample');
+    try {
+      const { data } = await supabase.from('videos').select('*').gte('sample_seconds', 240).order('rank_position', { ascending: true, nullsFirst: false }).limit(300);
+      const list = (data ?? []) as Video[];
+      if (list.length === 0) return;
+      // 毎回同じ並びにならないよう、人気の上位を前に寄せつつ混ぜる
+      const shuffled = list.map((v, i) => ({ v, k: i + Math.random() * 40 })).sort((a, b) => a.k - b.k).map((x) => x.v);
+      replaceVideos(shuffled, shuffled[0].dmm_content_id);
+      setLongCount(shuffled.length);
+    } finally {
+      setLongLoading(false);
+    }
+  }, [longLoading, replaceVideos]);
 
   const replaceWithDoujin = useCallback((list: Doujin[], selectedId: string) => {
     const base = videos.find((v) => !isDoujinSlide(v)) ?? videos[0];
@@ -940,7 +964,23 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setScrollSeq((n) => n + 1);
   }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
 
-  const modeToggle = (
+  const modeToggle = longCount !== null ? (
+    // 「4分以上」で見ている間は、その表示と、普段の並びに戻るボタン
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 pl-3 pr-1 py-0.5 text-sm font-bold text-gray-950 shadow-lg shadow-amber-500/30">
+      <span>{t('longSampleNow')}（{longCount}{t('worksUnit')}）</span>
+      <button
+        type="button"
+        onClick={() => {
+          trackNavButton('home', { from: '4分以上' });
+          window.location.href = '/';
+        }}
+        className="rounded-full bg-black/20 hover:bg-black/30 w-6 h-6 flex items-center justify-center"
+        aria-label={t('backToAll')}
+      >
+        ×
+      </button>
+    </div>
+  ) : (
     <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label={t('modeToggle')}>
       {(['video', 'doujin'] as const).map((key) => (
         <button
@@ -1437,7 +1477,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* ホームボタン */}
           <button
             onClick={() => {
-              // トップを読み直して通常のフィード（新しい動画セット）に戻る
+              // トップを読み直して通常のフィード（新しい動画セット）に戻る（押した記録を送ってから移る）
+              trackNavButton('home');
               window.location.href = doujinMode ? '/?mode=doujin' : '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1448,7 +1489,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <span className="text-xs lg:!text-sm">{t('home')}</span>
           </button>
 
-          {/* いいねボタン */}
+          {/* 「保存」（いいね・履歴をまとめた。押すといいね、中で履歴に切り替え）と、右端に目立つ色で「4分以上」（サンプルが4分以上の作品だけでスワイプ。同人誌では出さない）。2026-10-26 */}
           <button
             onClick={() => {
               if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
@@ -1457,24 +1498,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
-            <span className="text-xs lg:!text-sm">{t('likedList')}</span>
+            <span className="text-xs lg:!text-sm">{t('saved')}</span>
           </button>
 
-          {/* 履歴ボタン */}
+          {doujinMode ? null : (
           <button
-            onClick={() => {
-              if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
-              trackModalOpen('history');
-            }}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+            onClick={showLongSamples}
+            className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-xs lg:!text-sm">{t('history')}</span>
+            <span className="text-xs lg:!text-sm">{longLoading ? '…' : t('longSample4')}</span>
           </button>
+          )}
 
           {/* 記事ボタン */}
           <Link
@@ -1530,7 +1569,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
 
           {/* ボタンエリア - 5つに変更、レスポンシブ対応 */}
-          <div className="grid grid-cols-5 gap-3 md:gap-4">
+          <div className={`grid ${doujinMode ? 'grid-cols-4' : 'grid-cols-5'} gap-3 md:gap-4`}>
             {/* 検索ボタン */}
             <button
               onClick={() => {
@@ -1573,7 +1612,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <span className="text-xs md:text-sm">{t('home')}</span>
             </button>
 
-            {/* いいねボタン */}
+            {/* 「保存」（いいね・履歴をまとめた。押すといいね、中で履歴に切り替え）と、右端に目立つ色で「4分以上」（サンプルが4分以上の作品だけでスワイプ。同人誌では出さない）。2026-10-26 */}
             <button
               onClick={() => {
                 if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
@@ -1582,24 +1621,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
-              <span className="text-xs md:text-sm">{t('likedShort')}</span>
+              <span className="text-xs md:text-sm">{t('saved')}</span>
             </button>
 
-            {/* 履歴ボタン */}
+            {doujinMode ? null : (
             <button
-              onClick={() => {
-                if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
-                trackModalOpen('history');
-              }}
-              className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+              onClick={showLongSamples}
+              className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all active:scale-95"
             >
-              <svg className="w-6 h-6 md:w-7 md:h-7 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="w-6 h-6 md:w-7 md:h-7 mb-1 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs md:text-sm">{t('history')}</span>
+              <span className="text-xs md:text-sm">{longLoading ? '…' : t('longSample4')}</span>
             </button>
+            )}
           </div>
 
           {/* ポリシーリンク - レスポンシブ対応 */}
@@ -1892,6 +1929,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
       <LikedModal
         isOpen={showLikedModal}
+        onSwitchTab={() => {
+          setShowLikedModal(false);
+          setShowHistoryModal(true);
+          trackModalOpen('history');
+        }}
         onClose={() => {
           setShowLikedModal(false);
           trackModalClose('liked');
@@ -1908,6 +1950,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 履歴モーダル */}
       <HistoryModal
         isOpen={showHistoryModal}
+        onSwitchTab={() => {
+          setShowHistoryModal(false);
+          setShowLikedModal(true);
+          trackModalOpen('liked');
+        }}
         onClose={() => {
           setShowHistoryModal(false);
           trackModalClose('history');

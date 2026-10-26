@@ -200,6 +200,11 @@ export const trackModeSwitch = (mode: 'video' | 'doujin') => {
 };
 
 // モーダル開閉イベント
+// 下のボタンの「ホーム」「4分以上」（モーダルを開かないボタン）を押した（2026-10-26。どれくらい使われているかを見る）
+export const trackNavButton = (button: 'home' | 'long_sample', options?: Record<string, any>) => {
+  sendGAEvent('nav_button', { button: { home: 'ホーム', long_sample: '4分以上' }[button], ...options });
+};
+
 export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
   sendGAEvent('modal_open', {
     modal_type: LABELS.modal_type[modalType],
