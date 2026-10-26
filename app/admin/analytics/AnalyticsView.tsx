@@ -1337,8 +1337,8 @@ function RangeBody({
         )}
         {detail === 'channels' && (
           <DetailModal
-            title="どこから来たか・端末"
-            note="流入元ごとの人数。クリック率 = その流入元から来た人のうち FANZA へのクリックをした人の割合。クリックの多い順。"
+            title="X 以外から来た人"
+            note="検索・AI・ブックマーク・ほかのサイト・Bluesky から来た人（2026-10-26 に「X から来た人」とそろえて題名を変更）。クリック率 = その流入元から来た人のうち FANZA へのクリックをした人の割合。下の「来た元の内訳」「端末」は、X から来た人も含む全員の数。"
             onClose={closeDetail}
           >
             <div className="mb-4">
@@ -1409,7 +1409,7 @@ function RangeBody({
                 </table>
               </div>
             )}
-            <h3 className="text-sm font-bold mt-6 mb-1">来た元の内訳</h3>
+            <h3 className="text-sm font-bold mt-6 mb-1">来た元の内訳（全員）</h3>
             <p className="text-xs text-gray-400 mb-2">来た元・種類・目印（「X の投稿」= 管理画面で作った X の投稿の URL から来た訪問）。「記録なし」「GA が判定できず」は、GA が来た元を記録できなかった訪問。</p>
             {sources.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
@@ -1439,7 +1439,7 @@ function RangeBody({
                 </table>
               </div>
             )}
-            <h3 className="text-sm font-bold mt-6 mb-3">端末</h3>
+            <h3 className="text-sm font-bold mt-6 mb-3">端末（全員）</h3>
             {devices.length === 0 ? <p className="text-sm text-gray-400">まだデータがありません。</p> : devices.map((r) => (
               <Bar key={r.dimensions[0]} label={deviceLabel(r.dimensions[0])} value={r.metrics[0]} max={devices[0]?.metrics[0] ?? 1} right={`${fmt(r.metrics[0])}人（${pct(r.metrics[0], sumOf(devices))}）`} />
             ))}
