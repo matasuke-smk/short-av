@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { getLiveHourly, recordGaRealtime } from '@/lib/ga-realtime';
 import AnalyticsView, { type DataKey, type RangePair } from './AnalyticsView';
-import { getYesterdaySoFar, loadRange } from './data';
+import { getYesterdaySoFar, loadRange, loadTrendsPair } from './data';
 import { VIEW_KEYS, type Country, type ViewKey } from './view-keys';
 import { getDmmReports } from '@/lib/dmm-reports';
 import { getLatestDailySummary } from '@/lib/daily-summary';
@@ -17,9 +17,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
 
   // 開いたときは、表示する期間だけを取得する（曜日ごとの平均は28日間）。残りの期間は画面が表示されてから
   // /api/admin/analytics で1つずつ取る（以前は5つの期間をまとめて取得し、GA への問い合わせが約40回になって開くのが遅かった）
-  const firstKey: DataKey = initialRange === 'weekday' ? '28d' : initialRange;
+  const firstKey: DataKey = initialRange;
   // 期間の集計・昨日の同じ時刻まで・いま見られているページ・リアルタイムの記録は互いに関係ないので、まとめて待つ
-  const [first, yesterdaySoFar, realtime, live, dmmReports, dailySummary] = await Promise.all([
+  const [first, yesterdaySoFar, realtime, live, dmmReports, dailySummary, trends] = await Promise.all([
     loadRange(firstKey),
     getYesterdaySoFar(bucket).catch((error) => {
       console.error('[analytics] 昨日の同じ時刻までの集計を取得できませんでした:', error);
@@ -36,13 +36,16 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       return { today, yesterday, dayBefore };
     })(),
     // DMM アフィリエイトの実績（管理画面の「FANZA 実績」で貼り付けたもの。表がまだなければ空）
-    getDmmReports(35).catch(() => []),
+    // 先月の1日から（「今月」の先月との比較・28日の推移に使う）
+    getDmmReports(70).catch(() => []),
     // 今朝の点検の要約（Claude が毎朝 9:40 に書く。sql/019 未実行や未生成なら null）
     getLatestDailySummary(),
+    // カードの28日の推移と「今月」の日ごとのグラフ（1時間ごとに取り直す）
+    loadTrendsPair(),
   ]);
   after(() => recordGaRealtime().catch((error) => console.error('[analytics] リアルタイムを記録できませんでした:', error?.message ?? error)));
   const data: Partial<Record<DataKey, RangePair>> = { [firstKey]: first };
   const fetchedAt = new Date().toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
 
-  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} dmmReports={dmmReports} dailySummary={dailySummary} />;
+  return <AnalyticsView data={data} initialRange={initialRange} fetchedAt={fetchedAt} realtime={realtime} live={live} yesterdaySoFar={yesterdaySoFar} country={country} dmmReports={dmmReports} dailySummary={dailySummary} trends={trends} />;
 }

@@ -3,7 +3,7 @@ import { GaNotConfiguredError, runReports, type ReportRequest, type ReportRow } 
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { fetchDoujinByIds } from '@/lib/doujin';
 import type { DataKey, RangeData, RangePair, WeekdayHourly, YesterdaySoFar } from './AnalyticsView';
-import { xPostContentId, type Country } from './view-keys';
+import { xPostContentId, NOT_NON_X_CHANNELS, type Country } from './view-keys';
 import { FUNNEL } from './funnel';
 
 // アクセス解析の集計（GA とデータベース）。画面（page.tsx）と、残りの期間を後から取る API（/api/admin/analytics）で使う
@@ -18,6 +18,31 @@ const RANGES = {
   '28d': { label: '28日間', startDate: '27daysAgo', endDate: 'today', days: 28, offset: 0 },
 } as const;
 type RangeKey = DataKey;
+// 期間（noTzFix: 日本時間への補正（ロサンゼルス時間の記録の数え直し）をしない。月の比較用で、日別の表は使わないため。2026-10-26）
+type Range = { label: string; startDate: string; endDate: string; days: number; offset: number; noTzFix?: boolean };
+
+// 日本時間の今日（年・月・日）
+function jstToday() {
+  const now = new Date(Date.now() + 9 * 3_600_000);
+  return { y: now.getUTCFullYear(), m: now.getUTCMonth(), d: now.getUTCDate() };
+}
+// 今月（1日から今日まで）と、先月の同じ日まで（先月が短いときは先月の末日まで）。2026-10-26
+function monthRange(): Range {
+  const { d } = jstToday();
+  return { label: '今月', startDate: `${d - 1}daysAgo`, endDate: 'today', days: d, offset: 0, noTzFix: true };
+}
+function lastMonthRange(): Range {
+  const { y, m, d } = jstToday();
+  const lastDays = new Date(Date.UTC(y, m, 0)).getUTCDate(); // 先月の日数
+  const day = Math.min(d, lastDays);
+  const offset = Math.round((Date.UTC(y, m, d) - Date.UTC(y, m - 1, day)) / 86_400_000);
+  return { label: '先月の同じ日まで', startDate: `${offset + day - 1}daysAgo`, endDate: `${offset}daysAgo`, days: day, offset, noTzFix: true };
+}
+function rangeOf(key: RangeKey): Range {
+  if (key === 'month') return monthRange();
+  if (key === 'lastMonth') return lastMonthRange();
+  return RANGES[key];
+}
 
 // GA のレポートのタイムゾーンは 2026/10/7 にロサンゼルス時間（日本の16時間遅れ）から日本時間に変えた。
 // 設定を変えたのは正午ごろだが、GA はロサンゼルス時間の日付が変わる時刻（日本時間の 10/7 16時）から日本時間で記録している
@@ -31,7 +56,7 @@ function toJstDateHour(dateHour: string): string {
 }
 
 // 期間に含まれる日（日本時間、YYYYMMDD）
-function jstDays(range: (typeof RANGES)[RangeKey]): Set<string> {
+function jstDays(range: Range): Set<string> {
   const days = new Set<string>();
   for (let i = range.offset; i < range.offset + range.days; i++) {
     const d = new Date(Date.now() + 9 * 3_600_000 - i * 86_400_000);
@@ -88,7 +113,7 @@ function jstDaysFilter(days: string[]) {
 const and = (a: unknown, b: unknown) => (a && b ? { andGroup: { expressions: [a, b] } } : a || b || undefined);
 
 // 日時（dateHour）ごとの行（人数・イベント数・表示回数）を日本時間に直し、期間内の日だけを時間帯（0〜23時）ごとに合計する
-function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): ReportRow[] {
+function toJstHourly(rows: ReportRow[], range: Range): ReportRow[] {
   const days = jstDays(range);
   const byHour = new Map<number, number[]>();
   for (const row of rows) {
@@ -102,7 +127,7 @@ function toJstHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): Repor
 }
 
 // 曜日（日本時間）×時間帯ごとの合計と、その曜日の日数（記録のある日のみ。途中の今日は含めない）
-function toWeekdayHourly(rows: ReportRow[], range: (typeof RANGES)[RangeKey]): WeekdayHourly {
+function toWeekdayHourly(rows: ReportRow[], range: Range): WeekdayHourly {
   const days = jstDays(range);
   const today = [...jstDays(RANGES.today)][0];
   const result: WeekdayHourly = Array.from({ length: 7 }, () => ({ dates: [], hours: Array.from({ length: 24 }, () => [0, 0, 0]) }));
@@ -197,7 +222,7 @@ const doujinEvents = {
   },
 };
 
-async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Record<Country, ReportRow[][]>; warning?: string }> {
+async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRow[][]>; warning?: string }> {
   const dateRanges = [{ startDate: range.startDate, endDate: range.endDate }];
   const funnelEvents = FUNNEL.map((f) => f.event);
   const requests: ReportRequest[] = [
@@ -409,7 +434,7 @@ async function loadGa(range: (typeof RANGES)[RangeKey]): Promise<{ reports: Reco
   // ロサンゼルス時間の記録を含む期間は、日付ではなく日本時間の1日にあたる日時で絞り込む。
   // GA は絞り込んだ範囲で利用者の重複を除いて数えるので、合計の人数も日本時間の区切りで正しく出る
   const days = jstDays(range);
-  const affectedDays = [...days].filter((day) => day <= LAST_AFFECTED_DAY);
+  const affectedDays = range.noTzFix ? [] : [...days].filter((day) => day <= LAST_AFFECTED_DAY);
   if (affectedDays.length > 0) {
     const { dateRanges: wideRanges, filter } = jstDaysFilter([...days]);
     for (const request of [...requests, ...extraRequests, ...answerRequests, ...workActionRequests]) {
@@ -576,7 +601,7 @@ const getDoujinInfoCached = async (ids: string[]) => {
 const getRangeData = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (key: RangeKey, _bucket: number) => {
-    const range = RANGES[key];
+    const range = rangeOf(key);
     const { reports: byCountry, warning } = await loadGa(range);
     // 曜日ごとの平均（28日間）と時間帯は日本のみ・すべてのそれぞれで作る
     const weekdayOf = (reports: ReportRow[][]) => (key === '28d' ? toWeekdayHourly(reports[10], range) : undefined);
@@ -621,7 +646,7 @@ const getRangeData = unstable_cache(
   { revalidate: 300 },
 );
 
-export const RANGE_KEYS = Object.keys(RANGES) as RangeKey[];
+export const RANGE_KEYS = [...Object.keys(RANGES), 'month', 'lastMonth'] as RangeKey[];
 export { getYesterdaySoFar };
 
 // 1つの期間を取得する（失敗したらエラーの文言を返す）。「今日」は10分ごと、それ以外は1時間ごとに取り直す
@@ -640,4 +665,61 @@ export async function loadRange(key: RangeKey): Promise<RangePair> {
     };
     return { jp: failed, all: failed };
   }
+}
+
+/**
+ * カードの「28日の推移」と、「今月」の日ごとのグラフ（今月と先月）に使う日ごとの数字（2026-10-26）。
+ * 先月の1日から今日まで。日本のみ・すべての両方。1時間ごとに取り直す（今日の分は途中）
+ * 10/7 以前の日はロサンゼルス時間の記録のため1日ずれることがあるが、推移を見る用途なので補正しない
+ */
+export type Trends = { dates: string[]; users: number[]; fanzaClicks: number[]; xUsers: number[]; nonXUsers: number[] };
+
+async function loadTrends(): Promise<Record<Country, Trends>> {
+  const { y, m, d } = jstToday();
+  const n = Math.round((Date.UTC(y, m, d) - Date.UTC(y, m - 1, 1)) / 86_400_000) + 1;
+  const dateRanges = [{ startDate: `${n - 1}daysAgo`, endDate: 'today' }];
+  const dims = [{ name: 'date' }, COUNTRY_DIMENSION];
+  const [usersRows, clickRows, xRows, channelRows] = await runReports([
+    { dateRanges, dimensions: dims, metrics: [{ name: 'activeUsers' }], limit: 10000 },
+    { dateRanges, dimensions: dims, metrics: [{ name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 10000 },
+    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIs('page_view'), fromXSource), limit: 10000 },
+    { dateRanges, dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }, COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }], limit: 20000 },
+  ]);
+  const dates = Array.from({ length: n }, (_, i) => {
+    const t = new Date(Date.UTC(y, m - 1, 1 + i));
+    return `${t.getUTCFullYear()}${String(t.getUTCMonth() + 1).padStart(2, '0')}${String(t.getUTCDate()).padStart(2, '0')}`;
+  });
+  const make = (country: Country): Trends => {
+    const series = (rows: ReportRow[], keep: (r: ReportRow) => boolean = () => true) => {
+      const byDate = new Map<string, number>();
+      for (const r of rows) {
+        if (country === 'jp' && r.dimensions[r.dimensions.length - 1] !== 'Japan') continue;
+        if (!keep(r)) continue;
+        byDate.set(r.dimensions[0], (byDate.get(r.dimensions[0]) ?? 0) + r.metrics[0]);
+      }
+      return dates.map((date) => byDate.get(date) ?? 0);
+    };
+    return {
+      dates,
+      users: series(usersRows),
+      fanzaClicks: series(clickRows),
+      xUsers: series(xRows),
+      nonXUsers: series(channelRows, (r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[1])),
+    };
+  };
+  return { jp: make('jp'), all: make('all') };
+}
+
+const getTrendsCached = unstable_cache(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async (_bucket: number) => loadTrends(),
+  ['admin-analytics-trends-v1'],
+  { revalidate: 3600 },
+);
+
+export async function loadTrendsPair(): Promise<Record<Country, Trends> | null> {
+  return getTrendsCached(Math.floor(Date.now() / 3_600_000)).catch((error) => {
+    console.error('[analytics] 日ごとの推移を取得できませんでした:', error);
+    return null;
+  });
 }
