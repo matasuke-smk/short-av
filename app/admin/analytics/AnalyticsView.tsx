@@ -933,8 +933,10 @@ function RangeBody({
                   value: yRow ? fmtOverview(conv(yRow)) : '—',
                   unit: '件',
                   // 並び: 昨日クリック数 → 昨日の報酬 → 今月の成約（2026-10-26 ユーザーの指定）
-                  compare: yRow ? `昨日クリック数 ${fmtOverview(yRow.clicks)}回` : '昨日の分がまだ入っていません',
+                  // 3行とも「左に名前・右に数字」でそろえる（比べる行は使わない）。昨日の分がないときだけ比べる行にお知らせ
+                  compare: yRow ? '' : '昨日の分がまだ入っていません',
                   rows: [
+                    ['昨日クリック数', yRow ? `${fmtOverview(yRow.clicks)}回` : '-'],
                     ['昨日の報酬', yRow ? `${fmtOverview(yen(yRow))}円` : '-'],
                     ['今月の成約', `${fmtOverview(total(monthRows, conv))}件・${fmtOverview(total(monthRows, yen))}円`],
                   ],
