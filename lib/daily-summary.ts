@@ -39,6 +39,8 @@ export type DailyData = {
   // 主なページが開けるか（status 200 が正常、0 はつながらない）と、サンプルの長さがまだ分からない作品の数（2026-10-26 追加）
   pages: { url: string; status: number }[];
   unmeasuredSamples: number | null;
+  // ログインして確かめた数字（DMM・A8・DLsite・JuicyAds など。sql/023 の site_checks のいちばん新しい記録、36時間以内。2026-10-26 追加）
+  siteCheck: { checkedAt: string; source: string; data: unknown } | null;
 };
 
 type Gsc = { yesterday: { clicks: number; impressions: number }; week: { clicks: number; impressions: number; position: number }; topQueries: { query: string; clicks: number; impressions: number }[] };
@@ -105,8 +107,23 @@ async function loadBotRows(): Promise<{ bot: string }[]> {
   return rows;
 }
 
+// 昨日の数字（アクセス解析・検索・Bing・昨日の取り込み・AI のロボット）。昨日の分は後から変わらないので、
+// 同じ日の要約を作り直すときは、前に取った分を使う（GA などに問い合わせ直さない。2026-10-26 ユーザーの要望）
+type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number };
+
 export async function collectDailyData(): Promise<DailyData> {
   const y = jstDate(1);
+  const supabase = getSupabaseAdmin();
+  const { data: existing } = await supabase.from('daily_summaries').select('data').eq('date', y).maybeSingle();
+  const prev = existing?.data as DailyData | null | undefined;
+  const stable: StablePart =
+    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports
+      ? { shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday }
+      : await collectStable(y);
+  return collectFresh(y, stable, prev ?? null);
+}
+
+async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
   const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc]] = await Promise.all([
     runReports([
@@ -132,33 +149,17 @@ export async function collectDailyData(): Promise<DailyData> {
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
 
-  const supabase = getSupabaseAdmin();
-  const count = async (from: string, to: string) => {
-    const { count: c } = await supabase.from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
-    return c ?? 0;
-  };
-  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database, shadowban, previousSummary, pages, unmeasured] = await Promise.all([
-    count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
-    count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
+  const [impY, botsRes, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
+    countImports(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     loadBotRows(),
-    supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
     collectSearch('shortav', y),
     collectSearch('mens', y),
     getBingStats('shortav', y),
     getBingStats('mens', y),
-    getVercelStats(),
-    getDbSize(),
-    checkShadowbans().catch((error) => [{ account: '-', error: String(error) }] as ShadowbanResult[]),
-    // 前回の要約の材料（シャドウバンの変化を見るため）
-    supabase.from('daily_summaries').select('data').lt('date', y).order('date', { ascending: false }).limit(1).maybeSingle(),
-    checkPages(),
-    supabase.from('videos').select('id', { count: 'exact', head: true }).is('sample_seconds', null).not('sample_video_url', 'is', null),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of botsRes) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
-
   return {
-    date: y,
     shortav: {
       sessions: [
         { label: '昨日', value: one(yS) },
@@ -170,15 +171,52 @@ export async function collectDailyData(): Promise<DailyData> {
       sampleEnd: { show: find(cta, 'show'), click: find(cta, 'click') },
     },
     mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })) },
-    imports: { yesterday: impY, today: impT },
+    importsYesterday: impY,
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
-    dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
     search: { shortav: searchShortav, mens: searchMens },
     bing: { shortav: bingShortav, mens: bingMens },
+  };
+}
+
+async function countImports(from: string, to: string): Promise<number> {
+  const { count: c } = await getSupabaseAdmin().from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
+  return c ?? 0;
+}
+
+// 作り直すたびに取り直すもの（FANZA 実績・今日の取り込み・ページ・料金・データベース・ログインして確かめた数字など）
+async function collectFresh(y: string, stable: StablePart, prev: DailyData | null): Promise<DailyData> {
+  const supabase = getSupabaseAdmin();
+  // シャドウバンは確認サイトの負担を減らすため、前に確認できていればそのまま使う（確認できなかったときだけやり直す）
+  const prevShadow = prev?.xShadowban?.now;
+  const shadowOk = prevShadow && prevShadow.length > 0 && prevShadow.every((r) => !('error' in r));
+  const [impT, dmmRes, vercel, database, shadowban, previousSummary, pages, unmeasured, siteCheckRes] = await Promise.all([
+    countImports(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
+    supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
+    getVercelStats(),
+    getDbSize(),
+    shadowOk ? Promise.resolve(prevShadow) : checkShadowbans().catch((error) => [{ account: '-', error: String(error) }] as ShadowbanResult[]),
+    // 前回の要約の材料（シャドウバンの変化を見るため）
+    supabase.from('daily_summaries').select('data').lt('date', y).order('date', { ascending: false }).limit(1).maybeSingle(),
+    checkPages(),
+    supabase.from('videos').select('id', { count: 'exact', head: true }).is('sample_seconds', null).not('sample_video_url', 'is', null),
+    // ログインして確かめた数字（36時間以内のいちばん新しい記録。表がまだ無ければ null）
+    supabase.from('site_checks').select('checked_at, source, data').gte('checked_at', new Date(Date.now() - 36 * 3_600_000).toISOString()).order('checked_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  return {
+    date: y,
+    shortav: stable.shortav,
+    mens: stable.mens,
+    imports: { yesterday: stable.importsYesterday, today: impT },
+    bots: stable.bots,
+    dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
+    search: stable.search,
+    bing: stable.bing,
     vercel,
     database,
     pages,
     unmeasuredSamples: unmeasured.count ?? null,
+    siteCheck: siteCheckRes.error || !siteCheckRes.data ? null : { checkedAt: siteCheckRes.data.checked_at, source: siteCheckRes.data.source, data: siteCheckRes.data.data },
     xShadowban: { now: shadowban, previous: (previousSummary.data?.data as { xShadowban?: { now: ShadowbanResult[] } } | null)?.xShadowban?.now ?? null },
   };
 }
@@ -209,6 +247,9 @@ Short AV
 
 X
 ・xShadowban: Short AV（short_av_dmm）と男のからだ研究室（mens_sizelab）のそれぞれについて、検索バン（search）・検索候補バン（suggestion）を「問題なし／制限あり／判定できず」で。error なら「確認できなかった（明日もう一度）」。previous と比べて変わった項目（解除・新しく制限）があれば必ず書く
+
+ログインして確かめた数字（siteCheck があるときだけ。見出しに「（○月○日○時、手で確認）」のように checkedAt を日本時間で、source が auto なら「自動で確認」と添える）
+・siteCheck.data の中身（DMM・A8・DLsite・JuicyAds・Supabase・Google の登録数など）を、項目ごとに1行で。入っている数字だけを使う
 
 今日の提案
 ・1つだけ。やらなくてよい日は「様子見でよい」
