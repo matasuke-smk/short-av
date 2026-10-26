@@ -232,9 +232,27 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
   );
 }
 
-/** 今朝の点検の要約。最初は見出し1行だけ、押すと全文（折りたたみ）。レイアウトはカードの上に1本の帯を足すだけ（2026-10-25） */
-function DailySummaryStrip({ item }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
+/** 今朝の点検の要約。最初は見出し1行だけ、押すと全文（折りたたみ）。レイアウトはカードの上に1本の帯を足すだけ（2026-10-25）
+ * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど。2026-10-26） */
+function DailySummaryStrip({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
   const [open, setOpen] = useState(false);
+  const [item, setItem] = useState(initialItem);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [error, setError] = useState('');
+  const rebuild = async () => {
+    setRebuilding(true);
+    setError('');
+    try {
+      const res = await fetch('/api/admin/daily-summary', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? '作り直せませんでした');
+      setItem(data.item);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRebuilding(false);
+    }
+  };
   // 表示のあとに出す（サーバーの描画とブラウザの描画で props の有無が食い違い、hydration の警告になったため。管理画面なので一瞬遅れてよい）
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -254,6 +272,10 @@ function DailySummaryStrip({ item }: { item: { date: string; summary: string; ye
           <div className="mt-2 text-[11px] text-gray-500">
             Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
             {item.yen != null ? `・費用 約${item.yen}円` : ''}
+            <button type="button" onClick={rebuild} disabled={rebuilding} className="ml-3 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 px-2 py-0.5 text-gray-200">
+              {rebuilding ? '作り直し中…（30秒ほど）' : '作り直す'}
+            </button>
+            {error && <span className="ml-2 text-red-400">{error}</span>}
           </div>
         </div>
       )}
