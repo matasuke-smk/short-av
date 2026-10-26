@@ -1338,13 +1338,41 @@ function RangeBody({
         {detail === 'channels' && (
           <DetailModal
             title="X 以外から来た人"
-            note="検索・AI・ブックマーク・ほかのサイト・Bluesky から来た人（2026-10-26 に「X から来た人」とそろえて題名を変更）。クリック率 = その流入元から来た人のうち FANZA へのクリックをした人の割合。下の「来た元の内訳」「端末」は、X から来た人も含む全員の数。"
+            note="来た元が X 以外（検索・AI・ブックマーク・ほかのサイト・Bluesky）の人。ふだんのブラウザで来るので、FANZA で買うと報酬になりやすい。クリック率 = その流入元から来た人のうち FANZA を押した人の割合。下の「来た元の内訳」「端末」は、X から来た人も含む全員の数。"
             onClose={closeDetail}
           >
-            <div className="mb-4">
-              <div className="text-xs text-gray-400 mb-1">X 以外から来た人の推移（直近28日・1日の人数。表示中の期間に関係なく28日分）</div>
-              <TrendLine data={nonXDaily} height={110} labels />
+            {/* いちばん上の数字の枠は「X から来た人」とそろえる（2026-10-26） */}
+            {(() => {
+              const nonXRows = channelRows.filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel));
+              const usersOf = (channel: string) => nonXRows.find((r) => r.channel === channel)?.users ?? 0;
+              const top = [...nonXRows].sort((x, y) => y.users - x.users)[0];
+              const total = nonX.users + bsky.users;
+              const clicked = nonX.clickUsers + bsky.clickUsers;
+              return (
+                <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
+                  {([
+                    ['X 以外から来た人', `${fmt(total)}人`],
+                    ['FANZA を押した人', `${fmt(clicked)}人（${pct(clicked, total)}）`],
+                    ['いちばん多い流入元', top ? `${channelLabel(top.channel).split('（')[0]} ${fmt(top.users)}人` : '-'],
+                    ['検索から来た人', `${fmt(usersOf('Organic Search'))}人`],
+                    ['AI（ChatGPT など）から来た人', `${fmt(usersOf('AI Assistant'))}人`],
+                    ['Bluesky から来た人', `${fmt(bsky.users)}人`],
+                  ] as const).map(([k, v]) => (
+                    <div key={k} className="rounded-lg bg-gray-800 px-3 py-2">
+                      <div className="text-xs text-gray-400">{k}</div>
+                      <div className="font-bold">{v}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            <div className="mb-5">
+              <div className="text-xs text-gray-400 mb-1">X 以外から来た人の推移（直近28日・1日の人数）</div>
+              {/* カードの28日の推移と同じ数字（取れなければ以前の日別の流入元から） */}
+              <TrendLine data={trends ? trends.dates.slice(-28).map((date, i) => ({ date, users: trends.nonXUsers.slice(-28)[i] ?? 0 })) : nonXDaily} height={110} labels />
             </div>
+            <h3 className="text-sm font-bold mb-1">流入元ごと</h3>
+            <p className="text-xs text-gray-400 mb-2">上が X 以外（カードの数）、灰色はカードに含めていない流入元。</p>
             {channelRows.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (
