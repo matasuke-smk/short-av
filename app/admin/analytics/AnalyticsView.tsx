@@ -1016,8 +1016,10 @@ function RangeBody({
                   <>
                     合計{' '}
                     <button type="button" onClick={() => setDetail('daily')} className="underline decoration-dotted">
-                      <span className="text-base font-bold text-white">{fmtOverview(users)}</span>人
+                      <span className="text-base font-bold text-white">{fmtOverview(isToday ? gaUsers : users)}</span>人
                     </button>
+                    {/* 合計はカード（X から来た人＋X 以外）と同じ GA の集計の人数にし、リアルタイムで補った分は別に出す（2026-10-27 ユーザー指摘: カードの合計とグラフが合わない） */}
+                    {isToday && users > gaUsers && <span className="ml-1 text-gray-500">＋集計待ち {fmtOverview(users - gaUsers)}人</span>}
                     {compare?.soFar && <span className="ml-2">昨日の{compare.soFar.until}まで {fmtOverview(compare.soFar.users)}人</span>}
                   </>
                 }

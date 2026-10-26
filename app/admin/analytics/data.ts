@@ -699,12 +699,15 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
       }
       return dates.map((date) => byDate.get(date) ?? 0);
     };
+    const users = series(usersRows);
+    const xUsers = series(xRows);
     return {
       dates,
-      users: series(usersRows),
+      users,
       fanzaClicks: series(clickRows),
-      xUsers: series(xRows),
-      nonXUsers: series(channelRows, (r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[1])),
+      xUsers,
+      // X 以外 = 全体 − X（カードと同じ数え方。2026-10-27）
+      nonXUsers: users.map((u, i) => Math.max(0, u - xUsers[i])),
     };
   };
   return { jp: make('jp'), all: make('all') };
