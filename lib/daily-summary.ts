@@ -1,6 +1,7 @@
 import { runReports, MENSLAB_PROPERTY_ID } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { askClaude, estimateYen, CLAUDE_MODEL } from '@/lib/claude';
+import { gscQuery, type GscSite } from '@/lib/gsc-data';
 
 /**
  * 毎朝の点検の要約（2026-10-25）。前日の数字を集めて Claude に10行ほどの要約を書かせ、daily_summaries（sql/019）に残す。
@@ -25,7 +26,31 @@ export type DailyData = {
   bots: { bot: string; count: number }[];
   // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
+  // Google 検索（Search Console）。昨日分は速報値で、あとから増えることがある（2026-10-26 追加）
+  search: Record<GscSite, Gsc | null>;
 };
+
+type Gsc = { yesterday: { clicks: number; impressions: number }; week: { clicks: number; impressions: number; position: number }; topQueries: { query: string; clicks: number; impressions: number }[] };
+
+async function collectSearch(site: GscSite, y: string): Promise<Gsc | null> {
+  try {
+    const [yRows, wRows, qRows] = await Promise.all([
+      gscQuery(site, y, y, []),
+      gscQuery(site, jstDate(7), y, []),
+      gscQuery(site, jstDate(7), y, ['query'], 5),
+    ]);
+    const sum = (rows: { clicks: number; impressions: number; position: number }[]) => ({ clicks: rows[0]?.clicks ?? 0, impressions: rows[0]?.impressions ?? 0, position: Math.round((rows[0]?.position ?? 0) * 10) / 10 });
+    const yy = sum(yRows);
+    return {
+      yesterday: { clicks: yy.clicks, impressions: yy.impressions },
+      week: sum(wRows),
+      topQueries: qRows.map((r) => ({ query: r.keys[0], clicks: r.clicks, impressions: r.impressions })),
+    };
+  } catch (error) {
+    console.error('[daily-summary] search', site, error);
+    return null;
+  }
+}
 
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
@@ -62,11 +87,13 @@ export async function collectDailyData(): Promise<DailyData> {
     const { count: c } = await supabase.from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
     return c ?? 0;
   };
-  const [impY, impT, botsRes, dmmRes] = await Promise.all([
+  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens] = await Promise.all([
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('ai_bot_hits').select('bot').gte('at', new Date(Date.now() - 86_400_000).toISOString()).limit(20000),
     supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
+    collectSearch('shortav', y),
+    collectSearch('mens', y),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of (botsRes.data ?? []) as { bot: string }[]) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
@@ -87,6 +114,7 @@ export async function collectDailyData(): Promise<DailyData> {
     imports: { yesterday: impY, today: impT },
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
     dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
+    search: { shortav: searchShortav, mens: searchMens },
   };
 }
 
@@ -99,6 +127,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 - 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「FANZA へのクリック」、「video_view」は「サンプルの再生」、「sample_end_cta」は「サンプル終了時の案内」、「first_time_link_click」は「初回クーポン等のリンク」、「chatgpt.com」は「ChatGPT」、「x」は「X」、「(direct)」は「直接」）。
 - 「気になる点」は、取り込みが0のとき、訪問やクリックが7日平均の半分以下か2倍以上のとき、AI のロボットの読み取りが1日1,000回を超えるとき、DMM の成約が付いたとき、に必ず触れる。該当が無ければ「特になし」と書く。
 - dmm が null か dmm.updated が false のときは、DMM の数字（クリック・成約）は書かず、「気になる点」に「FANZA 実績が昨日分まで更新されていない」と書く。
+- search は Google 検索（Search Console）の数字。昨日分は速報値なので、比べるときは week（7日間の合計）を使い、「Google 検索からのクリック」と書く。position は「平均の順位」。
 - 「今日の提案」は1つだけ。やらなくてよい日は「様子見でよい」と書く。
 - 丁寧だが簡潔に。箇条書きは「・」を使う。Markdown の記号（#や**）は使わない。`;
 
