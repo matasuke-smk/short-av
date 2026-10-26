@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { askClaude, estimateYen, CLAUDE_MODEL } from '@/lib/claude';
 import { gscQuery, type GscSite } from '@/lib/gsc-data';
 import { getBingStats, getVercelStats, getDbSize, type BingStats, type VercelStats } from '@/lib/ops-data';
+import { checkShadowbans, type ShadowbanResult } from '@/lib/x-shadowban';
 
 /**
  * 毎朝の点検の要約（2026-10-25）。前日の数字を集めて Claude に10行ほどの要約を書かせ、daily_summaries（sql/019）に残す。
@@ -33,6 +34,8 @@ export type DailyData = {
   bing: Record<GscSite, BingStats | null>;
   vercel: VercelStats | null;
   database: { mb: number; percentOfFree: number } | null;
+  // X のシャドウバンの確認（今朝と、前回の要約のときの結果。2026-10-26 追加）
+  xShadowban: { now: ShadowbanResult[]; previous: ShadowbanResult[] | null };
 };
 
 type Gsc = { yesterday: { clicks: number; impressions: number }; week: { clicks: number; impressions: number; position: number }; topQueries: { query: string; clicks: number; impressions: number }[] };
@@ -92,7 +95,7 @@ export async function collectDailyData(): Promise<DailyData> {
     const { count: c } = await supabase.from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
     return c ?? 0;
   };
-  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database] = await Promise.all([
+  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database, shadowban, previousSummary] = await Promise.all([
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('ai_bot_hits').select('bot').gte('at', new Date(Date.now() - 86_400_000).toISOString()).limit(20000),
@@ -103,6 +106,9 @@ export async function collectDailyData(): Promise<DailyData> {
     getBingStats('mens', y),
     getVercelStats(),
     getDbSize(),
+    checkShadowbans().catch((error) => [{ account: '-', error: String(error) }] as ShadowbanResult[]),
+    // 前回の要約の材料（シャドウバンの変化を見るため）
+    supabase.from('daily_summaries').select('data').lt('date', y).order('date', { ascending: false }).limit(1).maybeSingle(),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of (botsRes.data ?? []) as { bot: string }[]) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
@@ -127,6 +133,7 @@ export async function collectDailyData(): Promise<DailyData> {
     bing: { shortav: bingShortav, mens: bingMens },
     vercel,
     database,
+    xShadowban: { now: shadowban, previous: (previousSummary.data?.data as { xShadowban?: { now: ShadowbanResult[] } } | null)?.xShadowban?.now ?? null },
   };
 }
 
@@ -142,6 +149,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 - search は Google 検索（Search Console）の数字。昨日分は速報値なので、比べるときは week（7日間の合計）を使い、「Google 検索からのクリック」と書く。position は「平均の順位」。
 - bing は Bing 検索の数字（「Bing 検索からのクリック」と書く）。データが1〜2日遅れるので、latestDate が昨日より前なら week で比べる。
 - vercel.failed（サイトの公開の失敗）が1件以上なら「気になる点」に必ず書く。database.percentOfFree（データベースの大きさ。無料プランの上限 500MB に対する割合）が 70 以上なら「気になる点」に書く。null の項目は触れない。
+- xShadowban は X のシャドウバンの確認（short_av_dmm＝Short AV、mens_sizelab＝男のからだ研究室）。search は検索バン、suggestion は検索候補バン、ghost は返信が見えなくなるバン。ok は問題なし、ban は制限あり、unknown は判定できなかった。「昨日の数字」の最後に1行で「X：Short AV は…、男のからだ研究室は…」と書く。previous と比べて変わった項目があれば（解除された・新しく制限された）「気になる点」に必ず書く。error のときは「確認できなかった」と書く。
 - 「今日の提案」は1つだけ。やらなくてよい日は「様子見でよい」と書く。
 - 丁寧だが簡潔に。箇条書きは「・」を使う。Markdown の記号（#や**）は使わない。`;
 
