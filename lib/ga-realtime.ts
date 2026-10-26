@@ -81,15 +81,18 @@ export async function getLiveHourly(daysAgo: number): Promise<Record<number, { u
   const supabase = getSupabaseAdmin();
   const { date } = jstParts(Date.now() - daysAgo * 86_400_000);
   const dayStart = Date.parse(`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T00:00:00+09:00`);
-  const [{ data: minutes, error: minuteError }, { data: hours, error: hourError }] = await Promise.all([
-    supabase
-      .from('ga_realtime_minutes')
-      .select('minute_at, events')
-      .gte('minute_at', new Date(dayStart).toISOString())
-      .lt('minute_at', new Date(dayStart + 86_400_000).toISOString())
-      .limit(1500),
+  // 1日の記録は最大1,440件（1分ごと）。Supabase は1回に1,000件までなので、前半・後半の2回に分けて取る
+  // （2026-10-26。以前は1回だけで、夕方以降の記録が取れず補いが効いていなかった）
+  const minuteQuery = (from: number, to: number) =>
+    supabase.from('ga_realtime_minutes').select('minute_at, events').gte('minute_at', new Date(from).toISOString()).lt('minute_at', new Date(to).toISOString()).limit(1000);
+  const half = dayStart + 43_200_000;
+  const [firstHalf, secondHalf, { data: hours, error: hourError }] = await Promise.all([
+    minuteQuery(dayStart, half),
+    minuteQuery(half, dayStart + 86_400_000),
     supabase.from('ga_realtime_hours').select('hour, users').eq('date', date),
   ]);
+  const minuteError = firstHalf.error ?? secondHalf.error;
+  const minutes = [...(firstHalf.data ?? []), ...(secondHalf.data ?? [])];
   if (minuteError) throw minuteError;
   if (hourError) throw hourError;
   const result: Record<number, { users: number; events: number }> = {};
