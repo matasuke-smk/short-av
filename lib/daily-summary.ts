@@ -147,8 +147,10 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 
 export async function writeDailySummary(data: DailyData): Promise<{ summary: string; yen: number }> {
   const user = `対象の日: ${data.date}（日本時間）\n数字（JSON）:\n${JSON.stringify(data, null, 1)}`;
-  const result = await askClaude(SYSTEM, user, { effort: 'medium', maxTokens: 1500, cacheSystem: true });
+  // 上限は思考の分も含む。1500 では材料を増やした 2026-10-26 に本文が途中で切れた
+  const result = await askClaude(SYSTEM, user, { effort: 'medium', maxTokens: 8000, cacheSystem: true });
   if (!result) throw new Error('要約の生成が安全上の理由で断られました');
+  if (result.truncated) throw new Error('要約が長さの上限で途中で切れました');
   return { summary: result.text, yen: estimateYen(result) };
 }
 

@@ -86,6 +86,7 @@ async function describeVideo(v: VideoRow): Promise<GenResult> {
   const r = await askClaude(VIDEO_SYSTEM, info, { effort: 'low', maxTokens: 2000, cacheSystem: true });
   if (!r) return { id: v.dmm_content_id, name: v.title, text: '', skipped: '安全上の理由で断られた', yen: 0 };
   if (!r.text) return { id: v.dmm_content_id, name: v.title, text: null, skipped: '空の応答', yen: estimateYen(r) };
+  if (r.truncated) return { id: v.dmm_content_id, name: v.title, text: null, skipped: '長さの上限で途中で切れた', yen: estimateYen(r) };
   return { id: v.dmm_content_id, name: v.title, text: r.text.replace(/\s+/g, ' ').trim(), yen: estimateYen(r) };
 }
 
@@ -146,6 +147,7 @@ async function describeActress(a: ActressRow): Promise<GenResult> {
   const r = await askClaude(ACTRESS_SYSTEM, info, { effort: 'low', maxTokens: 2000, cacheSystem: true });
   if (!r) return { id: a.slug, name: a.name, text: '', skipped: '安全上の理由で断られた', yen: 0 };
   if (!r.text) return { id: a.slug, name: a.name, text: null, skipped: '空の応答', yen: estimateYen(r) };
+  if (r.truncated) return { id: a.slug, name: a.name, text: null, skipped: '長さの上限で途中で切れた', yen: estimateYen(r) };
   return { id: a.slug, name: a.name, text: r.text.replace(/\s+/g, ' ').trim(), yen: estimateYen(r) };
 }
 
