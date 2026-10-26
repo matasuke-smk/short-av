@@ -454,6 +454,8 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
     view_count: 0,
     click_count: 0,
     rank_position: rankPosition || null,
+    // FANZA のレビュー数（「4分以上」の並べ順に使う。sql/022）
+    review_count: item.review?.count ?? null,
     is_active: true,
   };
 }

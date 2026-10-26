@@ -29,6 +29,7 @@ import { addDoujinHistory } from '@/lib/doujin-history';
 import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
 import { fetchMyLikes, markHasLikes } from '@/lib/my-likes';
+import { longSampleScore } from '@/lib/long-sample-score';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -522,11 +523,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setLongLoading(true);
     trackNavButton('long_sample');
     try {
-      const { data } = await supabase.from('videos').select('*').gte('sample_seconds', 240).order('rank_position', { ascending: true, nullsFirst: false }).limit(300);
+      const { data } = await supabase.from('videos').select('*').gte('sample_seconds', 240).limit(500);
       const list = (data ?? []) as Video[];
       if (list.length === 0) return;
-      // 毎回同じ並びにならないよう、人気の上位を前に寄せつつ混ぜる
-      const shuffled = list.map((v, i) => ({ v, k: i + Math.random() * 40 })).sort((a, b) => a.k - b.k).map((x) => x.v);
+      // 並べ順: このサイトでの反応（再生・クリック・いいね）と FANZA のレビュー数の点数が高い順。点数が近い作品は毎回少し入れ替える。
+      // 点数が0（まだ反応もレビューもない）の作品は、発売日の新しい順に後ろへ（2026-10-26。以前の rank_position はほとんどの作品に無かった）
+      const scored = list.map((v) => ({ v, score: longSampleScore(v as Parameters<typeof longSampleScore>[0]) }));
+      const ranked = scored.filter((x) => x.score > 0).map((x) => ({ v: x.v, k: x.score * (0.8 + Math.random() * 0.4) })).sort((a, b) => b.k - a.k).map((x) => x.v);
+      const rest = scored.filter((x) => x.score <= 0).map((x) => x.v).sort((a, b) => String(b.release_date ?? '').localeCompare(String(a.release_date ?? '')));
+      const shuffled = [...ranked, ...rest];
       replaceVideos(shuffled, shuffled[0].dmm_content_id);
       setLongCount(shuffled.length);
     } finally {
