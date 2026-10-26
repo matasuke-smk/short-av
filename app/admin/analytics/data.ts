@@ -597,7 +597,8 @@ const getRangeData = unstable_cache(
     const result = (country: Country) => ({ reports: byCountry[country], db, weekday: weekdays[country], warning, doujinInfo });
     return { jp: result('jp'), all: result('all') };
   },
-  ['admin-analytics-v27'],
+  // v28: レポート36（X から来た人のブラウザごと）を足したので、足す前の使い回しの結果を使わないよう変える（2026-10-26。0人と出た）
+  ['admin-analytics-v28'],
   { revalidate: 300 },
 );
 
