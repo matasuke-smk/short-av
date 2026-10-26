@@ -900,9 +900,8 @@ function RangeBody({
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
                 ['押した人', `${fmtOverview(now.clickers)}人（通常 ${fmtOverview(now.normalClickers)}人）`],
-                ['通常のブラウザ', isToday && pendingFanzaClicks > 0
-                  ? `${fmtOverview(now.fanzaNormalClicks)}回・集計待ち ${fmtOverview(pendingFanzaClicks)}回`
-                  : `${fmtOverview(now.fanzaNormalClicks)}回（${pctOverview(now.fanzaNormalClicks, now.fanzaClicks)}）`],
+                // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
+                ['内訳', `通常 ${fmtOverview(now.fanzaNormalClicks)}回・アプリ内 ${fmtOverview(now.fanzaClicks - now.fanzaNormalClicks)}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
