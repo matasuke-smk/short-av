@@ -63,6 +63,19 @@ async function collectSearch(site: GscSite, y: string): Promise<Gsc | null> {
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
 
+// 直近24時間の AI のロボットの記録。Supabase は1回に1,000件までなので分けて全部取る（2026-10-26。以前は1,000件で止まっていた）
+async function loadBotRows(): Promise<{ bot: string }[]> {
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const rows: { bot: string }[] = [];
+  for (let offset = 0; offset < 50_000; offset += 1000) {
+    const { data, error } = await getSupabaseAdmin().from('ai_bot_hits').select('bot').gte('at', since).order('at').range(offset, offset + 999);
+    if (error || !data) break;
+    rows.push(...(data as { bot: string }[]));
+    if (data.length < 1000) break;
+  }
+  return rows;
+}
+
 export async function collectDailyData(): Promise<DailyData> {
   const y = jstDate(1);
   const d2 = jstDate(2);
@@ -98,7 +111,7 @@ export async function collectDailyData(): Promise<DailyData> {
   const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database, shadowban, previousSummary] = await Promise.all([
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
-    supabase.from('ai_bot_hits').select('bot').gte('at', new Date(Date.now() - 86_400_000).toISOString()).limit(20000),
+    loadBotRows(),
     supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
     collectSearch('shortav', y),
     collectSearch('mens', y),
@@ -111,7 +124,7 @@ export async function collectDailyData(): Promise<DailyData> {
     supabase.from('daily_summaries').select('data').lt('date', y).order('date', { ascending: false }).limit(1).maybeSingle(),
   ]);
   const botCounts = new Map<string, number>();
-  for (const r of (botsRes.data ?? []) as { bot: string }[]) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
+  for (const r of botsRes) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
 
   return {
     date: y,
