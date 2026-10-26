@@ -32,7 +32,8 @@ export type AskOptions = {
   cacheSystem?: boolean;
 };
 
-export type AskResult = { text: string; inputTokens: number; outputTokens: number; cachedTokens: number };
+/** truncated: 長さの上限（max_tokens。思考の分も含む）で途中で切れた */
+export type AskResult = { text: string; inputTokens: number; outputTokens: number; cachedTokens: number; truncated: boolean };
 
 /**
  * 1往復のテキスト生成。safety の拒否（stop_reason: refusal）のときは null を返す
@@ -57,6 +58,7 @@ export async function askClaude(system: string, user: string, options: AskOption
     inputTokens: response.usage.input_tokens,
     outputTokens: response.usage.output_tokens,
     cachedTokens: response.usage.cache_read_input_tokens ?? 0,
+    truncated: response.stop_reason === 'max_tokens',
   };
 }
 
