@@ -55,8 +55,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const [siteKey, setSiteKey] = useState(0);
   // スマホの左上の「☰」で左から出るメニュー（左手の親指で操作しやすいよう左に。2026-10-14 ユーザーの要望）
   const [menuOpen, setMenuOpen] = useState(false);
-  // PC の右上の「外部サービス」メニュー
-  const [servicesOpen, setServicesOpen] = useState(false);
 
   // スマホ: 画面の左端から右へなぞるとメニューが開き、開いているときに左へなぞると閉じる
   useEffect(() => {
@@ -136,7 +134,50 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     <>
       <PullToRefresh disabled={siteOpen} />
       <BackToTop hidden={siteOpen} />
-      <nav className="sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
+      {/* PC: 左のサイドメニュー（2026-10-26 ユーザーの要望で、上の帯から左に移した。画面の縦を広く使うため） */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-48 flex-col bg-gray-950 border-r border-gray-800">
+        <div className="px-4 pt-4 pb-3 text-sm font-bold text-white">SAV 管理</div>
+        <div className="flex-1 overflow-y-auto px-2 flex flex-col gap-0.5">
+          {TABS.map(({ key, label }) => {
+            const active = isHome ? tab === key : (pathname?.startsWith(`/admin/${key}`) ?? false);
+            const cls = `block w-full text-left px-3 py-2 rounded-lg text-sm ${active ? 'bg-blue-600 text-white font-bold' : 'text-gray-300 hover:bg-gray-800'}`;
+            return isHome ? (
+              <button key={key} type="button" onClick={() => select(key)} className={cls}>
+                {label}
+              </button>
+            ) : (
+              <Link key={key} href={key === 'analytics' ? HOME : `${HOME}?tab=${key}`} className={cls}>
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="border-t border-gray-800 p-2 flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              setSiteLoaded(true);
+              setSiteOpen(true);
+            }}
+            className="rounded-lg bg-gray-800 px-3 py-2 text-sm font-bold text-white hover:bg-gray-700 text-left"
+          >
+            サイトを開く
+          </button>
+          <p className="px-3 pt-2 text-[11px] text-gray-500">各サービスの管理画面</p>
+          {SERVICE_LINKS.map((l) => (
+            <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">
+              {l.label}
+              <span className="text-gray-500" aria-hidden>↗</span>
+            </a>
+          ))}
+          <a href="/api/admin/logout" className="mt-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-800 hover:text-white">
+            ログアウト
+          </a>
+        </div>
+      </aside>
+
+      {/* スマホ: 上の帯（☰ とよく使う2つのタブ） */}
+      <nav className="md:hidden sticky top-0 z-50 bg-gray-950/95 backdrop-blur border-b border-gray-800">
         <div className="max-w-6xl mx-auto flex items-center gap-1 px-2 py-2 overflow-x-auto md:overflow-visible pt-[max(env(safe-area-inset-top),0.5rem)]">
           {/* スマホ: 左端の「☰」で残りのタブとログアウトのメニューを開く（2026-10-14 左に移動）。残りの幅を2つのタブで等分する */}
           <button
@@ -161,46 +202,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
-          {/* PC: 右側は「サイトを開く」と「外部サービス」のメニュー（各サービスの管理画面とログアウト）にまとめる（2026-10-14 整理） */}
-          <div className="hidden md:flex ml-auto items-center gap-2 pl-3">
-            <button
-              type="button"
-              onClick={() => {
-                setSiteLoaded(true);
-                setSiteOpen(true);
-              }}
-              className="rounded-lg bg-gray-800 px-3 py-2 text-sm font-bold text-white hover:bg-gray-700 whitespace-nowrap"
-            >
-              サイトを開く
-            </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setServicesOpen((v) => !v)}
-                aria-expanded={servicesOpen}
-                className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:text-white whitespace-nowrap"
-              >
-                外部サービス ▾
-              </button>
-              {servicesOpen && (
-                <>
-                  <button type="button" className="fixed inset-0 z-40 cursor-default" onClick={() => setServicesOpen(false)} aria-label="閉じる" />
-                  <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-gray-700 bg-gray-900 py-1 shadow-2xl">
-                    <p className="px-4 pb-1 pt-2 text-xs text-gray-500">各サービスの管理画面</p>
-                    {SERVICE_LINKS.map((l) => (
-                      <a key={l.label} href={l.href} target="_blank" rel="noopener noreferrer" onClick={() => setServicesOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-200 hover:bg-gray-800">
-                        {l.label}
-                        <span className="text-gray-500" aria-hidden>↗</span>
-                      </a>
-                    ))}
-                    <a href="/api/admin/logout" className="mt-1 block border-t border-gray-800 px-4 py-2.5 text-sm text-gray-400 hover:bg-gray-800 hover:text-white">
-                      ログアウト
-                    </a>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
         </div>
       </nav>
 
@@ -296,7 +297,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       )}
 
       {isHome ? (
-        <div className="pb-16 md:pb-0">
+        <div className="pb-16 md:pb-0 md:pl-48">
           <div hidden={tab !== 'analytics'}>{children}</div>
           {opened.includes('x-posts') && <div hidden={tab !== 'x-posts'}><XPostsView /></div>}
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
@@ -306,7 +307,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {opened.includes('ai-bots') && <div hidden={tab !== 'ai-bots'}><AiBotsView /></div>}
         </div>
       ) : (
-        <div className="pb-16 md:pb-0">{children}</div>
+        <div className="pb-16 md:pb-0 md:pl-48">{children}</div>
       )}
     </>
   );

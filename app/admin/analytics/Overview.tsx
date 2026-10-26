@@ -174,7 +174,8 @@ export function OverlayChart({
       .join(' ');
   const shown = active === null ? null : slots[active];
   return (
-    <section className="rounded-lg bg-gray-800 border border-gray-700 p-3 mb-4">
+    // PC は残りの高さをすべて使う（画面をスクロールせずに見られるように。2026-10-26）
+    <section className="rounded-lg bg-gray-800 border border-gray-700 p-3 mb-4 lg:mb-0 flex flex-col lg:flex-1 lg:min-h-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-sm font-bold">{title}</h2>
         <div className="ml-auto text-xs text-gray-400">{summary}</div>
@@ -185,11 +186,12 @@ export function OverlayChart({
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{currentLabel}の FANZA へのクリック（右の目盛り）</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 border-t border-dashed border-amber-200/60" />{ghostLabel}のクリック</span>
       </div>
-      <div className="relative mt-5 [--chart-h:10rem] lg:[--chart-h:max(10rem,calc(100vh-30rem))]">
+      <div className="relative mt-5 flex flex-col lg:flex-1 lg:min-h-0">
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
         <span className="absolute left-0 -top-4 text-[10px] text-blue-300">{fmt(max)}人</span>
         <span className="absolute right-0 -top-4 text-[10px] text-amber-300">{fmt(maxClicks)}回</span>
-        <div className="absolute inset-x-0 top-0 h-[var(--chart-h)] pointer-events-none z-10">
+        <div className="relative h-40 lg:h-auto lg:flex-1 lg:min-h-[8rem]">
+        <div className="absolute inset-0 pointer-events-none z-10">
           <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
             <polyline points={line('ghostClicks')} fill="none" stroke="#fde68a" strokeOpacity={0.5} strokeDasharray="3 3" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
             <polyline points={line('clicks')} fill="none" stroke="#fbbf24" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
@@ -207,7 +209,7 @@ export function OverlayChart({
             <p><span className="text-gray-300">{ghostLabel}</span> {fmt(shown.ghostUsers)}人・FANZA {fmt(shown.ghostClicks)}回</p>
           </div>
         )}
-        <div className="h-[var(--chart-h)] flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
+        <div className="h-full flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
           {slots.map((s, i) => (
             <button key={i} type="button" aria-label={`${s.name} ${s.users}人`} onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)} onClick={() => setActive(i)} className="relative flex-1 h-full">
               {/* 裏: 昨日（先月） */}
@@ -219,6 +221,7 @@ export function OverlayChart({
               />
             </button>
           ))}
+        </div>
         </div>
         <div className="flex gap-[2px] mt-1 text-[10px] text-gray-500">
           {slots.map((s, i) => (

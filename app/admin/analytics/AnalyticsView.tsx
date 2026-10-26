@@ -233,9 +233,9 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
   );
 }
 
-/** 今朝の点検の要約。最初は見出し1行だけ、押すと全文（折りたたみ）。レイアウトはカードの上に1本の帯を足すだけ（2026-10-25）
- * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど。2026-10-26） */
-function DailySummaryStrip({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
+/** 今朝の点検の要約。「アクセス解析」の右のボタンを押すと全文をモーダルで出す（2026-10-26 ユーザーの要望で帯から変更）
+ * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
+function DailySummaryButton({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState(initialItem);
   const [rebuilding, setRebuilding] = useState(false);
@@ -259,16 +259,14 @@ function DailySummaryStrip({ item: initialItem }: { item: { date: string; summar
   useEffect(() => setMounted(true), []);
   if (!mounted || !item) return null;
   const md = `${Number(item.date.slice(5, 7))}/${Number(item.date.slice(8, 10))}`;
-  const firstLine = item.summary.split('\n').find((l) => l.trim() && !/^(昨日の数字|変化|気になる点|今日の提案)$/.test(l.trim())) ?? '';
   return (
-    <div className="mb-3 rounded-lg bg-gray-800 border border-gray-700">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-2 px-3 py-2 text-left">
-        <span className="text-xs font-bold text-amber-300 whitespace-nowrap">今朝の要約（{md}）</span>
-        {!open && <span className="text-xs text-gray-300 truncate">{firstLine.replace(/^・/, '')}</span>}
-        <span className="ml-auto text-xs text-gray-500 whitespace-nowrap">{open ? '閉じる' : '開く'}</span>
+    <>
+      <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-amber-500/60 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300 hover:bg-amber-500/20 whitespace-nowrap">
+        今朝の要約（{md}）
       </button>
       {open && (
-        <div className="px-3 pb-3 text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+        <DetailModal title={`今朝の要約（${md}）`} onClose={() => setOpen(false)}>
+          <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
           {item.summary}
           <div className="mt-2 text-[11px] text-gray-500">
             Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
@@ -278,9 +276,10 @@ function DailySummaryStrip({ item: initialItem }: { item: { date: string; summar
             </button>
             {error && <span className="ml-2 text-red-400">{error}</span>}
           </div>
-        </div>
+          </div>
+        </DetailModal>
       )}
-    </div>
+    </>
   );
 }
 
@@ -987,7 +986,7 @@ function RangeBody({
             });
           }
           return (
-            <>
+            <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
               <TopCards cards={cards} />
               <OverlayChart
                 title={isToday ? '時間帯ごとの利用者と FANZA へのクリック' : '日ごとの利用者と FANZA へのクリック'}
@@ -1004,7 +1003,7 @@ function RangeBody({
                   </>
                 }
               />
-            </>
+            </div>
           );
         })()}
 
@@ -1978,10 +1977,10 @@ export default function AnalyticsView({
       key={key}
       type="button"
       onClick={() => select(key)}
-      className={`px-2 py-1.5 md:py-2 rounded-lg text-sm md:text-base leading-tight ${key === viewKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
+      className={`px-2 py-1.5 md:py-2 lg:py-1 rounded-lg text-sm md:text-base lg:text-sm leading-tight ${key === viewKey ? 'bg-blue-600' : 'bg-gray-800 hover:bg-gray-700'}`}
     >
       {VIEW_LABELS[key]}
-      <span className="block text-[10px] md:text-xs opacity-70" suppressHydrationWarning>
+      <span className="block text-[10px] md:text-xs opacity-70 whitespace-nowrap" suppressHydrationWarning>
         {rangeDates(key)}
       </span>
     </button>
@@ -1993,26 +1992,34 @@ export default function AnalyticsView({
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
   return (
-    <main className="min-h-screen lg:min-h-0 bg-gray-900 text-white px-2 py-3 md:p-6 lg:px-5 lg:py-3">
-      <div className="max-w-6xl lg:max-w-none mx-auto">
-        {/* PC は見出し・動画｜同人誌・日本のみ｜すべてを1行に並べる（スクロールせずに見られるよう縦を詰める） */}
-        <div className="lg:flex lg:items-center lg:gap-4">
-        <div className="lg:flex-1 lg:min-w-0">
-        <h1 className="text-xl md:text-2xl font-bold">アクセス解析</h1>
-        <p className="text-xs text-gray-400 mt-1">
+    // PC は画面の高さに収め、スクロールせずに見られるようにする（グラフが残りの高さを使う。2026-10-26）
+    <main className="min-h-screen lg:h-[100dvh] lg:min-h-0 lg:overflow-y-auto lg:flex lg:flex-col bg-gray-900 text-white px-2 py-3 md:p-6 lg:px-5 lg:py-3">
+      <div className="max-w-6xl lg:max-w-none w-full mx-auto lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+        {/* PC は見出し・今朝の要約・期間・動画｜同人誌・日本のみ｜すべてを1行に並べる */}
+        <div className="lg:flex lg:items-center lg:gap-4 lg:mb-3">
+        <div className="lg:flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl md:text-2xl font-bold whitespace-nowrap">アクセス解析</h1>
+          {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く）。押すとモーダルで全文 */}
+          <DailySummaryButton item={dailySummary} />
+        </div>
+        <p className="text-xs text-gray-400 mt-1 lg:hidden">
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。
           {' '}{fetchedAt} 時点（10分ごとに更新）
         </p>
         </div>
 
+        {/* 「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つ */}
+        <nav className="mt-3 lg:mt-0 grid grid-cols-2 gap-1.5 md:gap-2 max-w-md lg:flex-1 lg:min-w-[10rem] lg:max-w-[15rem] lg:ml-auto">{VIEW_KEYS.map(button)}</nav>
+
         {/* 動画｜同人誌 */}
-        <div className="mt-3 lg:mt-0 flex rounded-full bg-gray-800 p-1 max-w-xs lg:w-60 mx-auto lg:mx-0">
+        <div className="mt-3 lg:mt-0 flex rounded-full bg-gray-800 p-1 max-w-xs lg:w-44 lg:flex-shrink-0 mx-auto lg:mx-0">
           {(['video', 'doujin'] as const).map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => selectSection(key)}
-              className={`flex-1 rounded-full py-2 text-sm font-bold ${section === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+              className={`flex-1 rounded-full py-2 lg:py-1.5 text-sm font-bold whitespace-nowrap ${section === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
             >
               {key === 'video' ? '動画' : '同人誌'}
             </button>
@@ -2027,23 +2034,18 @@ export default function AnalyticsView({
                 key={key}
                 type="button"
                 onClick={() => selectCountry(key)}
-                className={`rounded-full px-4 py-1 text-xs font-bold ${country === key ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
+                className={`rounded-full px-4 lg:px-3 py-1 text-xs font-bold whitespace-nowrap ${country === key ? 'bg-blue-600 text-white' : 'text-gray-300'}`}
               >
-                {key === 'jp' ? '日本のみ' : 'すべて（海外を含む）'}
+                {key === 'jp' ? '日本のみ' : <>すべて<span className="lg:hidden">（海外を含む）</span></>}
               </button>
             ))}
           </div>
         </div>
         </div>
 
-        {/* 「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つ（2026-10-26） */}
-        <nav className="mt-3 mb-4 lg:mb-3 grid grid-cols-2 gap-1.5 md:gap-2 max-w-md">{VIEW_KEYS.map(button)}</nav>
-        <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
-          {/* スマホで1行に収まるよう短く（日本時間の0時で区切ることは、いちばん下の注に書く） */}
+        <p className="mt-2 mb-3 text-xs text-gray-400 lg:hidden" suppressHydrationWarning>
           集計の対象: {rangeDates(viewKey)}・{country === 'jp' ? '日本のみ' : 'すべての国'}
         </p>
-        {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く。1行目だけ見せ、押すと全文。カードの並びは変えない）2026-10-25 */}
-        <DailySummaryStrip item={dailySummary} />
 
         {section === 'doujin' ? (
           (() => {
@@ -2094,7 +2096,7 @@ export default function AnalyticsView({
 
 
 
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 lg:hidden">
           日付は日本時間の0時で区切っています。GA のデータは反映まで数時間かかることがあります（「今日」の数字は途中経過）。人数は期間内の重複を除いた数のため、日別の合計とは一致しません。
         </p>
       </div>
