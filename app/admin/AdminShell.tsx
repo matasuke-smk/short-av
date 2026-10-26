@@ -8,7 +8,6 @@ import SizeStatsView from './size-stats/SizeStatsView';
 import SampleLengthsMini from './SampleLengthsMini';
 import DmmReportsView from './dmm-reports/DmmReportsView';
 import MensLabView from './menslab/MensLabView';
-import AiBotsView from './ai-bots/AiBotsView';
 import PullToRefresh from './PullToRefresh';
 import BackToTop from './BackToTop';
 
@@ -18,7 +17,6 @@ const TABS = [
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
   { key: 'menslab', label: '男のからだ研究室' },
-  { key: 'ai-bots', label: 'AI の読み取り' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 // スマホの上の帯に常に出すタブ（残りは「…」のメニューから。2026-10-10 ユーザーの要望）
@@ -135,7 +133,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       <BackToTop hidden={siteOpen} />
       {/* PC: 左のサイドメニュー（2026-10-26 ユーザーの要望で、上の帯から左に移した。画面の縦を広く使うため） */}
       <aside className="hidden md:flex fixed inset-y-0 left-0 z-50 w-48 flex-col bg-gray-950 border-r border-gray-800">
-        <div className="px-4 pt-4 pb-3 text-sm font-bold text-white">SAV 管理</div>
+        <div className="px-4 pt-4 pb-3 text-sm font-bold text-white">ShortAV 管理</div>
         <div className="flex-1 overflow-y-auto px-2 flex flex-col gap-0.5">
           {TABS.map(({ key, label }) => {
             const active = isHome ? tab === key : (pathname?.startsWith(`/admin/${key}`) ?? false);
@@ -309,7 +307,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
           {opened.includes('dmm-reports') && <div hidden={tab !== 'dmm-reports'}><DmmReportsView /></div>}
           {opened.includes('menslab') && <div hidden={tab !== 'menslab'}><MensLabView /></div>}
-          {opened.includes('ai-bots') && <div hidden={tab !== 'ai-bots'}><AiBotsView /></div>}
         </div>
       ) : (
         <div className="pb-16 md:pb-0 md:pl-48">{children}</div>
