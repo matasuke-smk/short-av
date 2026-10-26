@@ -193,6 +193,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 ・作品の取り込み: imports.yesterday（昨日）と imports.today（今日の朝の分）の本数。昨日が 0 なら「取り込みが止まっている」と書く
 ・サンプルの長さが未計測の作品: unmeasuredSamples 本
 ・データベースの大きさ: database.mb MB（無料の上限 500MB の database.percentOfFree%）
+・Vercel の利用料金: vercel.billing があれば「今月（billing.from から）の Vercel の利用料金 ○ドル（多い順に項目を2つまで）」。Pro の月の利用枠は 20 ドルで、15 ドルを超えたら注意として書く
 ・vercel.failed（サイトの公開の失敗）が1件以上あれば書く
 
 Short AV
