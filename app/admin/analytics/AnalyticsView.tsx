@@ -752,7 +752,9 @@ function RangeBody({
   const channelRows = channels
     .map((r) => {
       const of = (event: string) => channelEvents.find((e) => e.dimensions[0] === r.dimensions[0] && e.dimensions[1] === event)?.metrics[1] ?? 0;
-      return { channel: r.dimensions[0], sessions: r.metrics[0], users: r.metrics[1], playUsers: of('video_view'), clickUsers: of('dmm_link_click') };
+      // クリックした人 = FANZA へのリンクのどれかを押した人（レポート 37。ブラウザごとの人数を足す）
+      const clickUsers = (reports[37] ?? []).filter((e) => e.dimensions[0] === r.dimensions[0]).reduce((sum, e) => sum + e.metrics[0], 0);
+      return { channel: r.dimensions[0], sessions: r.metrics[0], users: r.metrics[1], playUsers: of('video_view'), clickUsers };
     })
     .sort((a, b) => b.clickUsers - a.clickUsers || b.users - a.users);
   // X 以外から来た人: 検索・直接（ブックマークなど）・ほかのサイトのリンクなど。普段のブラウザで来るので報酬につながりやすい。
@@ -779,24 +781,24 @@ function RangeBody({
   })();
   // Bluesky から来た人（レポート 34）。GA では X と同じ「SNS」に分類されるので、X 以外から来た人に別に足す
   const bskyRow = (event: string) => (reports[34] ?? []).find((r) => r.dimensions[0] === event)?.metrics[0] ?? 0;
-  const bsky = { users: bskyRow('page_view'), clickUsers: bskyRow('dmm_link_click') };
-  // X から来た人（レポート 36: 来た元が x・t.co・twitter、[イベント, ブラウザ] → [人数]）。
-  // アプリの中のブラウザ以外（Safari・Chrome など）は、X から開き直して見た人。ブラウザごとの人数を足すので、両方で見た人は2回数える（ごくわずか）
-  const xFrom = (reports[36] ?? []).reduce(
-    (acc, r) => {
-      const [event, browser] = r.dimensions;
-      const normal = !['Safari (in-app)', 'Android Webview'].includes(browser);
-      if (event === 'page_view') {
-        acc.users += r.metrics[0];
-        if (normal) acc.normalUsers += r.metrics[0];
-      } else if (event === 'dmm_link_click') {
-        acc.clickUsers += r.metrics[0];
-        if (normal) acc.normalClickUsers += r.metrics[0];
-      }
-      return acc;
-    },
-    { users: 0, clickUsers: 0, normalUsers: 0, normalClickUsers: 0 },
-  );
+  const bsky = { users: bskyRow('page_view'), clickUsers: (reports[40] ?? [])[0]?.metrics[0] ?? 0 };
+  // ブラウザごとの人数（[ブラウザ] → [人数]）を、全員とアプリの中以外（Safari・Chrome など＝報酬になる）に分けて足す。
+  // ブラウザごとの人数を足すので、両方で見た人は2回数える（ごくわずか）
+  const byBrowser = (rows: ReportRow[], browserIndex = 0) =>
+    rows.reduce(
+      (acc, r) => {
+        acc.all += r.metrics[0];
+        if (!['Safari (in-app)', 'Android Webview'].includes(r.dimensions[browserIndex])) acc.normal += r.metrics[0];
+        return acc;
+      },
+      { all: 0, normal: 0 },
+    );
+  // X から来た人（来た元が x・t.co・twitter）。見た人はレポート 36、FANZA へのリンクを押した人はレポート 38
+  const xSeen = byBrowser((reports[36] ?? []).filter((r) => r.dimensions[0] === 'page_view'), 1);
+  const xClicked = byBrowser(reports[38] ?? []);
+  const xFrom = { users: xSeen.all, normalUsers: xSeen.normal, clickUsers: xClicked.all, normalClickUsers: xClicked.normal };
+  // FANZA へのリンクを押した人（全員。レポート 39）。FANZA のカードに回数と並べて出す
+  const fanzaClickers = byBrowser(reports[39] ?? []);
   // 作品ごとの再生・クリック（回数）
   const workMap = new Map<string, { id: string; plays: number; clicks: number }>();
   for (const r of workEvents) {
@@ -873,6 +875,8 @@ function RangeBody({
                     total: sum(c.events, c.area)[0],
                     label: `通常 ${fmt(sum(c.events, (r) => c.area(r) && isNormal(r))[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[0], sum(c.events, c.area)[0])}）`,
                   }}
+                  // 押した人の数（FANZA へのリンクのどれかを押した人。2026-10-26 ユーザーの要望）
+                  rows={c.label === 'FANZA' ? [['押した人', `${fmt(fanzaClickers.all)}人（通常 ${fmt(fanzaClickers.normal)}人）`]] : undefined}
                   onClick={() => setDetail(`card:${c.label}`)}
                 />
               ))}
