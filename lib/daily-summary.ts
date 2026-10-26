@@ -2,6 +2,7 @@ import { runReports, MENSLAB_PROPERTY_ID } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { askClaude, estimateYen, CLAUDE_MODEL } from '@/lib/claude';
 import { gscQuery, type GscSite } from '@/lib/gsc-data';
+import { getBingStats, getVercelStats, getDbSize, type BingStats, type VercelStats } from '@/lib/ops-data';
 
 /**
  * 毎朝の点検の要約（2026-10-25）。前日の数字を集めて Claude に10行ほどの要約を書かせ、daily_summaries（sql/019）に残す。
@@ -28,6 +29,10 @@ export type DailyData = {
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
   // Google 検索（Search Console）。昨日分は速報値で、あとから増えることがある（2026-10-26 追加）
   search: Record<GscSite, Gsc | null>;
+  // Bing の検索・Vercel の公開の失敗・データベースの大きさ（キーが未設定なら null。2026-10-26 追加）
+  bing: Record<GscSite, BingStats | null>;
+  vercel: VercelStats | null;
+  database: { mb: number; percentOfFree: number } | null;
 };
 
 type Gsc = { yesterday: { clicks: number; impressions: number }; week: { clicks: number; impressions: number; position: number }; topQueries: { query: string; clicks: number; impressions: number }[] };
@@ -87,13 +92,17 @@ export async function collectDailyData(): Promise<DailyData> {
     const { count: c } = await supabase.from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
     return c ?? 0;
   };
-  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens] = await Promise.all([
+  const [impY, impT, botsRes, dmmRes, searchShortav, searchMens, bingShortav, bingMens, vercel, database] = await Promise.all([
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('ai_bot_hits').select('bot').gte('at', new Date(Date.now() - 86_400_000).toISOString()).limit(20000),
     supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
     collectSearch('shortav', y),
     collectSearch('mens', y),
+    getBingStats('shortav', y),
+    getBingStats('mens', y),
+    getVercelStats(),
+    getDbSize(),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of (botsRes.data ?? []) as { bot: string }[]) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
@@ -115,6 +124,9 @@ export async function collectDailyData(): Promise<DailyData> {
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
     dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
     search: { shortav: searchShortav, mens: searchMens },
+    bing: { shortav: bingShortav, mens: bingMens },
+    vercel,
+    database,
   };
 }
 
@@ -128,6 +140,8 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 - 「気になる点」は、取り込みが0のとき、訪問やクリックが7日平均の半分以下か2倍以上のとき、AI のロボットの読み取りが1日1,000回を超えるとき、DMM の成約が付いたとき、に必ず触れる。該当が無ければ「特になし」と書く。
 - dmm が null か dmm.updated が false のときは、DMM の数字（クリック・成約）は書かず、「気になる点」に「FANZA 実績が昨日分まで更新されていない」と書く。
 - search は Google 検索（Search Console）の数字。昨日分は速報値なので、比べるときは week（7日間の合計）を使い、「Google 検索からのクリック」と書く。position は「平均の順位」。
+- bing は Bing 検索の数字（「Bing 検索からのクリック」と書く）。データが1〜2日遅れるので、latestDate が昨日より前なら week で比べる。
+- vercel.failed（サイトの公開の失敗）が1件以上なら「気になる点」に必ず書く。database.percentOfFree（データベースの大きさ。無料プランの上限 500MB に対する割合）が 70 以上なら「気になる点」に書く。null の項目は触れない。
 - 「今日の提案」は1つだけ。やらなくてよい日は「様子見でよい」と書く。
 - 丁寧だが簡潔に。箇条書きは「・」を使う。Markdown の記号（#や**）は使わない。`;
 
