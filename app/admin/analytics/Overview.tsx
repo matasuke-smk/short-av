@@ -116,7 +116,7 @@ function TopCard({ label, value, unit, compare, rows, note, trend, color, onClic
         {value}
         <span className="ml-0.5 font-normal text-gray-400" style={size(14)}>{unit}</span>
       </div>
-      <div data-fit className="text-gray-400 whitespace-nowrap overflow-hidden leading-snug" style={size(12)}>{compare}</div>
+      {compare && <div data-fit className="text-gray-400 whitespace-nowrap overflow-hidden leading-snug" style={size(12)}>{compare}</div>}
       {note && <div className="text-gray-200 truncate leading-snug" style={size(12)} title={note}>{note}</div>}
       {rows.map(([k, v]) => (
         <div key={k} data-fit className="mt-0.5 flex justify-between gap-2 whitespace-nowrap overflow-hidden leading-snug" style={size(12)}>
