@@ -41,7 +41,43 @@ export async function getBingStats(site: keyof typeof BING_SITES, y: string): Pr
   }
 }
 
-export type VercelStats = { total: number; failed: { project: string; at: string }[] };
+export type VercelStats = {
+  total: number;
+  failed: { project: string; at: string }[];
+  // 今の請求期間（毎月8日から）の利用料金（ドル）と、多い項目（2026-10-26 追加。Billing API。取れなければ null）
+  billing: { from: string; usd: number; top: { service: string; usd: number }[] } | null;
+};
+
+// Vercel の利用料金（FOCUS 形式の明細、1行1件の JSON）。請求期間は毎月8日から（Pro の契約日）
+async function getVercelBilling(token: string, team: string): Promise<VercelStats['billing']> {
+  try {
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (now.getUTCDate() >= 8 ? 0 : 1), 8));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const url = `https://api.vercel.com/v1/billing/charges?teamId=${team}&from=${start.toISOString()}&to=${end.toISOString()}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw new Error(`Vercel billing ${res.status}`);
+    const byService = new Map<string, number>();
+    let usd = 0;
+    for (const line of (await res.text()).split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      const c = JSON.parse(line) as { BilledCost: number | string; ChargeCategory: string; ServiceName: string };
+      if (c.ChargeCategory !== 'Usage') continue;
+      const cost = Number(c.BilledCost) || 0;
+      usd += cost;
+      byService.set(c.ServiceName, (byService.get(c.ServiceName) ?? 0) + cost);
+    }
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return {
+      from: start.toISOString().slice(0, 10),
+      usd: round(usd),
+      top: [...byService.entries()].sort((x, y) => y[1] - x[1]).slice(0, 3).map(([service, cost]) => ({ service, usd: round(cost) })),
+    };
+  } catch (error) {
+    console.error('[ops-data] vercel billing', error);
+    return null;
+  }
+}
 
 /** 直近24時間の Vercel の公開（デプロイ）の数と、失敗したもの */
 export async function getVercelStats(): Promise<VercelStats | null> {
@@ -55,6 +91,7 @@ export async function getVercelStats(): Promise<VercelStats | null> {
     const data = (await res.json()) as { deployments?: { name: string; state?: string; readyState?: string; created: number }[] };
     const list = data.deployments ?? [];
     return {
+      billing: await getVercelBilling(token, team),
       total: list.length,
       failed: list
         .filter((d) => (d.readyState ?? d.state) === 'ERROR')
