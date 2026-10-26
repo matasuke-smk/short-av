@@ -895,12 +895,14 @@ function RangeBody({
               value: fmtOverview(now.fanzaClicks + (isToday ? pendingFanzaClicks : 0)),
               unit: '回',
               compare: cmp('回', (k) => k.fanzaClicks, compare?.soFar?.events),
-              // 内訳は GA の集計だけで出す。「今日」でリアルタイムの記録から補った分（ブラウザは集計後に分かる）は別の行にして、
-              // 合計と内訳が合わないように見えないようにする（2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%））
+              // 内訳は GA の集計だけで出す。「今日」でリアルタイムの記録から補った分（ブラウザは集計後に分かる）は
+              // 「通常のブラウザ」の行に「・集計待ち ○回」と添えて、合計と内訳が合わないように見えないようにする
+              // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
                 ['押した人', `${fmtOverview(now.clickers)}人（通常 ${fmtOverview(now.normalClickers)}人）`],
-                ['通常のブラウザ', `${fmtOverview(now.fanzaNormalClicks)}回（${pctOverview(now.fanzaNormalClicks, now.fanzaClicks)}）`],
-                ...(isToday && pendingFanzaClicks > 0 ? [['集計待ち', `${fmtOverview(pendingFanzaClicks)}回（GA 集計前）`] as [string, string]] : []),
+                ['通常のブラウザ', isToday && pendingFanzaClicks > 0
+                  ? `${fmtOverview(now.fanzaNormalClicks)}回・集計待ち ${fmtOverview(pendingFanzaClicks)}回`
+                  : `${fmtOverview(now.fanzaNormalClicks)}回（${pctOverview(now.fanzaNormalClicks, now.fanzaClicks)}）`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
