@@ -147,7 +147,8 @@ export function TopCards({ cards }: { cards: TopCardProps[] }) {
 }
 
 // future: まだ来ていない時間帯（日）。今日（今月）の折れ線をそこで止める
-export type OverlaySlot = { tick: string; name: string; users: number; clicks: number; ghostUsers: number; ghostClicks: number; pending?: boolean; future?: boolean };
+// yen / ghostYen: その日の FANZA の報酬（円。ダイレクト＋カテゴリ＋サービス新規。動画・同人誌どちらの入口からでも買われれば報酬になるので分けない。2026-10-27）
+export type OverlaySlot = { tick: string; name: string; users: number; clicks: number; ghostUsers: number; ghostClicks: number; pending?: boolean; future?: boolean; yen?: number; yenNote?: string; ghostYen?: number };
 
 /**
  * 今日（今月）の棒を前に、昨日（先月）の棒を裏に重ねたグラフ。FANZA へのクリックは折れ線（今日は実線、昨日は点線）
@@ -188,6 +189,9 @@ export function OverlayChart({
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-2.5 rounded-sm bg-gray-500/60" />{ghostLabel}の利用者（裏）</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-amber-400" />{currentLabel}の FANZA へのクリック（右の目盛り）</span>
         <span className="flex items-center gap-1"><span className="inline-block w-3 border-t border-dashed border-amber-200/60" />{ghostLabel}のクリック</span>
+        {slots.some((s) => s.yen !== undefined) && (
+          <span className="flex items-center gap-1"><span className="inline-block rounded-sm bg-emerald-500/90 px-1 text-[9px] font-bold leading-3 text-gray-950">¥</span>FANZA の報酬（動画・同人誌の合計。棒の上に金額）</span>
+        )}
       </div>
       <div className="relative mt-5 flex flex-col lg:flex-1 lg:min-h-0">
         <div className="absolute inset-x-0 top-0 border-t border-gray-700" />
@@ -209,7 +213,10 @@ export function OverlayChart({
           >
             <p className="font-bold text-white">{shown.name}</p>
             <p><span className="text-blue-300">{currentLabel}</span> {fmt(shown.users)}人・FANZA {fmt(shown.clicks)}回{shown.pending && <span className="text-gray-500">（集計待ちを含む）</span>}</p>
-            <p><span className="text-gray-300">{ghostLabel}</span> {fmt(shown.ghostUsers)}人・FANZA {fmt(shown.ghostClicks)}回</p>
+            <p><span className="text-gray-300">{ghostLabel}</span> {fmt(shown.ghostUsers)}人・FANZA {fmt(shown.ghostClicks)}回{shown.ghostYen ? `・報酬 ${fmt(shown.ghostYen)}円` : ''}</p>
+            {shown.yen !== undefined && (
+              <p><span className="text-emerald-300">報酬</span> {shown.yen > 0 ? `${fmt(shown.yen)}円${shown.yenNote ? `（${shown.yenNote}）` : ''}` : '0円'}</p>
+            )}
           </div>
         )}
         <div className="h-full flex items-end gap-[2px]" onMouseLeave={() => setActive(null)}>
@@ -222,6 +229,15 @@ export function OverlayChart({
                 className={`absolute bottom-0 left-[20%] right-[20%] rounded-t ${active === i ? 'bg-blue-300' : 'bg-blue-500'}`}
                 style={{ height: `${(s.users / max) * 100}%`, minHeight: s.users > 0 ? 2 : 0 }}
               />
+              {/* 報酬があった日: 棒の上に金額の印（緑）。棒が高い日は印が上にはみ出ないよう、上端で止める */}
+              {s.yen ? (
+                <span
+                  className="absolute left-1/2 -translate-x-1/2 z-10 rounded bg-emerald-500/90 px-1 text-[9px] font-bold leading-4 text-gray-950 whitespace-nowrap"
+                  style={{ bottom: `min(calc(${(s.users / max) * 100}% + 3px), calc(100% - 1rem))` }}
+                >
+                  ¥{fmt(s.yen)}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
