@@ -202,7 +202,8 @@ export const trackModeSwitch = (mode: 'video' | 'doujin') => {
 // モーダル開閉イベント
 // 下のボタンの「ホーム」「4分以上」（モーダルを開かないボタン）を押した（2026-10-26。どれくらい使われているかを見る）
 export const trackNavButton = (button: 'home' | 'long_sample', options?: Record<string, any>) => {
-  sendGAEvent('nav_button', { button: { home: 'ホーム', long_sample: '4分以上' }[button], ...options });
+  // 項目名は GA に登録済みの action を使う（button は GA のカスタムディメンションに無く、集計で分けられなかった。2026-10-26）
+  sendGAEvent('nav_button', { action: { home: 'ホーム', long_sample: '4分以上' }[button], ...options });
 };
 
 export const trackModalOpen = (modalType: 'ranking' | 'liked' | 'history' | 'search' | 'video_detail' | 'actress' | 'actress_videos') => {
