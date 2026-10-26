@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import XPostsView from './x-posts/XPostsView';
 import SizeStatsView from './size-stats/SizeStatsView';
-import SampleLengthsView from './sample-lengths/SampleLengthsView';
+import SampleLengthsMini from './SampleLengthsMini';
 import DmmReportsView from './dmm-reports/DmmReportsView';
 import MensLabView from './menslab/MensLabView';
 import AiBotsView from './ai-bots/AiBotsView';
@@ -17,7 +17,6 @@ const TABS = [
   { key: 'dmm-reports', label: 'FANZA 実績' },
   { key: 'x-posts', label: 'X 投稿' },
   { key: 'size-stats', label: 'サイズ統計' },
-  { key: 'sample-lengths', label: 'サンプルの長さ' },
   { key: 'menslab', label: '男のからだ研究室' },
   { key: 'ai-bots', label: 'AI の読み取り' },
 ] as const;
@@ -170,6 +169,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               <span className="text-gray-500" aria-hidden>↗</span>
             </a>
           ))}
+          {/* サンプル動画の長さの記録状況（2026-10-26 にタブから移した） */}
+          <div className="mt-2">
+            <SampleLengthsMini />
+          </div>
           <a href="/api/admin/logout" className="mt-1 rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-800 hover:text-white">
             ログアウト
           </a>
@@ -246,6 +249,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                 ))}
               </div>
             </div>
+            <div className="border-t border-gray-800 px-5 py-3">
+              <SampleLengthsMini />
+            </div>
             <a href="/api/admin/logout" className="block px-5 py-3 text-sm text-gray-400 hover:text-white border-t border-gray-800">
               ログアウト
             </a>
@@ -301,7 +307,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           <div hidden={tab !== 'analytics'}>{children}</div>
           {opened.includes('x-posts') && <div hidden={tab !== 'x-posts'}><XPostsView /></div>}
           {opened.includes('size-stats') && <div hidden={tab !== 'size-stats'}><SizeStatsView /></div>}
-          {opened.includes('sample-lengths') && <div hidden={tab !== 'sample-lengths'}><SampleLengthsView /></div>}
           {opened.includes('dmm-reports') && <div hidden={tab !== 'dmm-reports'}><DmmReportsView /></div>}
           {opened.includes('menslab') && <div hidden={tab !== 'menslab'}><MensLabView /></div>}
           {opened.includes('ai-bots') && <div hidden={tab !== 'ai-bots'}><AiBotsView /></div>}
