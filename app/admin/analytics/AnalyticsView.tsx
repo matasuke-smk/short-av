@@ -859,11 +859,13 @@ function RangeBody({
         {(() => {
           const now = keyNumbers(reports);
           const before = compareData && 'reports' in compareData ? keyNumbers(compareData.reports) : null;
+          // 比べる相手の取得に失敗したときは「読み込み中」のままにせず、そう伝える（2026-10-26 ユーザー指摘）
+          const compareError = compareData && 'error' in compareData && compareData.error !== LOADING_MESSAGE ? compareData.error : null;
           const isToday = rangeKey === 'today';
           const ghostName = isToday ? '昨日' : '先月の同じ日まで';
           const cmp = (unit: string, pick: (k: KeyNumbers) => number, soFar?: number) =>
             before === null
-              ? `${ghostName}: 読み込み中…`
+              ? `${ghostName}: ${compareError ? '取得できませんでした（開き直してください）' : '読み込み中…'}`
               : isToday
                 ? `${soFar !== undefined && compare?.soFar ? `昨日の${compare.soFar.until}まで ${fmtOverview(soFar)}${unit}／` : ''}昨日 ${fmtOverview(pick(before))}${unit}`
                 : `先月の同じ日まで ${fmtOverview(pick(before))}${unit}`;
@@ -893,9 +895,12 @@ function RangeBody({
               value: fmtOverview(now.fanzaClicks + (isToday ? pendingFanzaClicks : 0)),
               unit: '回',
               compare: cmp('回', (k) => k.fanzaClicks, compare?.soFar?.events),
+              // 内訳は GA の集計だけで出す。「今日」でリアルタイムの記録から補った分（ブラウザは集計後に分かる）は別の行にして、
+              // 合計と内訳が合わないように見えないようにする（2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%））
               rows: [
                 ['押した人', `${fmtOverview(now.clickers)}人（通常 ${fmtOverview(now.normalClickers)}人）`],
                 ['通常のブラウザ', `${fmtOverview(now.fanzaNormalClicks)}回（${pctOverview(now.fanzaNormalClicks, now.fanzaClicks)}）`],
+                ...(isToday && pendingFanzaClicks > 0 ? [['集計待ち', `${fmtOverview(pendingFanzaClicks)}回（GA 集計前）`] as [string, string]] : []),
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
