@@ -26,13 +26,22 @@ export async function GET(request: NextRequest) {
     { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventFilter(['ad_click', 'share', 'banner_click']) },
     { dateRanges, dimensions: [{ name: 'pagePath' }], metrics: [{ name: 'eventCount' }], dimensionFilter: eventFilter(['ad_click']), orderBys: desc('eventCount'), limit: 20 },
     { dateRanges, dimensions: [{ name: 'deviceCategory' }], metrics: [{ name: 'sessions' }], orderBys: desc('sessions') },
+    // ページの題名（表に URL ではなく記事の題名を出すため。2026-10-26）
+    { dateRanges, dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }], metrics: [{ name: 'screenPageViews' }], orderBys: desc('screenPageViews'), limit: 300 },
   ];
   try {
     const [reports, realtime] = await Promise.all([
       runReports(requests, MENSLAB_PROPERTY_ID),
       runRealtimeReport({ metrics: [{ name: 'activeUsers' }] }, MENSLAB_PROPERTY_ID),
     ]);
-    const [totals, pages, sources, events, adPages, devices] = reports;
+    const [totals, pages, sources, events, adPages, devices, titleRows] = reports;
+    // URL ごとの題名（いちばん多く表示された題名。末尾のサイト名は外す）
+    const titles: Record<string, string> = {};
+    for (const r of titleRows) {
+      const [path, title] = r.dimensions;
+      if (titles[path] || !title || title === '(not set)') continue;
+      titles[path] = title.replace(/\s*[|｜]\s*男のからだ研究室\s*$/, '');
+    }
     const rows = (r: typeof pages) => r.map((x) => ({ key: x.dimensions[0], values: x.metrics }));
     return NextResponse.json({
       range,
@@ -43,6 +52,7 @@ export async function GET(request: NextRequest) {
       events: Object.fromEntries(events.map((e) => [e.dimensions[0], e.metrics[0]])),
       adPages: rows(adPages),
       devices: rows(devices),
+      titles,
     });
   } catch (error) {
     const status = error instanceof GaNotConfiguredError ? 503 : 500;
