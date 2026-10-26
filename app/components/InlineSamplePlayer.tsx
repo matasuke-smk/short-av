@@ -20,6 +20,7 @@ const TAP_H = 150;
  * - 再生が始まったら（プレイヤーにフォーカスが移る / プレイヤーから再生ボタンの合図が届く）、
  *   タップを通す範囲をプレイヤー全体に広げ、サムネイルを消す
  * プレイヤーの位置は変えずに、切り抜く範囲だけを変えるので、iframe は読み込み直されない。
+ * - プレイヤーの読み込みが終わるまではタップを通さず、▶の下に「読み込み中…」と出す
  */
 export default function InlineSamplePlayer({
   playerUrl,
@@ -40,6 +41,8 @@ export default function InlineSamplePlayer({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const [playing, setPlaying] = useState(false);
+  // プレイヤーの読み込みが終わったか。終わる前のクリックは FANZA の再生ボタンに届かず、サムネイルだけ消えて止まった画面になっていた（2026-10-26、再読み込み直後に▶を押すと起きた）
+  const [ready, setReady] = useState(false);
   const { t } = useT();
   const [pulse, setPulse] = useState(false);
   const startedRef = useRef(false);
@@ -53,6 +56,12 @@ export default function InlineSamplePlayer({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) setBox({ width: rect.width, height: rect.height });
+  }, []);
+
+  // 読み込み完了の合図（onLoad）が届かなかったときでも、再生できなくならないよう一定時間で受け付ける
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 8000);
+    return () => clearTimeout(timer);
   }, []);
 
   // 再生が始まったことを検知する
@@ -122,7 +131,7 @@ export default function InlineSamplePlayer({
       }}
     >
       {player && clip && (
-        <div className="absolute overflow-hidden z-10" style={clip}>
+        <div className="absolute overflow-hidden z-10" style={{ ...clip, pointerEvents: ready ? undefined : 'none' }}>
           <iframe
             ref={iframeRef}
             src={playerUrl(player)}
@@ -134,6 +143,7 @@ export default function InlineSamplePlayer({
             allow="fullscreen *"
             allowFullScreen
             scrolling="no"
+            onLoad={() => setReady(true)}
             className="absolute border-0"
             style={{ left: left - clip.left, top: top - clip.top, width: player.width, height: player.height }}
           />
@@ -150,14 +160,14 @@ export default function InlineSamplePlayer({
       {!playing && (
         <div className="absolute inset-0 z-30 pointer-events-none flex flex-col items-center justify-center gap-2 pt-6">
           <div
-            className={`w-20 h-20 rounded-full bg-blue-600/90 border-[3px] border-white flex items-center justify-center shadow-lg transition-transform duration-200 motion-safe:animate-[playpulse_1.8s_ease-out_infinite] ${pulse ? 'scale-125' : 'scale-100'}`}
+            className={`w-20 h-20 rounded-full bg-blue-600/90 border-[3px] border-white flex items-center justify-center shadow-lg transition-transform duration-200 ${ready ? 'motion-safe:animate-[playpulse_1.8s_ease-out_infinite]' : 'opacity-60'} ${pulse ? 'scale-125' : 'scale-100'}`}
           >
             <svg className="w-10 h-10 text-white ml-1" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
           <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-bold text-white">
-            {t('tapToPlay')}{sampleSeconds ? `（${Math.floor(sampleSeconds / 60)}:${String(sampleSeconds % 60).padStart(2, '0')}）` : ''}
+            {ready ? t('tapToPlay') : t('playerLoading')}{ready && sampleSeconds ? `（${Math.floor(sampleSeconds / 60)}:${String(sampleSeconds % 60).padStart(2, '0')}）` : ''}
           </span>
         </div>
       )}
