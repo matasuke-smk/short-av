@@ -6,35 +6,36 @@ import type { ReportRow } from '@/lib/ga-data';
 type LiveHourly = Record<number, { users: number; events: number }>;
 import { FUNNEL } from './funnel';
 import DoujinAnalytics from './DoujinAnalytics';
-import { xPostContentId, type Country, type ViewKey } from './view-keys';
+import { xPostContentId, VIEW_KEYS, type Country, type ViewKey } from './view-keys';
 import { sumDmmReports, type DmmReportRow } from '@/lib/dmm-reports-shared';
+import { keyNumbers, OverlayChart, TopCards, fmtOverview, pctOverview, type KeyNumbers, type OverlaySlot, type TopCardProps } from './Overview';
+import type { Trends } from './data';
 
 /**
  * アクセス解析の表示（管理画面）
  * 4つの期間のデータはサーバーでまとめて取得して渡されるので、期間の切り替えは表示を差し替えるだけ（すぐ切り替わる）。
  */
 
-// サーバーで取得する期間（28d は日別の表と曜日ごとの平均に使い、ボタンはない）
-export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d';
-type RangeKey = Exclude<ViewKey, 'weekday'>;
-const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨日', dayBefore: '一昨日', '7d': '週間平均', weekday: '曜日ごとの平均' };
+// サーバーで取得する期間。画面のボタンは「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つ（2026-10-26）。
+// yesterday・lastMonth は比べる相手。dayBefore・7d・28d は以前のボタン用で、28d は同人誌の日別の表に使う
+export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d' | 'month' | 'lastMonth';
+type RangeKey = ViewKey;
+const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', month: '今月' };
+
+// 日本時間の今日が何日か（今月の日数）
+const jstDayOfMonth = () => new Date(Date.now() + 9 * 3_600_000).getUTCDate();
 
 // 1日だけの期間が何日前か（リアルタイムで補う時間帯の判定に使う）
-const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, yesterday: 1, dayBefore: 2, '7d': 0 };
+const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, month: 0 };
 
-// 各期間の日数（時間帯グラフは1日あたりの平均で描く）
-export const RANGE_DAYS: Record<RangeKey, number> = { today: 1, yesterday: 1, dayBefore: 1, '7d': 7 };
+// 各期間の日数（同人誌の時間帯グラフは1日あたりの平均で描く）
+export const rangeDays = (key: RangeKey) => (key === 'month' ? jstDayOfMonth() : 1);
 
-// 各期間が何日前から何日前までか（日本時間）。週間平均は途中の今日を含めない。曜日ごとの平均は昨日までの4週間
-const VIEW_SPAN: Record<ViewKey, [number, number]> = { today: [0, 0], yesterday: [1, 1], dayBefore: [2, 2], '7d': [7, 1], weekday: [27, 1] };
 const jstDate = (daysAgo: number) => {
   const d = new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000);
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
-const rangeDates = (key: ViewKey) => {
-  const [from, to] = VIEW_SPAN[key];
-  return from === to ? jstDate(from) : `${jstDate(from)}〜${jstDate(to)}`;
-};
+const rangeDates = (key: ViewKey) => (key === 'month' ? `${jstDate(jstDayOfMonth() - 1)}〜${jstDate(0)}` : jstDate(0));
 
 // 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, FANZA へのクリック, 表示回数] × 24）と集計した日（YYYYMMDD）
 export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
@@ -52,9 +53,9 @@ export type RangePair = Record<Country, RangeData>;
 const LOADING_MESSAGE = '読み込み中…';
 const LOADING: RangeData = { error: LOADING_MESSAGE };
 const LOADING_PAIR: RangePair = { jp: LOADING, all: LOADING };
-// 取得する順番（「曜日ごとの平均」は28日間を使う）
-const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'dayBefore', '7d', '28d'];
-const dataKeyOf = (view: ViewKey): DataKey => (view === 'weekday' ? '28d' : view);
+// 取得する順番（表示中の期間とその比べる相手を先に。28d は同人誌の日別の表用）
+const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'month', 'lastMonth', '28d'];
+const dataKeyOf = (view: ViewKey): DataKey => view;
 
 
 // GA の流入元（デフォルト チャネル グループ）を日本語にする
@@ -664,7 +665,11 @@ function RangeBody({
   hourlyAxis,
   compare,
   dmmReports,
+  compareData,
+  trends,
 }: {
+  compareData: RangeData | null; // 比べる相手（「今日」は昨日、「今月」は先月の同じ日まで）。読み込み中なら LOADING
+  trends: Trends | null; // カードの28日の推移と、「今月」の日ごとのグラフ
   dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（管理画面で貼り付けたもの。この期間の分を「FANZA クリック」に並べる）
   compare: { soFar: YesterdaySoFar | null } | null; // 「今日」のとき、昨日の同じ時刻までの数字
   live: LiveHourly | null; // この期間を補うリアルタイムの記録（「今日」「昨日」「一昨日」のみ）
@@ -678,7 +683,7 @@ function RangeBody({
   const { reports, db, warning } = data;
   // この期間の DMM の実績（日本時間の日付で合わせる）
   const dmm = (() => {
-    const [from, to] = VIEW_SPAN[rangeKey];
+    const [from, to] = rangeKey === 'month' ? [jstDayOfMonth() - 1, 0] : [0, 0];
     const dates = new Set<string>();
     for (let daysAgo = to; daysAgo <= from; daysAgo++) dates.add(new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10));
     return sumDmmReports(dmmReports.filter((r) => dates.has(r.date)));
@@ -851,151 +856,157 @@ function RangeBody({
   return (
     <>
         {warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{warning}</p>}
-        {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける */}
-        <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
-        <div>
-        {/* いちばん上: FANZA のクリックと、X から来た人・X 以外から来た人（2026-10-26 ユーザーの要望で JuicyAds・DLsite と入れ替え。両方の詳細は下の「どこの人か」などで見られる） */}
+        {/* 4枚のカードと、今日（今月）を前に昨日（先月）を裏に重ねたグラフ（2026-10-26 作り直し。右側のカード・週間平均・曜日ごとの平均はなくした） */}
         {(() => {
-          const sum = sum33;
+          const now = keyNumbers(reports);
+          const before = compareData && 'reports' in compareData ? keyNumbers(compareData.reports) : null;
+          const isToday = rangeKey === 'today';
+          const ghostName = isToday ? '昨日' : '先月の同じ日まで';
+          const cmp = (unit: string, pick: (k: KeyNumbers) => number, soFar?: number) =>
+            before === null
+              ? `${ghostName}: 読み込み中…`
+              : isToday
+                ? `${soFar !== undefined && compare?.soFar ? `昨日の${compare.soFar.until}まで ${fmtOverview(soFar)}${unit}／` : ''}昨日 ${fmtOverview(pick(before))}${unit}`
+                : `先月の同じ日まで ${fmtOverview(pick(before))}${unit}`;
+          // 28日の推移（今日まで）
+          const last28 = (series: number[] | undefined) => (series ? series.slice(-28) : null);
+          // FANZA 実績（DMM）。日付は YYYY-MM-DD
+          const jstYmd = (daysAgo: number) => new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10);
+          const conv = (r: DmmReportRow) => r.direct_count + r.category_count + r.new_count;
+          const yen = (r: DmmReportRow) => r.direct_yen + r.category_yen + r.new_yen;
+          const thisMonth = jstYmd(0).slice(0, 7);
+          const dom = Number(jstYmd(0).slice(8, 10));
+          const lastMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)) - 2, 1)).toISOString().slice(0, 7);
+          const monthRows = dmmReports.filter((r) => r.date.startsWith(thisMonth));
+          const lastMonthRows = dmmReports.filter((r) => r.date.startsWith(lastMonth) && Number(r.date.slice(8, 10)) <= dom);
+          const yRow = dmmReports.find((r) => r.date === jstYmd(1));
+          const total = (rows: DmmReportRow[], f: (r: DmmReportRow) => number) => rows.reduce((a, r) => a + f(r), 0);
+          const dmmTrend = Array.from({ length: 28 }, (_, i) => {
+            const row = dmmReports.find((r) => r.date === jstYmd(27 - i));
+            return row ? conv(row) : 0;
+          });
+          const topLabel = now.topNonX ? `${channelLabel(now.topNonX.channel).split('（')[0]} ${fmtOverview(now.topNonX.users)}人` : '-';
+          const toDmm = () => {
+            window.location.href = '/admin/dmm-reports';
+          };
+          const cards: TopCardProps[] = [
+            {
+              label: 'FANZA へのクリック',
+              value: fmtOverview(now.fanzaClicks + (isToday ? pendingFanzaClicks : 0)),
+              unit: '回',
+              compare: cmp('回', (k) => k.fanzaClicks, compare?.soFar?.events),
+              rows: [
+                ['押した人', `${fmtOverview(now.clickers)}人（通常 ${fmtOverview(now.normalClickers)}人）`],
+                ['通常のブラウザ', `${fmtOverview(now.fanzaNormalClicks)}回（${pctOverview(now.fanzaNormalClicks, now.fanzaClicks)}）`],
+              ],
+              trend: last28(trends?.fanzaClicks),
+              color: '#34d399',
+              onClick: () => setDetail('card:FANZA'),
+            },
+            {
+              label: 'X から来た人',
+              value: fmtOverview(now.xUsers),
+              unit: '人',
+              compare: cmp('人', (k) => k.xUsers),
+              rows: [
+                ['開き直した', `${fmtOverview(now.xNormalUsers)}人（押した ${fmtOverview(now.xNormalClickers)}人）`],
+                ['FANZA を押した', `${fmtOverview(now.xClickers)}人`],
+              ],
+              trend: last28(trends?.xUsers),
+              color: '#60a5fa',
+              onClick: () => setDetail('channels'),
+            },
+            {
+              label: 'X 以外から来た人',
+              value: fmtOverview(now.nonXUsers),
+              unit: '人',
+              compare: cmp('人', (k) => k.nonXUsers),
+              rows: [
+                ['FANZA を押した', `${fmtOverview(now.nonXClickers)}人（${pctOverview(now.nonXClickers, now.nonXUsers)}）`],
+                ['いちばん多い', topLabel],
+              ],
+              trend: last28(trends?.nonXUsers),
+              color: '#a78bfa',
+              onClick: () => setDetail('channels'),
+            },
+            isToday
+              ? {
+                  label: 'FANZA 実績（昨日の成約）',
+                  value: yRow ? fmtOverview(conv(yRow)) : '—',
+                  unit: '件',
+                  compare: yRow ? `昨日の報酬 ${fmtOverview(yen(yRow))}円` : '昨日の分がまだ入っていません',
+                  rows: [
+                    ['今月の成約', `${fmtOverview(total(monthRows, conv))}件・${fmtOverview(total(monthRows, yen))}円`],
+                    ['昨日の DMM のクリック', yRow ? `${fmtOverview(yRow.clicks)}回` : '-'],
+                  ],
+                  trend: dmmTrend,
+                  color: '#fbbf24',
+                  onClick: toDmm,
+                }
+              : {
+                  label: 'FANZA 実績（今月の成約）',
+                  value: fmtOverview(total(monthRows, conv)),
+                  unit: '件',
+                  compare: `先月の同じ日まで ${fmtOverview(total(lastMonthRows, conv))}件`,
+                  rows: [
+                    ['今月の報酬', `${fmtOverview(total(monthRows, yen))}円`],
+                    ['先月の同じ日まで', `${fmtOverview(total(lastMonthRows, yen))}円`],
+                  ],
+                  trend: dmmTrend,
+                  color: '#fbbf24',
+                  onClick: toDmm,
+                },
+          ];
+          // グラフ: 今日は時間帯、今月は日ごと
+          let slots: OverlaySlot[];
+          if (isToday) {
+            const ghostHours = compareData && 'reports' in compareData ? compareData.reports[10] ?? [] : [];
+            slots = hours.map((x) => {
+              const g = ghostHours.find((r) => Number(r.dimensions[0]) === x.h)?.metrics ?? [0, 0];
+              const nowHour = new Date(Date.now() + 9 * 3_600_000).getUTCHours();
+              return { tick: x.h % 3 === 0 ? String(x.h) : '', name: `${x.h}時台`, users: x.users, clicks: x.events, ghostUsers: g[0] ?? 0, ghostClicks: g[1] ?? 0, pending: x.fromLive, future: x.h > nowHour };
+            });
+          } else {
+            const dates = trends?.dates ?? [];
+            const valueOn = (series: number[] | undefined, ym: string, day: number) => {
+              const i = dates.indexOf(`${ym.replace('-', '')}${String(day).padStart(2, '0')}`);
+              return i >= 0 && series ? series[i] : 0;
+            };
+            const daysInMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)), 0)).getUTCDate();
+            slots = Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              return {
+                tick: day === 1 || day % 5 === 0 ? String(day) : '',
+                name: `${day}日`,
+                users: day <= dom ? valueOn(trends?.users, thisMonth, day) : 0,
+                clicks: day <= dom ? valueOn(trends?.fanzaClicks, thisMonth, day) : 0,
+                ghostUsers: valueOn(trends?.users, lastMonth, day),
+                ghostClicks: valueOn(trends?.fanzaClicks, lastMonth, day),
+                future: day > dom,
+              };
+            });
+          }
           return (
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              {moneyCards.filter((c) => c.label === 'FANZA').map((c) => (
-                <KpiCard
-                  key={c.label}
-                  label={c.label}
-                  // 報酬の対象の地域だけで数える（FANZA は日本、JuicyAds・DLsite は海外。2026-10-14 ユーザーの指摘）
-                  // FANZA はリアルタイムで補った分も足す（時間帯グラフの合計と同じ数になる）
-                  value={fmt(sum(c.events, c.area)[0] + (c.label === 'FANZA' ? pendingFanzaClicks : 0))}
-                  unit="回"
-                  // 棒: そのクリックのうち、報酬になる通常のブラウザ（Safari・Chrome など）からの分を緑で。
-                  // かっこ内は、押された回数のうち通常のブラウザから押された割合（棒と同じ。2026-10-14 ユーザーの指摘で変更。
-                  // 以前は「通常のブラウザで来た人のうち押した人の割合」で、棒と意味がずれていた）
-                  share={{
-                    part: sum(c.events, (r) => c.area(r) && isNormal(r))[0],
-                    total: sum(c.events, c.area)[0],
-                    label: `通常 ${fmt(sum(c.events, (r) => c.area(r) && isNormal(r))[0])}回（${pct(sum(c.events, (r) => c.area(r) && isNormal(r))[0], sum(c.events, c.area)[0])}）`,
-                  }}
-                  // 押した人の数（FANZA へのリンクのどれかを押した人。2026-10-26 ユーザーの要望）
-                  rows={c.label === 'FANZA' ? [['押した人', `${fmt(fanzaClickers.all)}人（通常 ${fmt(fanzaClickers.normal)}人）`]] : undefined}
-                  onClick={() => setDetail(`card:${c.label}`)}
-                />
-              ))}
-              <KpiCard
-                label="X から来た人"
-                value={fmt(xFrom.users)}
-                unit="人"
-                sub={`FANZA をクリックした人 ${fmt(xFrom.clickUsers)}人`}
-                // 棒: X から来た人のうち、アプリの中ではなく Safari・Chrome などで開き直して見た人（そのクリックは報酬になる）
-                share={{
-                  part: xFrom.normalUsers,
-                  total: xFrom.users,
-                  label: `Safari などで開き直した ${fmt(xFrom.normalUsers)}人（クリック ${fmt(xFrom.normalClickUsers)}人）`,
-                }}
-                onClick={() => setDetail('channels')}
-              />
-              <KpiCard
-                label="X 以外から来た人"
-                value={fmt(nonX.users + bsky.users)}
-                unit="人"
-                sub={`FANZA をクリックした人 ${fmt(nonX.clickUsers + bsky.clickUsers)}人（${pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}）`}
-                onClick={() => setDetail('channels')}
-              />
-            </div>
-          );
-        })()}
-        <Section title="時間帯ごとの利用者" note={RANGE_DAYS[rangeKey] === 1 ? undefined : '期間内の1日あたりの平均。下のカードなどは7日間の合計'}>
-          <HourlyChart hours={hours} total={users} totalEvents={totalClicks} days={RANGE_DAYS[rangeKey]} axis={hourlyAxis} compareTotals={compare?.soFar} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('funnel')} />
-        </Section>
-        </div>
-
-        {/* 右の列は左の列と同じ高さにし（中身で左より長くならないよう外枠を基準に置く）、カードで埋める（PC で右下が空かないように） */}
-        <div className="lg:relative">
-        <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col lg:pb-4">
-        {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
-        <div className="grid grid-cols-2 gap-2 mb-2">
-          {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
-            const inAppClicks = osRows.filter((r) => r.os === (name === 'iPhone' ? 'iOS' : 'Android') && r.browser === inAppBrowser).reduce((sum, r) => sum + r.clicks, 0);
-            return (
-              <Card
-                key={name}
-                label={name}
-                value={fmt(total.users)}
-                unit="人"
-                sub={`FANZA へのクリック ${fmt(total.clicks)}回（うちアプリ内 ${fmt(inAppClicks)}回）`}
-                onClick={() => setDetail(`os:${name === 'iPhone' ? 'iOS' : 'Android'}`)}
-                extra={osRows
-                  .filter((r) => r.os === (name === 'iPhone' ? 'iOS' : 'Android'))
-                  .slice(0, 4)
-                  .map((r) => (
-                    <ExtraRow
-                      key={r.browser}
-                      name={r.browser === inAppBrowser ? 'アプリ内（X など）' : r.browser}
-                      right={`${fmt(r.users)}人・クリック ${fmt(r.clicks)}回（${pct(r.clickUsers, r.users)}）`}
-                    />
-                  ))}
-              />
-            );
-          })}
-        </div>
-
-        {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0 lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-          {(() => {
-            // アプリ内ブラウザ（iPhone の X・Android の WebView）で FANZA のボタンを押したときの案内。「ブラウザで開き直した」は 2026/10/9 14時ごろから、
-            // 開き直した先のブラウザで記録している（それより前の分は 表示 − このまま開く − 閉じる の残りに含まれる）
-            const notice = (action: string) => answers.find((r) => r.dimensions[0] === 'inapp_browser_notice' && r.dimensions[1] === action)?.metrics[0] ?? 0;
-            const shown = notice('表示');
-            const reopened = notice('ブラウザで開き直した');
-            return (
-              <Card
-                label="「ブラウザで開く」案内（アプリ内ブラウザ）"
-                value={fmt(reopened)}
-                unit="回"
-                sub={`案内の表示 ${fmt(shown)}回のうち、ブラウザで開き直した（${pct(reopened, shown)}）`}
-                onClick={() => setDetail('inapp')}
-                extra={
-                  <div className="grid grid-cols-2 gap-x-4">
-                    {INAPP_ACTIONS.map((action) => <ExtraRow key={action} name={action} right={`${fmt(notice(action))}回`} />)}
-                  </div>
+            <>
+              <TopCards cards={cards} />
+              <OverlayChart
+                title={isToday ? '時間帯ごとの利用者と FANZA へのクリック' : '日ごとの利用者と FANZA へのクリック'}
+                slots={slots}
+                currentLabel={isToday ? '今日' : '今月'}
+                ghostLabel={isToday ? '昨日' : '先月'}
+                summary={
+                  <>
+                    合計{' '}
+                    <button type="button" onClick={() => setDetail('daily')} className="underline decoration-dotted">
+                      <span className="text-base font-bold text-white">{fmtOverview(users)}</span>人
+                    </button>
+                    {compare?.soFar && <span className="ml-2">昨日の{compare.soFar.until}まで {fmtOverview(compare.soFar.users)}人</span>}
+                  </>
                 }
               />
-            );
-          })()}
-          <Card
-            label="よくクリックされた作品"
-            value={fmt(works.filter((w) => w.clicks > 0).length)}
-            unit="作品"
-            sub="作品ごとの再生・FANZA へのクリック"
-            onClick={() => setDetail('clicked')}
-            extra={[...works]
-              .filter((w) => w.clicks > 0)
-              .sort((a, b) => b.clicks - a.clicks)
-              .slice(0, 5)
-              .map((w) => (
-                <ExtraRow key={w.id} name={db.titleById[w.id] ?? w.id} right={`クリック ${fmt(w.clicks)}回・再生 ${fmt(w.plays)}回`} />
-              ))}
-          />
-          <Card
-            label="X の動画の投稿から来た人"
-            value={fmt(x.users)}
-            unit="人"
-            sub={`FANZA へのクリック ${fmt(x.clickUsers)}人（${fmt(x.clicks)}回）`}
-            onClick={() => setDetail('xpost')}
-            extra={
-              x.posts.length === 0 ? (
-                <p className="text-gray-500">まだデータがありません</p>
-              ) : (
-                x.posts.slice(0, 5).map((p) => (
-                  <ExtraRow key={p.id} name={db.titleById[p.id] ?? p.id} right={`${fmt(p.users)}人・クリック ${fmt(p.clicks)}回`} />
-                ))
-              )
-            }
-          />
-          {/* 「X 以外から来た人」のカードはいちばん上に移した（推移・Bluesky・流入元は、押すと開く一覧にある。2026-10-26） */}
-        </div>
-        </div>
-        </div>
-        </div>
+            </>
+          );
+        })()}
 
         {detail === 'xpost' && (
           <DetailModal
@@ -1848,9 +1859,11 @@ export default function AnalyticsView({
   yesterdaySoFar: yesterdaySoFarPair,
   country: initialCountry,
   dmmReports,
+  trends: trendsPair = null,
 }: {
+  trends?: Record<Country, Trends> | null; // カードの28日の推移と「今月」の日ごとのグラフ（取得できなければ null）
   dailySummary?: { date: string; summary: string; yen: number | null; created_at: string } | null;
-  dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（直近35日）
+  dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（先月の1日から）
   country: Country; // 開いたときの「日本のみ（標準）｜すべて」（URL の country）
   yesterdaySoFar: Record<Country, YesterdaySoFar> | null; // 昨日の同じ時刻までの数字（取得できなければ null）
   live: Record<'today' | 'yesterday' | 'dayBefore', LiveHourly | null>; // 時間帯ごとのリアルタイムの記録（取得できなければ null）
@@ -1900,7 +1913,7 @@ export default function AnalyticsView({
       cancelled = true;
     };
   }, [initialData]);
-  const pairs: Record<DataKey, RangePair> = { today: LOADING_PAIR, yesterday: LOADING_PAIR, dayBefore: LOADING_PAIR, '7d': LOADING_PAIR, '28d': LOADING_PAIR, ...loaded };
+  const pairs: Record<DataKey, RangePair> = { today: LOADING_PAIR, yesterday: LOADING_PAIR, dayBefore: LOADING_PAIR, '7d': LOADING_PAIR, '28d': LOADING_PAIR, month: LOADING_PAIR, lastMonth: LOADING_PAIR, ...loaded };
   const data = Object.fromEntries((Object.keys(pairs) as DataKey[]).map((key) => [key, pairs[key]?.[country] ?? LOADING])) as Record<DataKey, RangeData>;
   // 「動画｜同人誌」: どちらの数字を見るか（URL の kind に残す）
   const [section, setSection] = useState<'video' | 'doujin'>('video');
@@ -1917,22 +1930,22 @@ export default function AnalyticsView({
   const month = data['28d'];
   const weekday = 'reports' in month ? month.weekday : undefined;
   const hourlyAxis = { users: 0, events: 0 };
-  for (const key of Object.keys(RANGE_DAYS) as RangeKey[]) {
+  for (const key of VIEW_KEYS) {
     const range = data[key];
     if (!('reports' in range)) continue;
     for (const row of range.reports[10] ?? []) {
-      hourlyAxis.users = Math.max(hourlyAxis.users, row.metrics[0] / RANGE_DAYS[key]);
-      hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
+      hourlyAxis.users = Math.max(hourlyAxis.users, row.metrics[0] / rangeDays(key));
+      hourlyAxis.events = Math.max(hourlyAxis.events, row.metrics[1] / rangeDays(key));
     }
   }
   // 同人誌の時間帯グラフの縦軸も4つの期間で共通にする（レポート 32）
   const doujinHourlyAxis = { users: 0, events: 0 };
-  for (const key of Object.keys(RANGE_DAYS) as RangeKey[]) {
+  for (const key of VIEW_KEYS) {
     const range = data[key];
     if (!('reports' in range)) continue;
     for (const row of range.reports[32] ?? []) {
-      doujinHourlyAxis.users = Math.max(doujinHourlyAxis.users, row.metrics[0] / RANGE_DAYS[key]);
-      doujinHourlyAxis.events = Math.max(doujinHourlyAxis.events, row.metrics[1] / RANGE_DAYS[key]);
+      doujinHourlyAxis.users = Math.max(doujinHourlyAxis.users, row.metrics[0] / rangeDays(key));
+      doujinHourlyAxis.events = Math.max(doujinHourlyAxis.events, row.metrics[1] / rangeDays(key));
     }
   }
   // リアルタイムで補った時間帯は、グラフ側で縦軸を必要なだけ広げる（使わない古い記録で縦軸が伸びないよう、ここでは足さない）
@@ -1973,7 +1986,9 @@ export default function AnalyticsView({
       </span>
     </button>
   );
-  const current = viewKey === 'weekday' ? null : data[viewKey];
+  const current = data[viewKey];
+  // 比べる相手（「今日」は昨日、「今月」は先月の同じ日まで）
+  const compareData = data[viewKey === 'today' ? 'yesterday' : 'lastMonth'];
   // 「今日」は昨日の同じ時刻までと比べる
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
@@ -2021,12 +2036,8 @@ export default function AnalyticsView({
         </div>
         </div>
 
-        {/* スマホは上に3つ・下に2つ。PC は1行に並べ、1日ごとと平均の間に区切りを入れる */}
-        <nav className="mt-3 mb-4 lg:mb-3 flex flex-col md:flex-row gap-1.5 md:gap-3">
-          <div className="grid grid-cols-3 gap-1.5 md:gap-2 md:flex-[3]">{(['today', 'yesterday', 'dayBefore'] as const).map(button)}</div>
-          <div className="hidden md:block w-px bg-gray-700" aria-hidden />
-          <div className="grid grid-cols-2 gap-1.5 md:gap-2 md:flex-[2.4]">{(['7d', 'weekday'] as const).map(button)}</div>
-        </nav>
+        {/* 「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つ（2026-10-26） */}
+        <nav className="mt-3 mb-4 lg:mb-3 grid grid-cols-2 gap-1.5 md:gap-2 max-w-md">{VIEW_KEYS.map(button)}</nav>
         <p className="-mt-2 mb-3 text-xs text-gray-400" suppressHydrationWarning>
           {/* スマホで1行に収まるよう短く（日本時間の0時で区切ることは、いちばん下の注に書く） */}
           集計の対象: {rangeDates(viewKey)}・{country === 'jp' ? '日本のみ' : 'すべての国'}
@@ -2036,34 +2047,21 @@ export default function AnalyticsView({
 
         {section === 'doujin' ? (
           (() => {
-            // 同人誌: 曜日ごとの平均を選んでいるときは28日間の数字
-            const range = viewKey === 'weekday' ? month : current!;
+            const range = current;
             if ('error' in range) return errorBox(range.error);
             return (
               <>
-                {viewKey === 'weekday' && <p className="mb-3 text-xs text-gray-400">同人誌は曜日ごとの平均がないため、28日間の合計を表示しています。</p>}
                 {range.warning && <p className="mb-3 rounded-lg border border-amber-700 bg-amber-900/30 p-2.5 text-xs text-amber-200">{range.warning}</p>}
                 <DoujinAnalytics
                   reports={range.reports}
                   daily={'reports' in month ? month.reports[22] ?? null : null}
                   info={{ ...('reports' in month ? month.doujinInfo : {}), ...range.doujinInfo }}
-                  days={viewKey === 'weekday' ? 28 : RANGE_DAYS[viewKey as RangeKey]}
+                  days={rangeDays(viewKey)}
                   hourlyAxis={doujinHourlyAxis}
                 />
               </>
             );
           })()
-        ) : current === null ? (
-          'error' in month ? (
-            errorBox(month.error)
-          ) : weekday ? (
-            <>
-              <WeekdayView weekday={weekday} daily={month.reports[2]} hourlyAxis={hourlyAxis} />
-              <DailyTable daily={month.reports[2]} dailyEvents={month.reports[3]} />
-            </>
-          ) : (
-            errorBox('曜日ごとのデータを取得できませんでした。')
-          )
         ) : 'error' in current ? (
           errorBox(current.error)
         ) : (
@@ -2079,16 +2077,18 @@ export default function AnalyticsView({
             }
             realtimeViews={realtime === null ? null : realtime.reduce((sum, r) => sum + r.metrics[0], 0)}
             fixedDaily={'reports' in month ? month.reports : null}
-            live={viewKey === 'today' || viewKey === 'yesterday' || viewKey === 'dayBefore' ? live[viewKey] : null}
+            live={viewKey === 'today' ? live.today : null}
             hourlyAxis={hourlyAxis}
             compare={compare}
+            compareData={compareData}
+            trends={trendsPair?.[country] ?? null}
           />
         )}
 
         {/* 「すべて」のときは国ごとの内訳（曜日ごとの平均では28日間） */}
         {country === 'all' &&
           (() => {
-            const range = viewKey === 'weekday' ? month : current!;
+            const range = current;
             return 'reports' in range && range.reports[29] ? <CountryTable rows={range.reports[29]} /> : null;
           })()}
 
