@@ -84,7 +84,8 @@ export type ReportRow = { dimensions: string[]; metrics: number[] };
 // GA Data API は1つのプロパティに同時に送れるリクエストが10件まで（超えると「Exhausted concurrent requests quota」）。
 // アクセス解析は期間ごとの集計を並行して取るうえ、リアルタイムの記録なども同時に走るため、
 // このサーバーから同時に送るのを MAX_CONCURRENT 件までに抑え、それでも上限に当たったら少し待って送り直す
-const MAX_CONCURRENT = 4;
+// 2026-10-26: 管理画面は画面の描画と残りの期間の取得が別のサーバーで同時に動くため、4 でも上限に当たった（ユーザー報告）。2 に下げる
+const MAX_CONCURRENT = 2;
 let running = 0;
 const waiting: (() => void)[] = [];
 
@@ -100,7 +101,7 @@ async function withSlot<T>(task: () => Promise<T>): Promise<T> {
 }
 
 // 同時リクエストの上限・1時間あたりの上限などで断られたときは、待ってから最大 RETRIES 回送り直す
-const RETRIES = 3;
+const RETRIES = 5;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GA の応答（reports / rows / error）をそのまま扱う
 async function gaFetch(url: string, body: unknown, token: string): Promise<{ ok: boolean; status: number; data: any }> {
   for (let attempt = 0; ; attempt++) {
@@ -115,7 +116,8 @@ async function gaFetch(url: string, body: unknown, token: string): Promise<{ ok:
     });
     const retryable = result.status === 429 || /concurrent requests/i.test(result.data?.error?.message ?? '');
     if (result.ok || !retryable || attempt >= RETRIES) return result;
-    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+    // 1秒・2秒・4秒・8秒・16秒と、少しずつ長く待つ（ほかのサーバーの問い合わせが終わるのを待つ）
+    await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt + Math.random() * 500));
   }
 }
 
