@@ -932,10 +932,11 @@ function RangeBody({
                   label: 'FANZA 実績（昨日の成約）',
                   value: yRow ? fmtOverview(conv(yRow)) : '—',
                   unit: '件',
-                  compare: yRow ? `昨日の報酬 ${fmtOverview(yen(yRow))}円` : '昨日の分がまだ入っていません',
+                  // 並び: 昨日クリック数 → 昨日の報酬 → 今月の成約（2026-10-26 ユーザーの指定）
+                  compare: yRow ? `昨日クリック数 ${fmtOverview(yRow.clicks)}回` : '昨日の分がまだ入っていません',
                   rows: [
+                    ['昨日の報酬', yRow ? `${fmtOverview(yen(yRow))}円` : '-'],
                     ['今月の成約', `${fmtOverview(total(monthRows, conv))}件・${fmtOverview(total(monthRows, yen))}円`],
-                    ['昨日の DMM のクリック', yRow ? `${fmtOverview(yRow.clicks)}回` : '-'],
                   ],
                   trend: dmmTrend,
                   color: '#fbbf24',
@@ -2176,7 +2177,9 @@ export default function AnalyticsView({
                   daily={'reports' in month ? month.reports[22] ?? null : null}
                   info={{ ...('reports' in month ? month.doujinInfo : {}), ...range.doujinInfo }}
                   days={rangeDays(viewKey)}
-                  hourlyAxis={doujinHourlyAxis}
+                  compareReports={'reports' in compareData ? compareData.reports : null}
+                  compareDays={viewKey === 'today' ? 1 : Math.max(1, Math.min(jstDayOfMonth(), new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 0)).getUTCDate()))}
+                  mode={viewKey}
                 />
               </>
             );

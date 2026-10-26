@@ -88,6 +88,8 @@ export type TopCardProps = {
   unit: string;
   compare: string; // 比べる相手の数字（昨日・先月の同じ日まで）
   rows: [string, string][];
+  // 長い文（作品の題名など）。はみ出す分は「…」で切る（文字を縮める判定には入れない。長い題名で4枚とも小さくならないように）
+  note?: string;
   trend: number[] | null; // 28日の推移（古い順）
   color: string;
   onClick: () => void;
@@ -104,7 +106,7 @@ function Spark({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-function TopCard({ label, value, unit, compare, rows, trend, color, onClick }: TopCardProps) {
+function TopCard({ label, value, unit, compare, rows, note, trend, color, onClick }: TopCardProps) {
   // 文字の大きさは --k（useFitScale）で4枚そろえて縮める
   const size = (px: number) => ({ fontSize: `calc(${px}px * var(--k, 1))` });
   return (
@@ -115,6 +117,7 @@ function TopCard({ label, value, unit, compare, rows, trend, color, onClick }: T
         <span className="ml-0.5 font-normal text-gray-400" style={size(14)}>{unit}</span>
       </div>
       <div data-fit className="text-gray-400 whitespace-nowrap overflow-hidden leading-snug" style={size(12)}>{compare}</div>
+      {note && <div className="text-gray-200 truncate leading-snug" style={size(12)} title={note}>{note}</div>}
       {rows.map(([k, v]) => (
         <div key={k} data-fit className="mt-0.5 flex justify-between gap-2 whitespace-nowrap overflow-hidden leading-snug" style={size(12)}>
           <span className="text-gray-400">{k}</span>

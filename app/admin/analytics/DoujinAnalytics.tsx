@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import type { ReportRow } from '@/lib/ga-data';
-import { Bar, Card, DetailModal, ExtraRow, HourlyChart, KpiCard, Section, fmt, pct, type HourlyPoint } from './AnalyticsView';
+import { Bar, DetailModal, fmt, pct, type HourlyPoint } from './AnalyticsView';
+import { OverlayChart, TopCards, type OverlaySlot, type TopCardProps } from './Overview';
 
 const md = (date: string) => `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}`;
 
@@ -10,8 +11,8 @@ type Info = Record<string, { title: string; cover: string }>;
 type Detail = 'works' | 'daily' | 'os:iOS' | 'os:Android' | null;
 
 /**
- * アクセス解析の「同人誌」。動画の画面と同じ並び（ユーザーの要望、2026-10-10）:
- * 上に収益につながる3つの数字 → 時間帯グラフ → iPhone / Android → カード4枚（押すと詳細を全画面で開く）。
+ * アクセス解析の「同人誌」。動画の画面と同じ並び（2026-10-26 作り直し）:
+ * 上にカード4枚（昨日・先月の同じ日までと比べる）→ 今日（今月）を前に昨日（先月）を裏に重ねた時間帯のグラフ。カードを押すと詳細を開く。
  * reports は期間のレポート（20〜24 が同人誌、31 が端末×ブラウザ、32 が時間帯）、daily は日別の表に使う28日間のレポート
  */
 export default function DoujinAnalytics({
@@ -19,13 +20,17 @@ export default function DoujinAnalytics({
   daily,
   info,
   days,
-  hourlyAxis,
+  compareReports,
+  compareDays,
+  mode,
 }: {
+  compareReports: ReportRow[][] | null; // 比べる相手（「今日」は昨日、「今月」は先月の同じ日まで）。読み込み中は null
+  compareDays: number; // 比べる相手の日数
+  mode: 'today' | 'month';
   reports: ReportRow[][];
   daily: ReportRow[] | null;
   info: Info;
-  days: number; // 期間の日数（7日間・28日間は時間帯グラフを1日あたりの平均で描く）
-  hourlyAxis: { users: number; events: number }; // 時間帯グラフの縦軸（4つの期間で共通）
+  days: number; // 期間の日数（「今月」は時間帯グラフを1日あたりの平均で描く）
 }) {
   const [detail, setDetail] = useState<Detail>(null);
   const closeDetail = () => setDetail(null);
@@ -103,114 +108,108 @@ export default function DoujinAnalytics({
 
   return (
     <>
-      {/* PC はスクロールせずに見られるよう、左（数字・時間帯グラフ）と右（端末・カード）に分ける（動画の画面と同じ） */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:gap-4">
-        <div>
-          {/* 収益につながる数字（表示の回数より、最後まで読まれた・FANZA へ飛んだ回数が大事） */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <KpiCard label="FANZA クリック（同人誌）" value={fmt(clicks)} unit="回" sub={`${fmt(clickUsers)}人がクリック`} onClick={() => setDetail('works')} />
-            <KpiCard label="最後まで読んだ（購入ページ）" value={fmt(completes)} unit="回" sub={`${fmt(completeUsers)}人`} onClick={() => setDetail('works')} />
-            <KpiCard
-              label="最後まで読んだ人のクリック率"
-              value={pct(clickUsers, completeUsers).replace('%', '')}
-              unit="%"
-              sub={`最後まで ${fmt(completeUsers)}人中 ${fmt(clickUsers)}人がクリック`}
-              onClick={() => setDetail('works')}
+      {(() => {
+        // 比べる相手の数字
+        const c = compareReports;
+        const cGet = (i: number, event: string) => (c ? get(c[i] ?? [], event) : null);
+        const isToday = mode === 'today';
+        const cmp = (unit: string, v: number[] | null, i = 0) => (v === null ? '比べる数字を読み込み中…' : `${isToday ? '昨日' : '先月の同じ日まで'} ${fmt(v[i])}${unit}`);
+        const cards: TopCardProps[] = [
+          {
+            label: 'FANZA へのクリック（同人誌）',
+            value: fmt(clicks),
+            unit: '回',
+            compare: cmp('回', cGet(20, 'dmm_link_click')),
+            rows: [
+              ['押した人', `${fmt(clickUsers)}人`],
+              ['読んだ人のクリック率', pct(clickUsers, completeUsers)],
+            ],
+            trend: null,
+            color: '#f472b6',
+            onClick: () => setDetail('works'),
+          },
+          {
+            label: '最後まで読んだ（購入ページ）',
+            value: fmt(completes),
+            unit: '回',
+            compare: cmp('回', cGet(20, 'doujin_complete')),
+            rows: [
+              ['読んだ人', `${fmt(completeUsers)}人`],
+              ['表示した人のうち', pct(completeUsers, viewUsers)],
+            ],
+            trend: null,
+            color: '#f472b6',
+            onClick: () => setDetail('works'),
+          },
+          {
+            label: '同人誌を表示した人',
+            value: fmt(viewUsers),
+            unit: '人',
+            compare: cmp('人', cGet(20, 'doujin_view'), 1),
+            rows: [
+              ['表示の回数', `${fmt(views)}回`],
+              ['1人あたり', viewUsers > 0 ? `${(views / viewUsers).toFixed(1)}冊` : '-'],
+            ],
+            trend: null,
+            color: '#f472b6',
+            onClick: () => setDetail('daily'),
+          },
+          // 4枚目: よく読まれた作品（FANZA へのクリック → 最後まで読んだ → 表示の多い順の1位）。2026-10-26、いつも0だった「X の同人誌の投稿から来た人」と入れ替え
+          (() => {
+            const [topId, top] = workRows[0] ?? [null, null];
+            const second = workRows[1];
+            const third = workRows[2];
+            return {
+              label: 'よく読まれた作品（1位）',
+              value: top ? fmt(top.completes) : '0',
+              unit: '回',
+              compare: top ? `最後まで読まれた回数（クリック ${fmt(top.clicks)}回）` : 'まだ記録がありません',
+              note: topId ? titleOf(topId) : undefined,
+              rows: [
+                ['2位', second ? `${fmt(second[1].completes)}回（クリック ${fmt(second[1].clicks)}）` : '-'],
+                ['3位', third ? `${fmt(third[1].completes)}回（クリック ${fmt(third[1].clicks)}）` : '-'],
+              ],
+              trend: null,
+              color: '#f472b6',
+              onClick: () => setDetail('works'),
+            } satisfies TopCardProps;
+          })(),
+        ];
+        // 時間帯（今月のときは1日あたりの平均）。比べる相手も同じように
+        const ghostRows = c?.[32] ?? [];
+        const nowHour = new Date(Date.now() + 9 * 3_600_000).getUTCHours();
+        const slots: OverlaySlot[] = hours.map((x) => {
+          const g = ghostRows.find((r) => Number(r.dimensions[0]) === x.h)?.metrics ?? [0, 0];
+          return {
+            tick: x.h % 3 === 0 ? String(x.h) : '',
+            name: `${x.h}時台${isToday ? '' : '（1日平均）'}`,
+            users: x.users / days,
+            clicks: x.events / days,
+            ghostUsers: (g[0] ?? 0) / compareDays,
+            ghostClicks: (g[1] ?? 0) / compareDays,
+            future: isToday && x.h > nowHour,
+          };
+        });
+        return (
+          <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+            <TopCards cards={cards} />
+            <OverlayChart
+              title={isToday ? '時間帯ごとの同人誌の利用者と FANZA へのクリック' : '時間帯ごとの同人誌の利用者と FANZA へのクリック（1日平均）'}
+              slots={slots}
+              currentLabel={isToday ? '今日' : '今月'}
+              ghostLabel={isToday ? '昨日' : '先月'}
+              summary={
+                <>
+                  合計{' '}
+                  <button type="button" onClick={() => setDetail('daily')} className="underline decoration-dotted">
+                    <span className="text-base font-bold text-white">{fmt(viewUsers)}</span>人
+                  </button>
+                </>
+              }
             />
           </div>
-          <Section title="時間帯ごとの同人誌の利用者" note={days === 1 ? '同人誌を表示した人数と、同人誌の FANZA へのクリック' : `期間内の1日あたりの平均（同人誌を表示した人数と FANZA へのクリック）。下のカードなどは${days}日間の合計`}>
-            <HourlyChart hours={hours} total={viewUsers} totalEvents={clicks} days={days} axis={hourlyAxis} onUsersClick={() => setDetail('daily')} onEventsClick={() => setDetail('works')} />
-          </Section>
-        </div>
-
-        {/* 右の列は左の列と同じ高さにし、カードで埋める（PC で右下が空かないように）。
-            「今日」でまだ記録がなく時間帯グラフが出ないときも、カードが潰れないよう最低の高さを取る */}
-        <div className="lg:relative lg:min-h-[34rem]">
-          <div className="lg:absolute lg:inset-0 lg:flex lg:flex-col lg:pb-4">
-            {/* iPhone と Android（押すと端末×ブラウザの表）。アプリ内ブラウザ（X など）のクリックは成約につながりにくいので内訳も出す */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {([['iPhone', ios, 'Safari (in-app)'], ['Android', android, 'Android Webview']] as const).map(([name, total, inAppBrowser]) => {
-                const os = name === 'iPhone' ? 'iOS' : 'Android';
-                const inAppClicks = osRows.filter((r) => r.os === os && r.browser === inAppBrowser).reduce((sum, r) => sum + r.clicks, 0);
-                return (
-                  <Card
-                    key={name}
-                    label={name}
-                    value={fmt(total.users)}
-                    unit="人"
-                    sub={`同人誌を表示した人。FANZA へのクリック ${fmt(total.clicks)}回（うちアプリ内 ${fmt(inAppClicks)}回）`}
-                    onClick={() => setDetail(`os:${os}`)}
-                    extra={osRows
-                      .filter((r) => r.os === os)
-                      .slice(0, 4)
-                      .map((r) => (
-                        <ExtraRow
-                          key={r.browser}
-                          name={r.browser === inAppBrowser ? 'アプリ内（X など）' : r.browser}
-                          right={`${fmt(r.users)}人・最後まで ${fmt(r.completes)}回・クリック ${fmt(r.clicks)}回`}
-                        />
-                      ))}
-                  />
-                );
-              })}
-            </div>
-
-            {/* 細かい集計はカードを押すと全画面で開く（カードの右下に「›」）。スマホは1行に1枚・幅いっぱい */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4 lg:mb-0 lg:flex-1 lg:min-h-0 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)]">
-              <Card
-                label="同人誌の表示"
-                value={fmt(viewUsers)}
-                unit="人"
-                sub={`${fmt(views)}回。最後まで読んだ率 ${pct(completeUsers, viewUsers)}・クリック率 ${pct(clickUsers, viewUsers)}（人数）`}
-                onClick={() => setDetail('daily')}
-                extra={
-                  <>
-                    <ExtraRow name="表示" right={`${fmt(views)}回（${fmt(viewUsers)}人）`} />
-                    <ExtraRow name="最後まで読んだ（購入ページ）" right={`${fmt(completes)}回（${fmt(completeUsers)}人）`} />
-                    <ExtraRow name="FANZA へのクリック" right={`${fmt(clicks)}回（${fmt(clickUsers)}人）`} />
-                    <ExtraRow name="表示 → 最後まで読んだ" right={pct(completeUsers, viewUsers)} />
-                    <ExtraRow name="表示 → クリック" right={pct(clickUsers, viewUsers)} />
-                  </>
-                }
-              />
-              <Card
-                label="よく読まれた作品"
-                value={fmt(workRows.filter(([, w]) => w.clicks > 0 || w.completes > 0).length)}
-                unit="作品"
-                sub="FANZA へのクリック、または最後まで読まれた作品。作品ごとの表示・最後まで・クリック"
-                onClick={() => setDetail('works')}
-                extra={workRows.slice(0, 5).map(([id, w]) => (
-                  <ExtraRow key={id} name={titleOf(id)} right={`クリック ${fmt(w.clicks)}回・最後まで ${fmt(w.completes)}回`} />
-                ))}
-              />
-              <Card
-                label="X の同人誌の投稿から来た人"
-                value={fmt(xUsers)}
-                unit="人"
-                sub={`ページ表示 ${fmt(xPageViews)}回。FANZA へのクリック ${fmt(xClickUsers)}人（${fmt(xClicks)}回）`}
-                extra={
-                  <>
-                    <ExtraRow name="来た人" right={`${fmt(xUsers)}人（${fmt(xPageViews)}回）`} />
-                    <ExtraRow name="同人誌を表示" right={`${fmt(get(fromX, 'doujin_view')[1])}人（${fmt(get(fromX, 'doujin_view')[0])}回）`} />
-                    <ExtraRow name="FANZA へのクリック" right={`${fmt(xClickUsers)}人（${fmt(xClicks)}回）`} />
-                    <ExtraRow name="来た人のクリック率" right={pct(xClickUsers, xUsers)} />
-                  </>
-                }
-              />
-              <Card
-                label="日別（直近14日）"
-                value={dayRows[0] ? fmt(dayRows[0][1].clicks) : '—'}
-                unit="回"
-                sub={dayRows[0] ? `${md(dayRows[0][0])} の FANZA へのクリック。最後まで ${fmt(dayRows[0][1].completes)}回・表示 ${fmt(dayRows[0][1].viewUsers)}人` : daily === null ? '28日間の集計を読み込み中…' : 'まだデータがありません'}
-                onClick={() => setDetail('daily')}
-                extra={dayRows.slice(0, 5).map(([date, d]) => (
-                  <ExtraRow key={date} name={md(date)} right={`表示 ${fmt(d.viewUsers)}人・最後まで ${fmt(d.completes)}回・クリック ${fmt(d.clicks)}回`} />
-                ))}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {detail === 'works' && (
         <DetailModal
