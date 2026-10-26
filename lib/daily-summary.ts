@@ -23,7 +23,8 @@ export type DailyData = {
   mens: { sessions: Row[]; sources: { source: string; yesterday: number }[] };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
-  dmm: { clicks: number; direct: number; category: number; newCount: number } | null;
+  // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
+  dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
 };
 
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
@@ -65,7 +66,7 @@ export async function collectDailyData(): Promise<DailyData> {
     count(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     count(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('ai_bot_hits').select('bot').gte('at', new Date(Date.now() - 86_400_000).toISOString()).limit(20000),
-    supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count').eq('date', y).maybeSingle(),
+    supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
   ]);
   const botCounts = new Map<string, number>();
   for (const r of (botsRes.data ?? []) as { bot: string }[]) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
@@ -85,7 +86,7 @@ export async function collectDailyData(): Promise<DailyData> {
     mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })) },
     imports: { yesterday: impY, today: impT },
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
-    dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count } : null,
+    dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
   };
 }
 
@@ -97,6 +98,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 - 数字は必ず渡されたものだけを使う。推測で数字を作らない。比べるときは一昨日と7日平均を使う。
 - 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「FANZA へのクリック」、「video_view」は「サンプルの再生」、「sample_end_cta」は「サンプル終了時の案内」、「first_time_link_click」は「初回クーポン等のリンク」、「chatgpt.com」は「ChatGPT」、「x」は「X」、「(direct)」は「直接」）。
 - 「気になる点」は、取り込みが0のとき、訪問やクリックが7日平均の半分以下か2倍以上のとき、AI のロボットの読み取りが1日1,000回を超えるとき、DMM の成約が付いたとき、に必ず触れる。該当が無ければ「特になし」と書く。
+- dmm が null か dmm.updated が false のときは、DMM の数字（クリック・成約）は書かず、「気になる点」に「FANZA 実績が昨日分まで更新されていない」と書く。
 - 「今日の提案」は1つだけ。やらなくてよい日は「様子見でよい」と書く。
 - 丁寧だが簡潔に。箇条書きは「・」を使う。Markdown の記号（#や**）は使わない。`;
 
