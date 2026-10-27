@@ -1370,7 +1370,7 @@ function RangeBody({
           >
             {/* いちばん上の数字の枠は「X から来た人」とそろえる（2026-10-26） */}
             {/* 合計・押した人・いちばん多いはカードと同じ（keyNumbers）。左の列＝まとめ、右の列＝○○から来た人。
-                Bluesky は数え方があてにならないので下に参考として別に出す（2026-10-27 ユーザーの要望） */}
+                Bluesky はあまり投稿しておらず来る人が少ないので、下に参考として別に出す（数え方は正しい。2026-10-27 ユーザーの要望） */}
             {(() => {
               const k = cardNums;
               const nonXRows = channelRows.filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel));
@@ -1394,7 +1394,7 @@ function RangeBody({
                     ))}
                   </div>
                   <div className="mb-4 rounded-lg border border-gray-700 px-3 py-2 text-sm">
-                    <div className="text-xs text-gray-400">参考（数え方があてにならないため別に表示）</div>
+                    <div className="text-xs text-gray-400">参考（Bluesky はあまり投稿していないため別に表示）</div>
                     <div>
                       Bluesky から来た人 <span className="font-bold">{fmt(bsky.users)}人</span>
                       <span className="ml-2 text-xs text-gray-400">FANZA を押した人 {fmt(bsky.clickUsers)}人</span>
