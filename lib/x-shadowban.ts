@@ -29,13 +29,19 @@ async function checkOne(account: string): Promise<ShadowbanResult> {
         continue;
       }
       const data = (await res.json()) as Raw;
-      return {
+      const result: ShadowbanResult = {
         account,
         search: verdict(data.tests?.search),
         suggestion: verdict(data.tests?.typeahead),
         ghost: data.tests?.ghost?.ban === true ? 'ban' : data.tests?.ghost?.ban === false ? 'ok' : 'unknown',
         suspended: data.profile?.suspended === true,
       };
+      // 検索・検索候補がどちらも判定できなかったときは、確認サイトが一時的に答えられなかっただけのことが多いので、やり直す（2026-10-27）
+      if (result.search === 'unknown' && result.suggestion === 'unknown' && attempt < 2) {
+        last = '判定できず';
+        continue;
+      }
+      return result;
     } catch (error) {
       last = error instanceof Error ? error.message : String(error);
     }
