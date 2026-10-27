@@ -6,6 +6,8 @@ import { article as condomSizeGuide } from './content/condom-size-guide';
 import { article as condomSSize } from './content/condom-s-size';
 import { article as dmmGuide } from './content/dmm-guide';
 import { article as fanzaSaveMoney } from './content/fanza-save-money';
+import { article as fanzaTvGuide } from './content/fanza-tv-guide';
+import { article as moodCreation } from './content/mood-creation';
 import { article as faq } from './content/faq';
 import { article as gettingStarted } from './content/getting-started';
 import { article as howToChooseVideos } from './content/how-to-choose-videos';
@@ -30,6 +32,8 @@ export const articles: Article[] = [
   condomSSize,
   dmmGuide,
   fanzaSaveMoney,
+  fanzaTvGuide,
+  moodCreation,
   faq,
   firstSexAverageAge,
   masturbationFrequencyAverage,

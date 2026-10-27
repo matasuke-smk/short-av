@@ -17,6 +17,7 @@ import { useT } from '@/lib/i18n';
 import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
+import ChatGptWelcome from './ChatGptWelcome';
 import SampleEndCta, { type SampleEndVariant } from './SampleEndCta';
 import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
@@ -1009,6 +1010,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   return (
     <div className="h-[100dvh] flex flex-col bg-black overflow-hidden">
+      {/* ChatGPT から来た人だけに出す「初めての方へ」（2026-10-27） */}
+      {enableAffiliateLinks && <ChatGptWelcome />}
       {notice && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-md bg-gray-800/95 text-white text-sm px-4 py-3 rounded-lg shadow-lg">
           {notice}

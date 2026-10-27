@@ -1,3 +1,4 @@
+import { isSale10yenActive } from '@/config/sale-10yen';
 import { MetadataRoute } from 'next';
 import { getAllArticles, getArticleModifiedAt } from '@/lib/articles';
 import { supabase } from '@/lib/supabase';
@@ -61,6 +62,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.7,
     },
+    // FANZA 10円セールの特設ページ（2026-10-27。セール中だけ。終わったら終了の表示）
+    ...(isSale10yenActive()
+      ? [{ url: `${baseUrl}/sale/10yen`, lastModified: new Date(), changeFrequency: 'daily' as const, priority: 0.8 }]
+      : []),
     {
       // サンプル動画が長い作品の一覧（2026-10-24）
       url: `${baseUrl}/long-samples`,
