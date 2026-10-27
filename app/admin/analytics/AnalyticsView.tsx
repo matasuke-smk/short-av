@@ -1370,12 +1370,12 @@ function RangeBody({
           >
             {/* いちばん上の数字の枠は「X から来た人」とそろえる（2026-10-26） */}
             {/* 合計・押した人・いちばん多いはカードと同じ（keyNumbers）。左の列＝まとめ、右の列＝○○から来た人。
-                Bluesky の枠は外し、代わりに「直接・ほかのサイトから来た人」を出す（Bluesky から来た人は合計と下の表には入る。2026-10-27 ユーザーの要望） */}
+                Bluesky の枠は外し、Bluesky から来た人は「直接・ほかのサイト・Bluesky から来た人」に足す（GA は Bluesky を SNS に分類するので、足さないと右の列のどこにも出なかった。2026-10-27 ユーザーの要望） */}
             {(() => {
               const k = cardNums;
               const nonXRows = channelRows.filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel));
               const usersOf = (channel: string) => nonXRows.find((r) => r.channel === channel)?.users ?? 0;
-              const otherUsers = nonXRows.filter((r) => !['AI Assistant', 'Organic Search'].includes(r.channel)).reduce((sum, r) => sum + r.users, 0);
+              const otherUsers = nonXRows.filter((r) => !['AI Assistant', 'Organic Search'].includes(r.channel)).reduce((sum, r) => sum + r.users, 0) + bsky.users;
               return (
                 <>
                   <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
@@ -1385,7 +1385,7 @@ function RangeBody({
                       ['FANZA を押した人', `${fmt(k.nonXClickers)}人（${pct(k.nonXClickers, k.nonXUsers)}）`],
                       ['検索から来た人', `${fmt(usersOf('Organic Search'))}人`],
                       ['いちばん多い流入元', k.topNonX ? `${channelLabel(k.topNonX.channel).split('（')[0]} ${fmt(k.topNonX.users)}人` : '-'],
-                      ['直接・ほかのサイトから来た人', `${fmt(otherUsers)}人`],
+                      ['直接・ほかのサイト・Bluesky から来た人', `${fmt(otherUsers)}人`],
                     ] as const).map(([label, v]) => (
                       <div key={label} className="rounded-lg bg-gray-800 px-3 py-2">
                         <div className="text-xs text-gray-400">{label}</div>
