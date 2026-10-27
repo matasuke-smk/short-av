@@ -147,7 +147,7 @@ export default function SizeStatsAdminPage() {
           {/* 右: 収集データ（PC は表の中だけスクロール） */}
           <div className="bg-gray-800 rounded-lg p-4 lg:min-h-0 lg:h-full lg:flex lg:flex-col">
             <h2 className="text-base font-bold mb-2">
-              収集データ<span className="ml-2 text-xs font-normal text-gray-400">{stats.rawData.length}件（新しい順）</span>
+              収集データ<span className="ml-2 text-xs font-normal text-gray-400">{stats.rawData.length}件（新しい順）・灰色は平均に使わない範囲外（長さ {stats.admin.lengthRangeMm.min / 10}〜{stats.admin.lengthRangeMm.max / 10}cm の外）</span>
             </h2>
             <div className="overflow-x-auto lg:overflow-y-auto lg:flex-1 lg:min-h-0">
               <table className="w-full text-sm whitespace-nowrap">
@@ -161,15 +161,22 @@ export default function SizeStatsAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.rawData.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-700">
-                      <td className="py-2 px-3 text-gray-400">{item.id}</td>
-                      <td className="py-2 px-3 text-right">{item.length_mm}</td>
+                  {stats.rawData.map((item) => {
+                    // 平均に使う範囲（lib/sizeStats.ts の LENGTH_RANGE_MM、両端を含む）の外は灰色にする（2026-10-27 ユーザーの要望）
+                    const out = item.length_mm < stats.admin.lengthRangeMm.min || item.length_mm > stats.admin.lengthRangeMm.max;
+                    return (
+                    <tr key={item.id} className={`border-b border-gray-700 ${out ? 'text-gray-600 bg-gray-900/40' : ''}`}>
+                      <td className={`py-2 px-3 ${out ? '' : 'text-gray-400'}`}>{item.id}</td>
+                      <td className="py-2 px-3 text-right">
+                        {out && <span className="mr-1.5 rounded bg-gray-700 px-1 text-[10px] text-gray-400">範囲外</span>}
+                        {item.length_mm}
+                      </td>
                       <td className="py-2 px-3 text-right">{item.diameter_mm}</td>
                       <td className="py-2 px-3">{item.age_group || '-'}</td>
-                      <td className="py-2 px-3 text-gray-400">{new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td className={`py-2 px-3 ${out ? '' : 'text-gray-400'}`}>{new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
