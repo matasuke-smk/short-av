@@ -25,6 +25,17 @@ export const isGoTarget = (url: string): boolean => {
   }
 };
 
+/**
+ * /go を通ったクリックの紹介用の ID を付け替える（2026-10-27）。作品のリンク（DMM の商品情報 API が返す紹介リンク、af_id=matasuke-990）を、
+ * /go を通ったときだけ matasuke-991（同じアカウントの別の ID）にする。/go を作る前（10/27 13:07 まで）にページから集めた紹介リンクを
+ * ロボットが直接開くと DMM に 990 で数えられるので、DMM の画面で ID 別に見れば「サイトを通った人のクリック（991）」と分けられる。
+ * URL の他の部分は変えない（lurl の符号化を崩さないよう、af_id の値だけ置き換える）
+ */
+const AF_ID_REWRITES: Record<string, string> = { 'matasuke-990': 'matasuke-991' };
+
+export const withGoAffiliateId = (url: string): string =>
+  url.replace(/([?&]af_id=)([^&#]+)/, (match, key: string, id: string) => (AF_ID_REWRITES[id] ? `${key}${AF_ID_REWRITES[id]}` : match));
+
 /** FANZA（DMM）の URL なら /go を通す URL に変える。それ以外（DLsite など）はそのまま */
 export function goHref(url: string): string;
 export function goHref(url: string | null | undefined): string | undefined;

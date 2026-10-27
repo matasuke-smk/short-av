@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
-import { isBotUserAgent, isGoTarget } from '@/lib/go-link';
+import { isBotUserAgent, isGoTarget, withGoAffiliateId } from '@/lib/go-link';
 import { recordGoClick } from '@/lib/go-clicks';
 
 /**
@@ -16,14 +16,16 @@ export function GET(request: NextRequest) {
   const userAgent = request.headers.get('user-agent');
   const headers = { 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' };
   if (!isGoTarget(target) || isBotUserAgent(userAgent)) return NextResponse.redirect(new URL('/', request.url), { status: 302, headers });
+  // 作品のリンクの紹介用の ID を /go 用に付け替える（DMM の画面で、サイトを通ったクリックだけを ID 別に見られるように。lib/go-link.ts）
+  const destination = withGoAffiliateId(target);
   after(() =>
     recordGoClick({
-      target,
+      target: destination,
       owner: request.cookies.get('sav_admin_ui')?.value === '1',
       country: request.headers.get('x-vercel-ip-country'),
       referer: request.headers.get('referer'),
       userAgent,
     }),
   );
-  return NextResponse.redirect(target, { status: 302, headers });
+  return NextResponse.redirect(destination, { status: 302, headers });
 }
