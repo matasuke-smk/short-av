@@ -929,7 +929,7 @@ function RangeBody({
               // 「通常のブラウザ」の行に「・集計待ち ○回」と添えて、合計と内訳が合わないように見えないようにする
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
-                ['押した人', `${fmtOverview(now.clickers)}人（X ${fmtOverview(now.xClickers)}・X 以外 ${fmtOverview(now.nonXClickers)}）`],
+                ['押した人', `${fmtOverview(now.clickers)}人（X ${fmtOverview(now.xClickers)}人・X 以外 ${fmtOverview(now.nonXClickers)}人）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
                 // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
                 ['内訳', `X ${fmtOverview(now.xClicks)}回・X 以外 ${fmtOverview(now.nonXClicks)}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
