@@ -256,6 +256,7 @@ X
 
 ログインして確かめた数字（siteCheck があるときだけ。見出しに「（○月○日○時、手で確認）」のように checkedAt を日本時間で、source が auto なら「自動で確認」と添える）
 ・siteCheck.data の中身（DMM・A8・DLsite・JuicyAds・Supabase・Google の登録数など）を、項目ごとに1行で。入っている数字だけを使う
+・DMM の今月（month）は今日の分も含むので、today_yen・today_clicks・today_conversions があれば引いて「今月（昨日まで）」として書く（例: month.yen 2,722 − today_yen 14 = 2,708円）
 
 今日の提案
 ・1つだけ。やらなくてよい日は「様子見でよい」
