@@ -41,6 +41,7 @@ ${articles}
 
 - 運営: Short AV 運営事務局（FANZA Web サービスのアフィリエイト。作品の情報・サンプル動画・表紙は FANZA から取得）
 - 料金はかからず、会員登録・ログインもない。年齢確認（18歳以上）は1日1回表示される
+- 本編は FANZA の公式サイトで購入するか、月額550円（税込）の見放題 FANZA TV（初回14日間無料）で見る。詳しくは ${base}/articles/fanza-tv-guide
 - サイトマップ: ${base}/sitemap.xml
 `;
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });

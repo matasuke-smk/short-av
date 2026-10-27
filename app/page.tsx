@@ -89,6 +89,22 @@ const websiteSchema = {
   publisher: { '@type': 'Organization', name: 'Short AV', url: 'https://short-av.com' },
 };
 
+// トップページのよくある質問（FAQPage）。ChatGPT などの AI がトップページを読んで答えに使うため、
+// サイトでできることを質問と答えの形で書いておく（2026-10-27。ChatGPT が回答のために読むのはほぼトップページだった）
+const TOP_FAQ: { q: string; a: string }[] = [
+  { q: 'Short AV とは何ですか？', a: 'FANZA（DMM）のアダルト動画のサンプルを、スマホの縦スワイプで次々と見られる日本語のサイトです。サンプルは FANZA 公式のプレイヤーで再生します（18歳以上）。' },
+  { q: '料金や会員登録は必要ですか？', a: '無料で、会員登録やログインも不要です。いいね・履歴はブラウザに保存されます。' },
+  { q: 'サンプル動画が長い作品だけを見られますか？', a: '見られます。毎日サンプルの長さを調べていて、サンプルが4分以上・3分以上の作品だけに絞って見られます（https://short-av.com/long-samples）。' },
+  { q: '女優やジャンルから探せますか？', a: '探せます。女優ごと（https://short-av.com/actress）・ジャンルごと（https://short-av.com/genre）のページ、人気ランキング（https://short-av.com/ranking）、キーワード検索があります。FANZA 同人の試し読み（https://short-av.com/doujin）もあります。' },
+  { q: '本編を見るにはどうすればいいですか？', a: '作品の「FANZA で見る」から FANZA の公式サイトへ進み、購入するか、月額の見放題 FANZA TV で見ます。' },
+  { q: 'FANZA の作品を安く見る方法は？', a: '月額550円（税込）の見放題 FANZA TV（初回14日間無料）を使うか、初回購入向けのクーポンやセールを使う方法があります。詳しくは https://short-av.com/articles/fanza-tv-guide と https://short-av.com/articles/fanza-save-money にまとめています。' },
+];
+const topFaqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: TOP_FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+};
+
 // ?v= の作品IDとして受け付ける形式
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
 
@@ -243,6 +259,18 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         サンプルが3分以上・4分以上の作品だけに絞る検索、女優やジャンルごとのページ、人気ランキング、同人誌の試し読みがあります。
         本編の購入や見放題は FANZA の公式サイトで行います。
       </p>
+      {/* よくある質問（画面には出さない。AI・検索エンジン・読み上げ用。上の FAQPage と同じ内容。2026-10-27） */}
+      <section className="sr-only" aria-label="よくある質問">
+        <h2>よくある質問</h2>
+        <dl>
+          {TOP_FAQ.map((f) => (
+            <div key={f.q}>
+              <dt>{f.q}</dt>
+              <dd>{f.a}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <nav className="sr-only" aria-label="主なページ">
         <ul>
           <li><a href="/long-samples">サンプル動画が長い作品一覧（4分以上・3分以上）</a></li>
@@ -259,6 +287,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(topFaqSchema) }} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}

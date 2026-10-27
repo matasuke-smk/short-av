@@ -45,7 +45,7 @@ const ARTICLE_REDIRECTS: Record<string, string | null> = {
   'male-infertility-reality': null,
   'male-multiple-orgasms-guide': 'refractory-period-by-age',
   'masturbation-frequency-balance': 'masturbation-frequency-average', // 2026-10-27: 合う記事（オナニーの頻度）ができたので転送先を変更
-  'mood-creation-science': 'sex-duration-average-reality',
+  'mood-creation-science': 'mood-creation', // 2026-10-27: 合う記事（雰囲気の作り方）を新しく作ったので転送先を変更。Copilot に54回引用されている
   'morning-erection-health': 'refractory-period-by-age',
   'morning-erections-health-indicator': 'refractory-period-by-age',
   'phimosis-medical-facts': null,
