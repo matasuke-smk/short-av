@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { CONTACT_FORM_URL } from '@/config/site';
 import type { DoujinDetail } from '@/lib/doujin-pages';
 import DoujinBuyLink from './DoujinBuyLink';
+import { goHref } from '@/lib/go-link';
 
 /**
  * 同人誌の作品ごと・サークルごとのページ（サーバーで描画。検索エンジンが中身を読めるように）。
@@ -129,7 +130,7 @@ export function DoujinWorkPage({ work, related }: { work: DoujinDetail; related:
               <span className="whitespace-nowrap">（{[work.pages ? `全${work.pages}ページ` : null, yen(work.price)].filter(Boolean).join('・')}）</span>
             )}
           </p>
-          <DoujinBuyLink contentId={work.contentId} url={work.url} title={work.title} circle={work.circle} label="FANZA で続きを読む" />
+          <DoujinBuyLink contentId={work.contentId} url={goHref(work.url) ?? work.url} title={work.title} circle={work.circle} label="FANZA で続きを読む" />
         </div>
       </div>
 

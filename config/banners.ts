@@ -1,3 +1,5 @@
+import { goHref } from '@/lib/go-link';
+
 /**
  * アフィリエイトバナー設定（DMMウィジェット方式）
  *
@@ -37,9 +39,10 @@ export const portraitBannerIds: string[] = [
  * 「初めての人」向けのリンク（サービス新規の報酬が大きい: 動画の新規購入 2,100円、FANZA TV の無料お試し登録 2,750円。いずれも 2026-10 の報酬UP中の料率）
  * 形式は年齢確認画面のクーポンのリンクと同じ（al.fanza.co.jp）。FANZA TV は tv.dmm.co.jp
  */
+// /go を通す（lib/go-link.ts。ロボットにたどらせないため。2026-10-27）
 export const firstTimeLinks = {
-  coupon: 'https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&af_id=matasuke-005&ch=link_tool&ch_id=link',
-  fanzaTv: 'https://al.fanza.co.jp?lurl=https%3A%2F%2Ftv.dmm.co.jp%2F&af_id=matasuke-005&ch=link_tool&ch_id=link',
+  coupon: goHref('https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&af_id=matasuke-005&ch=link_tool&ch_id=link'),
+  fanzaTv: goHref('https://al.fanza.co.jp?lurl=https%3A%2F%2Ftv.dmm.co.jp%2F&af_id=matasuke-005&ch=link_tool&ch_id=link'),
 } as const;
 
 /**

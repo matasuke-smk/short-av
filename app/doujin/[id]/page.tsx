@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { DoujinWorkPage } from '@/app/components/DoujinPages';
 import { DOUJIN_ID_PATTERN } from '@/lib/doujin';
 import { getCircleWorks, getDoujinDetail } from '@/lib/doujin-pages';
+import { goHref } from '@/lib/go-link';
 
 // 作品の情報は FANZA の API から取り、12時間ごとに作り直す
 export const revalidate = 43200;
@@ -32,5 +33,7 @@ export default async function Page({ params }: Props) {
   if (!work) notFound();
   const circle = work.circleId ? await getCircleWorks(work.circleId).catch(() => null) : null;
   const related = (circle?.works ?? []).filter((w) => w.contentId !== work.contentId).slice(0, 10);
-  return <DoujinWorkPage work={work} related={related} />;
+  // FANZA の紹介リンクは /go を通した形で渡す（ページに埋め込まれるデータをロボットが読んでたどらないように。2026-10-27）
+  const viaGo = <T extends { url: string }>(w: T): T => ({ ...w, url: goHref(w.url) ?? w.url });
+  return <DoujinWorkPage work={viaGo(work)} related={related.map(viaGo)} />;
 }

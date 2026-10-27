@@ -5,6 +5,7 @@ import { firstTimeLinks } from '@/config/banners';
 import { sendGAEvent } from '@/lib/gtag';
 import { useT } from '@/lib/i18n';
 import { useIsOverseas } from '@/lib/useCountry';
+import { goHref } from '@/lib/go-link';
 
 export type SampleEndVariant = 'sheet' | 'full';
 
@@ -56,7 +57,7 @@ export default function SampleEndCta({ title, price, productUrl, variant, onClos
   );
   const button = (
     <a
-      href={productUrl}
+      href={goHref(productUrl)}
       target="_blank"
       rel="noopener noreferrer sponsored"
       onClick={(e) => { stop(e); onFanzaClick(e); }}

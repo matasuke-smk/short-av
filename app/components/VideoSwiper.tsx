@@ -66,6 +66,7 @@ import {
   trackDlsiteClick,
 } from '@/lib/gtag';
 import type { ViewContext } from '@/lib/gtag';
+import { goHref } from '@/lib/go-link';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -1377,7 +1378,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           })()}
           {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) ? (
             <a
-              href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
+              href={dlsiteHrefFor(currentVideo) ?? goHref(currentVideo.dmm_product_url)}
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
@@ -1435,7 +1436,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           })()}
           {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) ? (
             <a
-              href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
+              href={dlsiteHrefFor(currentVideo) ?? goHref(currentVideo.dmm_product_url)}
               target="_blank"
               rel="noopener noreferrer sponsored"
               onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
@@ -1560,7 +1561,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* ▶で再生すると再生画面（購入ボタンがある）を通らないため、ここに出す */}
             {enableAffiliateLinks && currentVideo?.dmm_product_url && !hideFanzaFor(currentVideo) && (
               <a
-                href={dlsiteHrefFor(currentVideo) ?? currentVideo.dmm_product_url}
+                href={dlsiteHrefFor(currentVideo) ?? goHref(currentVideo.dmm_product_url)}
                 target="_blank"
                 rel="noopener noreferrer sponsored"
                 onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
@@ -1718,7 +1719,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <div className="w-full max-w-[200px] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {hideFanzaFor(currentVideo) ? null : enableAffiliateLinks ? (
                   <a
-                    href={currentVideo?.dmm_product_url}
+                    href={goHref(currentVideo?.dmm_product_url)}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl px-4 py-4 text-center transition-all font-bold shadow-lg active:scale-95 flex flex-col justify-center"
@@ -1812,7 +1813,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <div onClick={(e) => e.stopPropagation()}>
                 {hideFanzaFor(currentVideo) ? null : enableAffiliateLinks ? (
                   <a
-                    href={currentVideo?.dmm_product_url}
+                    href={goHref(currentVideo?.dmm_product_url)}
                     target="_blank"
                     rel="noopener noreferrer sponsored"
                     className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-3 text-center transition-all font-bold shadow-lg active:scale-95"

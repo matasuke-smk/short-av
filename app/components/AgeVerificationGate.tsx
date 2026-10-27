@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { trackAgeVerification, trackFanzaAdClick } from '@/lib/gtag';
 import { useT } from '@/lib/i18n';
 import { useIsOverseas } from '@/lib/useCountry';
+import { goHref } from '@/lib/go-link';
 
 interface AgeVerificationGateProps {
   onAccept?: () => void;
@@ -115,7 +116,7 @@ export default function AgeVerificationGate({ onAccept }: AgeVerificationGatePro
             {t('ageFirstFanza')}
           </p>
           <a
-            href="https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005"
+            href={goHref("https://al.fanza.co.jp?lurl=https%3A%2F%2Fwww.dmm.co.jp%2Fdigital%2F-%2Fwelcome-coupon%2F&ch=banner&ch_id=1082_300_250&af_id=matasuke-005")}
             target="_blank"
             rel="sponsored"
             onClick={() => trackFanzaAdClick('coupon', 'age_gate')}
