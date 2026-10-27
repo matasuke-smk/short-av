@@ -235,6 +235,40 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
 
 /** 今朝の点検の要約。「アクセス解析」の右のボタンを押すと全文をモーダルで出す（2026-10-26 ユーザーの要望で帯から変更）
  * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
+// 今朝の要約の本文を見出しごとに分けて出す。「良かった点」は緑、「悪い点」は赤の枠で（2026-10-27 ユーザーの要望）。
+// 見出し = 「・」で始まらない行。見出しより前の行は見出しなしの段落として出す
+function SummaryText({ text }: { text: string }) {
+  const sections: { heading: string | null; lines: string[] }[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (!line.startsWith('・') && !line.startsWith('※') && line.length <= 40) sections.push({ heading: line, lines: [] });
+    else if (sections.length === 0) sections.push({ heading: null, lines: [line] });
+    else sections[sections.length - 1].lines.push(line);
+  }
+  const tone = (heading: string | null) =>
+    heading?.startsWith('良かった点')
+      ? { box: 'border border-emerald-500/40 bg-emerald-500/10', head: 'text-emerald-300', body: 'text-emerald-100' }
+      : heading?.startsWith('悪い点')
+        ? { box: 'border border-red-500/40 bg-red-500/10', head: 'text-red-300', body: 'text-red-100' }
+        : null;
+  return (
+    <div className="space-y-3">
+      {sections.map((sec, i) => {
+        const t = tone(sec.heading);
+        return (
+          <div key={i} className={t ? `rounded-lg px-3 py-2 ${t.box}` : ''}>
+            {sec.heading && <div className={`font-bold ${t ? t.head : 'text-white'}`}>{sec.heading}</div>}
+            {sec.lines.map((l, j) => (
+              <div key={j} className={t ? t.body : 'text-gray-200'}>{l}</div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DailySummaryButton({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState(initialItem);
@@ -266,8 +300,8 @@ function DailySummaryButton({ item: initialItem }: { item: { date: string; summa
       </button>
       {open && (
         <DetailModal title={`今朝の要約（${md}）`} onClose={() => setOpen(false)}>
-          <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
-          {item.summary}
+          <div className="text-sm text-gray-200 leading-relaxed">
+          <SummaryText text={item.summary} />
           <div className="mt-2 text-[11px] text-gray-500">
             Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
             {item.yen != null ? `・費用 約${item.yen}円` : ''}
