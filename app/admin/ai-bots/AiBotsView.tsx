@@ -33,6 +33,7 @@ const BOT_NOTE: Record<string, string> = {
   DuckAssistBot: 'DuckDuckGo の AI 用',
   Amazonbot: 'Amazon（Alexa）用',
   'meta-externalagent': 'Meta の AI 用',
+  'meta-webindexer': 'Meta（Facebook）の検索・AI 用（robots.txt を守らず /go を開く）',
   Bytespider: 'ByteDance（TikTok）の AI 用',
 };
 

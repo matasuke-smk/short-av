@@ -21,6 +21,7 @@ const AI_BOTS = [
   'DuckAssistBot',
   'Amazonbot',
   'meta-externalagent',
+  'meta-webindexer',
   'YouBot',
   'cohere-ai',
   'Bytespider',
