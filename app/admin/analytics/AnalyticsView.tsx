@@ -741,7 +741,8 @@ function RangeBody({
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
-  const [gaUsers = 0, newUsers = 0, sessions = 0, engagement = 0] = totals[0]?.metrics ?? [];
+  // gaUsers（グラフの合計）はカードと同じ「すべての人」（totalUsers、5つ目）。2026-10-27
+  const [, newUsers = 0, sessions = 0, engagement = 0, gaUsers = totals[0]?.metrics[0] ?? 0] = totals[0]?.metrics ?? [];
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
   // 時間帯グラフ: 利用者と FANZA へのクリック（events。2026/10/9 まではすべてのイベントの回数だった）
   const { hours, users, events: totalClicks } = withLive(hourly, live, gaUsers, gaTotalClicks, RANGE_SPAN_DAYS_AGO[rangeKey]);

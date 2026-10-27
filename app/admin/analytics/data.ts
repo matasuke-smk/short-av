@@ -250,7 +250,8 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
     {
       dateRanges: [{ startDate: `${range.days + range.offset}daysAgo`, endDate: range.endDate }],
       dimensions: [{ name: 'dateHour' }],
-      metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
+      // 時間帯ごとの人数も「すべての人」（totalUsers）にそろえる（2026-10-27）
+      metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }],
       limit: 10000,
     },
   ];
@@ -551,7 +552,8 @@ async function loadYesterdaySoFar(): Promise<Record<Country, YesterdaySoFar>> {
   // events は FANZA へのクリックの回数（時間帯グラフと同じ。2026/10/9 まではすべてのイベントの回数だった）
   // 日本のみ・すべてを1回で取る（国で分けて取り、日本の行・全部の行を足す）。クリックは FANZA へのすべてのクリック
   const [rows, clickRows] = await runReports([
-    { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'activeUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: sameTime, limit: 1000 },
+    // 人数は「すべての人」（totalUsers）。カード・グラフの合計と同じ数え方（2026-10-27）
+    { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: sameTime, limit: 1000 },
     { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'eventCount' }], dimensionFilter: and(sameTime, eventIn(FANZA_CLICK_EVENTS)), limit: 1000 },
   ]);
   const until = `${hour}:${pad(minute)}`;
@@ -564,7 +566,7 @@ async function loadYesterdaySoFar(): Promise<Record<Country, YesterdaySoFar>> {
 const getYesterdaySoFar = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (_bucket: number) => loadYesterdaySoFar(),
-  ['admin-analytics-yesterday-so-far-v4'],
+  ['admin-analytics-yesterday-so-far-v5'],
   { revalidate: 300 },
 );
 
@@ -645,7 +647,7 @@ const getRangeData = unstable_cache(
     return { jp: result('jp'), all: result('all') };
   },
   // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
-  ['admin-analytics-v31'],
+  ['admin-analytics-v32'],
   { revalidate: 300 },
 );
 
@@ -683,7 +685,8 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
   const dateRanges = [{ startDate: `${n - 1}daysAgo`, endDate: 'today' }];
   const dims = [{ name: 'date' }, COUNTRY_DIMENSION];
   const [usersRows, clickRows, xRows, channelRows] = await runReports([
-    { dateRanges, dimensions: dims, metrics: [{ name: 'activeUsers' }], limit: 10000 },
+    // 全体の人数は「すべての人」（totalUsers）。X 以外 = 全体 − X の推移がカードと同じ数え方になるように（2026-10-27）
+    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], limit: 10000 },
     { dateRanges, dimensions: dims, metrics: [{ name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 10000 },
     { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIs('page_view'), fromXSource), limit: 10000 },
     { dateRanges, dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }, COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }], limit: 20000 },
@@ -719,7 +722,7 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
 const getTrendsCached = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (_bucket: number) => loadTrends(),
-  ['admin-analytics-trends-v1'],
+  ['admin-analytics-trends-v2'],
   { revalidate: 3600 },
 );
 
