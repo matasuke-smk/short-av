@@ -39,12 +39,12 @@ const ARTICLE_REDIRECTS: Record<string, string | null> = {
   'female-dissatisfaction-patterns': 'sex-duration-average-reality',
   'female-orgasm-rate-reality': 'sex-duration-average-reality',
   'female-pleasure-points-gspot-truth': 'sex-duration-average-reality',
-  'first-experience-age-data': 'sex-duration-average-reality',
+  'first-experience-age-data': 'first-sex-average-age', // 2026-10-27: 合う記事（初体験の平均年齢）ができたので転送先を変更。Copilot に104回引用されている
   'kissing-technique-difference': 'sex-duration-average-reality',
   'libido-decline-causes': 'refractory-period-by-age',
   'male-infertility-reality': null,
   'male-multiple-orgasms-guide': 'refractory-period-by-age',
-  'masturbation-frequency-balance': 'refractory-period-by-age',
+  'masturbation-frequency-balance': 'masturbation-frequency-average', // 2026-10-27: 合う記事（オナニーの頻度）ができたので転送先を変更
   'mood-creation-science': 'sex-duration-average-reality',
   'morning-erection-health': 'refractory-period-by-age',
   'morning-erections-health-indicator': 'refractory-period-by-age',
