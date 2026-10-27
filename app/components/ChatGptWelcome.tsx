@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { sendGAEvent } from '@/lib/gtag';
 import { welcomeBannerId } from '@/config/banners';
 import DMMBanner from './DMMBanner';
+import { isSale10yenActive } from '@/config/sale-10yen';
 import { useIsOverseas } from '@/lib/useCountry';
 
 /**
@@ -58,6 +59,11 @@ export default function ChatGptWelcome() {
       <div className="mx-auto w-full max-w-[300px] aspect-[300/250] overflow-hidden rounded-lg">
         <DMMBanner bannerId={welcomeBannerId()} className="h-full w-full" />
       </div>
+      {isSale10yenActive() && (
+        <a href="/sale/10yen" className="mt-1.5 block text-center text-xs font-bold text-amber-300 underline">
+          10円セールの対象作品のサンプルを見る
+        </a>
+      )}
       <p className="mt-1.5 text-center text-[11px] text-gray-400">上下にスワイプすると、サンプル動画を次々と見られます（無料・登録不要）</p>
     </div>
   );

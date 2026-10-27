@@ -274,6 +274,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
       <nav className="sr-only" aria-label="主なページ">
         <ul>
           <li><a href="/long-samples">サンプル動画が長い作品一覧（4分以上・3分以上）</a></li>
+          <li><a href="/sale/10yen">FANZA 10円セールの対象作品のサンプル（2026年10月30日朝まで）</a></li>
           <li><a href="/actress">女優から探す</a></li>
           <li><a href="/genre">ジャンルから探す</a></li>
           <li><a href="/ranking">人気ランキング</a></li>
