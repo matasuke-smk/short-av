@@ -47,6 +47,8 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
   // 0: 期間全体 [activeUsers, newUsers, sessions, engagement]
   const totalUsers = (reports[0] ?? [])[0]?.metrics[0] ?? 0;
+  // 2か所以上の流入元から来た人の数（流入元ごとの人数を足すと、その人を2回数えるため全体より多くなる）
+  const overlapUsers = Math.max(0, sum(reports[8] ?? [], undefined, 1) - totalUsers);
   // 来た元が記録されず（Unassigned・(not set)）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）。
   // SNS（Organic Social）は X 自身が含まれるので入れない（入れると X を二重に数え、押した人の X が全体より大きくなった。2026-10-27）
   const unknownInApp = (r: ReportRow) => UNKNOWN_SOURCE_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
@@ -70,7 +72,9 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
     // 以前は流入元ごとの人数の合計（SNS・来た元不明を除く）＋ Bluesky だったため、X と足しても全体の人数と合わなかった（2026-10-27 ユーザー指摘）
     nonXUsers: Math.max(0, totalUsers - xUsers),
     nonXClickers: Math.max(0, clickers - xClickers),
-    topNonX: top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
+    // いちばん多い流入元も、X から来た人とは別人として数える（X と ChatGPT の両方から来た人は X に入れる。2026-10-27 ユーザー要望）。
+    // 流入元ごとの人数の合計が全体より多い分＝2か所以上から来た人なので、その分をいちばん多い流入元から引き、X 以外の人数を超えないようにする
+    topNonX: top ? { channel: top.dimensions[0], users: Math.min(Math.max(0, top.metrics[1] - overlapUsers), Math.max(0, totalUsers - xUsers)) } : null,
   };
 }
 
