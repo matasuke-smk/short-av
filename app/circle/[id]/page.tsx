@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { CirclePage } from '@/app/components/DoujinPages';
 import { CIRCLE_ID_PATTERN, getCircleWorks } from '@/lib/doujin-pages';
+import { goHref } from '@/lib/go-link';
 
 // 作品の情報は FANZA の API から取り、12時間ごとに作り直す
 export const revalidate = 43200;
@@ -29,5 +30,6 @@ export default async function Page({ params }: Props) {
   if (!CIRCLE_ID_PATTERN.test(id)) notFound();
   const circle = await getCircleWorks(id).catch(() => null);
   if (!circle?.name || circle.works.length === 0) notFound();
-  return <CirclePage name={circle.name} total={circle.total} works={circle.works} />;
+  // FANZA の紹介リンクは /go を通した形で渡す（2026-10-27）
+  return <CirclePage name={circle.name} total={circle.total} works={circle.works.map((w) => ({ ...w, url: goHref(w.url) ?? w.url }))} />;
 }

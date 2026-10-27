@@ -340,12 +340,13 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
       orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
       limit: 20,
     },
-    // 29: 国ごと（「すべて」のときに表で出す。利用者数・エンゲージメントのあったセッション・滞在時間の合計）
+    // 29: 国ごと（「すべて」のときに表で出す。利用者数・エンゲージメントのあったセッション・滞在時間の合計）。
+    // 利用者数はカードと同じ「すべての人」（totalUsers）。activeUsers だと「日本のみ」のカードと人数が合わなかった（2026-10-27）
     {
       dateRanges,
       dimensions: [{ name: 'country' }],
-      metrics: [{ name: 'activeUsers' }, { name: 'engagedSessions' }, { name: 'userEngagementDuration' }],
-      orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      metrics: [{ name: 'totalUsers' }, { name: 'engagedSessions' }, { name: 'userEngagementDuration' }],
+      orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }],
       limit: 20,
     },
   ];
@@ -647,7 +648,7 @@ const getRangeData = unstable_cache(
     return { jp: result('jp'), all: result('all') };
   },
   // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
-  ['admin-analytics-v32'],
+  ['admin-analytics-v33'],
   { revalidate: 300 },
 );
 

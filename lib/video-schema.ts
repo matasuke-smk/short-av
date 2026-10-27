@@ -96,9 +96,9 @@ export function generateVideoSchema(video: Video) {
     }
   }
 
-  // DMM商品ページへのリンク（任意）
-  if (video.dmm_product_url) {
-    schema.url = video.dmm_product_url;
+  // 作品の URL は、このサイトの作品のページにする（以前は FANZA の紹介リンクで、ロボットが読んで DMM のクリックに数えられうるため。2026-10-27）
+  if (video.dmm_content_id) {
+    schema.url = `https://short-av.com/v/${encodeURIComponent(video.dmm_content_id)}`;
   }
 
   return schema;

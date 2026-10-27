@@ -3,6 +3,7 @@ import { MetadataRoute } from 'next';
 // 一般の検索エンジン向けに閉じるページ（管理画面・API・利用者ごとのページ）
 const DISALLOW = [
   '/api/',           // APIエンドポイントをクロール対象外に
+  '/go',             // FANZA への転送（lib/go-link.ts）。ロボットにたどらせない（2026-10-27）
   '/*.json',         // JSONファイルを除外
   '/private/',       // プライベートディレクトリ（存在する場合）
   '/test-*',         // テストページを除外

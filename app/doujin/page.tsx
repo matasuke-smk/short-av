@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { DoujinIndexPage } from '@/app/components/DoujinPages';
 import { getDoujinRanking } from '@/lib/doujin-pages';
+import { goHref } from '@/lib/go-link';
 
 // 人気の順位は FANZA の API から取り、12時間ごとに作り直す
 export const revalidate = 43200;
@@ -17,5 +18,6 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   const works = await getDoujinRanking().catch(() => []);
-  return <DoujinIndexPage works={works} />;
+  // FANZA の紹介リンクは /go を通した形で渡す（2026-10-27）
+  return <DoujinIndexPage works={works.map((w) => ({ ...w, url: goHref(w.url) ?? w.url }))} />;
 }

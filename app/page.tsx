@@ -9,6 +9,7 @@ import { generateVideoSchema } from '@/lib/video-schema';
 import { getVideoUrl } from '@/lib/x-post-text';
 import { buildVideoDescription, getVideoNames, type VideoSeoRow } from '@/lib/video-seo';
 import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
+import { goHref } from '@/lib/go-link';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
 // revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
@@ -265,10 +266,11 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
       {/* ?v= で開かれた作品の紹介文（Claude が書いたもの。画面には出さない。検索エンジン・AI 向けの独自の文章。2026-10-25） */}
       {targetId && firstAi && <p className="sr-only">{firstAi}</p>}
       <VideoSwiper
-        videos={videos}
-        videoPool={videoPool}
+        // FANZA の紹介リンクは /go を通した形で渡す（ページに埋め込まれるデータをロボットが読んでたどらないように。lib/go-link.ts、2026-10-27）
+        videos={videos.map((v) => ({ ...v, dmm_product_url: goHref(v.dmm_product_url) ?? v.dmm_product_url }))}
+        videoPool={videoPool.map((v) => ({ ...v, dmm_product_url: goHref(v.dmm_product_url) ?? v.dmm_product_url }))}
         linkNotice={linkNotice}
-        doujinList={doujinList}
+        doujinList={doujinList.map((d) => ({ ...d, url: goHref(d.url) ?? d.url }))}
         doujinMode={doujinMode}
         doujinOnly={doujinOnly}
         isFiniteList={isFiniteList}
