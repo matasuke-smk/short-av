@@ -217,7 +217,7 @@ export async function GET(request: Request) {
       console.warn('[Cron] 保存に失敗があったため古いデータの削除をスキップ');
     }
 
-    // サンプル動画の長さは別の cron（/api/cron/sample-lengths、9:30）で記録する（ここでは保存で時間を使い切るため）
+    // サンプル動画の長さは別の cron（/api/cron/sample-lengths、6:40）で記録する（ここでは保存で時間を使い切るため）
 
     const result = {
       success: saveErrors === 0,
