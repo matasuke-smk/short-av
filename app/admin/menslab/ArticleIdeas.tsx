@@ -15,7 +15,8 @@ const SITE_LABEL = { mens: '男のからだ研究室', shortav: 'Short AV' } as 
 const fmtDate = (s: string) => s.slice(5).replace('-', '/');
 
 export default function ArticleIdeas() {
-  const [rows, setRows] = useState<ArticleIdeasRow[] | null>(null);
+  // done[i]: そのネタを記事にした・加筆した日（API がサイトマップで判定。まだなら null）
+  const [rows, setRows] = useState<(ArticleIdeasRow & { done?: (string | null)[] })[] | null>(null);
   const [configured, setConfigured] = useState(true);
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
@@ -95,11 +96,13 @@ export default function ArticleIdeas() {
             {row.ideas.map((idea, i) => {
               const pr = PRIORITY[idea.priority] ?? PRIORITY.mid;
               const isOpen = open === i;
+              const doneAt = row.done?.[i] ?? null;
               return (
                 <li key={`${row.week}-${i}`} className="rounded-lg border border-gray-800 bg-gray-950">
                   <button type="button" onClick={() => setOpen(isOpen ? null : i)} className="flex w-full items-start gap-2 px-3 py-2.5 text-left">
                     <span className={`mt-0.5 flex-shrink-0 rounded border px-1.5 py-0.5 text-[10px] ${pr.cls}`}>{pr.label}</span>
-                    <span className="min-w-0 flex-1">
+                    {doneAt && <span className="mt-0.5 flex-shrink-0 rounded border border-emerald-500/40 bg-emerald-500/15 px-1.5 py-0.5 text-[10px] text-emerald-300">済 {fmtDate(doneAt)}</span>}
+                    <span className={`min-w-0 flex-1 ${doneAt ? 'opacity-50' : ''}`}>
                       <span className="block text-sm font-bold text-gray-100">{idea.title}</span>
                       <span className="mt-0.5 block text-xs text-gray-400">
                         {SITE_LABEL[idea.site] ?? idea.site} ・ ねらう語: {idea.queries.join('、') || '—'}
