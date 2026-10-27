@@ -61,9 +61,11 @@ async function getVercelBilling(token: string, team: string): Promise<VercelStat
     let usd = 0;
     for (const line of (await res.text()).split(/\r?\n/)) {
       if (!line.trim()) continue;
-      const c = JSON.parse(line) as { BilledCost: number | string; ChargeCategory: string; ServiceName: string };
-      if (c.ChargeCategory !== 'Usage') continue;
-      const cost = Number(c.BilledCost) || 0;
+      const c = JSON.parse(line) as { EffectiveCost: number | string; ChargeCategory: string; ServiceName: string };
+      // 含まれる分（20ドル）の内側は BilledCost が0なので、使った分の金額 EffectiveCost を足す。
+      // ServiceName "Pro" はプランの月額の日割りなので除く（除くと画面の利用額と一致。2026-10-27 確認）
+      if (c.ChargeCategory !== 'Usage' || c.ServiceName === 'Pro') continue;
+      const cost = Number(c.EffectiveCost) || 0;
       usd += cost;
       byService.set(c.ServiceName, (byService.get(c.ServiceName) ?? 0) + cost);
     }
