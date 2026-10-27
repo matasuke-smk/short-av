@@ -226,8 +226,8 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
   const dateRanges = [{ startDate: range.startDate, endDate: range.endDate }];
   const funnelEvents = FUNNEL.map((f) => f.event);
   const requests: ReportRequest[] = [
-    // 0: 期間全体
-    { dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }, { name: 'sessions' }, { name: 'userEngagementDuration' }] },
+    // 0: 期間全体。5つ目の totalUsers（すべての人）はカードの全体の人数用。流入元・X から来た人と同じ数え方にそろえるため（2026-10-27。activeUsers だと「X 以外」より「いちばん多い」が多くなった）
+    { dateRanges, metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }, { name: 'sessions' }, { name: 'userEngagementDuration' }, { name: 'totalUsers' }] },
     // 1: イベント別の人数・回数（動画のみ。同人誌の表示・クリックは除く）
     { dateRanges, dimensions: [{ name: 'eventName' }], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }], dimensionFilter: and(eventIn(funnelEvents), notDoujin) },
     // 2: 日別
@@ -645,7 +645,7 @@ const getRangeData = unstable_cache(
     return { jp: result('jp'), all: result('all') };
   },
   // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
-  ['admin-analytics-v30'],
+  ['admin-analytics-v31'],
   { revalidate: 300 },
 );
 
