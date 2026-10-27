@@ -45,8 +45,9 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   // 8: 流入元 [流入元] → [訪問, 人数]、37: 押した人 [流入元, ブラウザ]、34: Bluesky [イベント]、40: Bluesky で押した人
   const nonXChannels = (reports[8] ?? []).filter((r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[0]));
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
-  // 0: 期間全体 [activeUsers, newUsers, sessions, engagement]
-  const totalUsers = (reports[0] ?? [])[0]?.metrics[0] ?? 0;
+  // 0: 期間全体 [activeUsers, newUsers, sessions, engagement, totalUsers]
+  // 全体の人数は「すべての人」（totalUsers）。流入元（8）・X から来た人（36・41）と同じ数え方にそろえる（2026-10-27）
+  const totalUsers = (reports[0] ?? [])[0]?.metrics[4] ?? (reports[0] ?? [])[0]?.metrics[0] ?? 0;
   // 来た元が記録されず（Unassigned・(not set)）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）。
   // SNS（Organic Social）は X 自身が含まれるので入れない（入れると X を二重に数え、押した人の X が全体より大きくなった。2026-10-27）
   const unknownInApp = (r: ReportRow) => UNKNOWN_SOURCE_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
