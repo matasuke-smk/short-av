@@ -26,7 +26,7 @@ const baseLandscapeBannerIds: string[] = [
 /**
  * 期間限定のキャンペーンのバナー（DMM アフィリエイトのバナー素材。表示期限を過ぎたら自動で外れる）。
  * 10円セール（バナー 2152、表示終了 2026-10-30 09:59）。新規の人を狙うため、期間中は横長バナーの2枚に1枚と、
- * ChatGPT から来た人への案内に出す（2026-10-27 ユーザーの要望「今は10円動画を押してほしい」）。160x600 の大きさは無い
+ * ChatGPT から来た人への案内と、PC の右の欄（300x250、商品ウィジェットの上）に出す（2026-10-27 ユーザーの要望「今は10円動画を押してほしい」）。160x600 の大きさは無い
  */
 export const campaignBanner = { id: '2152', name: '10円セール', until: '2026-10-30T09:59:00+09:00' } as const;
 export const isCampaignActive = (now = Date.now()) => now < new Date(campaignBanner.until).getTime();

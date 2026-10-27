@@ -11,7 +11,7 @@ import { blendByPreference, getPreference, type Preference } from '@/lib/prefere
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite, juicyAds } from '@/config/banners';
+import { landscapeBannerIds, portraitBannerIds, pcWidgets, dlsite, juicyAds, campaignBanner, isCampaignActive } from '@/config/banners';
 import { dlsiteSearchUrl, dlsiteTopUrl } from '@/lib/dlsite';
 import { useT } from '@/lib/i18n';
 import DMMBanner from './DMMBanner';
@@ -192,7 +192,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 「動画｜同人誌」: 動画モード（動画だけ）か、同人誌モード（同人誌だけ）か。上の切り替えで変える
   const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
   const doujinMode = mode === 'doujin';
-  // 10円セールの期間中は、下のボタンの「人気」を「10円」（特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
+  // 10円セールの期間中は、下のボタンの「人気」を「¥10 セール」（アイコンが ¥10、文字が「セール」。特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
   const showSaleButton = !doujinMode && !isOverseas && enableAffiliateLinks && isSale10yenActive();
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
   const [doujinListKind, setDoujinListKind] = useState<DoujinListKind | null>(null);
@@ -1319,6 +1319,13 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
         <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
+        {/* PC: キャンペーン（10円セールなど）の期間中は、公式バナー（300×250）を商品ウィジェットの上に出す。
+            PC では横長バナー（640×200）を出す場所が無く、キャンペーンのバナーがどこにも出ていなかった（2026-10-27 ユーザーの指摘）。同人誌のとき・海外の人には出さない */}
+        {enableAffiliateLinks && !isOverseas && !doujinMode && isCampaignActive() && (
+          <div className="hidden lg:!flex flex-shrink-0 justify-center">
+            <DMMBanner bannerId={`${campaignBanner.id}_300_250`} className="w-[300px] aspect-[300/250]" />
+          </div>
+        )}
         {/* PC: 「動画｜同人誌」の切り替えの直下に FANZA の商品ウィジェット（300×600、人気順）。ボタンはその下。以前は欄の一番下で、縦長バナー（160×600）は欄の幅の4割しか使わず余白が目立った */}
         <div className="hidden lg:!flex flex-1 min-h-0 justify-center items-start pt-2 pb-2">
           {/* 日本以外の訪問者: DLsite の英語バナーと JuicyAds の 300×250 を縦に並べる（以前の 300×600 の枠を埋める）。
@@ -1472,7 +1479,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <span className="text-xs lg:!text-sm">{t('search')}</span>
           </button>
 
-          {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「10円」（特設ページへ）に変える（2026-10-27） */}
+          {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「¥10 セール」（特設ページへ）に変える（2026-10-27） */}
           {showSaleButton ? (
             <a
               href="/sale/10yen"
@@ -1480,7 +1487,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               className="bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all active:scale-95 font-bold"
             >
               <span className="text-base leading-5 mb-1 lg:!text-lg">¥10</span>
-              <span className="text-xs lg:!text-sm">10円</span>
+              <span className="text-xs lg:!text-sm whitespace-nowrap">セール</span>
             </a>
           ) : (
           <button
@@ -1607,7 +1614,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <span className="text-xs md:text-sm">{t('search')}</span>
             </button>
 
-            {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「10円」（特設ページへ）に変える（2026-10-27） */}
+            {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「¥10 セール」（特設ページへ）に変える（2026-10-27） */}
             {showSaleButton ? (
               <a
                 href="/sale/10yen"
@@ -1615,7 +1622,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 className="bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all active:scale-95 font-bold"
               >
                 <span className="text-lg leading-6 mb-1 md:text-xl">¥10</span>
-                <span className="text-xs md:text-sm">10円</span>
+                <span className="text-xs md:text-sm whitespace-nowrap">セール</span>
               </a>
             ) : (
             <button
