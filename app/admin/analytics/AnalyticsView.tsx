@@ -765,9 +765,6 @@ function RangeBody({
   // X 以外から来た人: 検索・直接（ブックマークなど）・ほかのサイトのリンクなど。普段のブラウザで来るので報酬につながりやすい。
   // SNS（X）と、来た元が分からない訪問（ほとんどは X のアプリ内からと考えられるが確かめられない）は除く
   const NOT_NON_X_CHANNELS = ['Organic Social', 'Paid Social', 'Unassigned', 'Cross-network', '(not set)', ''];
-  const nonX = channelRows
-    .filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel))
-    .reduce((sum, r) => ({ users: sum.users + r.users, clickUsers: sum.clickUsers + r.clickUsers }), { users: 0, clickUsers: 0 });
   // X 以外から来た人の日別推移（レポート 35: 直近28日・人数。表示中の期間に関係なく28日分）。2026-10-25
   const nonXDaily = (() => {
     const byDate = new Map<string, number>();
@@ -798,10 +795,8 @@ function RangeBody({
       },
       { all: 0, normal: 0 },
     );
-  // X から来た人（来た元が x・t.co・twitter）。見た人はレポート 36、FANZA へのリンクを押した人はレポート 38
-  const xSeen = byBrowser((reports[36] ?? []).filter((r) => r.dimensions[0] === 'page_view'), 1);
-  const xClicked = byBrowser(reports[38] ?? []);
-  const xFrom = { users: xSeen.all, normalUsers: xSeen.normal, clickUsers: xClicked.all, normalClickUsers: xClicked.normal };
+  // カードと同じ数字（X から来た人・X 以外から来た人）。開いた画面と表の合計もこれにそろえる（2026-10-27）
+  const cardNums = keyNumbers(reports);
   // FANZA へのリンクを押した人（全員。レポート 39）。FANZA のカードに回数と並べて出す
   const fanzaClickers = byBrowser(reports[39] ?? []);
   // 作品ごとの再生・クリック（回数）
@@ -1037,21 +1032,29 @@ function RangeBody({
             note="来た元が X（x・t.co・twitter）の人。X のアプリの中のブラウザで見た人は、FANZA で買っても報酬になりにくい。Safari・Chrome などで開き直した人のクリックは報酬になる。"
             onClose={closeDetail}
           >
-            <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-              {([
-                ['X から来た人', `${fmt(xFrom.users)}人`],
-                ['FANZA を押した人', `${fmt(xFrom.clickUsers)}人（${pct(xFrom.clickUsers, xFrom.users)}）`],
-                ['アプリの中で見た人', `${fmt(Math.max(0, xFrom.users - xFrom.normalUsers))}人`],
-                ['Safari などで開き直した人', `${fmt(xFrom.normalUsers)}人（${pct(xFrom.normalUsers, xFrom.users)}）`],
-                ['開き直して FANZA を押した人', `${fmt(xFrom.normalClickUsers)}人`],
-                ['アプリの中で FANZA を押した人', `${fmt(Math.max(0, xFrom.clickUsers - xFrom.normalClickUsers))}人`],
-              ] as const).map(([k, v]) => (
-                <div key={k} className="rounded-lg bg-gray-800 px-3 py-2">
-                  <div className="text-xs text-gray-400">{k}</div>
-                  <div className="font-bold">{v}</div>
+            {/* 数字はカードと同じ（keyNumbers）。左の列＝アプリの中、右の列＝開き直した人（2026-10-27 ユーザーの要望） */}
+            {(() => {
+              const k = cardNums;
+              const inAppUsers = Math.max(0, k.xUsers - k.xNormalUsers);
+              const inAppClickers = Math.max(0, k.xClickers - k.xNormalClickers);
+              return (
+                <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
+                  {([
+                    ['X から来た人', `${fmt(k.xUsers)}人`],
+                    ['FANZA を押した人', `${fmt(k.xClickers)}人（${pct(k.xClickers, k.xUsers)}）`],
+                    ['アプリの中で見た人', `${fmt(inAppUsers)}人`],
+                    ['Safari などで開き直した人', `${fmt(k.xNormalUsers)}人（${pct(k.xNormalUsers, k.xUsers)}）`],
+                    ['アプリの中で FANZA を押した人', `${fmt(inAppClickers)}人`],
+                    ['開き直して FANZA を押した人', `${fmt(k.xNormalClickers)}人`],
+                  ] as const).map(([label, v]) => (
+                    <div key={label} className="rounded-lg bg-gray-800 px-3 py-2">
+                      <div className="text-xs text-gray-400">{label}</div>
+                      <div className="font-bold">{v}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
             {trends && (
               <div className="mb-5">
                 <div className="text-xs text-gray-400 mb-1">X から来た人の推移（直近28日・1日の人数）</div>
@@ -1366,28 +1369,38 @@ function RangeBody({
             onClose={closeDetail}
           >
             {/* いちばん上の数字の枠は「X から来た人」とそろえる（2026-10-26） */}
+            {/* 合計・押した人・いちばん多いはカードと同じ（keyNumbers）。左の列＝まとめ、右の列＝○○から来た人。
+                Bluesky は数え方があてにならないので下に参考として別に出す（2026-10-27 ユーザーの要望） */}
             {(() => {
+              const k = cardNums;
               const nonXRows = channelRows.filter((r) => !NOT_NON_X_CHANNELS.includes(r.channel));
               const usersOf = (channel: string) => nonXRows.find((r) => r.channel === channel)?.users ?? 0;
-              const top = [...nonXRows].sort((x, y) => y.users - x.users)[0];
-              const total = nonX.users + bsky.users;
-              const clicked = nonX.clickUsers + bsky.clickUsers;
+              const otherUsers = nonXRows.filter((r) => !['AI Assistant', 'Organic Search'].includes(r.channel)).reduce((sum, r) => sum + r.users, 0);
               return (
-                <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-                  {([
-                    ['X 以外から来た人', `${fmt(total)}人`],
-                    ['FANZA を押した人', `${fmt(clicked)}人（${pct(clicked, total)}）`],
-                    ['いちばん多い流入元', top ? `${channelLabel(top.channel).split('（')[0]} ${fmt(top.users)}人` : '-'],
-                    ['検索から来た人', `${fmt(usersOf('Organic Search'))}人`],
-                    ['AI（ChatGPT など）から来た人', `${fmt(usersOf('AI Assistant'))}人`],
-                    ['Bluesky から来た人', `${fmt(bsky.users)}人`],
-                  ] as const).map(([k, v]) => (
-                    <div key={k} className="rounded-lg bg-gray-800 px-3 py-2">
-                      <div className="text-xs text-gray-400">{k}</div>
-                      <div className="font-bold">{v}</div>
+                <>
+                  <div className="grid grid-cols-2 gap-2 mb-2 text-sm">
+                    {([
+                      ['X 以外から来た人', `${fmt(k.nonXUsers)}人`],
+                      ['AI（ChatGPT など）から来た人', `${fmt(usersOf('AI Assistant'))}人`],
+                      ['FANZA を押した人', `${fmt(k.nonXClickers)}人（${pct(k.nonXClickers, k.nonXUsers)}）`],
+                      ['検索から来た人', `${fmt(usersOf('Organic Search'))}人`],
+                      ['いちばん多い流入元', k.topNonX ? `${channelLabel(k.topNonX.channel).split('（')[0]} ${fmt(k.topNonX.users)}人` : '-'],
+                      ['直接・ほかのサイトから来た人', `${fmt(otherUsers)}人`],
+                    ] as const).map(([label, v]) => (
+                      <div key={label} className="rounded-lg bg-gray-800 px-3 py-2">
+                        <div className="text-xs text-gray-400">{label}</div>
+                        <div className="font-bold">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mb-4 rounded-lg border border-gray-700 px-3 py-2 text-sm">
+                    <div className="text-xs text-gray-400">参考（数え方があてにならないため別に表示）</div>
+                    <div>
+                      Bluesky から来た人 <span className="font-bold">{fmt(bsky.users)}人</span>
+                      <span className="ml-2 text-xs text-gray-400">FANZA を押した人 {fmt(bsky.clickUsers)}人</span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </>
               );
             })()}
             <div className="mb-5">
@@ -1396,7 +1409,7 @@ function RangeBody({
               <TrendLine data={trends ? trends.dates.slice(-28).map((date, i) => ({ date, users: trends.nonXUsers.slice(-28)[i] ?? 0 })) : nonXDaily} height={110} labels />
             </div>
             <h3 className="text-sm font-bold mb-1">流入元ごと</h3>
-            <p className="text-xs text-gray-400 mb-2">上が X 以外（カードの数）、灰色はカードに含めていない流入元。</p>
+            <p className="text-xs text-gray-400 mb-2">上が X 以外の流入元（太字の行がカードの数）、灰色は上に入れていない流入元。</p>
             {channelRows.length === 0 ? (
               <p className="text-sm text-gray-400">まだデータがありません。</p>
             ) : (
@@ -1424,7 +1437,7 @@ function RangeBody({
                     ))}
                     {bsky.users > 0 && (
                       <tr className="border-t border-gray-700">
-                        <td className="py-2 pr-2">Bluesky</td>
+                        <td className="py-2 pr-2">Bluesky（参考）</td>
                         <td className="text-right">{fmt(bsky.users)}人</td>
                         <td className="text-right text-gray-500">-</td>
                         <td className="text-right">{fmt(bsky.clickUsers)}人</td>
@@ -1433,20 +1446,20 @@ function RangeBody({
                     )}
                     <tr className="border-t-2 border-gray-500 font-bold">
                       <td className="py-2 pr-2">X 以外の合計（カードの数）</td>
-                      <td className="text-right">{fmt(nonX.users + bsky.users)}人</td>
+                      <td className="text-right">{fmt(cardNums.nonXUsers)}人</td>
                       <td className="text-right text-gray-500">-</td>
-                      <td className="text-right">{fmt(nonX.clickUsers + bsky.clickUsers)}人</td>
-                      <td className="text-right text-emerald-300">{pct(nonX.clickUsers + bsky.clickUsers, nonX.users + bsky.users)}</td>
+                      <td className="text-right">{fmt(cardNums.nonXClickers)}人</td>
+                      <td className="text-right text-emerald-300">{pct(cardNums.nonXClickers, cardNums.nonXUsers)}</td>
                     </tr>
                     <tr className="border-t border-gray-700">
                       <td className="py-2 pr-2">X から来て Safari などで見た人</td>
-                      <td className="text-right">{fmt(xFrom.normalUsers)}人</td>
+                      <td className="text-right">{fmt(cardNums.xNormalUsers)}人</td>
                       <td className="text-right text-gray-500">-</td>
-                      <td className="text-right">{fmt(xFrom.normalClickUsers)}人</td>
-                      <td className={`text-right font-bold ${xFrom.normalClickUsers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(xFrom.normalClickUsers, xFrom.normalUsers)}</td>
+                      <td className="text-right">{fmt(cardNums.xNormalClickers)}人</td>
+                      <td className={`text-right font-bold ${cardNums.xNormalClickers > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>{pct(cardNums.xNormalClickers, cardNums.xNormalUsers)}</td>
                     </tr>
                     <tr>
-                      <td colSpan={5} className="pt-4 pb-1 text-xs text-gray-500 whitespace-normal">X 以外のカードの数に含めていないもの（SNS はほぼ X、「不明」は来た元が記録されなかった訪問で、多くは X のアプリの中からと考えられます）</td>
+                      <td colSpan={5} className="pt-4 pb-1 text-xs text-gray-500 whitespace-normal">上の流入元に入れていないもの。SNS はほぼ X。「不明」は来た元が記録されなかった訪問で、カードではアプリの中で見た人を X に、Safari などで見た人を X 以外に数えています</td>
                     </tr>
                     {channelRows.filter((r) => NOT_NON_X_CHANNELS.includes(r.channel)).map((r) => (
                       <tr key={r.channel} className="border-t border-gray-800 text-gray-500">
