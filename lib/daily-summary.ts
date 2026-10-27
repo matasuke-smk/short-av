@@ -188,7 +188,8 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
   const supabase = getSupabaseAdmin();
   // シャドウバンは確認サイトの負担を減らすため、前に確認できていればそのまま使う（確認できなかったときだけやり直す）
   const prevShadow = prev?.xShadowban?.now;
-  const shadowOk = prevShadow && prevShadow.length > 0 && prevShadow.every((r) => !('error' in r));
+  // 確認できなかった（error）か、検索・検索候補がどちらも判定できなかった（unknown）ときは、作り直すときに確認し直す
+  const shadowOk = prevShadow && prevShadow.length > 0 && prevShadow.every((r) => !('error' in r) && !(r.search === 'unknown' && r.suggestion === 'unknown'));
   const [impT, dmmRes, vercel, database, shadowban, previousSummary, pages, unmeasured, siteCheckRes] = await Promise.all([
     countImports(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
