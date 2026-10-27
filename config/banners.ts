@@ -16,12 +16,27 @@ import { goHref } from '@/lib/go-link';
  * サムネイル下・横画面バナーで使用
  * 1082と1083を交互に表示
  */
-export const landscapeBannerIds: string[] = [
+const baseLandscapeBannerIds: string[] = [
   '1082_640_200',
   '1277_640_200', // FANZA TV（14日間無料体験・月額550円で2200作品以上見放題）。無料お試し登録の報酬が大きい（2026-10-10 追加）
   '1083_640_200',
   '1277_640_200', // FANZA TV は2枚に1枚（2026-10-11）
 ];
+
+/**
+ * 期間限定のキャンペーンのバナー（DMM アフィリエイトのバナー素材。表示期限を過ぎたら自動で外れる）。
+ * 10円セール（バナー 2152、表示終了 2026-10-30 09:59）。新規の人を狙うため、期間中は横長バナーの2枚に1枚と、
+ * ChatGPT から来た人への案内に出す（2026-10-27 ユーザーの要望「今は10円動画を押してほしい」）。160x600 の大きさは無い
+ */
+export const campaignBanner = { id: '2152', name: '10円セール', until: '2026-10-30T09:59:00+09:00' } as const;
+export const isCampaignActive = (now = Date.now()) => now < new Date(campaignBanner.until).getTime();
+
+export const landscapeBannerIds: string[] = isCampaignActive()
+  ? [`${campaignBanner.id}_640_200`, '1082_640_200', `${campaignBanner.id}_640_200`, '1277_640_200']
+  : baseLandscapeBannerIds;
+
+/** ChatGPT から来た人への案内（app/components/ChatGptWelcome.tsx）に出す 300x250 の公式バナー。キャンペーン中はそれ、終わったら FANZA TV */
+export const welcomeBannerId = (now = Date.now()) => (isCampaignActive(now) ? `${campaignBanner.id}_300_250` : '1277_300_250');
 
 /**
  * 縦長バナー（160x600）のバナーID
