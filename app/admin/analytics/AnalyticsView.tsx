@@ -1749,6 +1749,10 @@ export function DetailModal({ title, note, onClose, children }: { title: string;
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  // 閉じる処理は ref で持つ。onClose は親が描き直すたびに新しい関数になり、それを依存にすると
+  // 作り直し中や10分ごとの更新のたびにモーダルが下から出直していた（2026-10-27 ユーザー報告）
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -1769,7 +1773,7 @@ export function DetailModal({ title, note, onClose, children }: { title: string;
       closing = true;
       moveTo('100vh', true);
       fade(0);
-      window.setTimeout(onClose, SLIDE_MS);
+      window.setTimeout(() => onCloseRef.current(), SLIDE_MS);
     };
     // 下から出す（位置を確定させてから動かす。requestAnimationFrame は裏のタブで止まるので使わない）
     moveTo('100vh', false);
@@ -1836,7 +1840,7 @@ export function DetailModal({ title, note, onClose, children }: { title: string;
       panel.removeEventListener('touchend', onEnd);
       panel.removeEventListener('touchcancel', onEnd);
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div data-no-pull-refresh className="fixed inset-0 z-[60] flex items-stretch md:items-center justify-center md:p-6">
