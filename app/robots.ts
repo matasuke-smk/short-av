@@ -61,6 +61,14 @@ export default function robots(): MetadataRoute.Robots {
         disallow: '/',
       },
       {
+        userAgent: 'meta-webindexer',  // Meta AI の検索用（10/27 に1時間で約480回。/go の禁止も守らず開いていた。人の訪問は0。Meta のアプリのリンクのカードは facebookexternalhit なので影響しない）
+        disallow: '/',
+      },
+      {
+        userAgent: 'Amazonbot',  // Amazon の AI の学習などに使う（10/25 28回 → 10/27 約3,900回。Amazon からの人の訪問は0。Alexa+ は性的な内容を出さない方針。2026-10-27 拒否）
+        disallow: '/',
+      },
+      {
         userAgent: 'Google-Extended',  // Google Bard用
         disallow: '/',                  // AI学習用のクロールを拒否
       },

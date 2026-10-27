@@ -1,8 +1,8 @@
 /**
  * FANZA（DMM）へのリンクを、サイトの中の /go を通してから飛ばす（2026-10-27）。
- * /go は robots.txt でロボットに読ませず、守らないロボットも /go の中で User-Agent を見てトップへ戻すので、ロボットが作品ページの FANZA のリンクをたどって
+ * /go は robots.txt でロボットに読ませず、守らないロボットも /go の中で User-Agent を見て断る（403）ので、ロボットが作品ページの FANZA のリンクをたどって
  * DMM のクリックに数えられるのを防げる（10/27 に Amazonbot の巡回と同じ時間に、GA に無いクリックが DMM に 27回付いた）。
- * 紹介用の ID（af_id など）は URL ごとそのまま渡すので、報酬はこれまでどおり付く。
+ * 紹介用の ID（af_id）は同じアカウントの ID のまま渡すので、報酬はこれまでどおり付く（作品のリンクだけ 990 → 991 に付け替える。withGoAffiliateId）。
  */
 const GO_HOSTS = ['dmm.co.jp', 'dmm.com', 'fanza.co.jp'];
 
@@ -24,6 +24,17 @@ export const isGoTarget = (url: string): boolean => {
     return false;
   }
 };
+
+/**
+ * /go を通ったクリックの紹介用の ID を付け替える（2026-10-27）。作品のリンク（DMM の商品情報 API が返す紹介リンク、af_id=matasuke-990）を、
+ * /go を通ったときだけ matasuke-991（同じアカウントの別の ID）にする。/go を作る前（10/27 13:07 まで）にページから集めた紹介リンクを
+ * ロボットが直接開くと DMM に 990 で数えられるので、DMM の画面で ID 別に見れば「サイトを通った人のクリック（991）」と分けられる。
+ * URL の他の部分は変えない（lurl の符号化を崩さないよう、af_id の値だけ置き換える）
+ */
+const AF_ID_REWRITES: Record<string, string> = { 'matasuke-990': 'matasuke-991' };
+
+export const withGoAffiliateId = (url: string): string =>
+  url.replace(/([?&]af_id=)([^&#]+)/, (match, key: string, id: string) => (AF_ID_REWRITES[id] ? `${key}${AF_ID_REWRITES[id]}` : match));
 
 /** FANZA（DMM）の URL なら /go を通す URL に変える。それ以外（DLsite など）はそのまま */
 export function goHref(url: string): string;

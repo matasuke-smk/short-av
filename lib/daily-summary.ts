@@ -29,9 +29,11 @@ export type DailyData = {
   // FANZA へのクリックの比べ（2026-10-27）。DMM のクリックが GA の人のクリックより大きく多いときは、ロボットのクリックが混ざっている疑い。
   // gaJapan・gaAll: GA の FANZA へのクリック（作品のリンク・バナー・ウィジェット・クーポン・初めての人向け の合計）の日本だけ・全部の国。
   // dmm: DMM の昨日のクリック（dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail。どちらも無ければ null）。
-  // suspicious: dmm が gaAll の2倍以上で、差が10回以上（コードで判定）
-  // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさずトップへ戻したロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
-  clickGap: { dmm: number | null; gaJapan: number; gaAll: number; suspicious: boolean; goBots: { bot: string; count: number }[] };
+  // goHumans: 人が /go（FANZA への転送）を通ったクリック（サーバー側の記録 go_clicks、sql/024。運営者の端末の分は goOwner に分ける。表が無ければ null）。
+  //   作品のリンク・クーポン・初めての人向け・10円セールのページは /go を通る。DMM のバナー・ウィジェットは通らないので入らない
+  // suspicious: dmm が「gaAll と goHumans の多いほう」の2倍以上で、差が10回以上（コードで判定）
+  // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさず断った（403）ロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
+  clickGap: { dmm: number | null; gaJapan: number; gaAll: number; goHumans: number | null; goOwner: number | null; suspicious: boolean; goBots: { bot: string; count: number }[] };
   // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
   // Google 検索（Search Console）。昨日分は速報値で、あとから増えることがある（2026-10-26 追加）
@@ -118,7 +120,7 @@ async function loadBotRows(): Promise<{ bot: string }[]> {
 
 // 昨日の数字（アクセス解析・検索・Bing・昨日の取り込み・AI のロボット）。昨日の分は後から変わらないので、
 // 同じ日の要約を作り直すときは、前に取った分を使う（GA などに問い合わせ直さない。2026-10-26 ユーザーの要望）
-type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number; fanzaClicksAll: number; goBots: { bot: string; count: number }[] };
+type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number; fanzaClicksAll: number; goBots: { bot: string; count: number }[]; goClicks: { humans: number; owner: number } | null };
 
 export async function collectDailyData(): Promise<DailyData> {
   const y = jstDate(1);
@@ -126,8 +128,12 @@ export async function collectDailyData(): Promise<DailyData> {
   const { data: existing } = await supabase.from('daily_summaries').select('data').eq('date', y).maybeSingle();
   const prev = existing?.data as DailyData | null | undefined;
   const stable: StablePart =
-    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap
-      ? { shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday, fanzaClicksAll: prev.clickGap.gaAll, goBots: prev.clickGap.goBots }
+    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap && prev.clickGap.goHumans !== undefined
+      ? {
+          shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday,
+          fanzaClicksAll: prev.clickGap.gaAll, goBots: prev.clickGap.goBots,
+          goClicks: prev.clickGap.goHumans === null ? null : { humans: prev.clickGap.goHumans, owner: prev.clickGap.goOwner ?? 0 },
+        }
       : await collectStable(y);
   return collectFresh(y, stable, prev ?? null);
 }
@@ -160,10 +166,11 @@ async function collectStable(y: string): Promise<StablePart> {
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
 
-  const [impY, botsRes, goBots, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
+  const [impY, botsRes, goBots, goClicks, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
     countImports(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     loadBotRows(),
     countGoBots(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
+    countGoClicks(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     collectSearch('shortav', y),
     collectSearch('mens', y),
     getBingStats('shortav', y),
@@ -186,13 +193,14 @@ async function collectStable(y: string): Promise<StablePart> {
     importsYesterday: impY,
     fanzaClicksAll: one(fanzaAll),
     goBots,
+    goClicks,
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
     search: { shortav: searchShortav, mens: searchMens },
     bing: { shortav: bingShortav, mens: bingMens },
   };
 }
 
-// /go を開いたロボットの回数（ロボットの名前ごと。middleware.ts が ai_bot_hits に記録し、/go はロボットをトップへ戻す）
+// /go を開いたロボットの回数（ロボットの名前ごと。middleware.ts が ai_bot_hits に記録し、/go はロボットに 403 を返す）
 async function countGoBots(from: string, to: string): Promise<{ bot: string; count: number }[]> {
   const counts = new Map<string, number>();
   for (let offset = 0; offset < 50_000; offset += 1000) {
@@ -202,6 +210,16 @@ async function countGoBots(from: string, to: string): Promise<{ bot: string; cou
     if (data.length < 1000) break;
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, count]) => ({ bot, count }));
+}
+
+// 人が /go を通ったクリックの数（go_clicks、sql/024）。運営者の端末の分は分ける。表がまだ無いなど取れなければ null
+async function countGoClicks(from: string, to: string): Promise<{ humans: number; owner: number } | null> {
+  const range = (owner: boolean) =>
+    getSupabaseAdmin().from('go_clicks').select('id', { count: 'exact', head: true }).eq('owner', owner).gte('at', new Date(from).toISOString()).lt('at', new Date(to).toISOString());
+  const [humans, owner] = await Promise.all([range(false), range(true)]);
+  // 表が無いとき、件数だけ取る問い合わせはエラーにならず count が null で返る（2026-10-27 確認）
+  if (humans.error || owner.error || humans.count === null || owner.count === null) return null;
+  return { humans: humans.count, owner: owner.count };
 }
 
 // DMM の昨日のクリック。dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail（日付が昨日のときだけ）
@@ -243,6 +261,8 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
   const dmmClicks = dmmClicksFor(y, dmm, siteCheck);
   const gaJapan = stable.shortav.events.filter((e) => FANZA_CLICK_EVENTS.includes(e.name)).reduce((sum, e) => sum + e.yesterday, 0);
   const gaAll = stable.fanzaClicksAll;
+  const goHumans = stable.goClicks?.humans ?? null;
+  const humanClicks = Math.max(gaAll, goHumans ?? 0);
 
   return {
     date: y,
@@ -251,7 +271,11 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
     imports: { yesterday: stable.importsYesterday, today: impT },
     bots: stable.bots,
     dmm,
-    clickGap: { dmm: dmmClicks, gaJapan, gaAll, suspicious: dmmClicks !== null && dmmClicks >= gaAll * 2 && dmmClicks - gaAll >= 10, goBots: stable.goBots },
+    clickGap: {
+      dmm: dmmClicks, gaJapan, gaAll, goHumans, goOwner: stable.goClicks?.owner ?? null,
+      suspicious: dmmClicks !== null && dmmClicks >= humanClicks * 2 && dmmClicks - humanClicks >= 10,
+      goBots: stable.goBots,
+    },
     search: stable.search,
     bing: stable.bing,
     vercel,
@@ -297,8 +321,8 @@ Bing
 
 FANZA（DMM）
 ・昨日のクリック・成約・報酬（内訳: ダイレクト・カテゴリ・サービス新規 のうち 0 でないもの）。dmm（貼り付け・自動保存の実績）を使い、dmm が null か dmm.updated が false のときは siteCheck.data.dmm の昨日の数字（yesterday_clicks・yesterday_detail など）を使う。どちらにも無ければ「昨日分の実績が取れていない」と書き、数字は書かない。成約・報酬が付いたら必ず書く
-・クリックの比べ（clickGap）: 「DMM のクリック ○回／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら書かない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさずトップへ戻した。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
-・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが GA の人のクリックより ○回多い（ロボットのクリックが混ざっている疑い）→ 対応: …」を書く。対応は、goBots が多ければ「/go では止めている。DMM のバナー・ウィジェットから飛んでいる可能性があるので確認を依頼」、そうでなければ「時間ごとの数字を見比べて原因を調べるよう依頼」
+・クリックの比べ（clickGap）: 「DMM のクリック ○回／サイトを通った人のクリック ○回（goHumans。null なら書かない。goOwner が1以上なら「ほかに運営者 ○回」）／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら DMM の部分は書かない。サイトを通った人のクリックにはバナー・ウィジェットは入らない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさず断った。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
+・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが人のクリック（GA とサイトの記録の多いほう）より ○回多い（ロボットのクリックが混ざっている疑い）→ 対応: …」を書く。対応は、goBots が多ければ「/go では止めている。DMM のバナー・ウィジェットから飛んでいる可能性があるので確認を依頼」、そうでなければ「時間ごとの数字を見比べて原因を調べるよう依頼」
 ・今月（昨日まで）のクリック・成約・報酬。siteCheck.data.dmm.month は今日の分も含むので、today_yen・today_clicks・today_conversions があれば引く（例: month.yen 2,722 − today_yen 14 = 2,708円）
 
 A8
