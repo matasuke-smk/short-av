@@ -31,9 +31,9 @@ const BOT_NOTE: Record<string, string> = {
   ClaudeBot: 'Anthropic の学習用',
   'Google-Extended': 'Google の AI 学習用（拒否中）',
   DuckAssistBot: 'DuckDuckGo の AI 用',
-  Amazonbot: 'Amazon（Alexa）用',
+  Amazonbot: 'Amazon（Alexa）用（robots.txt で拒否中）',
   'meta-externalagent': 'Meta の AI 用',
-  'meta-webindexer': 'Meta（Facebook）の検索・AI 用（robots.txt を守らず /go を開く）',
+  'meta-webindexer': 'Meta（Facebook）の検索・AI 用（robots.txt で拒否中。10/27 は /go の禁止を守らなかった）',
   Bytespider: 'ByteDance（TikTok）の AI 用',
   'other-bot': 'その他のロボット（/go を開いたものだけ記録）',
 };
