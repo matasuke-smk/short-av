@@ -7,7 +7,7 @@ import { checkShadowbans, type ShadowbanResult } from '@/lib/x-shadowban';
 
 /**
  * 毎朝の点検の要約（2026-10-25）。前日の数字を集めて Claude に10行ほどの要約を書かせ、daily_summaries（sql/019）に残す。
- * 管理画面のアクセス解析の上に出す。Vercel の定期実行（/api/cron/daily-summary、日本時間 9:40）から呼ぶ
+ * 管理画面のアクセス解析の上に出す。Vercel の定期実行（/api/cron/daily-summary、日本時間 7:00。2026-10-27 に 9:40 から変更。DMM・A8 などは自宅 Mac が 6:30 に site_checks へ入れる）から呼ぶ
  */
 
 const JST = 9 * 3_600_000;
@@ -228,7 +228,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 サイトの動き
 ・問題がなければ見出しの横ではなく1行目に「問題なし」と書き、その下に次を1行ずつ:
 ・主なページ: pages の status がすべて 200 なら「両サイトの主なページ・サイトマップは正常」。200 以外があれば、そのページと状態を書く（0 は「つながらない」）
-・作品の取り込み: imports.yesterday（昨日）と imports.today（今日の朝の分）の本数。昨日が 0 なら「取り込みが止まっている」と書く
+・作品の取り込み: imports.yesterday（昨日）の本数。昨日が 0 なら「取り込みが止まっている」と書く。今日の取り込みは毎朝9時なので、imports.today は 0 より大きいときだけ書く
 ・サンプルの長さが未計測の作品: unmeasuredSamples 本
 ・データベースの大きさ: database.mb MB（無料の上限 500MB の database.percentOfFree%）
 ・Vercel の利用料金: vercel.billing があれば「今月（billing.from から）の Vercel の利用料金 ○ドル（多い順に項目を2つまで）」。Pro の月の利用枠は 20 ドルで、15 ドルを超えたら注意として書く
@@ -237,7 +237,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 Short AV
 ・昨日: 人数（訪問）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
 ・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
-・FANZA 実績: dmm の昨日のクリック・成約。dmm が null か dmm.updated が false なら「FANZA 実績が昨日分まで更新されていない」と書き、数字は書かない。成約が付いたら必ず書く
+・FANZA 実績: dmm の昨日のクリック・成約。dmm が null か dmm.updated が false のときは、siteCheck.data.dmm に昨日の数字（yesterday_clicks など）があればそれを使い「（DMM の画面で確認）」と添える。どちらにも無ければ「FANZA 実績が昨日分まで更新されていない」と書き、数字は書かない。成約・報酬が付いたら必ず書く
 ・Google 検索・Bing 検索からのクリック（7日間の合計 week。Bing は latestDate が古ければそう書く）
 ・サンプル終了時の案内（sampleEnd）の表示とクリック
 

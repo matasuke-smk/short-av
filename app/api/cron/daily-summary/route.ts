@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runDailySummary } from '@/lib/daily-summary';
 
 /**
- * 毎朝の点検の要約を作る（Vercel の定期実行、日本時間 9:40 = UTC 0:40。vercel.json）。
- * 取り込み（0:00）とサンプルの長さ（0:30）のあと、GA の前日分がだいたい揃う時刻
+ * 毎朝の点検の要約を作る（Vercel の定期実行、日本時間 7:00 = UTC 22:00。vercel.json）。
+ * 2026-10-27 に 9:40 から変更（ユーザーの希望）。DMM・A8 などは自宅 Mac が 6:30 に site_checks へ入れる。
+ * 作品の取り込み（9:00）より前なので、今日の取り込みは 0 のことが多い（要約では 0 のとき書かない）
  */
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
