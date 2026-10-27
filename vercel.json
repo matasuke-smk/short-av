@@ -5,11 +5,11 @@
   "crons": [
     {
       "path": "/api/cron/update-videos",
-      "schedule": "0 0 * * *"
+      "schedule": "30 21 * * *"
     },
     {
       "path": "/api/cron/sample-lengths",
-      "schedule": "30 0 * * *"
+      "schedule": "40 21 * * *"
     },
     {
       "path": "/api/cron/ga-realtime",
@@ -21,7 +21,7 @@
     },
     {
       "path": "/api/cron/long-scores",
-      "schedule": "50 0 * * *"
+      "schedule": "50 21 * * *"
     },
     {
       "path": "/api/cron/daily-summary",
