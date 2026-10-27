@@ -32,7 +32,7 @@ export type DailyData = {
   // goHumans: 人が /go（FANZA への転送）を通ったクリック（サーバー側の記録 go_clicks、sql/024。運営者の端末の分は goOwner に分ける。表が無ければ null）。
   //   作品のリンク・クーポン・初めての人向け・10円セールのページは /go を通る。DMM のバナー・ウィジェットは通らないので入らない
   // suspicious: dmm が「gaAll と goHumans の多いほう」の2倍以上で、差が10回以上（コードで判定）
-  // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさずトップへ戻したロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
+  // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさず断った（403）ロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
   clickGap: { dmm: number | null; gaJapan: number; gaAll: number; goHumans: number | null; goOwner: number | null; suspicious: boolean; goBots: { bot: string; count: number }[] };
   // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
@@ -200,7 +200,7 @@ async function collectStable(y: string): Promise<StablePart> {
   };
 }
 
-// /go を開いたロボットの回数（ロボットの名前ごと。middleware.ts が ai_bot_hits に記録し、/go はロボットをトップへ戻す）
+// /go を開いたロボットの回数（ロボットの名前ごと。middleware.ts が ai_bot_hits に記録し、/go はロボットに 403 を返す）
 async function countGoBots(from: string, to: string): Promise<{ bot: string; count: number }[]> {
   const counts = new Map<string, number>();
   for (let offset = 0; offset < 50_000; offset += 1000) {
@@ -321,7 +321,7 @@ Bing
 
 FANZA（DMM）
 ・昨日のクリック・成約・報酬（内訳: ダイレクト・カテゴリ・サービス新規 のうち 0 でないもの）。dmm（貼り付け・自動保存の実績）を使い、dmm が null か dmm.updated が false のときは siteCheck.data.dmm の昨日の数字（yesterday_clicks・yesterday_detail など）を使う。どちらにも無ければ「昨日分の実績が取れていない」と書き、数字は書かない。成約・報酬が付いたら必ず書く
-・クリックの比べ（clickGap）: 「DMM のクリック ○回／サイトを通った人のクリック ○回（goHumans。null なら書かない。goOwner が1以上なら「ほかに運営者 ○回」）／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら DMM の部分は書かない。サイトを通った人のクリックにはバナー・ウィジェットは入らない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさずトップへ戻した。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
+・クリックの比べ（clickGap）: 「DMM のクリック ○回／サイトを通った人のクリック ○回（goHumans。null なら書かない。goOwner が1以上なら「ほかに運営者 ○回」）／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら DMM の部分は書かない。サイトを通った人のクリックにはバナー・ウィジェットは入らない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさず断った。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
 ・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが人のクリック（GA とサイトの記録の多いほう）より ○回多い（ロボットのクリックが混ざっている疑い）→ 対応: …」を書く。対応は、goBots が多ければ「/go では止めている。DMM のバナー・ウィジェットから飛んでいる可能性があるので確認を依頼」、そうでなければ「時間ごとの数字を見比べて原因を調べるよう依頼」
 ・今月（昨日まで）のクリック・成約・報酬。siteCheck.data.dmm.month は今日の分も含むので、today_yen・today_clicks・today_conversions があれば引く（例: month.yen 2,722 − today_yen 14 = 2,708円）
 
