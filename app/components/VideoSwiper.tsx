@@ -18,6 +18,7 @@ import DMMBanner from './DMMBanner';
 import DMMWidget from './DMMWidget';
 import FirstTimeLinks from './FirstTimeLinks';
 import ChatGptWelcome from './ChatGptWelcome';
+import { isSale10yenActive } from '@/config/sale-10yen';
 import SampleEndCta, { type SampleEndVariant } from './SampleEndCta';
 import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
@@ -191,6 +192,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 「動画｜同人誌」: 動画モード（動画だけ）か、同人誌モード（同人誌だけ）か。上の切り替えで変える
   const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
   const doujinMode = mode === 'doujin';
+  // 10円セールの期間中は、下のボタンの「人気」を「10円」（特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
+  const showSaleButton = !doujinMode && !isOverseas && enableAffiliateLinks && isSale10yenActive();
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
   const [doujinListKind, setDoujinListKind] = useState<DoujinListKind | null>(null);
   // 動画モードは動画だけ、同人誌モード（?mode=doujin。X の同人誌のリンクから）は一覧の同人誌だけを並べる
@@ -1469,7 +1472,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <span className="text-xs lg:!text-sm">{t('search')}</span>
           </button>
 
-          {/* 人気（ランキング）ボタン */}
+          {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「10円」（特設ページへ）に変える（2026-10-27） */}
+          {showSaleButton ? (
+            <a
+              href="/sale/10yen"
+              onClick={() => trackNavButton('sale_10yen')}
+              className="bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all active:scale-95 font-bold"
+            >
+              <span className="text-base leading-5 mb-1 lg:!text-lg">¥10</span>
+              <span className="text-xs lg:!text-sm">10円</span>
+            </a>
+          ) : (
           <button
             onClick={() => {
               if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
@@ -1482,6 +1495,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             </svg>
             <span className="text-xs lg:!text-sm">{t('ranking')}</span>
           </button>
+          )}
 
           {/* ホームボタン */}
           <button
@@ -1593,7 +1607,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <span className="text-xs md:text-sm">{t('search')}</span>
             </button>
 
-            {/* 人気（ランキング）ボタン */}
+            {/* 人気（ランキング）ボタン。10円セールの期間中（動画のとき）は「10円」（特設ページへ）に変える（2026-10-27） */}
+            {showSaleButton ? (
+              <a
+                href="/sale/10yen"
+                onClick={() => trackNavButton('sale_10yen')}
+                className="bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-400 hover:to-pink-400 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all active:scale-95 font-bold"
+              >
+                <span className="text-lg leading-6 mb-1 md:text-xl">¥10</span>
+                <span className="text-xs md:text-sm">10円</span>
+              </a>
+            ) : (
             <button
               onClick={() => {
                 if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
@@ -1606,6 +1630,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               </svg>
               <span className="text-xs md:text-sm">{t('ranking')}</span>
             </button>
+            )}
 
             {/* ホームボタン（中央） - 新しい動画セットを取得 */}
             <button
