@@ -1,6 +1,7 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server';
 import { ADMIN_SESSION_COOKIE, checkAdminCredentials, isValidAdminSession } from '@/lib/admin-session';
 import { isAiBot, recordAiBotHit } from '@/lib/ai-bots';
+import { isBotUserAgent } from '@/lib/go-link';
 
 /**
  * 1. 管理画面・管理用APIの認証（/admin, /api/admin）
@@ -9,6 +10,7 @@ import { isAiBot, recordAiBotHit } from '@/lib/ai-bots';
  *    環境変数 ADMIN_USER / ADMIN_PASSWORD が未設定の場合は常にアクセス拒否する
  * 2. AI のボット（ChatGPT など）が読んだページの記録（それ以外のページ。lib/ai-bots.ts、sql/018。2026-10-24）
  *    記録は応答を返したあとに行い（waitUntil）、表示を待たせない
+ *    /go（FANZA への転送）だけは、AI 以外のロボットも other-bot として記録する（毎朝の要約で、/go で止めたロボットの回数を出すため。2026-10-27）
  */
 
 // ログイン画面とログイン処理は認証なしで開ける
@@ -34,10 +36,11 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
 
   if (!isAdmin) {
-    const bot = isAiBot(request.headers.get('user-agent'));
+    const userAgent = request.headers.get('user-agent');
+    const bot = isAiBot(userAgent) ?? (pathname === '/go' && isBotUserAgent(userAgent) ? 'other-bot' : null);
     if (bot) {
       event.waitUntil(
-        recordAiBotHit({ bot, path: `${pathname}${search}`, userAgent: request.headers.get('user-agent'), referer: request.headers.get('referer') }),
+        recordAiBotHit({ bot, path: `${pathname}${search}`, userAgent, referer: request.headers.get('referer') }),
       );
     }
     return NextResponse.next();

@@ -35,6 +35,7 @@ const BOT_NOTE: Record<string, string> = {
   'meta-externalagent': 'Meta の AI 用',
   'meta-webindexer': 'Meta（Facebook）の検索・AI 用（robots.txt を守らず /go を開く）',
   Bytespider: 'ByteDance（TikTok）の AI 用',
+  'other-bot': 'その他のロボット（/go を開いたものだけ記録）',
 };
 
 const fmtTime = (iso: string) => new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
