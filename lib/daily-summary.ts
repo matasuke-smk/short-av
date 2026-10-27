@@ -26,6 +26,12 @@ export type DailyData = {
   mens: { sessions: Row[]; sources: { source: string; yesterday: number }[] };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
+  // FANZA へのクリックの比べ（2026-10-27）。DMM のクリックが GA の人のクリックより大きく多いときは、ロボットのクリックが混ざっている疑い。
+  // gaJapan・gaAll: GA の FANZA へのクリック（作品のリンク・バナー・ウィジェット・クーポン・初めての人向け の合計）の日本だけ・全部の国。
+  // dmm: DMM の昨日のクリック（dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail。どちらも無ければ null）。
+  // suspicious: dmm が gaAll の2倍以上で、差が10回以上（コードで判定）
+  // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさずトップへ戻したロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
+  clickGap: { dmm: number | null; gaJapan: number; gaAll: number; suspicious: boolean; goBots: { bot: string; count: number }[] };
   // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
   // Google 検索（Search Console）。昨日分は速報値で、あとから増えることがある（2026-10-26 追加）
@@ -69,6 +75,9 @@ const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } }
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
 
 // サイトの主なページ（開けるかを毎朝確かめる。2026-10-26）
+// FANZA（DMM）へのクリックのイベント（DMM のクリックと比べる。sample_end_cta は表示も含むので入れない）
+const FANZA_CLICK_EVENTS = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
+
 const HEALTH_URLS = [
   'https://short-av.com/',
   'https://short-av.com/ranking',
@@ -109,7 +118,7 @@ async function loadBotRows(): Promise<{ bot: string }[]> {
 
 // 昨日の数字（アクセス解析・検索・Bing・昨日の取り込み・AI のロボット）。昨日の分は後から変わらないので、
 // 同じ日の要約を作り直すときは、前に取った分を使う（GA などに問い合わせ直さない。2026-10-26 ユーザーの要望）
-type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number };
+type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number; fanzaClicksAll: number; goBots: { bot: string; count: number }[] };
 
 export async function collectDailyData(): Promise<DailyData> {
   const y = jstDate(1);
@@ -117,15 +126,15 @@ export async function collectDailyData(): Promise<DailyData> {
   const { data: existing } = await supabase.from('daily_summaries').select('data').eq('date', y).maybeSingle();
   const prev = existing?.data as DailyData | null | undefined;
   const stable: StablePart =
-    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports
-      ? { shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday }
+    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap
+      ? { shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday, fanzaClicksAll: prev.clickGap.gaAll, goBots: prev.clickGap.goBots }
       : await collectStable(y);
   return collectFresh(y, stable, prev ?? null);
 }
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll]] = await Promise.all([
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
       { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
@@ -145,13 +154,16 @@ async function collectStable(y: string): Promise<StablePart> {
     ]).catch(() => [[]]),
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 6, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
+    // FANZA へのクリック（全部の国。DMM は海外からのクリックも数えるので、比べるときはこちらを使う）
+    runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'eventCount' }], dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: FANZA_CLICK_EVENTS } } } }]),
   ]);
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
 
-  const [impY, botsRes, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
+  const [impY, botsRes, goBots, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
     countImports(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     loadBotRows(),
+    countGoBots(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     collectSearch('shortav', y),
     collectSearch('mens', y),
     getBingStats('shortav', y),
@@ -172,10 +184,32 @@ async function collectStable(y: string): Promise<StablePart> {
     },
     mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })) },
     importsYesterday: impY,
+    fanzaClicksAll: one(fanzaAll),
+    goBots,
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
     search: { shortav: searchShortav, mens: searchMens },
     bing: { shortav: bingShortav, mens: bingMens },
   };
+}
+
+// /go を開いたロボットの回数（ロボットの名前ごと。middleware.ts が ai_bot_hits に記録し、/go はロボットをトップへ戻す）
+async function countGoBots(from: string, to: string): Promise<{ bot: string; count: number }[]> {
+  const counts = new Map<string, number>();
+  for (let offset = 0; offset < 50_000; offset += 1000) {
+    const { data, error } = await getSupabaseAdmin().from('ai_bot_hits').select('bot').like('path', '/go%').gte('at', new Date(from).toISOString()).lt('at', new Date(to).toISOString()).order('at').range(offset, offset + 999);
+    if (error || !data) break;
+    for (const r of data as { bot: string }[]) counts.set(r.bot, (counts.get(r.bot) ?? 0) + 1);
+    if (data.length < 1000) break;
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, count]) => ({ bot, count }));
+}
+
+// DMM の昨日のクリック。dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail（日付が昨日のときだけ）
+function dmmClicksFor(y: string, dmm: DailyData['dmm'], siteCheck: DailyData['siteCheck']): number | null {
+  if (dmm?.updated) return dmm.clicks;
+  const detail = (siteCheck?.data as { dmm?: { yesterday_detail?: { to?: string; clicks?: number } } } | null)?.dmm?.yesterday_detail;
+  if (detail && detail.to?.replaceAll('/', '-') === y && typeof detail.clicks === 'number') return detail.clicks;
+  return null;
 }
 
 async function countImports(from: string, to: string): Promise<number> {
@@ -204,20 +238,27 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
     supabase.from('site_checks').select('checked_at, source, data').gte('checked_at', new Date(Date.now() - 36 * 3_600_000).toISOString()).order('checked_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
+  const dmm: DailyData['dmm'] = dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null;
+  const siteCheck: DailyData['siteCheck'] = siteCheckRes.error || !siteCheckRes.data ? null : { checkedAt: siteCheckRes.data.checked_at, source: siteCheckRes.data.source, data: siteCheckRes.data.data };
+  const dmmClicks = dmmClicksFor(y, dmm, siteCheck);
+  const gaJapan = stable.shortav.events.filter((e) => FANZA_CLICK_EVENTS.includes(e.name)).reduce((sum, e) => sum + e.yesterday, 0);
+  const gaAll = stable.fanzaClicksAll;
+
   return {
     date: y,
     shortav: stable.shortav,
     mens: stable.mens,
     imports: { yesterday: stable.importsYesterday, today: impT },
     bots: stable.bots,
-    dmm: dmmRes.data ? { clicks: dmmRes.data.clicks, direct: dmmRes.data.direct_count, category: dmmRes.data.category_count, newCount: dmmRes.data.new_count, updated: new Date(dmmRes.data.updated_at) >= new Date(`${jstDate(0)}T00:00:00+09:00`) } : null,
+    dmm,
+    clickGap: { dmm: dmmClicks, gaJapan, gaAll, suspicious: dmmClicks !== null && dmmClicks >= gaAll * 2 && dmmClicks - gaAll >= 10, goBots: stable.goBots },
     search: stable.search,
     bing: stable.bing,
     vercel,
     database,
     pages,
     unmeasuredSamples: unmeasured.count ?? null,
-    siteCheck: siteCheckRes.error || !siteCheckRes.data ? null : { checkedAt: siteCheckRes.data.checked_at, source: siteCheckRes.data.source, data: siteCheckRes.data.data },
+    siteCheck,
     xShadowban: { now: shadowban, previous: (previousSummary.data?.data as { xShadowban?: { now: ShadowbanResult[] } } | null)?.xShadowban?.now ?? null },
   };
 }
@@ -256,6 +297,8 @@ Bing
 
 FANZA（DMM）
 ・昨日のクリック・成約・報酬（内訳: ダイレクト・カテゴリ・サービス新規 のうち 0 でないもの）。dmm（貼り付け・自動保存の実績）を使い、dmm が null か dmm.updated が false のときは siteCheck.data.dmm の昨日の数字（yesterday_clicks・yesterday_detail など）を使う。どちらにも無ければ「昨日分の実績が取れていない」と書き、数字は書かない。成約・報酬が付いたら必ず書く
+・クリックの比べ（clickGap）: 「DMM のクリック ○回／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら書かない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさずトップへ戻した。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
+・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが GA の人のクリックより ○回多い（ロボットのクリックが混ざっている疑い）→ 対応: …」を書く。対応は、goBots が多ければ「/go では止めている。DMM のバナー・ウィジェットから飛んでいる可能性があるので確認を依頼」、そうでなければ「時間ごとの数字を見比べて原因を調べるよう依頼」
 ・今月（昨日まで）のクリック・成約・報酬。siteCheck.data.dmm.month は今日の分も含むので、today_yen・today_clicks・today_conversions があれば引く（例: month.yen 2,722 − today_yen 14 = 2,708円）
 
 A8
