@@ -103,11 +103,14 @@ function Tiles({ data }: { data: DailyData }) {
   const yenYesterday = typeof site?.yesterday_yen === 'number' ? site.yesterday_yen : null;
   const yenMonth = typeof site?.month?.yen === 'number' ? site.month.yen - (site.today_yen ?? 0) : null;
   const conversions = dmm ? dmm.direct + dmm.category + dmm.newCount : typeof site?.yesterday_conversions === 'number' ? site.yesterday_conversions : null;
+  // アプリ内（X のアプリの中で完結）・他（それ以外）の内訳。管理画面の FANZA のカードと同じ分け方（2026-10-28 ユーザーの要望「ここだけ違うと混乱する」）
+  const inApp = data.shortav.inApp;
+  const split = (total: number, part: number | undefined) => (inApp && part !== undefined ? `アプリ内 ${fmt(part)}・他 ${fmt(Math.max(0, total - part))}` : undefined);
   const tiles = [
     // 見出しは短く（カードの中で変な位置で改行しないように。2026-10-28 ユーザーの指摘）。細かい説明は指を乗せると出す
-    { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
-    { label: '再生', hint: 'サンプルの再生（日本）', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
-    { label: 'FANZA クリック', hint: 'GA に記録された FANZA へのすべてのクリック（日本）', value: clicks, unit: '回', before: clicksBefore, sub: undefined },
+    { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, breakdown: split(y, inApp?.users), sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
+    { label: '再生', hint: 'サンプルの再生（日本）', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, breakdown: split(plays?.yesterday ?? 0, inApp?.plays), sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
+    { label: 'FANZA クリック', hint: 'GA に記録された FANZA へのすべてのクリック（日本）', value: clicks, unit: '回', before: clicksBefore, breakdown: split(clicks, inApp?.clicks), sub: undefined },
     {
       label: '成約',
       hint: 'DMM の管理画面の昨日の成約（ダイレクト・カテゴリ・サービス新規の合計）と報酬',
@@ -137,6 +140,7 @@ function Tiles({ data }: { data: DailyData }) {
                 </>
               )}
             </div>
+            {'breakdown' in t && t.breakdown && <div className="mt-0.5 whitespace-nowrap text-xs text-gray-300">{t.breakdown}</div>}
             {/* 一昨日との差と7日平均は別の行にして、どちらも途中で折り返さない */}
             {diff !== null && (
               <div className={`mt-0.5 whitespace-nowrap text-xs ${diff > 0 ? 'text-emerald-300' : diff < 0 ? 'text-red-300' : 'text-gray-400'}`}>
