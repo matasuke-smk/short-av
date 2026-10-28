@@ -944,11 +944,11 @@ function RangeBody({
               // 「通常のブラウザ」の行に「・集計待ち ○回」と添えて、合計と内訳が合わないように見えないようにする
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
-                // X のアプリの中で完結した人と、それ以外（X から開き直した人を含む見込み客）で分ける（2026-10-28 ユーザーの判断）
-                ['押した人', `${fmtOverview(now.clickers)}人（X のアプリの中 ${fmtOverview(now.inAppClickers)}人・それ以外 ${fmtOverview(Math.max(0, now.clickers - now.inAppClickers))}人）`],
+                // アプリ内（X のアプリの中で完結した人）と他（X から開き直した人を含む見込み客）で分ける（2026-10-28 ユーザーの判断。文字は短く「アプリ内」「他」）
+                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(Math.max(0, now.clickers - now.inAppClickers))}人）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
                 // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
-                ['内訳', `X のアプリの中 ${fmtOverview(now.inAppClicks)}回・それ以外 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
+                ['内訳', `アプリ内 ${fmtOverview(now.inAppClicks)}回・他 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
