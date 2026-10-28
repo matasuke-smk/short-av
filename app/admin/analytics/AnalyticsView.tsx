@@ -646,50 +646,56 @@ function PageList({ rows }: { rows: ReportRow[] }) {
   );
 }
 
-// 日別の表。上の期間の切り替えに関係なく、直近14日（ボタンで28日）を表示する
-function DailyTable({ daily, dailyEvents }: { daily: ReportRow[]; dailyEvents: ReportRow[] }) {
-  const [showAll, setShowAll] = useState(false);
-  const allDays = [...new Set(daily.map((r) => r.dimensions[0]))].sort().reverse();
-  const days = showAll ? allDays : allDays.slice(0, 14);
-  const dayEvent = (date: string, event: string) =>
-    dailyEvents.find((r) => r.dimensions[0] === date && r.dimensions[1] === event)?.metrics ?? [0, 0];
+// 日別の表（「利用者数（日別）」の窓）。2026-10-28 ユーザーの要望で、日本だけ・直近28日・X 以外から来た人・年齢確認を押した人（人間）だけにした。
+// 上の期間や「日本のみ｜すべて」の切り替えに関係なく、/api/admin/daily-humans から取る
+type DailyHumanRow = { date: string; users: number; newUsers: number; returning: number; swipes: number; plays: number; clicks: number };
+function DailyTable() {
+  const [rows, setRows] = useState<DailyHumanRow[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    fetch('/api/admin/daily-humans', { cache: 'no-store' })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `読み込みに失敗しました（${res.status}）`);
+        setRows(json.rows);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+  const day = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}（${'日月火水木金土'[new Date(`${iso}T12:00:00+09:00`).getUTCDay()]}）`;
   return (
-    <Section title="日別" note={`期間の切り替えに関係なく、直近${showAll ? 28 : 14}日を表示`}>
-      <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead className="text-gray-400">
-                <tr>
-                  <th className="text-left font-normal py-1">日付</th>
-                  <th className="text-right font-normal">利用者</th>
-                  <th className="text-right font-normal">新規</th>
-                  <th className="text-right font-normal">年齢確認</th>
-                  <th className="text-right font-normal">スワイプ</th>
-                  <th className="text-right font-normal">再生</th>
-                  <th className="text-right font-normal">クリック</th>
+    <Section title="日別" note="日本のみ・直近28日・X 以外から来た人。人数は、その日に年齢確認を押した人（人間）だけを数えています">
+      {error && <p className="text-sm text-red-300">{error}</p>}
+      {!rows && !error && <p className="text-sm text-gray-400">読み込み中…</p>}
+      {rows && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="text-gray-400">
+              <tr>
+                <th className="text-left font-normal py-1">日付</th>
+                <th className="text-right font-normal">利用者</th>
+                <th className="text-right font-normal">新規</th>
+                <th className="text-right font-normal">リピート</th>
+                <th className="text-right font-normal">スワイプ</th>
+                <th className="text-right font-normal">再生</th>
+                <th className="text-right font-normal">クリック</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.date} className="border-t border-gray-700">
+                  <td className="py-2">{day(r.date)}</td>
+                  <td className="text-right font-bold">{fmt(r.users)}人</td>
+                  <td className="text-right">{fmt(r.newUsers)}人</td>
+                  <td className="text-right">{fmt(r.returning)}人</td>
+                  <td className="text-right">{fmt(r.swipes)}回</td>
+                  <td className="text-right">{fmt(r.plays)}回</td>
+                  <td className={`text-right ${r.clicks > 0 ? 'text-emerald-300' : ''}`}>{fmt(r.clicks)}回</td>
                 </tr>
-              </thead>
-              <tbody>
-                {days.map((d) => {
-                  const row = daily.find((r) => r.dimensions[0] === d)?.metrics ?? [0, 0];
-                  return (
-                    <tr key={d} className="border-t border-gray-700">
-                      <td className="py-2">{ymd(d)}</td>
-                      <td className="text-right">{fmt(row[0])}</td>
-                      <td className="text-right">{fmt(row[1])}</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'age_verification')[0])}人</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'swipe')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'video_view')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'dmm_link_click')[1])}回</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-      {allDays.length > 14 && (
-        <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs text-blue-300 hover:text-blue-200">
-          {showAll ? '直近14日だけ表示' : '28日分を表示'}
-        </button>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[11px] text-gray-500">今日の数字は途中経過です（GA の反映に数時間かかることがあります）。クリックは FANZA へのすべてのクリック（作品のリンク・バナー・クーポンなど）。</p>
+        </div>
       )}
     </Section>
   );
@@ -1196,7 +1202,7 @@ function RangeBody({
         )}
         {detail === 'daily' && (
           <DetailModal title="利用者数（日別）" onClose={closeDetail}>
-            <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
+            <DailyTable />
           </DetailModal>
         )}
         {detail === 'events' && (
