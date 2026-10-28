@@ -192,12 +192,14 @@ export function OverlayChart({
   currentLabel,
   ghostLabel,
   summary,
+  titleAction,
 }: {
   title: string;
   slots: OverlaySlot[];
   currentLabel: string;
   ghostLabel: string;
   summary: React.ReactNode;
+  titleAction?: React.ReactNode; // 題名のすぐ右に置くボタン（「日別の表」。2026-10-28）
 }) {
   const [active, setActive] = useState<number | null>(null);
   const n = slots.length;
@@ -214,6 +216,7 @@ export function OverlayChart({
     <section className="rounded-lg bg-gray-800 border border-gray-700 p-3 mb-4 lg:mb-0 flex flex-col lg:flex-1 lg:min-h-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-sm font-bold">{title}</h2>
+        {titleAction}
         <div className="ml-auto text-xs text-gray-400">{summary}</div>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">
