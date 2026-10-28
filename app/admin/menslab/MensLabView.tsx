@@ -5,9 +5,10 @@ import { DetailModal } from '../analytics/AnalyticsView';
 import ArticleIdeas from './ArticleIdeas';
 
 type Row = { key: string; values: number[] };
-type Day = { date: string; users: number; views: number; adClicks: number };
+// search・ai・x: 訪問者のうち検索・AI・X から来た人。a8Clicks・a8Yen: A8 の画面のクリック・報酬（発生金額）（自宅 Mac の自動点検で取れた日だけ。無い日は null）
+type Day = { date: string; users: number; search: number; ai: number; x: number; views: number; adClicks: number; a8Clicks: number | null; a8Yen: number | null };
 type Data = {
-  totals: { users: number; views: number; adClicks: number };
+  totals: { users: number; search: number; ai: number; x: number; views: number; adClicks: number; a8Clicks: number; a8Yen: number };
   days: Day[]; // 今日が先頭の28日分
   pages: Row[];
   sources: Row[];
@@ -99,30 +100,47 @@ export default function MensLabView() {
                 <thead className="sticky top-0 bg-gray-800">
                   <tr className="text-xs text-gray-400">
                     <th className="px-4 py-2.5 text-left font-normal">日付</th>
-                    <th className="px-4 py-2.5 text-right font-normal">訪問者</th>
-                    <th className="px-4 py-2.5 text-right font-normal">ページの表示</th>
-                    <th className="px-4 py-2.5 text-right font-normal">広告のクリック</th>
+                    <th className="px-3 py-2.5 text-right font-normal">訪問者</th>
+                    <th className="px-3 py-2.5 text-right font-normal">検索</th>
+                    <th className="px-3 py-2.5 text-right font-normal">AI</th>
+                    <th className="px-3 py-2.5 text-right font-normal">X</th>
+                    <th className="px-3 py-2.5 text-right font-normal">ページの表示</th>
+                    <th className="px-3 py-2.5 text-right font-normal" title="GA に記録された、人が広告を押した回数">広告のクリック</th>
+                    <th className="px-3 py-2.5 text-right font-normal" title="A8 の画面のクリック（毎朝の自動点検で取れた日だけ）">A8 のクリック</th>
+                    <th className="px-3 py-2.5 text-right font-normal" title="A8 の画面の発生金額（毎朝の自動点検で取れた日だけ）">A8 の報酬</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-t border-gray-700 bg-gray-900/60 font-bold">
                     <td className="px-4 py-2">28日の合計</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(data.totals.users)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(data.totals.views)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{fmt(data.totals.adClicks)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(data.totals.users)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-300">{fmt(data.totals.search)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-300">{fmt(data.totals.ai)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums text-gray-300">{fmt(data.totals.x)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(data.totals.views)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(data.totals.adClicks)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(data.totals.a8Clicks)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(data.totals.a8Yen)}円</td>
                   </tr>
                   {data.days.map((d) => (
                     <tr key={d.date} className="border-t border-gray-800">
                       <td className="px-4 py-2 whitespace-nowrap text-gray-200">{dayLabel(d.date)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(d.users)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(d.views)}</td>
-                      <td className={`px-4 py-2 text-right tabular-nums ${d.adClicks > 0 ? 'text-amber-300' : 'text-gray-500'}`}>{fmt(d.adClicks)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{fmt(d.users)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-400">{fmt(d.search)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-400">{fmt(d.ai)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-gray-400">{fmt(d.x)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{fmt(d.views)}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums ${d.adClicks > 0 ? 'text-amber-300' : 'text-gray-500'}`}>{fmt(d.adClicks)}</td>
+                      {/* A8 のクリックが人の広告のクリックより大きく多い日は赤（ロボットの疑い） */}
+                      <td className={`px-3 py-2 text-right tabular-nums ${d.a8Clicks === null ? 'text-gray-600' : d.a8Clicks >= d.adClicks * 2 && d.a8Clicks - d.adClicks >= 10 ? 'font-bold text-red-400' : d.a8Clicks > 0 ? 'text-amber-300' : 'text-gray-500'}`}>{d.a8Clicks === null ? '—' : fmt(d.a8Clicks)}</td>
+                      <td className={`px-3 py-2 text-right tabular-nums ${d.a8Yen === null ? 'text-gray-600' : d.a8Yen > 0 ? 'font-bold text-emerald-300' : 'text-gray-500'}`}>{d.a8Yen === null ? '—' : `${fmt(d.a8Yen)}円`}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="border-t border-gray-800 px-4 py-2 text-[11px] text-gray-500">
                 今日の数字は途中経過です（GA の反映に数時間かかることがあります）。28日の合計の訪問者は期間内の重複を除いた数のため、日別の合計とは一致しません。
+                検索・AI・X は訪問者の内訳（それ以外の来た元は入れていません）。A8 のクリック・報酬（発生金額）は A8 の画面の数字で、毎朝の自動点検で取れた日だけ出ます（— は取れていない日）。赤は人の広告のクリックより大きく多い日（ロボットの疑い）。
               </p>
             </section>
           </div>
