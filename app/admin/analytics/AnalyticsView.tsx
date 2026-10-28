@@ -678,6 +678,7 @@ function DailyTable() {
                 <th className="text-right font-normal">スワイプ</th>
                 <th className="text-right font-normal">再生</th>
                 <th className="text-right font-normal">クリック</th>
+                <th className="text-right font-normal" title="クリック ÷ 利用者">率</th>
               </tr>
             </thead>
             <tbody>
@@ -690,11 +691,13 @@ function DailyTable() {
                   <td className="text-right">{fmt(r.swipes)}回</td>
                   <td className="text-right">{fmt(r.plays)}回</td>
                   <td className={`text-right ${r.clicks > 0 ? 'text-emerald-300' : ''}`}>{fmt(r.clicks)}回</td>
+                  {/* 利用者あたりのクリックの割合（クリック ÷ 利用者。2026-10-28 ユーザーの要望） */}
+                  <td className="text-right text-gray-300">{pct(r.clicks, r.users)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-[11px] text-gray-500">今日の数字は途中経過です（GA の反映に数時間かかることがあります）。クリックは FANZA へのすべてのクリック（作品のリンク・バナー・クーポンなど）。</p>
+          <p className="mt-2 text-[11px] text-gray-500">今日の数字は途中経過です（GA の反映に数時間かかることがあります）。クリックは FANZA へのすべてのクリック（作品のリンク・バナー・クーポンなど）。率はクリック ÷ 利用者。</p>
         </div>
       )}
     </Section>
