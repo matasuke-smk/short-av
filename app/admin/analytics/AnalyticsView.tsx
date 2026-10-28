@@ -1065,6 +1065,10 @@ function RangeBody({
                     {/* 合計はカード（X から来た人＋X 以外）と同じ GA の集計の人数にし、リアルタイムで補った分は別に出す（2026-10-27 ユーザー指摘: カードの合計とグラフが合わない） */}
                     {isToday && users > gaUsers && <span className="ml-1 text-gray-500">＋集計待ち {fmtOverview(users - gaUsers)}人</span>}
                     {compare?.soFar && <span className="ml-2">昨日の{compare.soFar.until}まで {fmtOverview(compare.soFar.users)}人</span>}
+                    {/* 合計の人数を押すと開けることが分かりにくかったので、ボタンでも開けるようにした（2026-10-28 ユーザーの要望） */}
+                    <button type="button" onClick={() => setDetail('daily')} className="ml-3 rounded-md border border-gray-600 bg-gray-800 px-2 py-0.5 text-xs text-gray-200 hover:bg-gray-700">
+                      日別の表 ›
+                    </button>
                   </>
                 }
               />
