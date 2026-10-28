@@ -394,20 +394,21 @@ export async function writeDailySummary(data: DailyData): Promise<{ summary: str
   return { summary: result.text, yen: estimateYen(result) };
 }
 
-export async function runDailySummary(): Promise<{ date: string; summary: string; yen: number }> {
+export async function runDailySummary(): Promise<{ date: string; summary: string; yen: number; data: DailyData }> {
   const data = await collectDailyData();
   const { summary, yen } = await writeDailySummary(data);
   const { error } = await getSupabaseAdmin().from('daily_summaries').upsert({ date: data.date, summary, data, model: CLAUDE_MODEL, yen }, { onConflict: 'date' });
   if (error) throw error;
-  return { date: data.date, summary, yen };
+  return { date: data.date, summary, yen, data };
 }
 
-export type DailySummaryRow = { date: string; summary: string; yen: number | null; created_at: string };
+// data: 要約を作ったときの材料（昨日のレポートの数字・図に使う。2026-10-28）
+export type DailySummaryRow = { date: string; summary: string; yen: number | null; created_at: string; data: DailyData | null };
 
 /** 最新の要約（管理画面用。表が無い・失敗したときは null） */
 export async function getLatestDailySummary(): Promise<DailySummaryRow | null> {
   try {
-    const { data } = await getSupabaseAdmin().from('daily_summaries').select('date, summary, yen, created_at').order('date', { ascending: false }).limit(1).maybeSingle();
+    const { data } = await getSupabaseAdmin().from('daily_summaries').select('date, summary, yen, created_at, data').order('date', { ascending: false }).limit(1).maybeSingle();
     return (data as DailySummaryRow | null) ?? null;
   } catch {
     return null;

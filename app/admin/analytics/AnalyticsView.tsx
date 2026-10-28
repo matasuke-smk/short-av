@@ -10,6 +10,11 @@ import { xPostContentId, VIEW_KEYS, type Country, type ViewKey } from './view-ke
 import { sumDmmReports, type DmmReportRow } from '@/lib/dmm-reports-shared';
 import { keyNumbers, OverlayChart, TopCards, fmtOverview, pctOverview, type KeyNumbers, type OverlaySlot, type TopCardProps } from './Overview';
 import type { Trends } from './data';
+import type { DailyData } from '@/lib/daily-summary';
+import DailyReport from './DailyReport';
+
+// 昨日のレポート（旧: 今朝の要約）の1日分。data は要約を作ったときの材料（数字・図に使う。古い記録では無いことがある）
+type DailySummaryItem = { date: string; summary: string; yen: number | null; created_at: string; data?: DailyData | null };
 
 /**
  * アクセス解析の表示（管理画面）
@@ -207,7 +212,7 @@ export function KpiCard({ label, value, unit, sub, rows, share, onClick }: { lab
  * 日別の折れ線（SVG）。X 以外から来た人の推移に使う（2026-10-25）。
  * height が小さいときはカードの内訳用（線と最新値だけ）。labels を付けると両端の日付・最大値・最新値を出す
  */
-function TrendLine({ data, height, labels = false }: { data: { date: string; users: number }[]; height: number; labels?: boolean }) {
+export function TrendLine({ data, height, labels = false }: { data: { date: string; users: number }[]; height: number; labels?: boolean }) {
   const w = 300;
   const padX = labels ? 6 : 2;
   const padY = 4;
@@ -240,43 +245,9 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
   );
 }
 
-/** 今朝の点検の要約。「アクセス解析」の右のボタンを押すと全文をモーダルで出す（2026-10-26 ユーザーの要望で帯から変更）
- * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
-// 今朝の要約の本文を見出しごとに分けて出す。「良かった点」は緑、「悪い点」は赤の枠で（2026-10-27 ユーザーの要望）。
-// 見出し = 「・」で始まらない行。見出しより前の行は見出しなしの段落として出す
-function SummaryText({ text }: { text: string }) {
-  const sections: { heading: string | null; lines: string[] }[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    if (!line.startsWith('・') && !line.startsWith('※') && line.length <= 40) sections.push({ heading: line, lines: [] });
-    else if (sections.length === 0) sections.push({ heading: null, lines: [line] });
-    else sections[sections.length - 1].lines.push(line);
-  }
-  const tone = (heading: string | null) =>
-    heading?.startsWith('良かった点')
-      ? { box: 'border border-emerald-500/40 bg-emerald-500/10', head: 'text-emerald-300', body: 'text-emerald-100' }
-      : heading?.startsWith('悪い点')
-        ? { box: 'border border-red-500/40 bg-red-500/10', head: 'text-red-300', body: 'text-red-100' }
-        : null;
-  return (
-    <div className="space-y-3">
-      {sections.map((sec, i) => {
-        const t = tone(sec.heading);
-        return (
-          <div key={i} className={t ? `rounded-lg px-3 py-2 ${t.box}` : ''}>
-            {sec.heading && <div className={`font-bold ${t ? t.head : 'text-white'}`}>{sec.heading}</div>}
-            {sec.lines.map((l, j) => (
-              <div key={j} className={t ? t.body : 'text-gray-200'}>{l}</div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function DailySummaryButton({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
+/** 昨日のレポート（2026-10-28 に「今朝の要約」から名前を変更）。「アクセス解析」の右のボタンを押すとモーダルで出す（中身は DailyReport.tsx）。
+ * 下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
+function DailySummaryButton({ item: initialItem, trends }: { item: DailySummaryItem | null; trends: Trends | null }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState(initialItem);
   const [rebuilding, setRebuilding] = useState(false);
@@ -303,12 +274,12 @@ function DailySummaryButton({ item: initialItem }: { item: { date: string; summa
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-amber-500/60 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300 hover:bg-amber-500/20 whitespace-nowrap">
-        今朝の要約（{md}）
+        昨日のレポート（{md}）
       </button>
       {open && (
-        <DetailModal title={`今朝の要約（${md}）`} onClose={() => setOpen(false)}>
+        <DetailModal title={`昨日のレポート（${md}）`} onClose={() => setOpen(false)}>
           <div className="text-sm text-gray-200 leading-relaxed">
-          <SummaryText text={item.summary} />
+          <DailyReport summary={item.summary} data={item.data ?? null} trends={trends} />
           <div className="mt-2 text-[11px] text-gray-500">
             Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
             {item.yen != null ? `・費用 約${item.yen}円` : ''}
@@ -2090,7 +2061,7 @@ export default function AnalyticsView({
   trends: trendsPair = null,
 }: {
   trends?: Record<Country, Trends> | null; // カードの28日の推移と「今月」の日ごとのグラフ（取得できなければ null）
-  dailySummary?: { date: string; summary: string; yen: number | null; created_at: string } | null;
+  dailySummary?: DailySummaryItem | null;
   dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（先月の1日から）
   country: Country; // 開いたときの「日本のみ（標準）｜すべて」（URL の country）
   yesterdaySoFar: Record<Country, YesterdaySoFar> | null; // 昨日の同じ時刻までの数字（取得できなければ null）
@@ -2230,7 +2201,7 @@ export default function AnalyticsView({
         <div className="flex items-center gap-3">
           <h1 className="text-xl md:text-2xl font-bold whitespace-nowrap">アクセス解析</h1>
           {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く）。押すとモーダルで全文 */}
-          <DailySummaryButton item={dailySummary} />
+          <DailySummaryButton item={dailySummary} trends={trendsPair?.jp ?? null} />
         </div>
         <p className="text-xs text-gray-400 mt-1 lg:hidden">
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。
