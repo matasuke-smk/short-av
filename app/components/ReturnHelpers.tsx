@@ -6,7 +6,7 @@ import { getLocalHistory } from '@/lib/view-history';
 
 /**
  * また来てもらうための仕組み（2026-10-28 ユーザーの要望。10/21〜27 のリピートは利用者の約4%で、戻ってくる道がほとんど無かった）
- * - InstallPrompt: 20回スワイプした人に「ホーム画面に追加」を案内する（閉じたら二度と出さない）。ホーム画面から開いた端末を GA の pwa_launch で数える
+ * - InstallPrompt: 20回スワイプしたスマホ・タブレットの人に「ホーム画面に追加」を案内する（閉じたら二度と出さない。パソコンには出さない）。ホーム画面から開いた端末を GA の pwa_launch で数える
  * - ReturnPanel: 前の日までに来たことがある人に、年齢確認のあと「前回から新作 ○本」「前回見ていた作品」「いいねした作品」を出す（1日1回）
  * - LikeHint: 初めていいねを押したときに、いいねした作品の見つけ方を一度だけ教える
  * スワイプ画面（VideoSwiper）が出す sav-swipe・sav-like のイベントで動く（スワイプのたびに画面全体を描き直さないため）
@@ -38,11 +38,12 @@ const today = () => {
 };
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+// iPhone・iPad（iPad の Safari はパソコンの Mac を名乗るので、指で触れる画面かどうかで見分ける）
+const isIosDevice = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+// スマホ・タブレットだけに案内する（パソコンは気軽にブックマークできるので出さない。2026-10-28 ユーザーの判断）
+const isMobileDevice = () => isIosDevice() || /Android/.test(navigator.userAgent);
 // iPhone・iPad の Safari（アプリの中のブラウザや Chrome などは除く。追加の手順が違うため）
-const isIosSafari = () => {
-  const ua = navigator.userAgent;
-  return /iPhone|iPad|iPod/.test(ua) && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|Line\/|FBAN|FBAV|Instagram|Twitter/.test(ua);
-};
+const isIosSafari = () => isIosDevice() && /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|Line\/|FBAN|FBAV|Instagram|Twitter/.test(navigator.userAgent);
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 
@@ -65,7 +66,7 @@ export function InstallPrompt() {
       }
       return;
     }
-    if (read(INSTALL_KEY)) return;
+    if (read(INSTALL_KEY) || !isMobileDevice()) return;
     let swipes = 0;
     let shown = false;
     let promptEvent: InstallEvent | null = null;
