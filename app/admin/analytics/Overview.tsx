@@ -22,7 +22,7 @@ export type KeyNumbers = {
   fanzaNormalClicks: number; // そのうち普段のブラウザ（Safari・Chrome など）から
   clickers: number; // FANZA へのリンクのどれかを押した人
   normalClickers: number;
-  xUsers: number; // X から来た人 = 来た元が X の人 ＋ 来た元が記録されずアプリ内ブラウザで来た人（X のアプリ内とみなす。2026-10-27 ユーザー要望「数字を合わせる」）
+  xUsers: number; // X から来た人（2026-10-28 から人間＝年齢確認で「はい」を押した人だけ） = 来た元が X の人 ＋ 来た元が記録されずアプリ内ブラウザで来た人（X のアプリ内とみなす。2026-10-27 ユーザー要望「数字を合わせる」）
   xNormalUsers: number; // そのうち Safari などで開き直して見た人
   xClickers: number;
   xNormalClickers: number;
@@ -44,14 +44,21 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const xSeen = (reports[36] ?? []).filter((r) => r.dimensions[0] === 'page_view');
   // 8: 流入元 [流入元] → [訪問, 人数]、37: 押した人 [流入元, ブラウザ]、34: Bluesky [イベント]、40: Bluesky で押した人
   const nonXChannels = (reports[8] ?? []).filter((r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[0]));
+  // いちばん多い流入元も人間で数える（44: 流入元×ブラウザの人間の人数を流入元ごとに足す。2026-10-28。「X 以外から来た人」より多く出ていた）
+  const humanByChannel = new Map<string, number>();
+  for (const r of reports[44] ?? []) if (!NOT_NON_X_CHANNELS.includes(r.dimensions[0])) humanByChannel.set(r.dimensions[0], (humanByChannel.get(r.dimensions[0]) ?? 0) + (r.metrics[0] ?? 0));
+  const topHuman = [...humanByChannel.entries()].sort((a, b) => b[1] - a[1])[0];
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
   // 0: 期間全体 [activeUsers, newUsers, sessions, engagement, totalUsers]
   // 全体の人数は「すべての人」（totalUsers）。流入元（8）・X から来た人（36・41）と同じ数え方にそろえる（2026-10-27）
-  const totalUsers = (reports[0] ?? [])[0]?.metrics[4] ?? (reports[0] ?? [])[0]?.metrics[0] ?? 0;
+  // 2026-10-28: 人数は人間（年齢確認で「はい」を押した人。42〜44）で数える。取れなかったときだけ以前の数え方（ページを見た人）
+  const humans = (reports[42] ?? []).length > 0;
+  const totalUsers = humans ? (reports[42][0]?.metrics[0] ?? 0) : ((reports[0] ?? [])[0]?.metrics[4] ?? (reports[0] ?? [])[0]?.metrics[0] ?? 0);
   // 来た元が記録されず（Unassigned・(not set)）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）。
   // SNS（Organic Social）は X 自身が含まれるので入れない（入れると X を二重に数え、押した人の X が全体より大きくなった。2026-10-27）
   const unknownInApp = (r: ReportRow) => UNKNOWN_SOURCE_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
-  const xUsers = sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
+  const xHumans = reports[43] ?? [];
+  const xUsers = humans ? sum(xHumans) + sum(reports[44] ?? [], unknownInApp) : sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
   const clickers = sum(reports[39] ?? []);
   const xClickers = sum(reports[38] ?? []) + sum(reports[37] ?? [], unknownInApp);
   const fanzaClicks = sum(fanzaRows);
@@ -64,14 +71,14 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
     clickers,
     normalClickers: sum(reports[39] ?? [], (r) => isNormal(r.dimensions[0])),
     xUsers,
-    xNormalUsers: sum(xSeen, (r) => isNormal(r.dimensions[1])),
+    xNormalUsers: humans ? sum(xHumans, (r) => isNormal(r.dimensions[0])) : sum(xSeen, (r) => isNormal(r.dimensions[1])),
     xClickers,
     xNormalClickers: sum(reports[38] ?? [], (r) => isNormal(r.dimensions[0])),
     totalUsers,
     // 以前は流入元ごとの人数の合計（SNS・来た元不明を除く）＋ Bluesky だったため、X と足しても全体の人数と合わなかった（2026-10-27 ユーザー指摘）
     nonXUsers: Math.max(0, totalUsers - xUsers),
     nonXClickers: Math.max(0, clickers - xClickers),
-    topNonX: top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
+    topNonX: topHuman ? { channel: topHuman[0], users: topHuman[1] } : top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
   };
 }
 

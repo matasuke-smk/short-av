@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { FANZA_CLICK_EVENTS } from '@/app/admin/analytics/data';
+import { AGE_YES, FANZA_CLICK_EVENTS } from '@/app/admin/analytics/data';
 import { GaNotConfiguredError, runReports } from '@/lib/ga-data';
 
 export const dynamic = 'force-dynamic';
@@ -7,14 +7,31 @@ export const dynamic = 'force-dynamic';
 /**
  * アクセス解析の「利用者数（日別）」の表（2026-10-28 ユーザーの要望）。認証は middleware（/api/admin/*）。
  * 日本だけ・直近28日（今日を含む）・X 以外から来た人だけ。
- * 人の数は「その日に年齢確認を押した人」に絞る（年齢確認はすべてのページで1日1回出るので、押した人＝人間とみなす。
+ * 人の数は「その日に年齢確認で「はい」を押した人」に絞る（年齢確認はすべてのページで1日1回出るので、押した人＝人間とみなす。
  * GA が除けない、人のふりをするロボットや、開いてすぐ閉じた人は入らない）。
  * スワイプ・再生・FANZA へのクリックは、年齢確認の画面を通らないとできない操作なので、そのまま数える
  */
 const RANGE = { startDate: '27daysAgo', endDate: 'today' };
 const JP = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
-// X から来た訪問（data.ts の fromXSource と同じ）を除く
-const NOT_X = { notExpression: { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } } };
+// X から来た人を除く。カード「X から来た人」（Overview.tsx の keyNumbers）と同じく、来た元が x・t.co・twitter の人に加えて、
+// 来た元が記録されず（Unassigned・(not set)）X のアプリ内のブラウザで来た人も X とみなす（2026-10-28 カードと1人ずれていたため）
+const NOT_X = {
+  notExpression: {
+    orGroup: {
+      expressions: [
+        { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } },
+        {
+          andGroup: {
+            expressions: [
+              { filter: { fieldName: 'sessionDefaultChannelGroup', inListFilter: { values: ['Unassigned', '(not set)'] } } },
+              { filter: { fieldName: 'browser', inListFilter: { values: ['Safari (in-app)', 'Android Webview'] } } },
+            ],
+          },
+        },
+      ],
+    },
+  },
+};
 const and = (...expressions: unknown[]) => ({ andGroup: { expressions } });
 const events = (names: string[]) => ({ filter: { fieldName: 'eventName', inListFilter: { values: names } } });
 
@@ -24,8 +41,8 @@ export async function GET() {
   const dateRanges = [RANGE];
   try {
     const [users, byType, counts] = await runReports([
-      { dateRanges, dimensions: [{ name: 'date' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(JP, NOT_X, events(['age_verification'])), limit: 40 },
-      { dateRanges, dimensions: [{ name: 'date' }, { name: 'newVsReturning' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(JP, NOT_X, events(['age_verification'])), limit: 100 },
+      { dateRanges, dimensions: [{ name: 'date' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(JP, NOT_X, AGE_YES), limit: 40 },
+      { dateRanges, dimensions: [{ name: 'date' }, { name: 'newVsReturning' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(JP, NOT_X, AGE_YES), limit: 100 },
       { dateRanges, dimensions: [{ name: 'date' }, { name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: and(JP, NOT_X, events(['swipe', 'video_view', ...FANZA_CLICK_EVENTS])), limit: 500 },
     ]);
     // 今日が先頭の28日分（データの無い日も0で出す）。GA の date は YYYYMMDD（日本時間）

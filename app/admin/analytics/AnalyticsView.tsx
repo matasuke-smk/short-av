@@ -663,7 +663,7 @@ function DailyTable() {
   }, []);
   const day = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}（${'日月火水木金土'[new Date(`${iso}T12:00:00+09:00`).getUTCDay()]}）`;
   return (
-    <Section title="日別" note="日本のみ・直近28日・X 以外から来た人。人数は、その日に年齢確認を押した人（人間）だけを数えています">
+    <Section title="日別" note="日本のみ・直近28日・X 以外から来た人。人数は、その日に年齢確認で「はい」を押した人（人間）だけを数えています">
       {error && <p className="text-sm text-red-300">{error}</p>}
       {!rows && !error && <p className="text-sm text-gray-400">読み込み中…</p>}
       {rows && (
@@ -788,8 +788,10 @@ function RangeBody({
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
-  // gaUsers（グラフの合計）はカードと同じ「すべての人」（totalUsers、5つ目）。2026-10-27
-  const [, newUsers = 0, sessions = 0, engagement = 0, gaUsers = totals[0]?.metrics[0] ?? 0] = totals[0]?.metrics ?? [];
+  // gaUsers（グラフの合計）はカードと同じ数え方。2026-10-28 から人間（年齢確認で「はい」を押した人、レポート 42）。取れなかったときは以前の「すべての人」（totalUsers、5つ目）
+  const [, newUsers = 0, sessions = 0, engagement = 0, allUsers = totals[0]?.metrics[0] ?? 0] = totals[0]?.metrics ?? [];
+  const humanTotal = reports[42]?.[0]?.metrics[0];
+  const gaUsers = (reports[42] ?? []).length > 0 ? (humanTotal ?? 0) : allUsers;
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
   // 時間帯グラフ: 利用者と FANZA へのクリック（events。2026/10/9 まではすべてのイベントの回数だった）
   const { hours, users, events: totalClicks } = withLive(hourly, live, gaUsers, gaTotalClicks, RANGE_SPAN_DAYS_AGO[rangeKey]);

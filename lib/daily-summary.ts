@@ -18,7 +18,7 @@ type Row = { label: string; value: number };
 export type DailyData = {
   date: string; // 対象の日（前日）
   shortav: {
-    sessions: Row[]; // 昨日・一昨日・7日平均
+    sessions: Row[]; // 昨日・一昨日・7日平均の人数（2026-10-28 から人間＝年齢確認で「はい」を押した人。以前は訪問＝セッション）
     sources: { source: string; yesterday: number; dayBefore: number }[];
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
     sampleEnd: { show: number; click: number };
@@ -77,6 +77,8 @@ async function collectSearch(site: GscSite, y: string): Promise<Gsc | null> {
 }
 
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
+// 日本の人間（年齢確認で「はい」を押した人）。Short AV の人数に使う（管理画面の AGE_YES と同じ。2026-10-28）
+const HUMANS = { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }, { filter: { fieldName: 'customEvent:action', stringFilter: { value: 'はい' } } }] } };
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
 
 // サイトの主なページ（開けるかを毎朝確かめる。2026-10-26）
@@ -145,13 +147,14 @@ async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
   const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd]] = await Promise.all([
     runReports([
-      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
-      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
-      { dateRanges: [{ startDate: jstDate(7), endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
+      // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
+      { dateRanges: [{ startDate: jstDate(7), endDate: y }], dimensions: [{ name: 'date' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
     ]),
     runReports([
-      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 8, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] },
-      { dateRanges: [{ startDate: d2, endDate: d2 }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 20 },
+      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS, limit: 8, orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }] },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS, limit: 20 },
     ]),
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', inListFilter: { values: EVENTS } } }] } } },
@@ -188,7 +191,7 @@ async function collectStable(y: string): Promise<StablePart> {
       sessions: [
         { label: '昨日', value: one(yS) },
         { label: '一昨日', value: one(dS) },
-        { label: '7日平均', value: Math.round(one(wS) / 7) },
+        { label: '7日平均', value: Math.round(wS.reduce((sum, r) => sum + r.metrics[0], 0) / 7) },
       ],
       sources: ySrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0], dayBefore: find(dSrc, r.dimensions[0]) })),
       events: EVENTS.filter((e) => e !== 'session_start').map((e) => ({ name: e, yesterday: find(yEv, e), dayBefore: find(dEv, e), week: Math.round(find(wEv, e) / 7) })),
@@ -331,7 +334,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 ・AI のロボットの読み取り（bots の合計）が1日1,000回を超えたら1行
 
 Short AV（アクセス解析）
-・昨日: 人数（訪問）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
+・昨日: 人数（年齢確認で「はい」を押した人。「訪問 ○人」ではなく「来た人 ○人」と書く）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
 ・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
 ・サンプル終了時の案内（sampleEnd）の表示とクリック
 

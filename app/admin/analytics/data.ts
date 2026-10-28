@@ -204,6 +204,9 @@ function collapseCountry(rows: ReportRow[], split: CountrySplit, country: Countr
 // X の動画の投稿（utm_campaign=x_post）から来た人の訪問・再生・FANZA へのクリック
 // X から来た訪問（来た元が x・t.co・twitter）と Bluesky から来た訪問
 const fromXSource = { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } };
+// 人間（年齢確認で「はい」を押した人）。年齢確認はすべてのページで1日1回出るので、押した人＝サイトを使った人間とみなす。
+// カード・グラフ・推移・利用者数（日別）の人数はこれで数える（2026-10-28 ユーザーの要望。GA が除けない人のふりをするロボット・開いてすぐ閉じた人・「いいえ」の人を除く）
+export const AGE_YES = { andGroup: { expressions: [{ filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }, { filter: { fieldName: 'customEvent:action', stringFilter: { value: 'はい' } } }] } };
 const fromBluesky = {
   orGroup: {
     expressions: [
@@ -417,6 +420,11 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
     { dateRanges, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIn(FANZA_CLICK_EVENTS), fromBluesky) },
     // 41: ページを見た人を 流入元×ブラウザ で。来た元が記録されず（Unassigned など）アプリ内ブラウザで来た人を「X から来た人」とみなすために使う（2026-10-27）
     { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: eventIs('page_view'), limit: 200 },
+    // 42〜45: 人間（年齢確認で「はい」を押した人）の人数（2026-10-28）。42: 全体、43: X から来た人 [ブラウザ]、44: 流入元×ブラウザ（来た元不明のアプリ内ブラウザを X とみなす用）、45: 時間帯ごと
+    { dateRanges, metrics: [{ name: 'totalUsers' }], dimensionFilter: AGE_YES },
+    { dateRanges, dimensions: [{ name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(AGE_YES, fromXSource) },
+    { dateRanges, dimensions: [{ name: 'sessionDefaultChannelGroup' }, { name: 'browser' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: AGE_YES, limit: 200 },
+    { dateRanges: requests[10].dateRanges, dimensions: [{ name: 'dateHour' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: AGE_YES, limit: 10000 },
   ];
   // 35: 日別の流入元（人数）。「X 以外から来た人」の推移（直近28日）に使う。表示中の期間に関係なく28日固定で取る（2026-10-25）。
   // 日本時間のずれの補正（jstDaysFilter）はかけない（10/7 以前の日が1日ずれることがあるが、推移を見る用途なので許容）
@@ -511,9 +519,13 @@ async function loadGa(range: Range): Promise<{ reports: Record<Country, ReportRo
       const [count, users] = r.metrics;
       return { dimensions: [r.dimensions[0]], metrics: [event === 'doujin_view' ? users : 0, event === 'dmm_link_click' ? count : 0, event === 'doujin_view' ? count : 0] };
     });
-    // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]
+    reports[42] = work[14] ?? [];
+    reports[43] = work[15] ?? [];
+    reports[44] = work[16] ?? [];
+    // 10: 時間帯ごとの [利用者, FANZA へのクリック, 表示回数]。利用者は人間（その時間帯に年齢確認で「はい」を押した人。2026-10-28）
     const clicksByHour = new Map(work[3].map((r) => [r.dimensions[0], r.metrics[0]]));
-    reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [r.metrics[0], clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
+    const humansByHour = new Map((work[17] ?? []).map((r) => [r.dimensions[0], r.metrics[0]]));
+    reports[10] = reports[10].map((r) => ({ dimensions: r.dimensions, metrics: [humansByHour.get(r.dimensions[0]) ?? 0, clicksByHour.get(r.dimensions[0]) ?? 0, r.metrics[2]] }));
     if (affectedDays.length > 0) {
       const keep = (row: ReportRow) => days.has(row.dimensions[0]) && !affectedDays.includes(row.dimensions[0]);
       reports[2] = [
@@ -552,22 +564,24 @@ async function loadYesterdaySoFar(): Promise<Record<Country, YesterdaySoFar>> {
   const sameTime = { orGroup: { expressions } };
   // events は FANZA へのクリックの回数（時間帯グラフと同じ。2026/10/9 まではすべてのイベントの回数だった）
   // 日本のみ・すべてを1回で取る（国で分けて取り、日本の行・全部の行を足す）。クリックは FANZA へのすべてのクリック
-  const [rows, clickRows] = await runReports([
+  const [rows, clickRows, humanRows] = await runReports([
     // 人数は「すべての人」（totalUsers）。カード・グラフの合計と同じ数え方（2026-10-27）
     { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }, { name: 'eventCount' }, { name: 'screenPageViews' }], dimensionFilter: sameTime, limit: 1000 },
     { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'eventCount' }], dimensionFilter: and(sameTime, eventIn(FANZA_CLICK_EVENTS)), limit: 1000 },
+    // 人数は人間（年齢確認で「はい」を押した人）。カード・グラフと同じ数え方（2026-10-28）
+    { dateRanges, dimensions: [COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }], dimensionFilter: and(sameTime, AGE_YES), limit: 1000 },
   ]);
   const until = `${hour}:${pad(minute)}`;
   const sumOf = (list: ReportRow[], i: number, country: Country) =>
     list.filter((r) => country === 'all' || r.dimensions[0] === 'Japan').reduce((sum, r) => sum + (r.metrics[i] ?? 0), 0);
-  const make = (country: Country): YesterdaySoFar => ({ until, users: sumOf(rows, 0, country), events: sumOf(clickRows, 0, country), views: sumOf(rows, 2, country) });
+  const make = (country: Country): YesterdaySoFar => ({ until, users: sumOf(humanRows, 0, country), events: sumOf(clickRows, 0, country), views: sumOf(rows, 2, country) });
   return { jp: make('jp'), all: make('all') };
 }
 
 const getYesterdaySoFar = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (_bucket: number) => loadYesterdaySoFar(),
-  ['admin-analytics-yesterday-so-far-v5'],
+  ['admin-analytics-yesterday-so-far-v6'],
   { revalidate: 300 },
 );
 
@@ -648,7 +662,7 @@ const getRangeData = unstable_cache(
     return { jp: result('jp'), all: result('all') };
   },
   // レポートを足したら数字を上げる（足す前の使い回しの結果が残り、新しい数字が0と出る。2026-10-26 v28: レポート36、v29: 37〜40）
-  ['admin-analytics-v33'],
+  ['admin-analytics-v34'],
   { revalidate: 300 },
 );
 
@@ -687,9 +701,10 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
   const dims = [{ name: 'date' }, COUNTRY_DIMENSION];
   const [usersRows, clickRows, xRows, channelRows] = await runReports([
     // 全体の人数は「すべての人」（totalUsers）。X 以外 = 全体 − X の推移がカードと同じ数え方になるように（2026-10-27）
-    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], limit: 10000 },
+    // 人数は人間（年齢確認で「はい」を押した人。2026-10-28）
+    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], dimensionFilter: AGE_YES, limit: 10000 },
     { dateRanges, dimensions: dims, metrics: [{ name: 'eventCount' }], dimensionFilter: eventIn(FANZA_CLICK_EVENTS), limit: 10000 },
-    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(eventIs('page_view'), fromXSource), limit: 10000 },
+    { dateRanges, dimensions: dims, metrics: [{ name: 'totalUsers' }], dimensionFilter: and(AGE_YES, fromXSource), limit: 10000 },
     { dateRanges, dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }, COUNTRY_DIMENSION], metrics: [{ name: 'totalUsers' }], limit: 20000 },
   ]);
   const dates = Array.from({ length: n }, (_, i) => {
@@ -723,7 +738,7 @@ async function loadTrends(): Promise<Record<Country, Trends>> {
 const getTrendsCached = unstable_cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (_bucket: number) => loadTrends(),
-  ['admin-analytics-trends-v2'],
+  ['admin-analytics-trends-v3'],
   { revalidate: 3600 },
 );
 
