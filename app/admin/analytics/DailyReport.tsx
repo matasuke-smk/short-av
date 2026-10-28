@@ -39,14 +39,14 @@ export default function DailyReport({ summary, data, trends }: { summary: string
       {data && <Tiles data={data} />}
 
       {(good || bad) && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {good && <Box tone="good" section={good} />}
           {bad && <Box tone="bad" section={bad} />}
         </div>
       )}
 
       {data && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-3">
           <Panel title="昨日どこから来たか（Short AV・人）">
             <Bars
               rows={data.shortav.sources
@@ -70,14 +70,14 @@ export default function DailyReport({ summary, data, trends }: { summary: string
           </Panel>
           {trends && trends.dates.length > 2 && (
             // 昨日までの直近14日（今日は途中なので入れない。10/8 ごろの X の山が入ると最近の動きが見えなくなるため14日に絞る）
-            <Panel title="直近14日の来た人（Short AV・日本・昨日まで）" wide>
+            <Panel title="直近14日の来た人（Short AV・日本・昨日まで）">
               <TrendLine data={trends.dates.map((date, i) => ({ date, users: trends.users[i] ?? 0 })).slice(-15, -1)} height={120} labels />
             </Panel>
           )}
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         {rest.map((sec, i) => (
           <section key={i} className="rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
             {sec.heading && <h3 className="mb-1 font-bold text-white">{sec.heading}</h3>}
@@ -99,31 +99,30 @@ function Tiles({ data }: { data: DailyData }) {
   const clicksBefore = FANZA_EVENTS.reduce((sum, n) => sum + (ev(n)?.dayBefore ?? 0), 0);
   const dmm = data.dmm?.updated ? data.dmm : null;
   const tiles = [
-    { label: '来た人（Short AV）', value: y, unit: '人', before: d2, sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
-    { label: 'サンプルの再生', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
-    { label: 'FANZA へのクリック（GA・日本）', value: clicks, unit: '回', before: clicksBefore, sub: undefined },
-    { label: 'FANZA の成約（DMM）', value: dmm ? dmm.direct + dmm.category + dmm.newCount : null, unit: '件', before: undefined, sub: dmm ? undefined : '昨日分はまだ取れていない' },
+    // 見出しは短く（カードの中で変な位置で改行しないように。2026-10-28 ユーザーの指摘）。細かい説明は指を乗せると出す
+    { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
+    { label: '再生', hint: 'サンプルの再生（日本）', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
+    { label: 'FANZA クリック', hint: 'GA に記録された FANZA へのすべてのクリック（日本）', value: clicks, unit: '回', before: clicksBefore, sub: undefined },
+    { label: '成約', hint: 'DMM の管理画面の昨日の成約（ダイレクト・カテゴリ・サービス新規の合計）', value: dmm ? dmm.direct + dmm.category + dmm.newCount : null, unit: '件', before: undefined, sub: dmm ? undefined : 'まだ取れていない' },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
       {tiles.map((t) => {
         const diff = t.value !== null && t.before !== undefined ? t.value - t.before : null;
         return (
-          <div key={t.label} className="rounded-lg bg-gray-800 px-3 py-2">
-            <div className="text-xs text-gray-400">{t.label}</div>
+          <div key={t.label} className="rounded-lg bg-gray-800 px-3 py-2" title={t.hint}>
+            <div className="whitespace-nowrap text-xs text-gray-400">{t.label}</div>
             <div className="mt-0.5 text-2xl font-bold leading-tight text-white">
               {t.value === null ? '—' : fmt(t.value)}
               <span className="ml-0.5 text-sm font-normal text-gray-400">{t.value === null ? '' : t.unit}</span>
             </div>
-            <div className="mt-0.5 text-xs text-gray-400">
-              {diff !== null && (
-                <span className={diff > 0 ? 'text-emerald-300' : diff < 0 ? 'text-red-300' : ''}>
-                  一昨日より {diff > 0 ? '+' : ''}{fmt(diff)}
-                </span>
-              )}
-              {diff !== null && t.sub && '・'}
-              {t.sub}
-            </div>
+            {/* 一昨日との差と7日平均は別の行にして、どちらも途中で折り返さない */}
+            {diff !== null && (
+              <div className={`mt-0.5 whitespace-nowrap text-xs ${diff > 0 ? 'text-emerald-300' : diff < 0 ? 'text-red-300' : 'text-gray-400'}`}>
+                一昨日より {diff > 0 ? '+' : ''}{fmt(diff)}
+              </div>
+            )}
+            {t.sub && <div className="whitespace-nowrap text-xs text-gray-400">{t.sub}</div>}
           </div>
         );
       })}
@@ -143,9 +142,9 @@ function Box({ tone, section }: { tone: 'good' | 'bad'; section: Section }) {
   );
 }
 
-function Panel({ title, wide, children }: { title: string; wide?: boolean; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className={`rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2 ${wide ? 'md:col-span-2' : ''}`}>
+    <section className="rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2">
       <h3 className="mb-2 text-xs font-bold text-gray-300">{title}</h3>
       {children}
     </section>
@@ -160,7 +159,7 @@ function Bars({ rows, unit, color }: { rows: { label: string; value: number; not
     <div className="space-y-1.5">
       {rows.map((r) => (
         <div key={r.label} className="flex items-center gap-2 text-xs" title={r.note ? `${r.label}: ${fmt(r.value)}${unit}（${r.note}）` : undefined}>
-          <span className="w-28 shrink-0 truncate text-gray-300">{r.label}</span>
+          <span className="w-20 shrink-0 truncate text-gray-300 sm:w-28">{r.label}</span>
           <span className="relative h-3 flex-1 rounded bg-gray-700/50">
             <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${(r.value / max) * 100}%`, background: color }} />
           </span>

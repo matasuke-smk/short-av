@@ -277,7 +277,7 @@ function DailySummaryButton({ item: initialItem, trends }: { item: DailySummaryI
         昨日のレポート（{md}）
       </button>
       {open && (
-        <DetailModal title={`昨日のレポート（${md}）`} onClose={() => setOpen(false)}>
+        <DetailModal title={`昨日のレポート（${md}）`} onClose={() => setOpen(false)} wide>
           <div className="text-sm text-gray-200 leading-relaxed">
           <DailyReport summary={item.summary} data={item.data ?? null} trends={trends} />
           <div className="mt-2 text-[11px] text-gray-500">
@@ -1801,7 +1801,8 @@ function ViaTable({ viaCount }: { viaCount: (event: string, value: string) => nu
 const DISMISS_DISTANCE = 100; // これ以上引き下げて離すと閉じる（px）
 const SLIDE_MS = 220;
 
-export function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
+// wide: PC で横幅を広げる（昨日のレポートなど、中身が多い窓。2026-10-28）
+export function DetailModal({ title, note, onClose, children, wide = false }: { title: string; note?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -1904,7 +1905,7 @@ export function DetailModal({ title, note, onClose, children }: { title: string;
       <div ref={backdropRef} className="absolute inset-0 bg-black/60" style={{ opacity: 0 }} aria-hidden />
       <div
         ref={panelRef}
-        className="relative flex flex-col w-full h-full md:h-auto md:max-w-3xl md:max-h-[85dvh] bg-gray-900 md:rounded-2xl md:border border-gray-700 md:shadow-2xl"
+        className={`relative flex flex-col w-full h-full md:h-auto ${wide ? 'md:max-w-6xl' : 'md:max-w-3xl'} md:max-h-[85dvh] bg-gray-900 md:rounded-2xl md:border border-gray-700 md:shadow-2xl`}
         style={{ transform: 'translateY(100vh)' }}
         role="dialog"
         aria-modal="true"
