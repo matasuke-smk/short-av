@@ -150,6 +150,13 @@ const CAMPAIGN_LABELS: Record<string, string> = {
 
 const FANZA_CLICK_EVENT_NAMES = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 export const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
+
+// FANZA 実績の成約の種類（dmm_reports の列。ダイレクト・カテゴリ・サービス新規）
+const DMM_KINDS = [
+  { label: 'ダイレクト', short: 'ダイレクト', count: 'direct_count', yen: 'direct_yen' },
+  { label: 'カテゴリ', short: 'カテゴリ', count: 'category_count', yen: 'category_yen' },
+  { label: 'サービス新規', short: '新規', count: 'new_count', yen: 'new_yen' },
+] as const;
 const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
 export const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
 const seconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}分${Math.round(s % 60)}秒` : `${Math.round(s)}秒`);
@@ -1109,7 +1116,12 @@ function RangeBody({
             const lastMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)) - 2, 1)).toISOString().slice(0, 7);
             const conv = (r: DmmReportRow) => r.direct_count + r.category_count + r.new_count;
             const yen = (r: DmmReportRow) => r.direct_yen + r.category_yen + r.new_yen;
-            const sumOf = (rows: DmmReportRow[]) => ({ clicks: rows.reduce((a, r) => a + r.clicks, 0), conv: rows.reduce((a, r) => a + conv(r), 0), yen: rows.reduce((a, r) => a + yen(r), 0) });
+            const total = (rows: DmmReportRow[], key: keyof DmmReportRow) => rows.reduce((a, r) => a + Number(r[key]), 0);
+            // 成約の内訳（ダイレクト・カテゴリ・サービス新規）も足す（2026-10-28 ユーザーの要望）
+            const sumOf = (rows: DmmReportRow[]) => ({
+              clicks: total(rows, 'clicks'), conv: rows.reduce((a, r) => a + conv(r), 0), yen: rows.reduce((a, r) => a + yen(r), 0),
+              kinds: DMM_KINDS.map((k) => ({ label: k.label, count: total(rows, k.count), yen: total(rows, k.yen) })),
+            });
             const month = sumOf(dmmReports.filter((r) => r.date.startsWith(thisMonth)));
             const lastSame = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth) && Number(r.date.slice(8, 10)) <= dom));
             const lastAll = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth)));
@@ -1127,6 +1139,14 @@ function RangeBody({
                       <div className="text-xs text-gray-400">{k}</div>
                       <div className="font-bold">{fmt(v.conv)}件・{fmt(v.yen)}円</div>
                       <div className="text-xs text-gray-400">クリック {fmt(v.clicks)}回</div>
+                      <div className="mt-1 space-y-0.5 border-t border-gray-700 pt-1 text-[11px] text-gray-400">
+                        {v.kinds.map((x) => (
+                          <div key={x.label} className={`flex justify-between gap-2 ${x.count > 0 ? 'text-emerald-300' : ''}`}>
+                            <span>{x.label}</span>
+                            <span className="tabular-nums">{fmt(x.count)}件・{fmt(x.yen)}円</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1140,6 +1160,9 @@ function RangeBody({
                       <th className="text-left font-normal py-1">日付</th>
                       <th className="text-right font-normal">クリック</th>
                       <th className="text-right font-normal">成約</th>
+                      {DMM_KINDS.map((k) => (
+                        <th key={k.label} className="text-right font-normal">{k.short}</th>
+                      ))}
                       <th className="text-right font-normal">報酬</th>
                     </tr>
                   </thead>
@@ -1149,6 +1172,11 @@ function RangeBody({
                         <td className="py-1.5">{Number(date.slice(5, 7))}/{Number(date.slice(8, 10))}</td>
                         <td className="text-right">{row ? `${fmt(row.clicks)}回` : '—'}</td>
                         <td className={`text-right ${row && conv(row) > 0 ? 'font-bold text-emerald-300' : ''}`}>{row ? `${fmt(conv(row))}件` : '—'}</td>
+                        {DMM_KINDS.map((k) => (
+                          <td key={k.label} className={`text-right text-xs tabular-nums ${row && row[k.count] > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>
+                            {row ? (row[k.count] > 0 ? `${fmt(row[k.count])}件 ${fmt(row[k.yen])}円` : '0') : '—'}
+                          </td>
+                        ))}
                         <td className="text-right">{row ? `${fmt(yen(row))}円` : '—'}</td>
                       </tr>
                     ))}
