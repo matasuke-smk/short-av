@@ -663,7 +663,7 @@ function DailyTable() {
   }, []);
   const day = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}（${'日月火水木金土'[new Date(`${iso}T12:00:00+09:00`).getUTCDay()]}）`;
   return (
-    <Section title="日別" note="日本のみ・直近28日・X 以外から来た人。人数は、その日に年齢確認で「はい」を押した人（人間）だけを数えています">
+    <Section title="日別" note="日本のみ・直近28日・X のアプリの中で見た人を除く（X から来て Safari などで開き直した人は含む）。人数は、その日に年齢確認で「はい」を押した人（人間）だけを数えています">
       {error && <p className="text-sm text-red-300">{error}</p>}
       {!rows && !error && <p className="text-sm text-gray-400">読み込み中…</p>}
       {rows && (
