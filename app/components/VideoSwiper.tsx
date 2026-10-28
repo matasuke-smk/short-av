@@ -32,6 +32,7 @@ import type { Doujin } from '@/lib/doujin-types';
 import { CONTACT_FORM_URL } from '@/config/site';
 import { fetchMyLikes, markHasLikes } from '@/lib/my-likes';
 import { longSampleScore } from '@/lib/long-sample-score';
+import { InstallPrompt, LikeHint, ReturnPanel } from './ReturnHelpers';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -615,7 +616,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         return newSet;
       });
     setLiked(!wasLiked);
-    if (!wasLiked) markHasLikes();
+    if (!wasLiked) {
+      markHasLikes();
+      // 初めてのいいねで、いいねした作品の見つけ方を教える（ReturnHelpers）
+      window.dispatchEvent(new Event('sav-like'));
+    }
 
     // Google Analytics: いいねイベント
     trackLike(videoId, wasLiked ? 'unlike' : 'like');
@@ -771,6 +776,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       if (prevIndex !== null && prevIndex !== index && videos[index]) {
         swipeCountRef.current += 1;
         trackSwipe(index > prevIndex ? 'next' : 'prev', swipeCountRef.current, videos[index].dmm_content_id, isFiniteList ? 'list' : 'feed');
+        // ホーム画面への追加の案内（ReturnHelpers）にスワイプの回数を知らせる
+        window.dispatchEvent(new CustomEvent('sav-swipe', { detail: swipeCountRef.current }));
       }
 
       // 有限リストでない場合のみ、追加の動画を読み込む
@@ -1906,6 +1913,21 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           onShow={() => trackTutorialView()}
         />
       )}
+
+      {/* また来てもらうための案内（ホーム画面への追加・おかえりなさい・いいねの見つけ方。2026-10-28） */}
+      <InstallPrompt />
+      <LikeHint />
+      <ReturnPanel
+        likedCount={likedVideos.size}
+        onOpenLiked={() => {
+          if (doujinMode) setDoujinListKind('liked'); else setShowLikedModal(true);
+          trackModalOpen('liked');
+        }}
+        onOpenHistory={() => {
+          if (doujinMode) setDoujinListKind('history'); else setShowHistoryModal(true);
+          trackModalOpen('history');
+        }}
+      />
 
       {/* 管理者用: 表示中の作品の X 投稿文を作る（管理画面にログインした端末だけに表示） */}
       <AdminXCompose contentId={currentVideo?.dmm_content_id} doujin={isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo!.id) : undefined} />
