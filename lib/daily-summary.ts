@@ -23,7 +23,8 @@ export type DailyData = {
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
     sampleEnd: { show: number; click: number };
   };
-  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[] };
+  // adClicks: 男のからだ研究室の広告（A8）が押された回数（GA の ad_click、全部の国。A8 は海外のクリックも数えるので比べるときはこちら。2026-10-28 追加）
+  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
   // FANZA へのクリックの比べ（2026-10-27）。DMM のクリックが GA の人のクリックより大きく多いときは、ロボットのクリックが混ざっている疑い。
@@ -142,7 +143,7 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd]] = await Promise.all([
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
       { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
@@ -164,6 +165,8 @@ async function collectStable(y: string): Promise<StablePart> {
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 6, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
     // FANZA へのクリック（全部の国。DMM は海外からのクリックも数えるので、比べるときはこちらを使う）
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'eventCount' }], dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: FANZA_CLICK_EVENTS } } } }]),
+    // 男のからだ研究室の広告（A8）が押された回数（全部の国。A8 のクリックと比べる）
+    runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'eventCount' }], dimensionFilter: { filter: { fieldName: 'eventName', stringFilter: { value: 'ad_click' } } } }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
   ]);
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
@@ -191,7 +194,7 @@ async function collectStable(y: string): Promise<StablePart> {
       events: EVENTS.filter((e) => e !== 'session_start').map((e) => ({ name: e, yesterday: find(yEv, e), dayBefore: find(dEv, e), week: Math.round(find(wEv, e) / 7) })),
       sampleEnd: { show: find(cta, 'show'), click: find(cta, 'click') },
     },
-    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })) },
+    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })), adClicks: one(mAd) },
     importsYesterday: impY,
     fanzaClicksAll: one(fanzaAll),
     goBots,
@@ -351,6 +354,7 @@ FANZA（DMM）
 
 A8
 ・siteCheck.data.a8 の今月と昨日の 表示・クリック・成果・報酬、審査待ちの数（あれば）。error なら「取れなかった（理由を短く）」
+・昨日の行の続きに「人が広告を押した回数（GA）○回」を書く（mens.adClicks。無ければ書かない）。A8 の昨日のクリックが mens.adClicks の2倍以上で差が10回以上なら、悪い点にも「A8 のクリック（○回）が、人が広告を押した回数（○回）より多い（ロボットの疑い）→ 対応: 10/28 から広告のリンクは入口（/go）でロボットを断っている。続くようなら時間ごとの記録を調べるよう依頼」を書く
 
 DLsite
 ・siteCheck.data.dlsite の今月のクリック・売上。error なら「取れなかった」
