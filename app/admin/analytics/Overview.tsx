@@ -32,6 +32,10 @@ export type KeyNumbers = {
   nonXUsers: number; // X 以外から来た人 = 全体 − X から来た人（来た元が記録されなかった人も含む。X ＋ X 以外 ＝ 全体 になるように。2026-10-27）
   nonXClickers: number; // = 押した人 − X から来て押した人
   topNonX: { channel: string; users: number } | null;
+  // X のアプリの中で FANZA を押した人・回数（アプリ内ブラウザで、来た元が X か記録なしの人）。それ以外（X から開き直した人を含む見込み客）＝全体 − これ。
+  // FANZA のカードの「押した人」「内訳」に使う（2026-10-28 ユーザーの判断「弾くのは X で完結した人」。利用者数（日別）の表と同じ分け方）
+  inAppClickers: number;
+  inAppClicks: number;
 };
 
 /** 1つの期間のレポートから、カードの数字を出す（レポートの番号は data.ts の loadGa） */
@@ -78,6 +82,8 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
     // 以前は流入元ごとの人数の合計（SNS・来た元不明を除く）＋ Bluesky だったため、X と足しても全体の人数と合わなかった（2026-10-27 ユーザー指摘）
     nonXUsers: Math.max(0, totalUsers - xUsers),
     nonXClickers: Math.max(0, clickers - xClickers),
+    inAppClickers: Math.min(clickers, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0])) + sum(reports[37] ?? [], unknownInApp)),
+    inAppClicks: Math.min(fanzaClicks, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0]), 1) + sum(reports[37] ?? [], unknownInApp, 1)),
     topNonX: topHuman ? { channel: topHuman[0], users: topHuman[1] } : top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
   };
 }
