@@ -115,7 +115,9 @@ function Tiles({ data }: { data: DailyData }) {
       unit: '件',
       before: undefined,
       sub: conversions === null ? 'まだ取れていない' : undefined,
-      lines: [yenYesterday !== null ? `報酬 ${fmt(yenYesterday)}円` : null, yenMonth !== null ? `今月 ${fmt(yenMonth)}円` : null].filter((x): x is string => x !== null),
+      // 昨日は「7件 14円」の形で大きく出す（2026-10-28 ユーザーの指定）。下に今月（昨日まで）の報酬
+      extraYen: yenYesterday,
+      lines: [yenMonth !== null ? `今月 ${fmt(yenMonth)}円` : null].filter((x): x is string => x !== null),
     },
   ];
   return (
@@ -128,6 +130,12 @@ function Tiles({ data }: { data: DailyData }) {
             <div className="mt-0.5 text-2xl font-bold leading-tight text-white">
               {t.value === null ? '—' : fmt(t.value)}
               <span className="ml-0.5 text-sm font-normal text-gray-400">{t.value === null ? '' : t.unit}</span>
+              {'extraYen' in t && t.extraYen != null && t.value !== null && (
+                <>
+                  <span className="ml-2">{fmt(t.extraYen)}</span>
+                  <span className="ml-0.5 text-sm font-normal text-gray-400">円</span>
+                </>
+              )}
             </div>
             {/* 一昨日との差と7日平均は別の行にして、どちらも途中で折り返さない */}
             {diff !== null && (
