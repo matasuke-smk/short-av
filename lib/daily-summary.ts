@@ -31,9 +31,11 @@ export type DailyData = {
   // dmm: DMM の昨日のクリック（dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail。どちらも無ければ null）。
   // goHumans: 人が /go（FANZA への転送）を通ったクリック（サーバー側の記録 go_clicks、sql/024。運営者の端末の分は goOwner に分ける。表が無ければ null）。
   //   作品のリンク・クーポン・初めての人向け・10円セールのページは /go を通る。DMM のバナー・ウィジェットは通らないので入らない
-  // suspicious: dmm が「gaAll と goHumans の多いほう」の2倍以上で、差が10回以上（コードで判定）
+  // byId: DMM の昨日のクリックの紹介 ID ごとの内訳（Mac の自動点検が site_checks の dmm.yesterday_by_id に入れたときだけ。無ければ null。2026-10-28 追加）
+  //   site: 991（/go を通った作品のリンクなど）＋ 005（バナー・ウィジェット）＝今のサイトから出るクリック。oldLinks: 990（/go を作る前に出ていた古いリンクを、サイトを通らずに直接開いたもの）。other: それ以外の ID
+  // suspicious: 比べる DMM のクリック（byId があれば site、無ければ dmm）が「gaAll と goHumans の多いほう」の2倍以上で、差が10回以上（コードで判定）
   // goBots: /go（FANZA への転送）を開いて、FANZA に飛ばさず断った（403）ロボットの回数（ロボットの名前ごと。other-bot は AI 以外のロボット）
-  clickGap: { dmm: number | null; gaJapan: number; gaAll: number; goHumans: number | null; goOwner: number | null; suspicious: boolean; goBots: { bot: string; count: number }[] };
+  clickGap: { dmm: number | null; byId: DmmById | null; gaJapan: number; gaAll: number; goHumans: number | null; goOwner: number | null; suspicious: boolean; goBots: { bot: string; count: number }[] };
   // updated: 昨日が終わったあとに FANZA 実績が保存されたか（false なら昨日の途中の数字のまま。2026-10-26 に0件と誤って要約された）
   dmm: { clicks: number; direct: number; category: number; newCount: number; updated: boolean } | null;
   // Google 検索（Search Console）。昨日分は速報値で、あとから増えることがある（2026-10-26 追加）
@@ -230,6 +232,25 @@ function dmmClicksFor(y: string, dmm: DailyData['dmm'], siteCheck: DailyData['si
   return null;
 }
 
+type DmmById = { site: number; oldLinks: number; other: number };
+// 紹介 ID の分け方（lib/go-link.ts の付け替え・config/banners.ts のバナー）
+const SITE_IDS = ['matasuke-991', 'matasuke-005'];
+const OLD_LINK_IDS = ['matasuke-990'];
+
+// DMM の昨日のクリックの ID ごとの内訳。site_checks の dmm.yesterday_by_id（{ to: 'YYYY/MM/DD', clicks: { 'matasuke-991': 1, ... } }）の日付が昨日のときだけ
+function dmmByIdFor(y: string, siteCheck: DailyData['siteCheck']): DmmById | null {
+  const byId = (siteCheck?.data as { dmm?: { yesterday_by_id?: { to?: string; clicks?: Record<string, number> } } } | null)?.dmm?.yesterday_by_id;
+  if (!byId?.clicks || byId.to?.replaceAll('/', '-') !== y) return null;
+  const result: DmmById = { site: 0, oldLinks: 0, other: 0 };
+  for (const [id, n] of Object.entries(byId.clicks)) {
+    if (typeof n !== 'number') continue;
+    if (SITE_IDS.includes(id)) result.site += n;
+    else if (OLD_LINK_IDS.includes(id)) result.oldLinks += n;
+    else result.other += n;
+  }
+  return result;
+}
+
 async function countImports(from: string, to: string): Promise<number> {
   const { count: c } = await getSupabaseAdmin().from('videos').select('id', { count: 'exact', head: true }).gte('created_at', from).lt('created_at', to);
   return c ?? 0;
@@ -263,6 +284,8 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
   const gaAll = stable.fanzaClicksAll;
   const goHumans = stable.goClicks?.humans ?? null;
   const humanClicks = Math.max(gaAll, goHumans ?? 0);
+  const byId = dmmByIdFor(y, siteCheck);
+  const compared = byId ? byId.site : dmmClicks;
 
   return {
     date: y,
@@ -272,8 +295,8 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
     bots: stable.bots,
     dmm,
     clickGap: {
-      dmm: dmmClicks, gaJapan, gaAll, goHumans, goOwner: stable.goClicks?.owner ?? null,
-      suspicious: dmmClicks !== null && dmmClicks >= humanClicks * 2 && dmmClicks - humanClicks >= 10,
+      dmm: dmmClicks, byId, gaJapan, gaAll, goHumans, goOwner: stable.goClicks?.owner ?? null,
+      suspicious: compared !== null && compared >= humanClicks * 2 && compared - humanClicks >= 10,
       goBots: stable.goBots,
     },
     search: stable.search,
@@ -322,7 +345,8 @@ Bing
 FANZA（DMM）
 ・昨日のクリック・成約・報酬（内訳: ダイレクト・カテゴリ・サービス新規 のうち 0 でないもの）。dmm（貼り付け・自動保存の実績）を使い、dmm が null か dmm.updated が false のときは siteCheck.data.dmm の昨日の数字（yesterday_clicks・yesterday_detail など）を使う。どちらにも無ければ「昨日分の実績が取れていない」と書き、数字は書かない。成約・報酬が付いたら必ず書く
 ・クリックの比べ（clickGap）: 「DMM のクリック ○回／サイトを通った人のクリック ○回（goHumans。null なら書かない。goOwner が1以上なら「ほかに運営者 ○回」）／GA の FANZA へのクリック ○回（日本 ○回）」を1行。dmm が null なら DMM の部分は書かない。サイトを通った人のクリックにはバナー・ウィジェットは入らない。goBots の合計が1回以上なら「ロボットが FANZA への入口（/go）を開いた回数 ○回（FANZA には飛ばさず断った。多い順に名前を2つまで。other-bot は「その他のロボット」、meta-webindexer は「Facebook のロボット」）」を1行
-・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが人のクリック（GA とサイトの記録の多いほう）より ○回多い（ロボットのクリックが混ざっている疑い）→ 対応: …」を書く。対応は、goBots が多ければ「/go では止めている。DMM のバナー・ウィジェットから飛んでいる可能性があるので確認を依頼」、そうでなければ「時間ごとの数字を見比べて原因を調べるよう依頼」
+・clickGap.byId があるときは、続けて「DMM のクリックの内訳: 今のサイトから ○回（site。作品のリンク・バナーなど）／古いリンクを直接開いたもの ○回（oldLinks。サイトを通らない）」を1行（other が1以上なら「ほかの ID ○回」も）。古いリンクの分は、サイトを作る前に出回った紹介リンクを誰か（ロボットなど）が直接開いたもので、サイト側では止められないので、悪い点には書かない
+・clickGap.suspicious が true のときは、悪い点にも「DMM のクリックが人のクリック（GA とサイトの記録の多いほう）より ○回多い」を書く。byId があるときは「今のサイトからのクリック（site）が」と書き、対応は「時間ごとの数字を見比べて原因を調べるよう依頼」。byId が null のときは、対応は「10/28 の ID ごとの確認では大半が古いリンク（990）を直接開いたもので、サイト側では止められない。内訳は Mac の自動点検で取れるようにする予定」と書き、「ロボットの疑い」「バナー・ウィジェットから」とは書かない
 ・今月（昨日まで）のクリック・成約・報酬。siteCheck.data.dmm.month は今日の分も含むので、today_yen・today_clicks・today_conversions があれば引く（例: month.yen 2,722 − today_yen 14 = 2,708円）
 
 A8

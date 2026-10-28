@@ -13,11 +13,17 @@ const title = 'FANZA 10円セールの対象作品とサンプル動画（10/30 
 const description =
   'FANZA の10円セール（2026年10月23日〜30日朝9:59、3回に分けて開催）の対象作品のサンプル動画をまとめて見られるページです。日程、1回10作品の仕組み、買い方（無料のアカウント登録→ログイン→チェックして購入）も紹介します。';
 
+// リンクカードの画像: FANZA のセールのページの第3弾の画像（p.dmm.co.jp/p/ds/lp/10yen20261023/pic_mv_03_pc.jpg、1280x420）を
+// 1200x630 に縮めて上下を背景の色で足したもの（X の大きいカードで左右が切れないように。ユーザーの判断で公式画像を使用）
+const SALE_OG_IMAGE = '/og-sale-10yen.jpg';
+
 export const metadata: Metadata = {
   title,
   description,
   alternates: { canonical: '/sale/10yen' },
-  openGraph: { title, description, siteName: 'Short AV', locale: 'ja_JP', type: 'website' },
+  openGraph: { title, description, siteName: 'Short AV', locale: 'ja_JP', type: 'website', images: [{ url: SALE_OG_IMAGE, width: 1200, height: 630, alt: 'FANZA 10円セール 第3弾 10/30（金）朝9:59まで' }] },
+  // X のリンクカード（layout の twitter をそのまま使うとサイト全体の題名・画像になるため、ここで上書き。2026-10-28）
+  twitter: { card: 'summary_large_image', title, description, images: [SALE_OG_IMAGE] },
 };
 
 const fmt = (iso: string) => {
