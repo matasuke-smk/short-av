@@ -10,6 +10,11 @@ import { xPostContentId, VIEW_KEYS, type Country, type ViewKey } from './view-ke
 import { sumDmmReports, type DmmReportRow } from '@/lib/dmm-reports-shared';
 import { keyNumbers, OverlayChart, TopCards, fmtOverview, pctOverview, type KeyNumbers, type OverlaySlot, type TopCardProps } from './Overview';
 import type { Trends } from './data';
+import type { DailyData } from '@/lib/daily-summary';
+import DailyReport from './DailyReport';
+
+// 昨日のレポート（旧: 今朝の要約）の1日分。data は要約を作ったときの材料（数字・図に使う。古い記録では無いことがある）
+type DailySummaryItem = { date: string; summary: string; yen: number | null; created_at: string; data?: DailyData | null };
 
 /**
  * アクセス解析の表示（管理画面）
@@ -150,6 +155,13 @@ const CAMPAIGN_LABELS: Record<string, string> = {
 
 const FANZA_CLICK_EVENT_NAMES = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 export const fmt = (n: number) => Math.round(n).toLocaleString('ja-JP');
+
+// FANZA 実績の成約の種類（dmm_reports の列。ダイレクト・カテゴリ・サービス新規）
+const DMM_KINDS = [
+  { label: 'ダイレクト', short: 'ダイレクト', count: 'direct_count', yen: 'direct_yen' },
+  { label: 'カテゴリ', short: 'カテゴリ', count: 'category_count', yen: 'category_yen' },
+  { label: 'サービス新規', short: '新規', count: 'new_count', yen: 'new_yen' },
+] as const;
 const fmt1 = (n: number) => (Number.isInteger(n) ? n.toLocaleString('ja-JP') : n.toFixed(1));
 export const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—');
 const seconds = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}分${Math.round(s % 60)}秒` : `${Math.round(s)}秒`);
@@ -200,7 +212,7 @@ export function KpiCard({ label, value, unit, sub, rows, share, onClick }: { lab
  * 日別の折れ線（SVG）。X 以外から来た人の推移に使う（2026-10-25）。
  * height が小さいときはカードの内訳用（線と最新値だけ）。labels を付けると両端の日付・最大値・最新値を出す
  */
-function TrendLine({ data, height, labels = false }: { data: { date: string; users: number }[]; height: number; labels?: boolean }) {
+export function TrendLine({ data, height, labels = false }: { data: { date: string; users: number }[]; height: number; labels?: boolean }) {
   const w = 300;
   const padX = labels ? 6 : 2;
   const padY = 4;
@@ -233,43 +245,9 @@ function TrendLine({ data, height, labels = false }: { data: { date: string; use
   );
 }
 
-/** 今朝の点検の要約。「アクセス解析」の右のボタンを押すと全文をモーダルで出す（2026-10-26 ユーザーの要望で帯から変更）
- * 全文の下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
-// 今朝の要約の本文を見出しごとに分けて出す。「良かった点」は緑、「悪い点」は赤の枠で（2026-10-27 ユーザーの要望）。
-// 見出し = 「・」で始まらない行。見出しより前の行は見出しなしの段落として出す
-function SummaryText({ text }: { text: string }) {
-  const sections: { heading: string | null; lines: string[] }[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line) continue;
-    if (!line.startsWith('・') && !line.startsWith('※') && line.length <= 40) sections.push({ heading: line, lines: [] });
-    else if (sections.length === 0) sections.push({ heading: null, lines: [line] });
-    else sections[sections.length - 1].lines.push(line);
-  }
-  const tone = (heading: string | null) =>
-    heading?.startsWith('良かった点')
-      ? { box: 'border border-emerald-500/40 bg-emerald-500/10', head: 'text-emerald-300', body: 'text-emerald-100' }
-      : heading?.startsWith('悪い点')
-        ? { box: 'border border-red-500/40 bg-red-500/10', head: 'text-red-300', body: 'text-red-100' }
-        : null;
-  return (
-    <div className="space-y-3">
-      {sections.map((sec, i) => {
-        const t = tone(sec.heading);
-        return (
-          <div key={i} className={t ? `rounded-lg px-3 py-2 ${t.box}` : ''}>
-            {sec.heading && <div className={`font-bold ${t ? t.head : 'text-white'}`}>{sec.heading}</div>}
-            {sec.lines.map((l, j) => (
-              <div key={j} className={t ? t.body : 'text-gray-200'}>{l}</div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function DailySummaryButton({ item: initialItem }: { item: { date: string; summary: string; yen: number | null; created_at: string } | null }) {
+/** 昨日のレポート（2026-10-28 に「今朝の要約」から名前を変更）。「アクセス解析」の右のボタンを押すとモーダルで出す（中身は DailyReport.tsx）。
+ * 下の「作り直す」で、その場で作り直せる（FANZA 実績を更新したあとなど） */
+function DailySummaryButton({ item: initialItem, trends }: { item: DailySummaryItem | null; trends: Trends | null }) {
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState(initialItem);
   const [rebuilding, setRebuilding] = useState(false);
@@ -296,12 +274,12 @@ function DailySummaryButton({ item: initialItem }: { item: { date: string; summa
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="rounded-full border border-amber-500/60 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300 hover:bg-amber-500/20 whitespace-nowrap">
-        今朝の要約（{md}）
+        昨日のレポート（{md}）
       </button>
       {open && (
-        <DetailModal title={`今朝の要約（${md}）`} onClose={() => setOpen(false)}>
+        <DetailModal title={`昨日のレポート（${md}）`} onClose={() => setOpen(false)} wide>
           <div className="text-sm text-gray-200 leading-relaxed">
-          <SummaryText text={item.summary} />
+          <DailyReport summary={item.summary} data={item.data ?? null} trends={trends} />
           <div className="mt-2 text-[11px] text-gray-500">
             Claude が {new Date(item.created_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に作成
             {item.yen != null ? `・費用 約${item.yen}円` : ''}
@@ -639,50 +617,59 @@ function PageList({ rows }: { rows: ReportRow[] }) {
   );
 }
 
-// 日別の表。上の期間の切り替えに関係なく、直近14日（ボタンで28日）を表示する
-function DailyTable({ daily, dailyEvents }: { daily: ReportRow[]; dailyEvents: ReportRow[] }) {
-  const [showAll, setShowAll] = useState(false);
-  const allDays = [...new Set(daily.map((r) => r.dimensions[0]))].sort().reverse();
-  const days = showAll ? allDays : allDays.slice(0, 14);
-  const dayEvent = (date: string, event: string) =>
-    dailyEvents.find((r) => r.dimensions[0] === date && r.dimensions[1] === event)?.metrics ?? [0, 0];
+// 日別の表（「利用者数（日別）」の窓）。2026-10-28 ユーザーの要望で、日本だけ・直近28日・X 以外から来た人・年齢確認を押した人（人間）だけにした。
+// 上の期間や「日本のみ｜すべて」の切り替えに関係なく、/api/admin/daily-humans から取る
+type DailyHumanRow = { date: string; users: number; newUsers: number; returning: number; swipes: number; plays: number; clicks: number };
+function DailyTable() {
+  const [rows, setRows] = useState<DailyHumanRow[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    fetch('/api/admin/daily-humans', { cache: 'no-store' })
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `読み込みに失敗しました（${res.status}）`);
+        setRows(json.rows);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+  const day = (iso: string) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}（${'日月火水木金土'[new Date(`${iso}T12:00:00+09:00`).getUTCDay()]}）`;
   return (
-    <Section title="日別" note={`期間の切り替えに関係なく、直近${showAll ? 28 : 14}日を表示`}>
-      <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead className="text-gray-400">
-                <tr>
-                  <th className="text-left font-normal py-1">日付</th>
-                  <th className="text-right font-normal">利用者</th>
-                  <th className="text-right font-normal">新規</th>
-                  <th className="text-right font-normal">年齢確認</th>
-                  <th className="text-right font-normal">スワイプ</th>
-                  <th className="text-right font-normal">再生</th>
-                  <th className="text-right font-normal">クリック</th>
+    <Section title="日別" note="日本のみ・直近28日・X のアプリの中で見た人を除く（X から来て Safari などで開き直した人は含む）。人数は、その日に年齢確認で「はい」を押した人（人間）だけを数えています">
+      {error && <p className="text-sm text-red-300">{error}</p>}
+      {!rows && !error && <p className="text-sm text-gray-400">読み込み中…</p>}
+      {rows && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="text-gray-400">
+              <tr>
+                <th className="text-left font-normal py-1">日付</th>
+                <th className="text-right font-normal">利用者</th>
+                <th className="text-right font-normal">新規</th>
+                <th className="text-right font-normal">リピート</th>
+                <th className="text-right font-normal">スワイプ</th>
+                <th className="text-right font-normal">再生</th>
+                <th className="text-right font-normal">クリック</th>
+                <th className="text-right font-normal" title="クリック ÷ 利用者">率</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.date} className="border-t border-gray-700">
+                  <td className="py-2">{day(r.date)}</td>
+                  <td className="text-right font-bold">{fmt(r.users)}人</td>
+                  <td className="text-right">{fmt(r.newUsers)}人</td>
+                  <td className="text-right">{fmt(r.returning)}人</td>
+                  <td className="text-right">{fmt(r.swipes)}回</td>
+                  <td className="text-right">{fmt(r.plays)}回</td>
+                  <td className={`text-right ${r.clicks > 0 ? 'text-emerald-300' : ''}`}>{fmt(r.clicks)}回</td>
+                  {/* 利用者あたりのクリックの割合（クリック ÷ 利用者。2026-10-28 ユーザーの要望） */}
+                  <td className="text-right text-gray-300">{pct(r.clicks, r.users)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {days.map((d) => {
-                  const row = daily.find((r) => r.dimensions[0] === d)?.metrics ?? [0, 0];
-                  return (
-                    <tr key={d} className="border-t border-gray-700">
-                      <td className="py-2">{ymd(d)}</td>
-                      <td className="text-right">{fmt(row[0])}</td>
-                      <td className="text-right">{fmt(row[1])}</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'age_verification')[0])}人</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'swipe')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'video_view')[1])}回</td>
-                      <td className="text-right">{fmt(dayEvent(d, 'dmm_link_click')[1])}回</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-      {allDays.length > 14 && (
-        <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs text-blue-300 hover:text-blue-200">
-          {showAll ? '直近14日だけ表示' : '28日分を表示'}
-        </button>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-[11px] text-gray-500">今日の数字は途中経過です（GA の反映に数時間かかることがあります）。クリックは FANZA へのすべてのクリック（作品のリンク・バナー・クーポンなど）。率はクリック ÷ 利用者。</p>
+        </div>
       )}
     </Section>
   );
@@ -775,8 +762,10 @@ function RangeBody({
   const anyEventCount = (name: string) => allEvents.find((r) => r.dimensions[0] === name)?.metrics[0] ?? 0;
   const searches = searchTypes.reduce((sum, r) => sum + r.metrics[0], 0);
   const searchOpens = screens.find((r) => r.dimensions[0] === '検索')?.metrics ?? [0, 0];
-  // gaUsers（グラフの合計）はカードと同じ「すべての人」（totalUsers、5つ目）。2026-10-27
-  const [, newUsers = 0, sessions = 0, engagement = 0, gaUsers = totals[0]?.metrics[0] ?? 0] = totals[0]?.metrics ?? [];
+  // gaUsers（グラフの合計）はカードと同じ数え方。2026-10-28 から人間（年齢確認で「はい」を押した人、レポート 42）。取れなかったときは以前の「すべての人」（totalUsers、5つ目）
+  const [, newUsers = 0, sessions = 0, engagement = 0, allUsers = totals[0]?.metrics[0] ?? 0] = totals[0]?.metrics ?? [];
+  const humanTotal = reports[42]?.[0]?.metrics[0];
+  const gaUsers = (reports[42] ?? []).length > 0 ? (humanTotal ?? 0) : allUsers;
   // 「今日」「昨日」は GA の集計が数時間遅れるため、リアルタイムの記録で補った数字を使う
   // 時間帯グラフ: 利用者と FANZA へのクリック（events。2026/10/9 まではすべてのイベントの回数だった）
   const { hours, users, events: totalClicks } = withLive(hourly, live, gaUsers, gaTotalClicks, RANGE_SPAN_DAYS_AGO[rangeKey]);
@@ -929,10 +918,11 @@ function RangeBody({
               // 「通常のブラウザ」の行に「・集計待ち ○回」と添えて、合計と内訳が合わないように見えないようにする
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
-                ['押した人', `${fmtOverview(now.clickers)}人（X ${fmtOverview(now.xClickers)}人・X 以外 ${fmtOverview(now.nonXClickers)}人）`],
+                // アプリ内（X のアプリの中で完結した人）と他（X から開き直した人を含む見込み客）で分ける（2026-10-28 ユーザーの判断。文字は短く「アプリ内」「他」）
+                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(Math.max(0, now.clickers - now.inAppClickers))}人）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
                 // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
-                ['内訳', `X ${fmtOverview(now.xClicks)}回・X 以外 ${fmtOverview(now.nonXClicks)}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
+                ['内訳', `アプリ内 ${fmtOverview(now.inAppClicks)}回・他 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
@@ -1043,6 +1033,12 @@ function RangeBody({
                 slots={slots}
                 currentLabel={isToday ? '今日' : '今月'}
                 ghostLabel={isToday ? '昨日' : '先月'}
+                // 合計の人数を押すと開けることが分かりにくかったので、題名のすぐ右に黄色のボタンでも開けるようにした（2026-10-28 ユーザーの要望）
+                titleAction={
+                  <button type="button" onClick={() => setDetail('daily')} className="rounded-md bg-amber-400 px-2 py-0.5 text-xs font-bold text-gray-950 hover:bg-amber-300">
+                    日別の表 ›
+                  </button>
+                }
                 summary={
                   <>
                     合計{' '}
@@ -1109,11 +1105,16 @@ function RangeBody({
             const lastMonth = new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)) - 2, 1)).toISOString().slice(0, 7);
             const conv = (r: DmmReportRow) => r.direct_count + r.category_count + r.new_count;
             const yen = (r: DmmReportRow) => r.direct_yen + r.category_yen + r.new_yen;
-            const sumOf = (rows: DmmReportRow[]) => ({ clicks: rows.reduce((a, r) => a + r.clicks, 0), conv: rows.reduce((a, r) => a + conv(r), 0), yen: rows.reduce((a, r) => a + yen(r), 0) });
+            const total = (rows: DmmReportRow[], key: keyof DmmReportRow) => rows.reduce((a, r) => a + Number(r[key]), 0);
+            // 成約の内訳（ダイレクト・カテゴリ・サービス新規）も足す（2026-10-28 ユーザーの要望）
+            const sumOf = (rows: DmmReportRow[]) => ({
+              clicks: total(rows, 'clicks'), conv: rows.reduce((a, r) => a + conv(r), 0), yen: rows.reduce((a, r) => a + yen(r), 0),
+              kinds: DMM_KINDS.map((k) => ({ label: k.label, count: total(rows, k.count), yen: total(rows, k.yen) })),
+            });
             const month = sumOf(dmmReports.filter((r) => r.date.startsWith(thisMonth)));
             const lastSame = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth) && Number(r.date.slice(8, 10)) <= dom));
             const lastAll = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth)));
-            const recent = Array.from({ length: 14 }, (_, i) => ymd(i + 1)).map((date) => ({ date, row: dmmReports.find((r) => r.date === date) }));
+            const recent = Array.from({ length: 28 }, (_, i) => ymd(i + 1)).map((date) => ({ date, row: dmmReports.find((r) => r.date === date) }));
             const latest = [...dmmReports].sort((a, b) => b.date.localeCompare(a.date))[0];
             return (
               <DetailModal title="FANZA 実績（DMM）" note="DMM の管理画面のレポートを「FANZA 実績」で保存した分。クリックは DMM 側の数（翌日に確定）。" onClose={closeDetail}>
@@ -1127,10 +1128,18 @@ function RangeBody({
                       <div className="text-xs text-gray-400">{k}</div>
                       <div className="font-bold">{fmt(v.conv)}件・{fmt(v.yen)}円</div>
                       <div className="text-xs text-gray-400">クリック {fmt(v.clicks)}回</div>
+                      <div className="mt-1 space-y-0.5 border-t border-gray-700 pt-1 text-[11px] text-gray-400">
+                        {v.kinds.map((x) => (
+                          <div key={x.label} className={`flex justify-between gap-2 ${x.count > 0 ? 'text-emerald-300' : ''}`}>
+                            <span>{x.label}</span>
+                            <span className="tabular-nums">{fmt(x.count)}件・{fmt(x.yen)}円</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
-                <h3 className="text-sm font-bold mb-1">日ごと（直近14日）</h3>
+                <h3 className="text-sm font-bold mb-1">日ごと（直近28日）</h3>
                 <p className="text-xs text-gray-400 mb-2">
                   いちばん新しい記録: {latest ? latest.date : 'なし'}。「—」の日はまだ保存されていません。
                 </p>
@@ -1140,6 +1149,9 @@ function RangeBody({
                       <th className="text-left font-normal py-1">日付</th>
                       <th className="text-right font-normal">クリック</th>
                       <th className="text-right font-normal">成約</th>
+                      {DMM_KINDS.map((k) => (
+                        <th key={k.label} className="text-right font-normal">{k.short}</th>
+                      ))}
                       <th className="text-right font-normal">報酬</th>
                     </tr>
                   </thead>
@@ -1149,6 +1161,11 @@ function RangeBody({
                         <td className="py-1.5">{Number(date.slice(5, 7))}/{Number(date.slice(8, 10))}</td>
                         <td className="text-right">{row ? `${fmt(row.clicks)}回` : '—'}</td>
                         <td className={`text-right ${row && conv(row) > 0 ? 'font-bold text-emerald-300' : ''}`}>{row ? `${fmt(conv(row))}件` : '—'}</td>
+                        {DMM_KINDS.map((k) => (
+                          <td key={k.label} className={`text-right text-xs tabular-nums ${row && row[k.count] > 0 ? 'text-emerald-300' : 'text-gray-500'}`}>
+                            {row ? (row[k.count] > 0 ? `${fmt(row[k.count])}件 ${fmt(row[k.yen])}円` : '0') : '—'}
+                          </td>
+                        ))}
                         <td className="text-right">{row ? `${fmt(yen(row))}円` : '—'}</td>
                       </tr>
                     ))}
@@ -1168,7 +1185,7 @@ function RangeBody({
         )}
         {detail === 'daily' && (
           <DetailModal title="利用者数（日別）" onClose={closeDetail}>
-            <DailyTable daily={fixedDaily?.[2] ?? daily} dailyEvents={fixedDaily?.[3] ?? dailyEvents} />
+            <DailyTable />
           </DetailModal>
         )}
         {detail === 'events' && (
@@ -1786,7 +1803,8 @@ function ViaTable({ viaCount }: { viaCount: (event: string, value: string) => nu
 const DISMISS_DISTANCE = 100; // これ以上引き下げて離すと閉じる（px）
 const SLIDE_MS = 220;
 
-export function DetailModal({ title, note, onClose, children }: { title: string; note?: string; onClose: () => void; children: React.ReactNode }) {
+// wide: PC で横幅を広げる（昨日のレポートなど、中身が多い窓。2026-10-28）
+export function DetailModal({ title, note, onClose, children, wide = false }: { title: string; note?: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
@@ -1889,7 +1907,7 @@ export function DetailModal({ title, note, onClose, children }: { title: string;
       <div ref={backdropRef} className="absolute inset-0 bg-black/60" style={{ opacity: 0 }} aria-hidden />
       <div
         ref={panelRef}
-        className="relative flex flex-col w-full h-full md:h-auto md:max-w-3xl md:max-h-[85dvh] bg-gray-900 md:rounded-2xl md:border border-gray-700 md:shadow-2xl"
+        className={`relative flex flex-col w-full h-full md:h-auto ${wide ? 'md:max-w-6xl' : 'md:max-w-3xl'} md:max-h-[85dvh] bg-gray-900 md:rounded-2xl md:border border-gray-700 md:shadow-2xl`}
         style={{ transform: 'translateY(100vh)' }}
         role="dialog"
         aria-modal="true"
@@ -2046,7 +2064,7 @@ export default function AnalyticsView({
   trends: trendsPair = null,
 }: {
   trends?: Record<Country, Trends> | null; // カードの28日の推移と「今月」の日ごとのグラフ（取得できなければ null）
-  dailySummary?: { date: string; summary: string; yen: number | null; created_at: string } | null;
+  dailySummary?: DailySummaryItem | null;
   dmmReports: DmmReportRow[]; // DMM アフィリエイトの実績（先月の1日から）
   country: Country; // 開いたときの「日本のみ（標準）｜すべて」（URL の country）
   yesterdaySoFar: Record<Country, YesterdaySoFar> | null; // 昨日の同じ時刻までの数字（取得できなければ null）
@@ -2186,7 +2204,7 @@ export default function AnalyticsView({
         <div className="flex items-center gap-3">
           <h1 className="text-xl md:text-2xl font-bold whitespace-nowrap">アクセス解析</h1>
           {/* 今朝の点検の要約（Claude が毎朝 9:40 に書く）。押すとモーダルで全文 */}
-          <DailySummaryButton item={dailySummary} />
+          <DailySummaryButton item={dailySummary} trends={trendsPair?.jp ?? null} />
         </div>
         <p className="text-xs text-gray-400 mt-1 lg:hidden">
           Google Analytics とサイトのデータベースから集計（運営者のアクセスは除外）。

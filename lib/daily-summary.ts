@@ -18,12 +18,15 @@ type Row = { label: string; value: number };
 export type DailyData = {
   date: string; // 対象の日（前日）
   shortav: {
-    sessions: Row[]; // 昨日・一昨日・7日平均
+    sessions: Row[]; // 昨日・一昨日・7日平均の人数（2026-10-28 から人間＝年齢確認で「はい」を押した人。以前は訪問＝セッション）
     sources: { source: string; yesterday: number; dayBefore: number }[];
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
     sampleEnd: { show: number; click: number };
+    // X のアプリの中（アプリ内ブラウザで、来た元が X か記録なし）の分。昨日のレポートのカードの「アプリ内 ○・他 ○」に使う（2026-10-28。無い記録もある）
+    inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number };
   };
-  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[] };
+  // adClicks: 男のからだ研究室の広告（A8）が押された回数（GA の ad_click、全部の国。A8 は海外のクリックも数えるので比べるときはこちら。2026-10-28 追加）
+  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
   // FANZA へのクリックの比べ（2026-10-27）。DMM のクリックが GA の人のクリックより大きく多いときは、ロボットのクリックが混ざっている疑い。
@@ -76,6 +79,24 @@ async function collectSearch(site: GscSite, y: string): Promise<Gsc | null> {
 }
 
 const JP = { filter: { fieldName: 'countryId', stringFilter: { value: 'JP' } } };
+// 日本の人間（年齢確認で「はい」を押した人）。Short AV の人数に使う（管理画面の AGE_YES と同じ。2026-10-28）
+// X のアプリの中（管理画面の FANZA のカード・利用者数（日別）と同じ分け方）
+const IN_APP_X = {
+  andGroup: {
+    expressions: [
+      { filter: { fieldName: 'browser', inListFilter: { values: ['Safari (in-app)', 'Android Webview'] } } },
+      {
+        orGroup: {
+          expressions: [
+            { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'FULL_REGEXP', value: '(x|t[.]co|(m[.]|mobile[.])?twitter[.]com|x[.]com|twitter)' } } },
+            { filter: { fieldName: 'sessionDefaultChannelGroup', inListFilter: { values: ['Unassigned', '(not set)'] } } },
+          ],
+        },
+      },
+    ],
+  },
+};
+const HUMANS = { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }, { filter: { fieldName: 'customEvent:action', stringFilter: { value: 'はい' } } }] } };
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
 
 // サイトの主なページ（開けるかを毎朝確かめる。2026-10-26）
@@ -130,7 +151,7 @@ export async function collectDailyData(): Promise<DailyData> {
   const { data: existing } = await supabase.from('daily_summaries').select('data').eq('date', y).maybeSingle();
   const prev = existing?.data as DailyData | null | undefined;
   const stable: StablePart =
-    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap && prev.clickGap.goHumans !== undefined
+    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap && prev.clickGap.goHumans !== undefined && prev.shortav.inApp !== undefined
       ? {
           shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday,
           fanzaClicksAll: prev.clickGap.gaAll, goBots: prev.clickGap.goBots,
@@ -142,15 +163,16 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv]] = await Promise.all([
     runReports([
-      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
-      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
-      { dateRanges: [{ startDate: jstDate(7), endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP },
+      // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
+      { dateRanges: [{ startDate: jstDate(7), endDate: y }], dimensions: [{ name: 'date' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
     ]),
     runReports([
-      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 8, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] },
-      { dateRanges: [{ startDate: d2, endDate: d2 }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 20 },
+      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS, limit: 8, orderBys: [{ metric: { metricName: 'totalUsers' }, desc: true }] },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS, limit: 20 },
     ]),
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', inListFilter: { values: EVENTS } } }] } } },
@@ -164,6 +186,14 @@ async function collectStable(y: string): Promise<StablePart> {
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 6, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
     // FANZA へのクリック（全部の国。DMM は海外からのクリックも数えるので、比べるときはこちらを使う）
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'eventCount' }], dimensionFilter: { filter: { fieldName: 'eventName', inListFilter: { values: FANZA_CLICK_EVENTS } } } }]),
+    // 男のからだ研究室の広告（A8）が押された回数（全部の国。A8 のクリックと比べる）
+    runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'eventCount' }], dimensionFilter: { filter: { fieldName: 'eventName', stringFilter: { value: 'ad_click' } } } }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
+    // X のアプリの中の人数（人間）・再生・FANZA へのクリック（昨日のレポートの内訳。取れなくても他は出す）
+    runReports([
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
+      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, IN_APP_X, { filter: { fieldName: 'eventName', inListFilter: { values: ['video_view', ...FANZA_CLICK_EVENTS] } } }] } } },
+    ]).catch(() => [[], [], []]),
   ]);
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
@@ -185,13 +215,19 @@ async function collectStable(y: string): Promise<StablePart> {
       sessions: [
         { label: '昨日', value: one(yS) },
         { label: '一昨日', value: one(dS) },
-        { label: '7日平均', value: Math.round(one(wS) / 7) },
+        { label: '7日平均', value: Math.round(wS.reduce((sum, r) => sum + r.metrics[0], 0) / 7) },
       ],
       sources: ySrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0], dayBefore: find(dSrc, r.dimensions[0]) })),
       events: EVENTS.filter((e) => e !== 'session_start').map((e) => ({ name: e, yesterday: find(yEv, e), dayBefore: find(dEv, e), week: Math.round(find(wEv, e) / 7) })),
       sampleEnd: { show: find(cta, 'show'), click: find(cta, 'click') },
+      inApp: {
+        users: one(inAppY),
+        usersDayBefore: one(inAppD),
+        plays: find(inAppEv, 'video_view'),
+        clicks: inAppEv.filter((r) => FANZA_CLICK_EVENTS.includes(r.dimensions[0])).reduce((sum, r) => sum + r.metrics[0], 0),
+      },
     },
-    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })) },
+    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })), adClicks: one(mAd) },
     importsYesterday: impY,
     fanzaClicksAll: one(fanzaAll),
     goBots,
@@ -328,7 +364,7 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 ・AI のロボットの読み取り（bots の合計）が1日1,000回を超えたら1行
 
 Short AV（アクセス解析）
-・昨日: 人数（訪問）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
+・昨日: 人数（年齢確認で「はい」を押した人。「訪問 ○人」ではなく「来た人 ○人」と書く）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
 ・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
 ・サンプル終了時の案内（sampleEnd）の表示とクリック
 
@@ -351,6 +387,7 @@ FANZA（DMM）
 
 A8
 ・siteCheck.data.a8 の今月と昨日の 表示・クリック・成果・報酬、審査待ちの数（あれば）。error なら「取れなかった（理由を短く）」
+・昨日の行の続きに「人が広告を押した回数（GA）○回」を書く（mens.adClicks。無ければ書かない）。A8 の昨日のクリックが mens.adClicks の2倍以上で差が10回以上なら、悪い点にも「A8 のクリック（○回）が、人が広告を押した回数（○回）より多い（ロボットの疑い）→ 対応: 10/28 から広告のリンクは入口（/go）でロボットを断っている。続くようなら時間ごとの記録を調べるよう依頼」を書く
 
 DLsite
 ・siteCheck.data.dlsite の今月のクリック・売上。error なら「取れなかった」
@@ -387,20 +424,21 @@ export async function writeDailySummary(data: DailyData): Promise<{ summary: str
   return { summary: result.text, yen: estimateYen(result) };
 }
 
-export async function runDailySummary(): Promise<{ date: string; summary: string; yen: number }> {
+export async function runDailySummary(): Promise<{ date: string; summary: string; yen: number; data: DailyData }> {
   const data = await collectDailyData();
   const { summary, yen } = await writeDailySummary(data);
   const { error } = await getSupabaseAdmin().from('daily_summaries').upsert({ date: data.date, summary, data, model: CLAUDE_MODEL, yen }, { onConflict: 'date' });
   if (error) throw error;
-  return { date: data.date, summary, yen };
+  return { date: data.date, summary, yen, data };
 }
 
-export type DailySummaryRow = { date: string; summary: string; yen: number | null; created_at: string };
+// data: 要約を作ったときの材料（昨日のレポートの数字・図に使う。2026-10-28）
+export type DailySummaryRow = { date: string; summary: string; yen: number | null; created_at: string; data: DailyData | null };
 
 /** 最新の要約（管理画面用。表が無い・失敗したときは null） */
 export async function getLatestDailySummary(): Promise<DailySummaryRow | null> {
   try {
-    const { data } = await getSupabaseAdmin().from('daily_summaries').select('date, summary, yen, created_at').order('date', { ascending: false }).limit(1).maybeSingle();
+    const { data } = await getSupabaseAdmin().from('daily_summaries').select('date, summary, yen, created_at, data').order('date', { ascending: false }).limit(1).maybeSingle();
     return (data as DailySummaryRow | null) ?? null;
   } catch {
     return null;

@@ -22,7 +22,7 @@ export type KeyNumbers = {
   fanzaNormalClicks: number; // そのうち普段のブラウザ（Safari・Chrome など）から
   clickers: number; // FANZA へのリンクのどれかを押した人
   normalClickers: number;
-  xUsers: number; // X から来た人 = 来た元が X の人 ＋ 来た元が記録されずアプリ内ブラウザで来た人（X のアプリ内とみなす。2026-10-27 ユーザー要望「数字を合わせる」）
+  xUsers: number; // X から来た人（2026-10-28 から人間＝年齢確認で「はい」を押した人だけ） = 来た元が X の人 ＋ 来た元が記録されずアプリ内ブラウザで来た人（X のアプリ内とみなす。2026-10-27 ユーザー要望「数字を合わせる」）
   xNormalUsers: number; // そのうち Safari などで開き直して見た人
   xClickers: number;
   xNormalClickers: number;
@@ -32,6 +32,10 @@ export type KeyNumbers = {
   nonXUsers: number; // X 以外から来た人 = 全体 − X から来た人（来た元が記録されなかった人も含む。X ＋ X 以外 ＝ 全体 になるように。2026-10-27）
   nonXClickers: number; // = 押した人 − X から来て押した人
   topNonX: { channel: string; users: number } | null;
+  // X のアプリの中で FANZA を押した人・回数（アプリ内ブラウザで、来た元が X か記録なしの人）。それ以外（X から開き直した人を含む見込み客）＝全体 − これ。
+  // FANZA のカードの「押した人」「内訳」に使う（2026-10-28 ユーザーの判断「弾くのは X で完結した人」。利用者数（日別）の表と同じ分け方）
+  inAppClickers: number;
+  inAppClicks: number;
 };
 
 /** 1つの期間のレポートから、カードの数字を出す（レポートの番号は data.ts の loadGa） */
@@ -44,14 +48,21 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const xSeen = (reports[36] ?? []).filter((r) => r.dimensions[0] === 'page_view');
   // 8: 流入元 [流入元] → [訪問, 人数]、37: 押した人 [流入元, ブラウザ]、34: Bluesky [イベント]、40: Bluesky で押した人
   const nonXChannels = (reports[8] ?? []).filter((r) => !NOT_NON_X_CHANNELS.includes(r.dimensions[0]));
+  // いちばん多い流入元も人間で数える（44: 流入元×ブラウザの人間の人数を流入元ごとに足す。2026-10-28。「X 以外から来た人」より多く出ていた）
+  const humanByChannel = new Map<string, number>();
+  for (const r of reports[44] ?? []) if (!NOT_NON_X_CHANNELS.includes(r.dimensions[0])) humanByChannel.set(r.dimensions[0], (humanByChannel.get(r.dimensions[0]) ?? 0) + (r.metrics[0] ?? 0));
+  const topHuman = [...humanByChannel.entries()].sort((a, b) => b[1] - a[1])[0];
   const top = [...nonXChannels].sort((a, b) => b.metrics[1] - a.metrics[1])[0];
   // 0: 期間全体 [activeUsers, newUsers, sessions, engagement, totalUsers]
   // 全体の人数は「すべての人」（totalUsers）。流入元（8）・X から来た人（36・41）と同じ数え方にそろえる（2026-10-27）
-  const totalUsers = (reports[0] ?? [])[0]?.metrics[4] ?? (reports[0] ?? [])[0]?.metrics[0] ?? 0;
+  // 2026-10-28: 人数は人間（年齢確認で「はい」を押した人。42〜44）で数える。取れなかったときだけ以前の数え方（ページを見た人）
+  const humans = (reports[42] ?? []).length > 0;
+  const totalUsers = humans ? (reports[42][0]?.metrics[0] ?? 0) : ((reports[0] ?? [])[0]?.metrics[4] ?? (reports[0] ?? [])[0]?.metrics[0] ?? 0);
   // 来た元が記録されず（Unassigned・(not set)）アプリ内ブラウザで来た人は X のアプリ内とみなして X に足す（41: 見た人、37: 押した人 [人数, 回数]）。
   // SNS（Organic Social）は X 自身が含まれるので入れない（入れると X を二重に数え、押した人の X が全体より大きくなった。2026-10-27）
   const unknownInApp = (r: ReportRow) => UNKNOWN_SOURCE_CHANNELS.includes(r.dimensions[0]) && !isNormal(r.dimensions[1]);
-  const xUsers = sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
+  const xHumans = reports[43] ?? [];
+  const xUsers = humans ? sum(xHumans) + sum(reports[44] ?? [], unknownInApp) : sum(xSeen) + sum(reports[41] ?? [], unknownInApp);
   const clickers = sum(reports[39] ?? []);
   const xClickers = sum(reports[38] ?? []) + sum(reports[37] ?? [], unknownInApp);
   const fanzaClicks = sum(fanzaRows);
@@ -64,14 +75,16 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
     clickers,
     normalClickers: sum(reports[39] ?? [], (r) => isNormal(r.dimensions[0])),
     xUsers,
-    xNormalUsers: sum(xSeen, (r) => isNormal(r.dimensions[1])),
+    xNormalUsers: humans ? sum(xHumans, (r) => isNormal(r.dimensions[0])) : sum(xSeen, (r) => isNormal(r.dimensions[1])),
     xClickers,
     xNormalClickers: sum(reports[38] ?? [], (r) => isNormal(r.dimensions[0])),
     totalUsers,
     // 以前は流入元ごとの人数の合計（SNS・来た元不明を除く）＋ Bluesky だったため、X と足しても全体の人数と合わなかった（2026-10-27 ユーザー指摘）
     nonXUsers: Math.max(0, totalUsers - xUsers),
     nonXClickers: Math.max(0, clickers - xClickers),
-    topNonX: top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
+    inAppClickers: Math.min(clickers, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0])) + sum(reports[37] ?? [], unknownInApp)),
+    inAppClicks: Math.min(fanzaClicks, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0]), 1) + sum(reports[37] ?? [], unknownInApp, 1)),
+    topNonX: topHuman ? { channel: topHuman[0], users: topHuman[1] } : top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
   };
 }
 
@@ -179,12 +192,14 @@ export function OverlayChart({
   currentLabel,
   ghostLabel,
   summary,
+  titleAction,
 }: {
   title: string;
   slots: OverlaySlot[];
   currentLabel: string;
   ghostLabel: string;
   summary: React.ReactNode;
+  titleAction?: React.ReactNode; // 題名のすぐ右に置くボタン（「日別の表」。2026-10-28）
 }) {
   const [active, setActive] = useState<number | null>(null);
   const n = slots.length;
@@ -201,6 +216,7 @@ export function OverlayChart({
     <section className="rounded-lg bg-gray-800 border border-gray-700 p-3 mb-4 lg:mb-0 flex flex-col lg:flex-1 lg:min-h-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-sm font-bold">{title}</h2>
+        {titleAction}
         <div className="ml-auto text-xs text-gray-400">{summary}</div>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-gray-400">

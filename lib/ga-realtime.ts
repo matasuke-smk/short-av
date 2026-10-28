@@ -16,10 +16,11 @@ const JAPAN_ONLY_SINCE = Date.parse('2026-10-08T15:30:00+09:00');
 // 分ごとの記録（ga_realtime_minutes.events）を、すべてのイベントの回数から FANZA へのクリックの回数に変えた時刻（本番への反映 10/9 14時半ごろ）。
 // それより前の分の events はイベント全体の回数なので使わない（時間帯グラフの2つ目の数字を FANZA へのクリックにしたため）
 const CLICKS_SINCE = Date.parse('2026-10-09T14:45:00+09:00');
-const metrics = [{ name: 'activeUsers' }, { name: 'eventCount' }];
 // アクセス解析の標準は「日本のみ」なので、記録も日本からのアクセスだけにする（2026/10/8 から。
 // 「すべて」のときは GA の集計と大きいほうを使うので、海外の分は GA の集計が追いつくまで少なめに出る）
 const dimensionFilter = { filter: { fieldName: 'country', stringFilter: { value: 'Japan' } } };
+const humanMetrics = [{ name: 'eventCount' }];
+const humanFilter = { andGroup: { expressions: [dimensionFilter, { filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }] } };
 
 const jstParts = (ms: number) => {
   const d = new Date(ms + JST);
@@ -36,7 +37,9 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
     windows.push({ hour: prev.hour, date: prev.date, startMinutesAgo: 29, endMinutesAgo: intoHour + 1 });
   }
   const [perMinute, clicksPerMinute, ...hourly] = await Promise.all([
-    runRealtimeReport({ dimensions: [{ name: 'minutesAgo' }], metrics, dimensionFilter, limit: 30 }),
+    // 人数は人間（年齢確認を押した人）だけ（2026-10-28）。リアルタイムでは人数をイベントで絞れず「はい／いいえ」も分けられないので、
+    // 年齢確認が押された回数を人数として使う（年齢確認は1台につき1日1回なので、ほぼ人数になる）
+    runRealtimeReport({ dimensions: [{ name: 'minutesAgo' }], metrics: humanMetrics, dimensionFilter: humanFilter, limit: 30 }),
     // FANZA へのクリック（分ごと）。events にはこちらを記録する
     runRealtimeReport({
       dimensions: [{ name: 'minutesAgo' }],
@@ -45,7 +48,7 @@ export async function recordGaRealtime(): Promise<{ minutes: number; hours: numb
       dimensionFilter: { andGroup: { expressions: [dimensionFilter, { filter: { fieldName: 'eventName', inListFilter: { values: ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'] } } }] } },
       limit: 30,
     }),
-    ...windows.map((w) => runRealtimeReport({ metrics, dimensionFilter, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
+    ...windows.map((w) => runRealtimeReport({ metrics: humanMetrics, dimensionFilter: humanFilter, minuteRanges: [{ startMinutesAgo: w.startMinutesAgo, endMinutesAgo: w.endMinutesAgo }] })),
   ]);
 
   const supabase = getSupabaseAdmin();
