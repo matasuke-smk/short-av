@@ -1125,7 +1125,7 @@ function RangeBody({
             const month = sumOf(dmmReports.filter((r) => r.date.startsWith(thisMonth)));
             const lastSame = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth) && Number(r.date.slice(8, 10)) <= dom));
             const lastAll = sumOf(dmmReports.filter((r) => r.date.startsWith(lastMonth)));
-            const recent = Array.from({ length: 14 }, (_, i) => ymd(i + 1)).map((date) => ({ date, row: dmmReports.find((r) => r.date === date) }));
+            const recent = Array.from({ length: 28 }, (_, i) => ymd(i + 1)).map((date) => ({ date, row: dmmReports.find((r) => r.date === date) }));
             const latest = [...dmmReports].sort((a, b) => b.date.localeCompare(a.date))[0];
             return (
               <DetailModal title="FANZA 実績（DMM）" note="DMM の管理画面のレポートを「FANZA 実績」で保存した分。クリックは DMM 側の数（翌日に確定）。" onClose={closeDetail}>
@@ -1150,7 +1150,7 @@ function RangeBody({
                     </div>
                   ))}
                 </div>
-                <h3 className="text-sm font-bold mb-1">日ごと（直近14日）</h3>
+                <h3 className="text-sm font-bold mb-1">日ごと（直近28日）</h3>
                 <p className="text-xs text-gray-400 mb-2">
                   いちばん新しい記録: {latest ? latest.date : 'なし'}。「—」の日はまだ保存されていません。
                 </p>
