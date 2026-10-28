@@ -98,12 +98,25 @@ function Tiles({ data }: { data: DailyData }) {
   const clicks = FANZA_EVENTS.reduce((sum, n) => sum + (ev(n)?.yesterday ?? 0), 0);
   const clicksBefore = FANZA_EVENTS.reduce((sum, n) => sum + (ev(n)?.dayBefore ?? 0), 0);
   const dmm = data.dmm?.updated ? data.dmm : null;
+  // FANZA の報酬（自宅 Mac の自動点検が取った DMM の数字。今月は今日の分を引いて昨日までにする。2026-10-28 ユーザーの要望）
+  const site = (data.siteCheck?.data as { dmm?: { yesterday_yen?: number; yesterday_conversions?: number; today_yen?: number; month?: { yen?: number } } } | null)?.dmm;
+  const yenYesterday = typeof site?.yesterday_yen === 'number' ? site.yesterday_yen : null;
+  const yenMonth = typeof site?.month?.yen === 'number' ? site.month.yen - (site.today_yen ?? 0) : null;
+  const conversions = dmm ? dmm.direct + dmm.category + dmm.newCount : typeof site?.yesterday_conversions === 'number' ? site.yesterday_conversions : null;
   const tiles = [
     // 見出しは短く（カードの中で変な位置で改行しないように。2026-10-28 ユーザーの指摘）。細かい説明は指を乗せると出す
     { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
     { label: '再生', hint: 'サンプルの再生（日本）', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
     { label: 'FANZA クリック', hint: 'GA に記録された FANZA へのすべてのクリック（日本）', value: clicks, unit: '回', before: clicksBefore, sub: undefined },
-    { label: '成約', hint: 'DMM の管理画面の昨日の成約（ダイレクト・カテゴリ・サービス新規の合計）', value: dmm ? dmm.direct + dmm.category + dmm.newCount : null, unit: '件', before: undefined, sub: dmm ? undefined : 'まだ取れていない' },
+    {
+      label: '成約',
+      hint: 'DMM の管理画面の昨日の成約（ダイレクト・カテゴリ・サービス新規の合計）と報酬',
+      value: conversions,
+      unit: '件',
+      before: undefined,
+      sub: conversions === null ? 'まだ取れていない' : undefined,
+      lines: [yenYesterday !== null ? `報酬 ${fmt(yenYesterday)}円` : null, yenMonth !== null ? `今月 ${fmt(yenMonth)}円` : null].filter((x): x is string => x !== null),
+    },
   ];
   return (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -123,6 +136,9 @@ function Tiles({ data }: { data: DailyData }) {
               </div>
             )}
             {t.sub && <div className="whitespace-nowrap text-xs text-gray-400">{t.sub}</div>}
+            {'lines' in t && t.lines?.map((l) => (
+              <div key={l} className="whitespace-nowrap text-xs text-gray-300">{l}</div>
+            ))}
           </div>
         );
       })}
