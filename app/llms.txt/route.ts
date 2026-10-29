@@ -33,6 +33,22 @@ export function GET() {
 - [人気ランキング](${base}/ranking)
 - [記事一覧](${base}/articles)
 
+## よく聞かれることと、答えのページ
+
+ChatGPT などの AI からは、ほとんどの人がトップページに来ている。質問の中身に合うページを直接示せるよう、よくある質問と答えのページを並べる（2026-10-29）。
+
+- サンプル動画が長い（3分以上・4分以上）作品を探したい → ${base}/long-samples
+- 無料でアダルト動画のサンプルを見たい・登録なしで見たい → ${base}/
+- 女優の名前から作品のサンプルを探したい → ${base}/actress
+- ジャンル（人妻・巨乳など）から探したい → ${base}/genre
+- 今よく見られているサンプルを知りたい → ${base}/articles/popular-samples-this-week
+- 好みの作品の探し方を知りたい → ${base}/articles/how-to-choose-videos
+- FANZA を安く買う方法（セール・ポイント・見放題）→ ${base}/articles/fanza-save-money
+- FANZA TV（月額の見放題）とは・始め方・解約 → ${base}/articles/fanza-tv-guide
+- FANZA（DMM）での動画の買い方・支払い方法 → ${base}/articles/dmm-guide
+- このサイトの料金・データの保存・困ったとき → ${base}/articles/faq
+- サイズの平均・偏差値を知りたい → ${base}/articles/size-comparison-tool
+
 ## 記事
 
 ${articles}

@@ -29,6 +29,10 @@ export type DailyData = {
   mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
+  // ChatGPT から来た人（人間＝年齢確認で「はい」）と、ChatGPT のロボットが読んだ回数（昨日。2026-10-29 追加）。
+  // short-av の来る人の大半が ChatGPT からなので、減ったらすぐ気づけるように別に出す。
+  // drop: 昨日が7日平均の7割未満で、差が10人以上（コードで判定）。reads: ChatGPT-User（回答を作るときにその場で読んだ）、searchReads: OAI-SearchBot（検索用に集めた）
+  chatgpt?: { yesterday: number; dayBefore: number; week: number; reads: number; searchReads: number; drop: boolean };
   // FANZA へのクリックの比べ（2026-10-27）。DMM のクリックが GA の人のクリックより大きく多いときは、ロボットのクリックが混ざっている疑い。
   // gaJapan・gaAll: GA の FANZA へのクリック（作品のリンク・バナー・ウィジェット・クーポン・初めての人向け の合計）の日本だけ・全部の国。
   // dmm: DMM の昨日のクリック（dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail。どちらも無ければ null）。
@@ -96,6 +100,8 @@ const IN_APP_X = {
     ],
   },
 };
+// ChatGPT から来た訪問（来た元が chatgpt.com など）
+const FROM_CHATGPT = { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'chatgpt' } } };
 const HUMANS = { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }, { filter: { fieldName: 'customEvent:action', stringFilter: { value: 'はい' } } }] } };
 const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
 
@@ -143,7 +149,7 @@ async function loadBotRows(): Promise<{ bot: string }[]> {
 
 // 昨日の数字（アクセス解析・検索・Bing・昨日の取り込み・AI のロボット）。昨日の分は後から変わらないので、
 // 同じ日の要約を作り直すときは、前に取った分を使う（GA などに問い合わせ直さない。2026-10-26 ユーザーの要望）
-type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots'> & { importsYesterday: number; fanzaClicksAll: number; goBots: { bot: string; count: number }[]; goClicks: { humans: number; owner: number } | null };
+type StablePart = Pick<DailyData, 'shortav' | 'mens' | 'search' | 'bing' | 'bots' | 'chatgpt'> & { importsYesterday: number; fanzaClicksAll: number; goBots: { bot: string; count: number }[]; goClicks: { humans: number; owner: number } | null };
 
 export async function collectDailyData(): Promise<DailyData> {
   const y = jstDate(1);
@@ -151,9 +157,9 @@ export async function collectDailyData(): Promise<DailyData> {
   const { data: existing } = await supabase.from('daily_summaries').select('data').eq('date', y).maybeSingle();
   const prev = existing?.data as DailyData | null | undefined;
   const stable: StablePart =
-    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap && prev.clickGap.goHumans !== undefined && prev.shortav.inApp !== undefined
+    prev?.shortav && prev?.mens && prev?.search && prev?.bing && prev?.bots && prev?.imports && prev?.clickGap && prev.clickGap.goHumans !== undefined && prev.shortav.inApp !== undefined && prev.chatgpt !== undefined
       ? {
-          shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, importsYesterday: prev.imports.yesterday,
+          shortav: prev.shortav, mens: prev.mens, search: prev.search, bing: prev.bing, bots: prev.bots, chatgpt: prev.chatgpt, importsYesterday: prev.imports.yesterday,
           fanzaClicksAll: prev.clickGap.gaAll, goBots: prev.clickGap.goBots,
           goClicks: prev.clickGap.goHumans === null ? null : { humans: prev.clickGap.goHumans, owner: prev.clickGap.goOwner ?? 0 },
         }
@@ -163,7 +169,7 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv], [gptY, gptD, gptW]] = await Promise.all([
     runReports([
       // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
@@ -194,11 +200,17 @@ async function collectStable(y: string): Promise<StablePart> {
       { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
       { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, IN_APP_X, { filter: { fieldName: 'eventName', inListFilter: { values: ['video_view', ...FANZA_CLICK_EVENTS] } } }] } } },
     ]).catch(() => [[], [], []]),
+    // ChatGPT から来た人（人間）。昨日・一昨日・7日（日ごとに数えて足す）
+    runReports([
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, FROM_CHATGPT] } } },
+      { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, FROM_CHATGPT] } } },
+      { dateRanges: [{ startDate: jstDate(7), endDate: y }], dimensions: [{ name: 'date' }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, FROM_CHATGPT] } } },
+    ]).catch(() => [] as Awaited<ReturnType<typeof runReports>>), // 取れなければ chatgpt を入れない（gptY が無い）
   ]);
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
 
-  const [impY, botsRes, goBots, goClicks, searchShortav, searchMens, bingShortav, bingMens] = await Promise.all([
+  const [impY, botsRes, goBots, goClicks, searchShortav, searchMens, bingShortav, bingMens, gptReads] = await Promise.all([
     countImports(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     loadBotRows(),
     countGoBots(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
@@ -207,8 +219,11 @@ async function collectStable(y: string): Promise<StablePart> {
     collectSearch('mens', y),
     getBingStats('shortav', y),
     getBingStats('mens', y),
+    countBots(['ChatGPT-User', 'OAI-SearchBot'], `${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
   ]);
   const botCounts = new Map<string, number>();
+  const gptWeek = gptW ? Math.round(gptW.reduce((sum: number, r) => sum + r.metrics[0], 0) / 7) : 0;
+  const gptYesterday = gptY ? one(gptY) : 0;
   for (const r of botsRes) botCounts.set(r.bot, (botCounts.get(r.bot) ?? 0) + 1);
   return {
     shortav: {
@@ -233,6 +248,16 @@ async function collectStable(y: string): Promise<StablePart> {
     goBots,
     goClicks,
     bots: [...botCounts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, c]) => ({ bot, count: c })),
+    chatgpt: gptY
+      ? {
+          yesterday: gptYesterday,
+          dayBefore: gptD ? one(gptD) : 0,
+          week: gptWeek,
+          reads: gptReads['ChatGPT-User'] ?? 0,
+          searchReads: gptReads['OAI-SearchBot'] ?? 0,
+          drop: gptYesterday < gptWeek * 0.7 && gptWeek - gptYesterday >= 10,
+        }
+      : undefined,
     search: { shortav: searchShortav, mens: searchMens },
     bing: { shortav: bingShortav, mens: bingMens },
   };
@@ -248,6 +273,18 @@ async function countGoBots(from: string, to: string): Promise<{ bot: string; cou
     if (data.length < 1000) break;
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([bot, count]) => ({ bot, count }));
+}
+
+// 決めたロボットが期間内に読んだ回数（ロボットの名前ごと。ChatGPT のロボットの昨日の分に使う。2026-10-29）
+async function countBots(bots: string[], from: string, to: string): Promise<Record<string, number>> {
+  const result: Record<string, number> = {};
+  await Promise.all(
+    bots.map(async (bot) => {
+      const { count } = await getSupabaseAdmin().from('ai_bot_hits').select('id', { count: 'exact', head: true }).eq('bot', bot).gte('at', new Date(from).toISOString()).lt('at', new Date(to).toISOString());
+      result[bot] = count ?? 0;
+    }),
+  );
+  return result;
 }
 
 // 人が /go を通ったクリックの数（go_clicks、sql/024）。運営者の端末の分は分ける。表がまだ無いなど取れなければ null
@@ -329,6 +366,7 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
     mens: stable.mens,
     imports: { yesterday: stable.importsYesterday, today: impT },
     bots: stable.bots,
+    chatgpt: stable.chatgpt,
     dmm,
     clickGap: {
       dmm: dmmClicks, byId, gaJapan, gaAll, goHumans, goOwner: stable.goClicks?.owner ?? null,
@@ -367,6 +405,7 @@ Short AV（アクセス解析）
 ・昨日: 人数（年齢確認で「はい」を押した人。「訪問 ○人」ではなく「来た人 ○人」と書く）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
 ・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
 ・サンプル終了時の案内（sampleEnd）の表示とクリック
+・ChatGPT から（chatgpt があるときは必ず1行）:「ChatGPT から来た人 ○人（一昨日 ○人・7日平均 ○人）、ChatGPT が回答のために読んだ回数 ○回（reads）」。chatgpt.drop が true のときは、悪い点の先頭にも「ChatGPT から来た人が ○人（7日平均 ○人）に減った」を書き、対応は「ChatGPT が読んだ回数（reads）が減っていなければ、ChatGPT 側の紹介の揺れの可能性。2日続けば、読まれているページ（トップ・よくある質問）の中身と /llms.txt を確かめる。reads も減っていれば、サイトがロボットを止めていないか（Cloudflare の設定・robots.txt）を確かめる」と書く。short-av の来る人の大半は ChatGPT からなので、この行は省かない
 
 男のからだ研究室（アクセス解析）
 ・昨日: 人数（訪問）と主な来た元（多い順に3つまで）
