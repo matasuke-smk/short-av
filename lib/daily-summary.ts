@@ -2,7 +2,7 @@ import { runReports, MENSLAB_PROPERTY_ID } from '@/lib/ga-data';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { askClaude, estimateYen, CLAUDE_MODEL } from '@/lib/claude';
 import { gscQuery, type GscSite } from '@/lib/gsc-data';
-import { getBingStats, getVercelStats, getDbSize, type BingStats, type VercelStats } from '@/lib/ops-data';
+import { getBingStats, getVercelStats, getCloudflareStats, getDbSize, type BingStats, type VercelStats, type CloudflareStats } from '@/lib/ops-data';
 import { checkShadowbans, type ShadowbanResult } from '@/lib/x-shadowban';
 
 /**
@@ -46,6 +46,8 @@ export type DailyData = {
   // Bing の検索・Vercel の公開の失敗・データベースの大きさ（キーが未設定なら null。2026-10-26 追加）
   bing: Record<GscSite, BingStats | null>;
   vercel: VercelStats | null;
+  // Cloudflare Workers の今月のリクエスト数など（CLOUDFLARE_API_TOKEN が無ければ null。2026-10-29 追加。Vercel から移すため）
+  cloudflare?: CloudflareStats | null;
   database: { mb: number; percentOfFree: number } | null;
   // X のシャドウバンの確認（今朝と、前回の要約のときの結果。2026-10-26 追加）
   xShadowban: { now: ShadowbanResult[]; previous: ShadowbanResult[] | null };
@@ -299,10 +301,11 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
   const prevShadow = prev?.xShadowban?.now;
   // 確認できなかった（error）か、検索・検索候補がどちらも判定できなかった（unknown）ときは、作り直すときに確認し直す
   const shadowOk = prevShadow && prevShadow.length > 0 && prevShadow.every((r) => !('error' in r) && !(r.search === 'unknown' && r.suggestion === 'unknown'));
-  const [impT, dmmRes, vercel, database, shadowban, previousSummary, pages, unmeasured, siteCheckRes] = await Promise.all([
+  const [impT, dmmRes, vercel, cloudflare, database, shadowban, previousSummary, pages, unmeasured, siteCheckRes] = await Promise.all([
     countImports(`${jstDate(0)}T00:00:00+09:00`, `${jstDate(-1)}T00:00:00+09:00`),
     supabase.from('dmm_reports').select('clicks, direct_count, category_count, new_count, updated_at').eq('date', y).maybeSingle(),
     getVercelStats(),
+    getCloudflareStats(),
     getDbSize(),
     shadowOk ? Promise.resolve(prevShadow) : checkShadowbans().catch((error) => [{ account: '-', error: String(error) }] as ShadowbanResult[]),
     // 前回の要約の材料（シャドウバンの変化を見るため）
@@ -338,6 +341,7 @@ async function collectFresh(y: string, stable: StablePart, prev: DailyData | nul
     search: stable.search,
     bing: stable.bing,
     vercel,
+    cloudflare,
     database,
     pages,
     unmeasuredSamples: unmeasured.count ?? null,
@@ -399,7 +403,10 @@ X
 ・xShadowban: Short AV（short_av_dmm）と男のからだ研究室（mens_sizelab）のそれぞれについて、検索バン（search）・検索候補バン（suggestion）を「問題なし／制限あり／判定できず」で。error なら「確認できなかった（明日もう一度）」。previous と比べて変わった項目（解除・新しく制限）があれば必ず書く
 
 Vercel
-・vercel.billing があれば「今の請求期間（billing.from から）の利用料金 ○ドル（多い順に項目を2つまで）」。Pro の月の利用枠は 20 ドルで、15 ドルを超えたら注意として書く。billing が無ければ「料金を取れなかった」
+・vercel.billing があれば「今の請求期間（billing.from から）の利用料金 ○ドル（多い順に項目を2つまで）」。Pro の月の利用枠は 20 ドルで、15 ドルを超えたら注意として書く。billing が無ければ「料金を取れなかった」。vercel が null なら、この見出しごと書かない（Cloudflare へ移したあと）
+
+Cloudflare
+・cloudflare があれば「今月（cloudflare.from から）のリクエスト ○回（月の込み分 cloudflare.includedRequests 回の ○%）」と、workers ごとに「名前: ○回・エラー ○回・CPU 中央値 ○ms」。込み分の 80% を超えたら注意として書く。errors が requests の 1% を超えた Worker があれば悪い点に書く。cloudflare が無い（null か項目なし）なら、この見出しごと書かない
 
 Supabase
 ・データベースの大きさ: database.mb MB（無料の上限 500MB の database.percentOfFree%）

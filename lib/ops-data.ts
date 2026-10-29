@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
  * - Bing の検索からのクリック・表示（Bing Webmaster の API キー BING_WEBMASTER_API_KEY）
  * - Vercel の公開の失敗（アクセストークン VERCEL_API_TOKEN。チームは VERCEL_TEAM_ID、なければ matasuke チーム）
  * - Supabase のデータベースの大きさ（sql/021_db_size.sql の db_size_bytes()。無料プランの上限は 500MB）
+ * - Cloudflare Workers の今月のリクエスト数など（読み取り専用の API トークン CLOUDFLARE_API_TOKEN。アカウントは CLOUDFLARE_ACCOUNT_ID、なければ Bechan のアカウント。2026-10-29）
  * キーや関数がないときは null を返し、要約はその項目を飛ばす
  */
 
@@ -101,6 +102,64 @@ export async function getVercelStats(): Promise<VercelStats | null> {
     };
   } catch (error) {
     console.error('[ops-data] vercel', error);
+    return null;
+  }
+}
+
+const DEFAULT_CF_ACCOUNT_ID = '4c9f9d6a836c5eef08c86b9a95b577e5';
+// Workers Paid（月5ドル）に含まれるリクエスト数（月1,000万。超えた分は100万ごとに0.30ドル）
+const CF_INCLUDED_REQUESTS = 10_000_000;
+
+export type CloudflareStats = {
+  from: string;
+  requests: number;
+  includedRequests: number;
+  // Worker ごと（short-av・mens-size-lab）。cpuP50Ms / cpuP99Ms は1回の処理の CPU 時間（ミリ秒）の中央値と上位1%
+  workers: { name: string; requests: number; errors: number; cpuP50Ms: number; cpuP99Ms: number }[];
+};
+
+/** Cloudflare Workers の今月（1日から、UTC）のリクエスト数とエラー・CPU 時間（GraphQL の workersInvocationsAdaptive） */
+export async function getCloudflareStats(): Promise<CloudflareStats | null> {
+  const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  if (!token) return null;
+  try {
+    const account = process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || DEFAULT_CF_ACCOUNT_ID;
+    const now = new Date();
+    const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const query = `query ($account: String!, $from: Time!, $to: Time!) {
+      viewer { accounts(filter: { accountTag: $account }) {
+        workersInvocationsAdaptive(limit: 100, filter: { datetime_geq: $from, datetime_leq: $to }) {
+          sum { requests errors }
+          quantiles { cpuTimeP50 cpuTimeP99 }
+          dimensions { scriptName }
+        }
+      } }
+    }`;
+    const res = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables: { account, from: from.toISOString(), to: now.toISOString() } }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) throw new Error(`Cloudflare ${res.status}`);
+    type Row = { sum: { requests: number; errors: number }; quantiles: { cpuTimeP50: number; cpuTimeP99: number }; dimensions: { scriptName: string } };
+    const data = (await res.json()) as { data?: { viewer?: { accounts?: { workersInvocationsAdaptive?: Row[] }[] } }; errors?: { message: string }[] | null };
+    if (data.errors?.length) throw new Error(data.errors.map((e) => e.message).join(' / '));
+    const rows = data.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? [];
+    // CPU 時間はマイクロ秒で返る
+    const ms = (us: number) => Math.round((us / 1000) * 10) / 10;
+    const workers = rows
+      .map((r) => ({ name: r.dimensions.scriptName, requests: r.sum.requests, errors: r.sum.errors, cpuP50Ms: ms(r.quantiles.cpuTimeP50), cpuP99Ms: ms(r.quantiles.cpuTimeP99) }))
+      .sort((a, b) => b.requests - a.requests);
+    return {
+      from: from.toISOString().slice(0, 10),
+      requests: workers.reduce((sum, w) => sum + w.requests, 0),
+      includedRequests: CF_INCLUDED_REQUESTS,
+      workers,
+    };
+  } catch (error) {
+    console.error('[ops-data] cloudflare', error);
     return null;
   }
 }
