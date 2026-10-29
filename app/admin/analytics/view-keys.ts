@@ -1,7 +1,8 @@
 // 画面のボタン（上の段に3つ、下の段に2つ）。サーバー（page.tsx）でも使うため、'use client' の AnalyticsView とは別のファイルに置く
 // （サーバーのコンポーネントからは 'use client' のファイルの値を読めず、管理画面がエラーになった）
 // 2026-10-26: 「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つに（週間平均・曜日ごとの平均はユーザーが使っていない）
-export const VIEW_KEYS = ['today', 'month'] as const;
+// 2026-10-29: 「昨日」（一昨日と比べる）を追加。0時を過ぎると前の日の数字が見られなくなるため（ユーザーの要望）
+export const VIEW_KEYS = ['today', 'yesterday', 'month'] as const;
 export type ViewKey = (typeof VIEW_KEYS)[number];
 
 // 「日本のみ｜すべて」（標準は日本のみ。URL の country=all で海外も含める）

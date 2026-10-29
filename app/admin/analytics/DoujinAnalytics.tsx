@@ -26,7 +26,7 @@ export default function DoujinAnalytics({
 }: {
   compareReports: ReportRow[][] | null; // 比べる相手（「今日」は昨日、「今月」は先月の同じ日まで）。読み込み中は null
   compareDays: number; // 比べる相手の日数
-  mode: 'today' | 'month';
+  mode: 'today' | 'yesterday' | 'month';
   reports: ReportRow[][];
   daily: ReportRow[] | null;
   info: Info;
@@ -113,7 +113,10 @@ export default function DoujinAnalytics({
         const c = compareReports;
         const cGet = (i: number, event: string) => (c ? get(c[i] ?? [], event) : null);
         const isToday = mode === 'today';
-        const cmp = (unit: string, v: number[] | null, i = 0) => (v === null ? '比べる数字を読み込み中…' : `${isToday ? '昨日' : '先月の同じ日まで'} ${fmt(v[i])}${unit}`);
+        // 「昨日」は一昨日と比べる（2026-10-29）
+        const isDay = mode !== 'month';
+        const ghostName = isToday ? '昨日' : isDay ? '一昨日' : '先月の同じ日まで';
+        const cmp = (unit: string, v: number[] | null, i = 0) => (v === null ? '比べる数字を読み込み中…' : `${ghostName} ${fmt(v[i])}${unit}`);
         const cards: TopCardProps[] = [
           {
             label: 'FANZA へのクリック（同人誌）',
@@ -182,7 +185,7 @@ export default function DoujinAnalytics({
           const g = ghostRows.find((r) => Number(r.dimensions[0]) === x.h)?.metrics ?? [0, 0];
           return {
             tick: x.h % 3 === 0 ? String(x.h) : '',
-            name: `${x.h}時台${isToday ? '' : '（1日平均）'}`,
+            name: `${x.h}時台${isDay ? '' : '（1日平均）'}`,
             users: x.users / days,
             clicks: x.events / days,
             ghostUsers: (g[0] ?? 0) / compareDays,
@@ -194,10 +197,10 @@ export default function DoujinAnalytics({
           <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
             <TopCards cards={cards} />
             <OverlayChart
-              title={isToday ? '時間帯ごとの同人誌の利用者と FANZA へのクリック' : '時間帯ごとの同人誌の利用者と FANZA へのクリック（1日平均）'}
+              title={isDay ? '時間帯ごとの同人誌の利用者と FANZA へのクリック' : '時間帯ごとの同人誌の利用者と FANZA へのクリック（1日平均）'}
               slots={slots}
-              currentLabel={isToday ? '今日' : '今月'}
-              ghostLabel={isToday ? '昨日' : '先月'}
+              currentLabel={isToday ? '今日' : isDay ? '昨日' : '今月'}
+              ghostLabel={isToday ? '昨日' : isDay ? '一昨日' : '先月'}
               summary={
                 <>
                   合計{' '}
