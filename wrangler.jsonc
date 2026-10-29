@@ -23,9 +23,16 @@
       "bucket_name": "short-av-cache"
     }
   ],
-  // 定期実行（UTC。vercel.json の crons と同じ。呼ぶ API は worker.ts の CRON_PATHS）
+  // 定期実行（UTC。vercel.json の crons と同じ。呼ぶ API は worker.ts の CRON_PATHS）。
+  // 試しの URL の間は Vercel と2重に動かないよう空にしておく。本番をつなぎ替えて Vercel の crons を止めるときに、次の7つを入れる:
+  // "30 21 * * *", "40 21 * * *", "*/10 * * * *", "0 1 * * *", "50 21 * * *", "0 22 * * *", "0 1 * * 1"
   "triggers": {
-    "crons": ["30 21 * * *", "40 21 * * *", "*/10 * * * *", "0 1 * * *", "50 21 * * *", "0 22 * * *", "0 1 * * 1"]
+    "crons": []
+  },
+  // 記録（ログ）を残す。ロボット・/go・定期実行の失敗を Cloudflare の画面（Workers の Observability）で調べるため。Vercel の requests ログの代わり
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
   },
   // 1回の処理で使える計算時間（Workers Paid のみ。最大5分。作品の取り込み・要約の作成は長い。Vercel の maxDuration は最大300秒）
   "limits": {
