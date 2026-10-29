@@ -35,8 +35,6 @@ export const landscapeBannerIds: string[] = isCampaignActive()
   ? [`${campaignBanner.id}_640_200`, '1082_640_200', `${campaignBanner.id}_640_200`, '1277_640_200']
   : baseLandscapeBannerIds;
 
-/** ChatGPT から来た人への案内（app/components/ChatGptWelcome.tsx）に出す 300x250 の公式バナー。キャンペーン中はそれ、終わったら FANZA TV */
-export const welcomeBannerId = (now = Date.now()) => (isCampaignActive(now) ? `${campaignBanner.id}_300_250` : '1277_300_250');
 
 /**
  * 縦長バナー（160x600）のバナーID

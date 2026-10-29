@@ -2,17 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { sendGAEvent } from '@/lib/gtag';
-import { welcomeBannerId } from '@/config/banners';
-import DMMBanner from './DMMBanner';
-import { isSale10yenActive } from '@/config/sale-10yen';
 import { useIsOverseas } from '@/lib/useCountry';
 
 /**
  * ChatGPT から来た人にだけ、最初の画面に小さく出す「初めての方へ」の案内（2026-10-27）。
- * ChatGPT からの訪問は 10/16 から増えていて（1日 50人台）、来た人のほとんどがトップを開くので、
- * 新規の人に効く公式バナーを1枚すぐ見せる（キャンペーン中は10円セール、終わったら FANZA TV。config/banners.ts の welcomeBannerId）。
  * 1回の訪問で1度だけ。閉じたらその訪問の間は出さない。日本以外の人には出さない（国外の購入は報酬にならない）。
- * 表示は GA の chatgpt_welcome（show）、押した回数は DMMBanner の fanza_banner_click（バナーの ID 付き）で数える
+ * 2026-10-29: 公式バナー（300x250）は 10/16〜28 に102回出てクリック0だったため、サンプルが4分以上の作品をスワイプで見る案内に変えた
+ * （ChatGPT から来た人は長いサンプルを探していることが多い。下のボタン「4分以上」と同じ並べ直しをその場で行う）。
+ * 表示は GA の chatgpt_welcome（show）、押したら chatgpt_welcome（click）と、並べ直しの nav_button（4分以上）で数える
  */
 const SEEN_KEY = 'chatgpt_welcome_seen';
 
@@ -26,7 +23,7 @@ const fromChatGpt = () => {
   }
 };
 
-export default function ChatGptWelcome() {
+export default function ChatGptWelcome({ onShowLongSamples }: { onShowLongSamples: () => void }) {
   const isOverseas = useIsOverseas();
   const [show, setShow] = useState(false);
 
@@ -54,17 +51,19 @@ export default function ChatGptWelcome() {
           ✕
         </button>
       </div>
-      {/* 公式バナー（300x250）。キャンペーン中は10円セール、終わったら FANZA TV（config/banners.ts の welcomeBannerId）。
-          押した回数は DMMBanner の中で fanza_banner_click として数える */}
-      <div className="mx-auto w-full max-w-[300px] aspect-[300/250] overflow-hidden rounded-lg">
-        <DMMBanner bannerId={welcomeBannerId()} className="h-full w-full" />
-      </div>
-      {isSale10yenActive() && (
-        <a href="/sale/10yen" className="mt-1.5 block text-center text-xs font-bold text-amber-300 underline">
-          10円セールの対象作品のサンプルを見る
-        </a>
-      )}
-      <p className="mt-1.5 text-center text-[11px] text-gray-400">上下にスワイプすると、サンプル動画を次々と見られます（無料・登録不要）</p>
+      <p className="text-xs leading-relaxed text-gray-300">上下にスワイプすると、サンプル動画を次々と見られます（無料・登録不要）。</p>
+      <button
+        type="button"
+        onClick={() => {
+          sendGAEvent('chatgpt_welcome', { action: 'click' });
+          setShow(false);
+          onShowLongSamples();
+        }}
+        className="mt-2 block w-full rounded-lg bg-amber-500 px-3 py-2.5 text-center text-sm font-bold text-black hover:bg-amber-400"
+      >
+        サンプルが4分以上の作品を見る
+      </button>
+      <p className="mt-1.5 text-center text-[11px] text-gray-400">下のボタン「4分以上」からも、いつでも見られます</p>
     </div>
   );
 }
