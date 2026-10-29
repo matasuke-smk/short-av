@@ -45,3 +45,8 @@ next-env.d.ts
 
 # DMM API documentation
 DMM-API.xlsx
+
+# Cloudflare（OpenNext）
+.open-next
+.dev.vars
+.wrangler

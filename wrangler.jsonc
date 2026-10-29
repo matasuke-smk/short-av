@@ -1,0 +1,34 @@
+{
+  // Cloudflare Workers の設定（2026-10-29 Vercel からの移行の準備。OpenNext で組み立てる。まだ本番のドメインにはつながない）
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // 入口は worker.ts（ページの表示は OpenNext、定期実行は worker.ts の scheduled）
+  "main": "worker.ts",
+  "name": "short-av",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "short-av"
+    }
+  ],
+  // 作り直しのあるページと unstable_cache の保存先（open-next.config.ts の r2IncrementalCache）
+  "r2_buckets": [
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "short-av-cache"
+    }
+  ],
+  // 定期実行（UTC。vercel.json の crons と同じ。呼ぶ API は worker.ts の CRON_PATHS）
+  "triggers": {
+    "crons": ["30 21 * * *", "40 21 * * *", "*/10 * * * *", "0 1 * * *", "50 21 * * *", "0 22 * * *", "0 1 * * 1"]
+  },
+  // 1回の処理で使える計算時間（Workers Paid のみ。最大5分。作品の取り込み・要約の作成は長い。Vercel の maxDuration は最大300秒）
+  "limits": {
+    "cpu_ms": 300000
+  }
+}

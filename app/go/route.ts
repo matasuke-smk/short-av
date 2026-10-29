@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { isBotUserAgent, isGoTarget, withGoAffiliateId } from '@/lib/go-link';
 import { recordGoClick } from '@/lib/go-clicks';
+import { getClientCountry } from '@/lib/request-info';
 
 /**
  * FANZA（DMM）へ転送する（lib/go-link.ts の goHref で作ったリンクの行き先）。
@@ -25,7 +26,7 @@ export function GET(request: NextRequest) {
     recordGoClick({
       target: destination,
       owner: request.cookies.get('sav_admin_ui')?.value === '1',
-      country: request.headers.get('x-vercel-ip-country'),
+      country: getClientCountry(request),
       referer: request.headers.get('referer'),
       userAgent,
     }),

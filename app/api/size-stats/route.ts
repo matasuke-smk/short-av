@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { isValidUserId } from '@/lib/user-id';
 import { generateStatsHTML, getSizeStatisticsRows, summarizeSizeStatistics } from '@/lib/sizeStats';
+import { getClientIp } from '@/lib/request-info';
 
 // 統計データは常に最新を取得するため、キャッシュを無効化
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ const IP_LIMIT_DAYS = 30;
  * 秘密の値は SIZE_STATS_IP_SECRET（未設定ならサーバー専用のキー）を使う
  */
 function hashClientIp(request: NextRequest): string | null {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip');
+  const ip = getClientIp(request);
   const secret = process.env.SIZE_STATS_IP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!ip || !secret) return null;
   return createHmac('sha256', secret).update(ip).digest('hex');

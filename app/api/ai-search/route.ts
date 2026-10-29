@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseSearchQuery } from '@/lib/ai-search';
+import { getClientIp } from '@/lib/request-info';
 
 /**
  * 利用者向け: 言葉を検索の条件に変える。POST { q }
@@ -20,7 +21,7 @@ function allowed(ip: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  const ip = getClientIp(request) || 'unknown';
   if (!allowed(ip)) return NextResponse.json({ error: '少し待ってからもう一度お試しください' }, { status: 429 });
   const { q } = (await request.json().catch(() => ({}))) as { q?: unknown };
   const text = typeof q === 'string' ? q.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
