@@ -105,10 +105,12 @@ function Tiles({ data }: { data: DailyData }) {
   const conversions = dmm ? dmm.direct + dmm.category + dmm.newCount : typeof site?.yesterday_conversions === 'number' ? site.yesterday_conversions : null;
   // アプリ内（X のアプリの中で完結）・他（それ以外）の内訳。管理画面の FANZA のカードと同じ分け方（2026-10-28 ユーザーの要望「ここだけ違うと混乱する」）
   const inApp = data.shortav.inApp;
-  const split = (total: number, part: number | undefined) => (inApp && part !== undefined ? `アプリ内 ${fmt(part)}・他 ${fmt(Math.max(0, total - part))}` : undefined);
+  // other を渡したときは他をその数にする（人数は同じ人が両方に入るので引き算にしない。2026-10-30）。回数は引き算で合う
+  const split = (total: number, part: number | undefined, other?: number) =>
+    inApp && part !== undefined ? `アプリ内 ${fmt(part)}・他 ${fmt(other ?? Math.max(0, total - part))}` : undefined;
   const tiles = [
     // 見出しは短く（カードの中で変な位置で改行しないように。2026-10-28 ユーザーの指摘）。細かい説明は指を乗せると出す
-    { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, breakdown: split(y, inApp?.users), sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
+    { label: '来た人', hint: 'Short AV・日本・年齢確認で「はい」を押した人', value: y, unit: '人', before: d2, breakdown: split(y, inApp?.users, inApp?.otherUsers), sub: avg !== undefined ? `7日平均 ${fmt(avg)}人` : undefined },
     { label: '再生', hint: 'サンプルの再生（日本）', value: plays?.yesterday ?? 0, unit: '回', before: plays?.dayBefore, breakdown: split(plays?.yesterday ?? 0, inApp?.plays), sub: plays ? `7日平均 ${fmt(plays.week)}回` : undefined },
     { label: 'FANZA クリック', hint: 'GA に記録された FANZA へのすべてのクリック（日本）', value: clicks, unit: '回', before: clicksBefore, breakdown: split(clicks, inApp?.clicks), sub: undefined },
     {

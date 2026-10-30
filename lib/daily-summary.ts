@@ -23,7 +23,8 @@ export type DailyData = {
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
     sampleEnd: { show: number; click: number };
     // X のアプリの中（アプリ内ブラウザで、来た元が X か記録なし）の分。昨日のレポートのカードの「アプリ内 ○・他 ○」に使う（2026-10-28。無い記録もある）
-    inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number };
+    // otherUsers: X のアプリの中以外の人数（人間）。同じ人が両方に入ることがあるので「来た人 − アプリ内」で出さない（2026-10-30。無い記録もある）
+    inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number; otherUsers?: number };
   };
   // adClicks: 男のからだ研究室の広告（A8）が押された回数（GA の ad_click、全部の国。A8 は海外のクリックも数えるので比べるときはこちら。2026-10-28 追加）
   mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number };
@@ -169,7 +170,7 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv], [gptY, gptD, gptW]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv, otherY], [gptY, gptD, gptW]] = await Promise.all([
     runReports([
       // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
@@ -199,7 +200,8 @@ async function collectStable(y: string): Promise<StablePart> {
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
       { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
       { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, IN_APP_X, { filter: { fieldName: 'eventName', inListFilter: { values: ['video_view', ...FANZA_CLICK_EVENTS] } } }] } } },
-    ]).catch(() => [[], [], []]),
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, { notExpression: IN_APP_X }] } } },
+    ]).catch(() => [[], [], [], []]),
     // ChatGPT から来た人（人間）。昨日・一昨日・7日（日ごとに数えて足す）
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, FROM_CHATGPT] } } },
@@ -240,6 +242,7 @@ async function collectStable(y: string): Promise<StablePart> {
         usersDayBefore: one(inAppD),
         plays: find(inAppEv, 'video_view'),
         clicks: inAppEv.filter((r) => FANZA_CLICK_EVENTS.includes(r.dimensions[0])).reduce((sum, r) => sum + r.metrics[0], 0),
+        ...(otherY && otherY.length > 0 ? { otherUsers: one(otherY) } : {}),
       },
     },
     mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })), adClicks: one(mAd) },
