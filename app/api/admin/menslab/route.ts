@@ -36,6 +36,27 @@ async function loadA8Daily(): Promise<Map<string, A8Day>> {
   return map;
 }
 
+// 日別の /go（A8 の広告への入口）を通った人・断ったロボットの数（mens_go_clicks、sql/025。2026-10-30）。日は日本時間。
+// A8 のクリックがこれより大きく多い日は、/go を通らずに A8 のリンクを直接開いたクリック。表がまだ無ければ空
+type GoDay = { humans: number; bots: number };
+async function loadGoDaily(): Promise<Map<string, GoDay>> {
+  const map = new Map<string, GoDay>();
+  const since = new Date(Date.now() - 29 * 86_400_000).toISOString();
+  for (let offset = 0; offset < 50_000; offset += 1000) {
+    const { data, error } = await getSupabaseAdmin().from('mens_go_clicks').select('at, blocked').gte('at', since).order('at').range(offset, offset + 999);
+    if (error || !data) break;
+    for (const r of data as { at: string; blocked: boolean }[]) {
+      const day = new Date(new Date(r.at).getTime() + 9 * 3_600_000).toISOString().slice(0, 10);
+      const g = map.get(day) ?? { humans: 0, bots: 0 };
+      if (r.blocked) g.bots += 1;
+      else g.humans += 1;
+      map.set(day, g);
+    }
+    if (data.length < 1000) break;
+  }
+  return map;
+}
+
 export async function GET() {
   const dateRanges = [RANGE];
   const desc = (metric: string) => [{ metric: { metricName: metric }, desc: true }];
@@ -56,9 +77,10 @@ export async function GET() {
     { dateRanges, dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }], metrics: [{ name: 'screenPageViews' }], dimensionFilter: JP, orderBys: desc('screenPageViews'), limit: 300 },
   ];
   try {
-    const [[totals, daily, dailySources, dailyAds, pages, sources, adPages, devices, titleRows], a8Daily] = await Promise.all([
+    const [[totals, daily, dailySources, dailyAds, pages, sources, adPages, devices, titleRows], a8Daily, goDaily] = await Promise.all([
       runReports(requests, MENSLAB_PROPERTY_ID),
       loadA8Daily().catch(() => new Map<string, A8Day>()),
+      loadGoDaily().catch(() => new Map<string, GoDay>()),
     ]);
     // URL ごとの題名（いちばん多く表示された題名。末尾のサイト名は外す）
     const titles: Record<string, string> = {};
@@ -83,7 +105,7 @@ export async function GET() {
       const key = d.replaceAll('-', '');
       const [users = 0, views = 0] = byDate.get(key) ?? [];
       const g = groupsByDate.get(key) ?? { search: 0, ai: 0, x: 0 };
-      return { date: d, users, ...g, views, adClicks: adsByDate.get(key) ?? 0, a8Clicks: a8Daily.get(d)?.clicks ?? null, a8Yen: a8Daily.get(d)?.yen ?? null };
+      return { date: d, users, ...g, views, adClicks: adsByDate.get(key) ?? 0, goHumans: goDaily.get(d)?.humans ?? null, goBots: goDaily.get(d)?.bots ?? null, a8Clicks: a8Daily.get(d)?.clicks ?? null, a8Yen: a8Daily.get(d)?.yen ?? null };
     });
     const rows = (r: typeof pages) => r.map((x) => ({ key: x.dimensions[0], values: x.metrics }));
     return NextResponse.json({
@@ -95,6 +117,8 @@ export async function GET() {
         x: days.reduce((sum, d) => sum + d.x, 0),
         views: totals[0]?.metrics[1] ?? 0,
         adClicks: days.reduce((sum, d) => sum + d.adClicks, 0),
+        goHumans: days.reduce((sum, d) => sum + (d.goHumans ?? 0), 0),
+        goBots: days.reduce((sum, d) => sum + (d.goBots ?? 0), 0),
         a8Clicks: days.reduce((sum, d) => sum + (d.a8Clicks ?? 0), 0),
         a8Yen: days.reduce((sum, d) => sum + (d.a8Yen ?? 0), 0),
       },
