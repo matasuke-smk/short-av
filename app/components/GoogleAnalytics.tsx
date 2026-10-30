@@ -33,6 +33,23 @@ export default function GoogleAnalytics() {
               || /\\.vercel\\.app$|^localhost$|^127\\.0\\.0\\.1$/.test(location.hostname);
           } catch (e) {}
 
+          // どのアプリの中のブラウザか（GA の browser では X も Yahoo!ブラウザーも同じ「Android Webview」になるため、ブラウザの名乗りから判定して
+          // すべてのイベントに app_browser として付ける。GA のカスタム ディメンションに登録して使う。2026-10-30 ユーザーの判断 D 案）
+          try {
+            var ua = navigator.userAgent;
+            var app = /YJApp/.test(ua) ? 'yahoo'
+              : /\\bLine\\//.test(ua) ? 'line'
+              : /Instagram/.test(ua) ? 'instagram'
+              : /FBAN|FBAV|FB_IAB/.test(ua) ? 'facebook'
+              : /Twitter/.test(ua) ? 'x'
+              : /ChatGPT|OpenAI/i.test(ua) ? 'chatgpt'
+              : /GSA\\//.test(ua) ? 'google_app'
+              : /musical_ly|BytedanceWebview|TikTok/.test(ua) ? 'tiktok'
+              : /; wv\\)/.test(ua) ? 'other_webview'
+              : 'none';
+            gtag('set', { app_browser: app });
+          } catch (e) {}
+
           gtag('config', '${measurementId}', internal ? { traffic_type: 'internal' } : {});
 `;
 

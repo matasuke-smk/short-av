@@ -30,12 +30,16 @@ export type KeyNumbers = {
   nonXClicks: number; // = 全体のクリック回数 − X
   totalUsers: number; // 期間全体の人数（GA の重複を除いた人数）
   nonXUsers: number; // X 以外から来た人 = 全体 − X から来た人（来た元が記録されなかった人も含む。X ＋ X 以外 ＝ 全体 になるように。2026-10-27）
-  nonXClickers: number; // = 押した人 − X から来て押した人
+  nonXClickers: number; // X 以外から来て押した人（X 以外の行の人数を足す。X からも来た人は両方に入る。2026-10-30）
   topNonX: { channel: string; users: number } | null;
   // X のアプリの中で FANZA を押した人・回数（アプリ内ブラウザで、来た元が X か記録なしの人）。それ以外（X から開き直した人を含む見込み客）＝全体 − これ。
   // FANZA のカードの「押した人」「内訳」に使う（2026-10-28 ユーザーの判断「弾くのは X で完結した人」。利用者数（日別）の表と同じ分け方）
   inAppClickers: number;
   inAppClicks: number;
+  // それ以外（他）で押した人。以前は「押した人 − アプリ内」の引き算で、同じ人が両方に入ると「他 0人・24回」になった（2026-10-30 ユーザー指摘）。
+  // GA では人ごとの内訳が取れないので、両方の側をそれぞれの行から数え、両方に入った人数を overlapClickers に出す（ユーザーの判断 B 案）
+  otherClickers: number;
+  overlapClickers: number;
 };
 
 /** 1つの期間のレポートから、カードの数字を出す（レポートの番号は data.ts の loadGa） */
@@ -66,6 +70,19 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
   const clickers = sum(reports[39] ?? []);
   const xClickers = sum(reports[38] ?? []) + sum(reports[37] ?? [], unknownInApp);
   const fanzaClicks = sum(fanzaRows);
+  // 37 の行を X のアプリの中・X・それ以外に分けて人数を数える（38 は来た元が X の人だけなので、Organic Social の行から X の分を引いて X 以外の SNS を出す）
+  const isOrganicSocial = (r: ReportRow) => r.dimensions[0] === 'Organic Social';
+  const xInAppClickers = sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0]));
+  const socialInApp = sum(reports[37] ?? [], (r) => isOrganicSocial(r) && !isNormal(r.dimensions[1]));
+  const otherClickers = Math.min(
+    clickers,
+    sum(reports[37] ?? [], (r) => !unknownInApp(r) && !(isOrganicSocial(r) && !isNormal(r.dimensions[1]))) + Math.max(0, socialInApp - xInAppClickers),
+  );
+  const nonXClickers = Math.min(
+    clickers,
+    sum(reports[37] ?? [], (r) => !unknownInApp(r) && !isOrganicSocial(r)) + Math.max(0, sum(reports[37] ?? [], isOrganicSocial) - sum(reports[38] ?? [])),
+  );
+  const inAppClickers = Math.min(clickers, xInAppClickers + sum(reports[37] ?? [], unknownInApp));
   const xClicks = sum(reports[38] ?? [], undefined, 1) + sum(reports[37] ?? [], unknownInApp, 1);
   return {
     fanzaClicks,
@@ -81,9 +98,11 @@ export function keyNumbers(reports: ReportRow[][]): KeyNumbers {
     totalUsers,
     // 以前は流入元ごとの人数の合計（SNS・来た元不明を除く）＋ Bluesky だったため、X と足しても全体の人数と合わなかった（2026-10-27 ユーザー指摘）
     nonXUsers: Math.max(0, totalUsers - xUsers),
-    nonXClickers: Math.max(0, clickers - xClickers),
-    inAppClickers: Math.min(clickers, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0])) + sum(reports[37] ?? [], unknownInApp)),
+    nonXClickers,
+    inAppClickers,
     inAppClicks: Math.min(fanzaClicks, sum(reports[38] ?? [], (r) => !isNormal(r.dimensions[0]), 1) + sum(reports[37] ?? [], unknownInApp, 1)),
+    otherClickers,
+    overlapClickers: Math.max(0, inAppClickers + otherClickers - clickers),
     topNonX: topHuman ? { channel: topHuman[0], users: topHuman[1] } : top ? { channel: top.dimensions[0], users: top.metrics[1] } : null,
   };
 }

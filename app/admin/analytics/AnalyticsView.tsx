@@ -928,7 +928,8 @@ function RangeBody({
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
                 // アプリ内（X のアプリの中で完結した人）と他（X から開き直した人を含む見込み客）で分ける（2026-10-28 ユーザーの判断。文字は短く「アプリ内」「他」）
-                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(Math.max(0, now.clickers - now.inAppClickers))}人）`],
+                // 他の人数は引き算でなく他の行から数える。同じ人が両方に入ったときは「重なり ○人」を添える（2026-10-30 ユーザー指摘「クリック数と押した人が合っていない」、B 案）
+                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(now.otherClickers)}人${now.overlapClickers > 0 ? `・重なり ${fmtOverview(now.overlapClickers)}人` : ''}）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
                 // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
                 ['内訳', `アプリ内 ${fmtOverview(now.inAppClicks)}回・他 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isDay && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],

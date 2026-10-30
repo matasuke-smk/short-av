@@ -23,10 +23,12 @@ export type DailyData = {
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
     sampleEnd: { show: number; click: number };
     // X のアプリの中（アプリ内ブラウザで、来た元が X か記録なし）の分。昨日のレポートのカードの「アプリ内 ○・他 ○」に使う（2026-10-28。無い記録もある）
-    inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number };
+    // otherUsers: X のアプリの中以外の人数（人間）。同じ人が両方に入ることがあるので「来た人 − アプリ内」で出さない（2026-10-30。無い記録もある）
+    inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number; otherUsers?: number };
   };
   // adClicks: 男のからだ研究室の広告（A8）が押された回数（GA の ad_click、全部の国。A8 は海外のクリックも数えるので比べるときはこちら。2026-10-28 追加）
-  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number };
+  // go: /go（A8 の広告への入口）に来た人・断ったロボットの数（mens_go_clicks、sql/025。2026-10-30 追加。表が無ければ入れない）
+  mens: { sessions: Row[]; sources: { source: string; yesterday: number }[]; adClicks?: number; go?: { humans: number; bots: number } };
   imports: { yesterday: number; today: number };
   bots: { bot: string; count: number }[];
   // ChatGPT から来た人（人間＝年齢確認で「はい」）と、ChatGPT のロボットが読んだ回数（昨日。2026-10-29 追加）。
@@ -169,7 +171,7 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv], [gptY, gptD, gptW]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv, otherY], [gptY, gptD, gptW]] = await Promise.all([
     runReports([
       // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
@@ -199,7 +201,8 @@ async function collectStable(y: string): Promise<StablePart> {
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
       { dateRanges: [{ startDate: d2, endDate: d2 }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, IN_APP_X] } } },
       { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, IN_APP_X, { filter: { fieldName: 'eventName', inListFilter: { values: ['video_view', ...FANZA_CLICK_EVENTS] } } }] } } },
-    ]).catch(() => [[], [], []]),
+      { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, { notExpression: IN_APP_X }] } } },
+    ]).catch(() => [[], [], [], []]),
     // ChatGPT から来た人（人間）。昨日・一昨日・7日（日ごとに数えて足す）
     runReports([
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: { andGroup: { expressions: [HUMANS, FROM_CHATGPT] } } },
@@ -210,11 +213,12 @@ async function collectStable(y: string): Promise<StablePart> {
   const one = (rows: { metrics: number[] }[]) => rows[0]?.metrics[0] ?? 0;
   const find = (rows: { dimensions: string[]; metrics: number[] }[], key: string) => rows.find((r) => r.dimensions[0] === key)?.metrics[0] ?? 0;
 
-  const [impY, botsRes, goBots, goClicks, searchShortav, searchMens, bingShortav, bingMens, gptReads] = await Promise.all([
+  const [impY, botsRes, goBots, goClicks, mensGo, searchShortav, searchMens, bingShortav, bingMens, gptReads] = await Promise.all([
     countImports(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     loadBotRows(),
     countGoBots(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     countGoClicks(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
+    countMensGo(`${y}T00:00:00+09:00`, `${jstDate(0)}T00:00:00+09:00`),
     collectSearch('shortav', y),
     collectSearch('mens', y),
     getBingStats('shortav', y),
@@ -240,9 +244,10 @@ async function collectStable(y: string): Promise<StablePart> {
         usersDayBefore: one(inAppD),
         plays: find(inAppEv, 'video_view'),
         clicks: inAppEv.filter((r) => FANZA_CLICK_EVENTS.includes(r.dimensions[0])).reduce((sum, r) => sum + r.metrics[0], 0),
+        ...(otherY && otherY.length > 0 ? { otherUsers: one(otherY) } : {}),
       },
     },
-    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })), adClicks: one(mAd) },
+    mens: { sessions: [{ label: '昨日', value: one(mS) }], sources: mSrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0] })), adClicks: one(mAd), ...(mensGo ? { go: mensGo } : {}) },
     importsYesterday: impY,
     fanzaClicksAll: one(fanzaAll),
     goBots,
@@ -295,6 +300,15 @@ async function countGoClicks(from: string, to: string): Promise<{ humans: number
   // 表が無いとき、件数だけ取る問い合わせはエラーにならず count が null で返る（2026-10-27 確認）
   if (humans.error || owner.error || humans.count === null || owner.count === null) return null;
   return { humans: humans.count, owner: owner.count };
+}
+
+// 男のからだ研究室の /go に来た人・断ったロボットの数（mens_go_clicks、sql/025）。表がまだ無いなど取れなければ null
+async function countMensGo(from: string, to: string): Promise<{ humans: number; bots: number } | null> {
+  const range = (blocked: boolean) =>
+    getSupabaseAdmin().from('mens_go_clicks').select('id', { count: 'exact', head: true }).eq('blocked', blocked).gte('at', new Date(from).toISOString()).lt('at', new Date(to).toISOString());
+  const [humans, bots] = await Promise.all([range(false), range(true)]);
+  if (humans.error || bots.error || humans.count === null || bots.count === null) return null;
+  return { humans: humans.count, bots: bots.count };
 }
 
 // DMM の昨日のクリック。dmm_reports が昨日の終わり後に保存済みならそれ、無ければ site_checks の yesterday_detail（日付が昨日のときだけ）
@@ -426,7 +440,7 @@ FANZA（DMM）
 
 A8
 ・siteCheck.data.a8 の今月と昨日の 表示・クリック・成果・報酬、審査待ちの数（あれば）。error なら「取れなかった（理由を短く）」
-・昨日の行の続きに「人が広告を押した回数（GA）○回」を書く（mens.adClicks。無ければ書かない）。A8 の昨日のクリックが mens.adClicks の2倍以上で差が10回以上なら、悪い点にも「A8 のクリック（○回）が、人が広告を押した回数（○回）より多い（ロボットの疑い）→ 対応: 10/28 から広告のリンクは入口（/go）でロボットを断っている。続くようなら時間ごとの記録を調べるよう依頼」を書く
+・昨日の行の続きに「人が広告を押した回数（GA）○回」を書く（mens.adClicks。無ければ書かない）。mens.go があれば続けて「入口（/go）を通った人○回・断ったロボット○回」も書く。A8 の昨日のクリックが mens.adClicks の2倍以上で差が10回以上なら、悪い点にも「A8 のクリック（○回）が、人が広告を押した回数（○回）より多い（ロボットの疑い）→ 対応: 10/28 から広告のリンクは入口（/go）でロボットを断っている。続くようなら時間ごとの記録を調べるよう依頼」を書く。mens.go があり、A8 の昨日のクリックが mens.go.humans より10回以上多いときは、対応を「入口（/go）を通らずに A8 のリンクを直接開いたクリックの疑い。開発者に調べるよう依頼」にする
 
 DLsite
 ・siteCheck.data.dlsite の今月のクリック・売上。error なら「取れなかった」
