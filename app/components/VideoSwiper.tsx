@@ -610,6 +610,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setScrollSeq((n) => n + 1);
   }, [videos]);
 
+  // 同人誌の「新着」（「4分以上」の位置。新しく出た順の40冊をスワイプで読む。2026-10-31）
+  const showDoujinNew = useCallback(async () => {
+    if (longLoading) return;
+    setLongLoading(true);
+    trackNavButton('doujin_new');
+    try {
+      const res = await fetch('/api/doujin/new');
+      const list: Doujin[] = res.ok ? ((await res.json()).doujin ?? []) : [];
+      if (list.length > 0) replaceWithDoujin(list, list[0].contentId);
+    } finally {
+      setLongLoading(false);
+    }
+  }, [longLoading, replaceWithDoujin]);
+
   useLayoutEffect(() => {
     const target = pendingScrollRef.current;
     if (!emblaApi || target === null) return;
@@ -1672,17 +1686,16 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <span className="text-xs lg:!text-sm">{t('saved')}</span>
           </button>
 
-          {doujinMode ? null : (
+          {/* 同人誌のときは「4分以上」の代わりに「新着」（ボタンの数を変えないため。2026-10-31 ユーザーの希望） */}
           <button
-            onClick={showLongSamples}
+            onClick={doujinMode ? showDoujinNew : showLongSamples}
             className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all active:scale-95"
           >
             <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={doujinMode ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z'} />
             </svg>
-            <span className="text-xs lg:!text-sm">{longLoading ? '…' : t('longSample4')}</span>
+            <span className="text-xs lg:!text-sm">{longLoading ? '…' : doujinMode ? t('newArrivals') : t('longSample4')}</span>
           </button>
-          )}
 
           {/* メニューボタンは右側の切り替えの隣（右上）へ移した。メニューは右から出るので、左にボタンがあると分かりにくかった（2026-10-31 ユーザーの指摘） */}
         </div>
@@ -1737,7 +1750,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
 
           {/* ボタンエリア - 5つに変更、レスポンシブ対応 */}
-          <div className={`grid ${doujinMode ? 'grid-cols-4' : 'grid-cols-5'} gap-3 md:gap-4`}>
+          <div className="grid grid-cols-5 gap-3 md:gap-4">
             {/* 検索ボタン */}
             <button
               onClick={() => {
@@ -1805,17 +1818,16 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <span className="text-xs md:text-sm">{t('saved')}</span>
             </button>
 
-            {doujinMode ? null : (
+            {/* 同人誌のときは「4分以上」の代わりに「新着」（ボタンの数を変えないため。2026-10-31 ユーザーの希望） */}
             <button
-              onClick={showLongSamples}
+              onClick={doujinMode ? showDoujinNew : showLongSamples}
               className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all active:scale-95"
             >
               <svg className="w-6 h-6 md:w-7 md:h-7 mb-1 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={doujinMode ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z'} />
               </svg>
-              <span className="text-xs md:text-sm">{longLoading ? '…' : t('longSample4')}</span>
+              <span className="text-xs md:text-sm">{longLoading ? '…' : doujinMode ? t('newArrivals') : t('longSample4')}</span>
             </button>
-            )}
           </div>
 
           {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31）。

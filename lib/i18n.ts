@@ -44,6 +44,7 @@ const DICT = {
   menu: { ja: 'メニュー', en: 'Menu', zhHant: '選單', zhHans: '菜单', id: 'Menu', th: 'เมนู', ko: '메뉴' },
   featureLength: { ja: '本編', en: 'Length', zhHant: '正片', zhHans: '正片', id: 'Durasi', th: 'ความยาว', ko: '본편' },
   similarPopular: { ja: '似た作品の人気（{genre}）', en: 'Popular in {genre}', zhHant: '{genre} 熱門作品', zhHans: '{genre} 热门作品', id: 'Populer di {genre}', th: 'ยอดนิยมใน {genre}', ko: '{genre} 인기작' },
+  newArrivals: { ja: '新着', en: 'New', zhHant: '新作', zhHans: '新作', id: 'Baru', th: 'ใหม่', ko: '신작' },
   circle: { ja: 'サークル', en: 'Circle', zhHant: '社團', zhHans: '社团', id: 'Circle', th: 'เซอร์เคิล', ko: '서클' },
   samplePages: { ja: '{n}ページ', en: '{n} pages', zhHant: '{n} 頁', zhHans: '{n} 页', id: '{n} halaman', th: '{n} หน้า', ko: '{n}페이지' },
   productCode: { ja: '品番', en: 'Code', zhHant: '番號', zhHans: '番号', id: 'Kode', th: 'รหัส', ko: '품번' },
