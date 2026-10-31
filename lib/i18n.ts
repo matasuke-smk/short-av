@@ -15,6 +15,7 @@ type Entry = Record<Lang, string>;
 const DICT = {
   // 「動画｜同人誌」の切り替え
   modeVideo: { ja: '動画', en: 'Videos', zhHant: '影片', zhHans: '视频', id: 'Video', th: 'วิดีโอ', ko: '동영상' },
+  modeAnime: { ja: 'アニメ', en: 'Anime', zhHant: '動畫', zhHans: '动画', id: 'Anime', th: 'อนิเมะ', ko: '애니' },
   modeDoujin: { ja: '同人誌', en: 'Doujin', zhHant: '同人誌', zhHans: '同人志', id: 'Doujin', th: 'โดจิน', ko: '동인지' },
   modeToggle: { ja: '動画と同人誌の切り替え', en: 'Switch between videos and doujin', zhHant: '切換影片與同人誌', zhHans: '切换视频与同人志', id: 'Beralih video dan doujin', th: 'สลับวิดีโอและโดจิน', ko: '동영상/동인지 전환' },
   // 下・左のボタン

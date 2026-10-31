@@ -86,6 +86,7 @@ interface VideoSwiperProps {
   videoPool: Video[]; // 動画プール（全データ）
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
+  animeMode?: boolean; // ?mode=anime: アニメの作品を並べる（2026-10-31）
   doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌モード（先頭はその作品。同人誌だけを並べる）
   doujinOnly?: boolean; // 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき: doujinList の同人誌だけを並べる（動画は挟まない・補充しない）
 }
@@ -112,10 +113,10 @@ function getPlayerSize(isLandscape: boolean): { width: number; height: number } 
   return { width: w, height: Math.floor(w / PLAYER_RATIO) };
 }
 
-// サンプル動画の URL から、画面に合う大きさのプレイヤー（/api/sample-player）の URL を作る
 // 表示中の作品の先、何作品分のプレイヤーを先に読み込んでおくか（2026-10-31）
 const PLAYER_PRELOAD = 2;
 
+// サンプル動画の URL から、画面に合う大きさのプレイヤー（/api/sample-player）の URL を作る
 function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: number }): string {
   const cid = sampleUrl.match(/\/cid=([0-9a-z_]+)\//)?.[1];
   if (!cid) return removeAffiliateIdFromUrl(sampleUrl);
@@ -155,7 +156,7 @@ function doujinSlides(doujins: Doujin[], base: Video, slides: Map<string, Doujin
 // 指を離したときにこれ以上動いていれば次・前の作品へ進める（速さに関係なく）
 const SWIPE_MIN_PX = 60;
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, doujinOnly = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, animeMode: initialAnimeMode = false, doujinOnly = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -199,9 +200,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌（サーバーで取得した一覧）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList] = useState<Doujin[]>(initialDoujinList);
-  // 「動画｜同人誌」: 動画モード（動画だけ）か、同人誌モード（同人誌だけ）か。上の切り替えで変える
-  const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
+  // 「動画｜アニメ｜同人誌」: 動画モード（動画だけ）・アニメモード（アニメだけ。2026-10-31）・同人誌モード（同人誌だけ）。上の切り替えで変える
+  const [mode, setMode] = useState<'video' | 'anime' | 'doujin'>(initialDoujinMode ? 'doujin' : initialAnimeMode ? 'anime' : 'video');
   const doujinMode = mode === 'doujin';
+  const animeMode = mode === 'anime';
+  // アニメの補充用の残り（/api/anime から60本ずつ取り、20本ずつ足す）
+  const animePoolRef = useRef<Video[]>([]);
   // 10円セールの期間中は、下のボタンの「人気」を「¥10 セール」（アイコンが ¥10、文字が「セール」。特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
   const showSaleButton = !doujinMode && !isOverseas && enableAffiliateLinks && isSale10yenActive();
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
@@ -477,8 +481,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
     setIsLoadingMore(true);
     try {
+      // アニメモード: アニメだけを足す（動画のプールは使わない）
+      if (animeMode) {
+        if (animePoolRef.current.length < 20) {
+          const shown = videos.map((v) => v.dmm_content_id).slice(-300).join(',');
+          const response = await fetch(`/api/anime?limit=60&exclude=${encodeURIComponent(shown)}`);
+          if (!response.ok) throw new Error(`アニメの補充の取得に失敗: ${response.status}`);
+          animePoolRef.current = [...animePoolRef.current, ...((await response.json()).pool ?? [])];
+        }
+        const next = animePoolRef.current.slice(0, 20);
+        animePoolRef.current = animePoolRef.current.slice(20);
+        if (next.length > 0) setVideos((prev) => [...prev, ...next]);
+        else refillBlockedUntilRef.current = Date.now() + 30_000;
       // プールに残りがある場合
-      if (poolIndex < videoPool.length) {
+      } else if (poolIndex < videoPool.length) {
         const nextVideos = videoPool.slice(poolIndex, poolIndex + 20);
         setVideos(prev => [...prev, ...nextVideos]);
         setPoolIndex(prev => prev + 20);
@@ -516,7 +532,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos, isLoadingMore, videoPool, poolIndex]);
+  }, [videos, isLoadingMore, videoPool, poolIndex, animeMode]);
 
   // 検索・ランキング・いいね・履歴・女優の一覧に切り替える
   // 以前は古いスライドのまま reInit し、150ms 後にアニメーション付きで移動していたため、一瞬別の動画が見えていた。
@@ -908,6 +924,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <ActionRow
         size={size}
         actresses={rowActresses}
+        studio={currentVideo.kind === 'anime' ? currentVideo.maker ?? null : undefined}
         hasActress={!!currentVideo.actress_ids?.length}
         liked={likedVideos.has(currentVideo.dmm_content_id)}
         reviewCount={currentVideo.review_count}
@@ -1025,31 +1042,45 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // 「動画｜同人誌」を切り替える。同人誌モードは一覧の同人誌を先頭から、動画モードは切り替える前の並び・位置に戻す。
   // URL の mode も書き換える（再読み込みしても同じほう）
-  const switchMode = useCallback((next: 'video' | 'doujin') => {
+  const switchMode = useCallback(async (next: 'video' | 'anime' | 'doujin') => {
     if (next === mode) return;
     trackModeSwitch(next);
     const url = new URL(window.location.href);
     url.searchParams.delete('d');
     url.searchParams.delete('v');
-    if (next === 'doujin') url.searchParams.set('mode', 'doujin');
-    else url.searchParams.delete('mode');
+    if (next === 'video') url.searchParams.delete('mode');
+    else url.searchParams.set('mode', next);
     // 検索などの一覧を見ているときは、通常の画面を読み直す
     if (isFiniteList) {
       window.location.href = url.toString();
       return;
     }
-    window.history.replaceState(window.history.state, '', url.toString());
+    // 動画モードから離れるときは、動画の並びと位置を覚えておく（戻ったときに同じ場所から続ける）
+    if (mode === 'video') {
+      const real = videos.filter((v) => !isDoujinSlide(v));
+      if (real.length > 0) videoModeBackupRef.current = { videos: real, index: Math.min(currentIndex, real.length - 1) };
+    }
     let nextVideos: Video[];
     let nextIndex = 0;
     if (next === 'doujin') {
-      const real = videos.filter((v) => !isDoujinSlide(v));
-      if (real.length > 0) videoModeBackupRef.current = { videos: real, index: Math.min(currentIndex, real.length - 1) };
-      const base = real[0] ?? initialVideos[0] ?? videos[0];
+      const base = videoModeBackupRef.current?.videos[0] ?? initialVideos[0] ?? videos[0];
       if (doujinList.length === 0 || !base) {
         window.location.href = url.toString();
         return;
       }
       nextVideos = doujinSlides(doujinList, base, doujinBySlideRef.current);
+    } else if (next === 'anime') {
+      // アニメは切り替えたときに取りに行く（2026-10-31）
+      try {
+        const response = await fetch('/api/anime?limit=60');
+        const pool: Video[] = response.ok ? ((await response.json()).pool ?? []) : [];
+        if (pool.length === 0) throw new Error('アニメが取れない');
+        nextVideos = pool.slice(0, 20);
+        animePoolRef.current = pool.slice(20);
+      } catch {
+        window.location.href = url.toString();
+        return;
+      }
     } else {
       const backup = videoModeBackupRef.current;
       nextVideos = backup && backup.videos.length > 0 ? backup.videos : initialVideos;
@@ -1059,6 +1090,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         return;
       }
     }
+    window.history.replaceState(window.history.state, '', url.toString());
     setMode(next);
     pendingScrollRef.current = nextIndex;
     setVideos(nextVideos);
@@ -1084,17 +1116,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </button>
     </div>
   ) : (
-    <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label={t('modeToggle')}>
-      {(['video', 'doujin'] as const).map((key) => (
+    <div className={`inline-flex rounded-full bg-gray-800/90 p-0.5 font-bold ${compact ? 'text-xs' : 'text-sm'}`} role="tablist" aria-label={t('modeToggle')}>
+      {(['video', 'anime', 'doujin'] as const).map((key) => (
         <button
           key={key}
           type="button"
           role="tab"
           aria-selected={mode === key}
           onClick={() => switchMode(key)}
-          className={`rounded-full px-4 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+          // スマホの上の帯（compact）は、左のサイト名と重ならないよう文字と幅を小さく（3つに増えたため。2026-10-31）
+          className={`rounded-full ${compact ? 'px-2 py-1' : 'px-4 py-1'} transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : key === 'anime' ? 'bg-violet-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
         >
-          {key === 'video' ? t('modeVideo') : t('modeDoujin')}
+          {key === 'video' ? t('modeVideo') : key === 'anime' ? t('modeAnime') : t('modeDoujin')}
         </button>
       ))}
     </div>
@@ -1378,7 +1411,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <button
                       onClick={() => {
                         // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                        window.location.href = doujinMode ? '/?mode=doujin' : '/';
+                        window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
@@ -1629,7 +1662,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             onClick={() => {
               // トップを読み直して通常のフィード（新しい動画セット）に戻る（押した記録を送ってから移る）
               trackNavButton('home');
-              window.location.href = doujinMode ? '/?mode=doujin' : '/';
+              window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -1766,7 +1799,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <button
               onClick={() => {
                 // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                window.location.href = doujinMode ? '/?mode=doujin' : '/';
+                window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >

@@ -10,10 +10,14 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const cid = new URL(request.url).searchParams.get('cid') ?? '';
+  const params = new URL(request.url).searchParams;
+  const cid = params.get('cid') ?? '';
   if (!/^[0-9a-z_]{1,64}$/.test(cid)) return NextResponse.json({ error: 'bad cid' }, { status: 400 });
+  // アニメ（&floor=anime）はアニメの売り場で聞き、アニメの表に書き戻す（2026-10-31）
+  const anime = params.get('floor') === 'anime';
+  const table = anime ? 'anime_videos' : 'videos';
   try {
-    const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid, hits: 1 });
+    const res = await fetchDMMProducts({ service: 'digital', floor: anime ? 'anime' : 'videoa', cid, hits: 1 });
     const it = res.result?.items?.[0];
     if (!it) return NextResponse.json({ found: false });
     const info = {
@@ -26,9 +30,9 @@ export async function GET(request: Request) {
     };
     // 違っていればデータベースも直す（失敗しても表示はする）
     const supabase = getSupabaseAdmin();
-    const { data: row } = await supabase.from('videos').select('price, list_price, campaign_end, review_count, review_average').eq('dmm_content_id', cid).maybeSingle();
+    const { data: row } = await supabase.from(table).select('price, list_price, campaign_end, review_count, review_average').eq('dmm_content_id', cid).maybeSingle();
     if (row && (row.price !== info.price || row.list_price !== info.list_price || (row.campaign_end ? new Date(row.campaign_end).toISOString() : null) !== info.campaign_end || row.review_count !== info.review_count || Number(row.review_average ?? -1) !== info.review_average)) {
-      await supabase.from('videos').update({ ...info, price_checked_at: new Date().toISOString() }).eq('dmm_content_id', cid);
+      await supabase.from(table).update({ ...info, price_checked_at: new Date().toISOString() }).eq('dmm_content_id', cid);
     }
     return NextResponse.json({ found: true, ...info }, { headers: { 'Cache-Control': 'public, max-age=600' } });
   } catch (e) {

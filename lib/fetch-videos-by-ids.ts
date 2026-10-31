@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { fetchAnimeByContentIds } from '@/lib/anime';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // PostgREST の URL 長・1000件上限に収まるよう分割して問い合わせる
@@ -32,6 +33,11 @@ export async function fetchVideosByIds<T extends { id: string; dmm_content_id: s
   };
   await query('id', uuids);
   await query('dmm_content_id', contentIds);
+  // 動画の表に無い作品番号は、アニメの表も探す（アニメのいいね・履歴。2026-10-31）
+  const missing = contentIds.filter((id) => !byKey.has(id));
+  for (const row of (await fetchAnimeByContentIds(missing, columns).catch(() => [])) as unknown as T[]) {
+    byKey.set(row.dmm_content_id, row);
+  }
 
   const seen = new Set<string>();
   const result: T[] = [];

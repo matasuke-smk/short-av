@@ -199,8 +199,8 @@ export const trackJuicyAdsClick = (zone: number) => {
 };
 
 // 「動画｜同人誌」の切り替え
-export const trackModeSwitch = (mode: 'video' | 'doujin') => {
-  sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : '動画' });
+export const trackModeSwitch = (mode: 'video' | 'anime' | 'doujin') => {
+  sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : mode === 'anime' ? 'アニメ' : '動画' });
 };
 
 // モーダル開閉イベント
