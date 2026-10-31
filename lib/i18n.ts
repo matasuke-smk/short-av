@@ -15,6 +15,7 @@ type Entry = Record<Lang, string>;
 const DICT = {
   // 「動画｜同人誌」の切り替え
   modeVideo: { ja: '動画', en: 'Videos', zhHant: '影片', zhHans: '视频', id: 'Video', th: 'วิดีโอ', ko: '동영상' },
+  modeAnime: { ja: 'アニメ', en: 'Anime', zhHant: '動畫', zhHans: '动画', id: 'Anime', th: 'อนิเมะ', ko: '애니' },
   modeDoujin: { ja: '同人誌', en: 'Doujin', zhHant: '同人誌', zhHans: '同人志', id: 'Doujin', th: 'โดจิน', ko: '동인지' },
   modeToggle: { ja: '動画と同人誌の切り替え', en: 'Switch between videos and doujin', zhHant: '切換影片與同人誌', zhHans: '切换视频与同人志', id: 'Beralih video dan doujin', th: 'สลับวิดีโอและโดจิน', ko: '동영상/동인지 전환' },
   // 下・左のボタン
@@ -41,6 +42,7 @@ const DICT = {
   noActressInfo: { ja: '女優情報なし', en: 'No cast info', zhHant: '無女優資訊', zhHans: '无女优信息', id: 'Tanpa info', th: 'ไม่มีข้อมูล', ko: '배우 정보 없음' },
   andOthers: { ja: 'ほか', en: '+', zhHant: '等', zhHans: '等', id: 'dkk', th: 'และอื่นๆ', ko: '외' },
   menu: { ja: 'メニュー', en: 'Menu', zhHant: '選單', zhHans: '菜单', id: 'Menu', th: 'เมนู', ko: '메뉴' },
+  productCode: { ja: '品番', en: 'Code', zhHant: '番號', zhHans: '番号', id: 'Kode', th: 'รหัส', ko: '품번' },
   maker: { ja: 'メーカー', en: 'Studio', zhHant: '片商', zhHans: '片商', id: 'Studio', th: 'ค่าย', ko: '제작사' },
   label: { ja: 'レーベル', en: 'Label', zhHant: '廠牌', zhHans: '厂牌', id: 'Label', th: 'ค่ายย่อย', ko: '레이블' },
   series: { ja: 'シリーズ', en: 'Series', zhHant: '系列', zhHans: '系列', id: 'Seri', th: 'ซีรีส์', ko: '시리즈' },
@@ -54,6 +56,9 @@ const DICT = {
   reviewsUnit: { ja: '件', en: '', zhHant: '則', zhHans: '条', id: '', th: '', ko: '건' },
   // 女優の詳細・女優一覧（2026-10-31）
   birthday: { ja: '生年月日', en: 'Born', zhHant: '生日', zhHans: '生日', id: 'Lahir', th: 'วันเกิด', ko: '생년월일' },
+  back: { ja: '戻る', en: 'Back', zhHant: '返回', zhHans: '返回', id: 'Kembali', th: 'กลับ', ko: '뒤로' },
+  hoursLeft: { ja: 'あと{n}時間', en: '{n}h left', zhHant: '剩 {n} 小時', zhHans: '剩 {n} 小时', id: '{n} jam lagi', th: 'เหลือ {n} ชม.', ko: '{n}시간 남음' },
+  minutesLeft: { ja: 'あと{n}分', en: '{n} min left', zhHant: '剩 {n} 分鐘', zhHans: '剩 {n} 分钟', id: '{n} menit lagi', th: 'เหลือ {n} นาที', ko: '{n}분 남음' },
   ageUnit: { ja: '歳', en: ' y/o', zhHant: '歲', zhHans: '岁', id: ' th', th: ' ปี', ko: '세' },
   height: { ja: '身長', en: 'Height', zhHant: '身高', zhHans: '身高', id: 'Tinggi', th: 'ส่วนสูง', ko: '키' },
   sizes: { ja: 'サイズ', en: 'Sizes', zhHant: '三圍', zhHans: '三围', id: 'Ukuran', th: 'สัดส่วน', ko: '사이즈' },

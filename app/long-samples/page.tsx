@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { productCode } from '@/lib/product-code';
 import Link from 'next/link';
 import BrowseLinks from '@/app/components/BrowseLinks';
 import { CONTACT_FORM_URL, EXTRA_LONG_SAMPLE_SECONDS, LONG_SAMPLE_SECONDS } from '@/config/site';
@@ -60,7 +61,7 @@ function VideoGrid({ videos, badge }: { videos: Row[]; badge: (v: Row, i: number
             <p className="mt-1.5 text-xs leading-snug line-clamp-2 text-gray-200 group-hover:text-white">{v.title}</p>
             {(v.maker || v.release_date) && (
               <p className="mt-0.5 text-[11px] text-gray-500 truncate">
-                {[v.maker, v.release_date ? v.release_date.slice(0, 10).replace(/-/g, '/') : null].filter(Boolean).join('・')}
+                {[productCode(v.dmm_content_id), v.maker, v.release_date ? v.release_date.slice(0, 10).replace(/-/g, '/') : null].filter(Boolean).join('・')}
               </p>
             )}
           </Link>

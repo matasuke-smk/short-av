@@ -31,6 +31,7 @@ type Work = { dmm_content_id: string; title: string; thumbnail_url: string; samp
 type Props = {
   actress: ActressInfo;
   onClose: () => void;
+  onBack?: () => void; // 女優一覧・作品詳細から開いたとき、その画面へ戻る
   onSwipeWorks: (actressId: string, startContentId?: string) => void;
   enableAffiliateLinks: boolean;
   t: (key: TextKey, vars?: Record<string, string | number>) => string;
@@ -45,7 +46,7 @@ const ageOf = (birth: string) => {
   return age;
 };
 
-export default function ActressDetailSheet({ actress, onClose, onSwipeWorks, enableAffiliateLinks, t }: Props) {
+export default function ActressDetailSheet({ actress, onClose, onBack, onSwipeWorks, enableAffiliateLinks, t }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [works, setWorks] = useState<Work[] | null>(null);
   const [total, setTotal] = useState<number | null>(null);
@@ -115,8 +116,13 @@ export default function ActressDetailSheet({ actress, onClose, onSwipeWorks, ena
         style={sheetStyle}
         ref={panelRef}
       >
-        <div data-sheet-handle className="flex justify-center py-3 lg:hidden">
-          <span className="h-1.5 w-12 rounded-full bg-gray-600" />
+        <div data-sheet-handle className={`relative flex justify-center py-3 ${onBack ? 'lg:justify-start lg:px-6 lg:pb-0 lg:pt-4' : 'lg:hidden'}`}>
+          <span className="h-1.5 w-12 rounded-full bg-gray-600 lg:hidden" />
+          {onBack && (
+            <button type="button" onClick={onBack} className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded-full px-2 py-1 text-sm font-bold text-violet-200 active:bg-white/10 lg:static lg:translate-y-0 lg:px-0 hover:text-white">
+              <span className="text-lg leading-none">‹</span> {t('back')}
+            </button>
+          )}
         </div>
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 lg:px-6 lg:pt-5">
           <div className="flex items-start gap-4" data-sheet-handle>

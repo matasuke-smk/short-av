@@ -24,6 +24,8 @@ import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
+import WorkGapInfo from './WorkGapInfo';
+import AnimeListModal from './AnimeListModal';
 import DoujinReader from './DoujinReader';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
@@ -86,6 +88,7 @@ interface VideoSwiperProps {
   videoPool: Video[]; // 動画プール（全データ）
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
+  animeMode?: boolean; // ?mode=anime: アニメの作品を並べる（2026-10-31）
   doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌モード（先頭はその作品。同人誌だけを並べる）
   doujinOnly?: boolean; // 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき: doujinList の同人誌だけを並べる（動画は挟まない・補充しない）
 }
@@ -111,6 +114,9 @@ function getPlayerSize(isLandscape: boolean): { width: number; height: number } 
   const w = Math.max(200, Math.floor(width));
   return { width: w, height: Math.floor(w / PLAYER_RATIO) };
 }
+
+// 表示中の作品の先、何作品分のプレイヤーを先に読み込んでおくか（2026-10-31）
+const PLAYER_PRELOAD = 2;
 
 // サンプル動画の URL から、画面に合う大きさのプレイヤー（/api/sample-player）の URL を作る
 function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: number }): string {
@@ -152,7 +158,7 @@ function doujinSlides(doujins: Doujin[], base: Video, slides: Map<string, Doujin
 // 指を離したときにこれ以上動いていれば次・前の作品へ進める（速さに関係なく）
 const SWIPE_MIN_PX = 60;
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, doujinOnly = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, animeMode: initialAnimeMode = false, doujinOnly = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -196,9 +202,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌（サーバーで取得した一覧）
   const doujinBySlideRef = useRef(new Map<string, Doujin>());
   const [doujinList] = useState<Doujin[]>(initialDoujinList);
-  // 「動画｜同人誌」: 動画モード（動画だけ）か、同人誌モード（同人誌だけ）か。上の切り替えで変える
-  const [mode, setMode] = useState<'video' | 'doujin'>(initialDoujinMode ? 'doujin' : 'video');
+  // 「動画｜アニメ｜同人誌」: 動画モード（動画だけ）・アニメモード（アニメだけ。2026-10-31）・同人誌モード（同人誌だけ）。上の切り替えで変える
+  const [mode, setMode] = useState<'video' | 'anime' | 'doujin'>(initialDoujinMode ? 'doujin' : initialAnimeMode ? 'anime' : 'video');
   const doujinMode = mode === 'doujin';
+  const animeMode = mode === 'anime';
+  // アニメの補充用の残り（/api/anime から60本ずつ取り、20本ずつ足す）
+  const animePoolRef = useRef<Video[]>([]);
+  // アニメを見ているときの「検索」「人気」の一覧（AnimeListModal）
+  const [animeListKind, setAnimeListKind] = useState<'ranking' | 'search' | null>(null);
   // 10円セールの期間中は、下のボタンの「人気」を「¥10 セール」（アイコンが ¥10、文字が「セール」。特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
   const showSaleButton = !doujinMode && !isOverseas && enableAffiliateLinks && isSale10yenActive();
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
@@ -242,6 +253,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [showDetails, setShowDetails] = useState(false);
   // 女優の詳細（女優が1人の作品で顔を押したとき・女優一覧で選んだとき。2026-10-31）
   const [detailActress, setDetailActress] = useState<ActressInfo | null>(null);
+  // 女優の詳細をどこから開いたか（女優一覧・作品詳細からなら「‹ 戻る」でそこへ戻る。2026-10-31 ユーザーの希望）
+  const [actressFrom, setActressFrom] = useState<'list' | 'details' | null>(null);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
@@ -472,8 +485,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
     setIsLoadingMore(true);
     try {
+      // アニメモード: アニメだけを足す（動画のプールは使わない）
+      if (animeMode) {
+        if (animePoolRef.current.length < 20) {
+          const shown = videos.map((v) => v.dmm_content_id).slice(-300).join(',');
+          const response = await fetch(`/api/anime?limit=60&exclude=${encodeURIComponent(shown)}`);
+          if (!response.ok) throw new Error(`アニメの補充の取得に失敗: ${response.status}`);
+          animePoolRef.current = [...animePoolRef.current, ...((await response.json()).pool ?? [])];
+        }
+        const next = animePoolRef.current.slice(0, 20);
+        animePoolRef.current = animePoolRef.current.slice(20);
+        if (next.length > 0) setVideos((prev) => [...prev, ...next]);
+        else refillBlockedUntilRef.current = Date.now() + 30_000;
       // プールに残りがある場合
-      if (poolIndex < videoPool.length) {
+      } else if (poolIndex < videoPool.length) {
         const nextVideos = videoPool.slice(poolIndex, poolIndex + 20);
         setVideos(prev => [...prev, ...nextVideos]);
         setPoolIndex(prev => prev + 20);
@@ -511,7 +536,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     } finally {
       setIsLoadingMore(false);
     }
-  }, [videos, isLoadingMore, videoPool, poolIndex]);
+  }, [videos, isLoadingMore, videoPool, poolIndex, animeMode]);
 
   // 検索・ランキング・いいね・履歴・女優の一覧に切り替える
   // 以前は古いスライドのまま reInit し、150ms 後にアニメーション付きで移動していたため、一瞬別の動画が見えていた。
@@ -541,8 +566,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setLongLoading(true);
     trackNavButton('long_sample');
     try {
-      const { data } = await supabase.from('videos').select('*').gte('sample_seconds', 240).limit(500);
-      const list = (data ?? []) as Video[];
+      // アニメを見ているときはアニメの中から（2026-10-31）
+      const { data } = await supabase.from(animeMode ? 'anime_videos' : 'videos').select('*').gte('sample_seconds', 240).limit(500);
+      const list = ((data ?? []) as Video[]).map((v) => (animeMode ? { ...v, kind: 'anime' as const } : v));
       if (list.length === 0) return;
       // 並べ順: このサイトでの反応（再生・クリック・いいね）と FANZA のレビュー数の点数が高い順。点数が近い作品は毎回少し入れ替える。
       // 点数が0（まだ反応もレビューもない）の作品は、発売日の新しい順に後ろへ（2026-10-26。以前の rank_position はほとんどの作品に無かった）
@@ -555,7 +581,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     } finally {
       setLongLoading(false);
     }
-  }, [longLoading, replaceVideos]);
+  }, [longLoading, replaceVideos, animeMode]);
 
   const replaceWithDoujin = useCallback((list: Doujin[], selectedId: string) => {
     const base = videos.find((v) => !isDoujinSlide(v)) ?? videos[0];
@@ -657,7 +683,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress;
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress || !!animeListKind;
 
   // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
   const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
@@ -903,6 +929,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <ActionRow
         size={size}
         actresses={rowActresses}
+        studio={currentVideo.kind === 'anime' ? currentVideo.maker ?? null : undefined}
         hasActress={!!currentVideo.actress_ids?.length}
         liked={likedVideos.has(currentVideo.dmm_content_id)}
         reviewCount={currentVideo.review_count}
@@ -914,8 +941,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         onLike={(e) => toggleLike(currentVideo, e)}
         onActress={() => {
           // 女優が1人ならその女優の詳細、2人以上なら一覧（一覧で選ぶと詳細）
-          if (rowActresses && rowActresses.length === 1) setDetailActress(rowActresses[0]);
-          else setShowActressModal(true);
+          if (rowActresses && rowActresses.length === 1) {
+            setActressFrom(null);
+            setDetailActress(rowActresses[0]);
+          } else setShowActressModal(true);
           trackModalOpen('actress');
         }}
         onDetails={() => setShowDetails(true)}
@@ -1018,31 +1047,45 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // 「動画｜同人誌」を切り替える。同人誌モードは一覧の同人誌を先頭から、動画モードは切り替える前の並び・位置に戻す。
   // URL の mode も書き換える（再読み込みしても同じほう）
-  const switchMode = useCallback((next: 'video' | 'doujin') => {
+  const switchMode = useCallback(async (next: 'video' | 'anime' | 'doujin') => {
     if (next === mode) return;
     trackModeSwitch(next);
     const url = new URL(window.location.href);
     url.searchParams.delete('d');
     url.searchParams.delete('v');
-    if (next === 'doujin') url.searchParams.set('mode', 'doujin');
-    else url.searchParams.delete('mode');
+    if (next === 'video') url.searchParams.delete('mode');
+    else url.searchParams.set('mode', next);
     // 検索などの一覧を見ているときは、通常の画面を読み直す
     if (isFiniteList) {
       window.location.href = url.toString();
       return;
     }
-    window.history.replaceState(window.history.state, '', url.toString());
+    // 動画モードから離れるときは、動画の並びと位置を覚えておく（戻ったときに同じ場所から続ける）
+    if (mode === 'video') {
+      const real = videos.filter((v) => !isDoujinSlide(v));
+      if (real.length > 0) videoModeBackupRef.current = { videos: real, index: Math.min(currentIndex, real.length - 1) };
+    }
     let nextVideos: Video[];
     let nextIndex = 0;
     if (next === 'doujin') {
-      const real = videos.filter((v) => !isDoujinSlide(v));
-      if (real.length > 0) videoModeBackupRef.current = { videos: real, index: Math.min(currentIndex, real.length - 1) };
-      const base = real[0] ?? initialVideos[0] ?? videos[0];
+      const base = videoModeBackupRef.current?.videos[0] ?? initialVideos[0] ?? videos[0];
       if (doujinList.length === 0 || !base) {
         window.location.href = url.toString();
         return;
       }
       nextVideos = doujinSlides(doujinList, base, doujinBySlideRef.current);
+    } else if (next === 'anime') {
+      // アニメは切り替えたときに取りに行く（2026-10-31）
+      try {
+        const response = await fetch('/api/anime?limit=60');
+        const pool: Video[] = response.ok ? ((await response.json()).pool ?? []) : [];
+        if (pool.length === 0) throw new Error('アニメが取れない');
+        nextVideos = pool.slice(0, 20);
+        animePoolRef.current = pool.slice(20);
+      } catch {
+        window.location.href = url.toString();
+        return;
+      }
     } else {
       const backup = videoModeBackupRef.current;
       nextVideos = backup && backup.videos.length > 0 ? backup.videos : initialVideos;
@@ -1052,6 +1095,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         return;
       }
     }
+    window.history.replaceState(window.history.state, '', url.toString());
     setMode(next);
     pendingScrollRef.current = nextIndex;
     setVideos(nextVideos);
@@ -1059,10 +1103,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setScrollSeq((n) => n + 1);
   }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
 
-  const modeToggle = longCount !== null ? (
+  // compact: スマホの上の帯（左にサイト名があるので短く「4分以上（n本）」にする。2026-10-31）
+  const modeToggle = (compact = false) => longCount !== null ? (
     // 「4分以上」で見ている間は、その表示と、普段の並びに戻るボタン
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 pl-3 pr-1 py-0.5 text-sm font-bold text-gray-950 shadow-lg shadow-amber-500/30">
-      <span>{t('longSampleNow')}（{longCount}{t('worksUnit')}）</span>
+    <div className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 pr-1 py-0.5 font-bold ${compact ? 'pl-2.5 text-xs' : 'pl-3 text-sm'} text-gray-950 shadow-lg shadow-amber-500/30`}>
+      <span>{compact ? t('longSample4') : t('longSampleNow')}（{longCount}{t('worksUnit')}）</span>
       <button
         type="button"
         onClick={() => {
@@ -1076,17 +1121,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       </button>
     </div>
   ) : (
-    <div className="inline-flex rounded-full bg-gray-800/90 p-0.5 text-sm font-bold" role="tablist" aria-label={t('modeToggle')}>
-      {(['video', 'doujin'] as const).map((key) => (
+    <div className={`inline-flex rounded-full bg-gray-800/90 p-0.5 font-bold ${compact ? 'text-xs' : 'text-sm'}`} role="tablist" aria-label={t('modeToggle')}>
+      {(['video', 'anime', 'doujin'] as const).map((key) => (
         <button
           key={key}
           type="button"
           role="tab"
           aria-selected={mode === key}
           onClick={() => switchMode(key)}
-          className={`rounded-full px-5 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+          // スマホの上の帯（compact）は、左のサイト名と重ならないよう文字と幅を小さく（3つに増えたため。2026-10-31）
+          className={`rounded-full ${compact ? 'px-2 py-1' : 'px-4 py-1'} transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : key === 'anime' ? 'bg-violet-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
         >
-          {key === 'video' ? t('modeVideo') : t('modeDoujin')}
+          {key === 'video' ? t('modeVideo') : key === 'anime' ? t('modeAnime') : t('modeDoujin')}
         </button>
       ))}
     </div>
@@ -1105,12 +1151,25 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {notice}
         </div>
       )}
-      {/* 上の帯（縦画面のみ）: 広告の表示（PR）・「動画｜同人誌」の切り替え・記事のボタンを1行に。
-          ホーム画面アプリでは時計の分（safe-area）だけ上に余白を取る。FANZA のクレジットは下の帯に出す */}
+      {/* 上の帯（縦画面のみ）: 左にサイト名・広告の表示（PR）・FANZA のクレジット、右に「動画｜同人誌」の切り替えとメニュー。
+          ホーム画面アプリでは時計の分（safe-area）だけ上に余白を取る。
+          2026-10-31: 左上の PR だけだったのを、サイト名とクレジットの2段にした（クレジットは下の帯から移した）。切り替えはサイト名と重ならないよう右に寄せた */}
       <div ref={topBarRef} className="landscape:hidden lg:hidden fixed left-0 right-0 top-0 z-40 pt-[env(safe-area-inset-top)] bg-black/70 backdrop-blur-sm">
-        <div className="relative h-11 flex items-center justify-center">
-        <span className="absolute left-3 bg-yellow-400 text-black px-1.5 rounded-sm text-xs font-bold leading-4">PR</span>
-        {modeToggle}
+        <div className="relative h-11 flex items-center justify-end pr-[52px]">
+        <div className="absolute left-3 flex flex-col items-start leading-none">
+          <span className="flex items-center gap-1">
+            <span className="text-[15px] font-extrabold tracking-tight text-white">Short AV</span>
+            <span className="bg-yellow-400 text-black px-1 rounded-sm text-[9px] font-bold leading-[13px]">PR</span>
+          </span>
+          <span className="mt-[3px] whitespace-nowrap text-[8.5px] text-gray-300">
+            {enableAffiliateLinks ? (
+              <>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400">FANZA Webサービス</a></>
+            ) : (
+              'サイト認証後に表示'
+            )}
+          </span>
+        </div>
+        {modeToggle(true)}
         {/* 右から出るメニュー（記事・よくある質問・プライバシーポリシーなど。2026-10-31 に記事のボタンから変更） */}
         <button
           type="button"
@@ -1195,14 +1254,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
                       onClick={handleThumbnailClick}
                     >
-                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
-                    {index === currentIndex && video.sample_video_url ? (
+                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生。
+                        先の2作品もプレイヤーを先に読み込んでおく（スワイプしてから読み込むと▶を押せるまで待たされたため。2026-10-31 ユーザーの希望。
+                        1つが動画のページ1枚分の重さなので2作品まで）。表示中になるまでタップは通さない */}
+                    {index >= currentIndex && index <= currentIndex + PLAYER_PRELOAD && video.sample_video_url ? (
                       <InlineSamplePlayer
                         key={video.dmm_content_id}
+                        active={index === currentIndex}
                         playerUrl={(size) => getSamplePlayerUrl(video.sample_video_url!, size)}
                         thumbnailUrl={video.thumbnail_url}
                         title={video.title}
-                        priority
+                        priority={index === currentIndex}
                         onStart={recordInlineView}
                         sampleSeconds={video.sample_seconds}
                       />
@@ -1344,7 +1406,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => {
-                        if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+                        if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
                         trackModalOpen('search');
                       }}
                       className="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
@@ -1354,7 +1416,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     <button
                       onClick={() => {
                         // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                        window.location.href = doujinMode ? '/?mode=doujin' : '/';
+                        window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
                       }}
                       className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
                     >
@@ -1405,7 +1467,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
-        <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
+        <div className="flex-shrink-0 flex justify-center">{modeToggle()}</div>
         {/* PC: キャンペーン（10円セールなど）の期間中は、公式バナー（300×250）を商品ウィジェットの上に出す。
             PC では横長バナー（640×200）を出す場所が無く、キャンペーンのバナーがどこにも出ていなかった（2026-10-27 ユーザーの指摘）。同人誌のとき・海外の人には出さない */}
         {enableAffiliateLinks && !isOverseas && !doujinMode && isCampaignActive() && (
@@ -1564,7 +1626,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 検索ボタン */}
           <button
             onClick={() => {
-              if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+              if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
               trackModalOpen('search');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1588,7 +1650,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           ) : (
           <button
             onClick={() => {
-              if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
+              if (doujinMode) setDoujinListKind('ranking'); else if (animeMode) setAnimeListKind('ranking'); else setShowRankingModal(true);
               trackModalOpen('ranking');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1605,7 +1667,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             onClick={() => {
               // トップを読み直して通常のフィード（新しい動画セット）に戻る（押した記録を送ってから移る）
               trackNavButton('home');
-              window.location.href = doujinMode ? '/?mode=doujin' : '/';
+              window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
@@ -1660,6 +1722,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         ref={bottomPanelRef}
         style={doujinFit && isDoujinSlide(currentVideo) ? { height: doujinFit.panelHeight } : fit ? { height: fit.panelHeight } : undefined}
         className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-2.75rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
+        {/* バナーと操作の行の間の余白に、作品名・サンプルの長さ・品番・ジャンル（入る分だけ。2026-10-31） */}
+        {currentVideo && !isDoujinSlide(currentVideo) && useNewRow && (
+          <div className="max-w-4xl mx-auto w-full min-h-0 flex-1 flex flex-col">
+            <WorkGapInfo title={currentVideo.title} contentId={currentVideo.dmm_content_id} sampleSeconds={currentVideo.sample_seconds} genreIds={currentVideo.genre_ids} />
+          </div>
+        )}
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
@@ -1702,7 +1770,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 検索ボタン */}
             <button
               onClick={() => {
-                if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+                if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
                 trackModalOpen('search');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1726,7 +1794,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             ) : (
             <button
               onClick={() => {
-                if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
+                if (doujinMode) setDoujinListKind('ranking'); else if (animeMode) setAnimeListKind('ranking'); else setShowRankingModal(true);
                 trackModalOpen('ranking');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1742,7 +1810,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             <button
               onClick={() => {
                 // トップを読み直して通常のフィード（新しい動画セット）に戻る
-                window.location.href = doujinMode ? '/?mode=doujin' : '/';
+                window.location.href = doujinMode ? '/?mode=doujin' : animeMode ? '/?mode=anime' : '/';
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
             >
@@ -1779,15 +1847,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             )}
           </div>
 
-          {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31） */}
-          {/* FANZA のクレジット（以前は画面上部の帯に出していた） */}
-          <p className="mt-1 text-center text-[10px] text-gray-500">
-            {enableAffiliateLinks ? (
-              <>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400">FANZA Webサービス</a></>
-            ) : (
-              'サイト認証後に表示'
-            )}
-          </p>
+          {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31）。
+              FANZA のクレジットは上の帯のサイト名の下へ移した（同日） */}
         </div>
       </div>
 
@@ -2011,6 +2072,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <AdminXCompose contentId={currentVideo?.dmm_content_id} doujin={isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo!.id) : undefined} />
 
       {/* 検索モーダル */}
+      {/* アニメの「検索」「人気」（2026-10-31） */}
+      {animeListKind && (
+        <AnimeListModal
+          kind={animeListKind}
+          onClose={() => setAnimeListKind(null)}
+          onSelect={(list, cid) => {
+            setAnimeListKind(null);
+            replaceVideos(list, cid);
+          }}
+        />
+      )}
+
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => {
@@ -2123,6 +2196,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           onFanzaClick={(e) => onRowFanzaClick(e, 'work_details')}
           onActress={(a) => {
             setShowDetails(false);
+            setActressFrom('details');
             setDetailActress(a);
           }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
@@ -2134,7 +2208,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {detailActress && (
         <ActressDetailSheet
           actress={detailActress}
-          onClose={() => setDetailActress(null)}
+          onClose={() => {
+            setDetailActress(null);
+            setActressFrom(null);
+          }}
+          onBack={
+            actressFrom
+              ? () => {
+                  setDetailActress(null);
+                  if (actressFrom === 'list') setShowActressModal(true);
+                  else setShowDetails(true);
+                  setActressFrom(null);
+                }
+              : undefined
+          }
           onSwipeWorks={showActressVideos}
           enableAffiliateLinks={enableAffiliateLinks}
           t={t}
@@ -2149,7 +2236,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           trackModalClose('actress');
         }}
         actressIds={currentVideo?.actress_ids || []}
-        onActressSelect={(a) => setDetailActress(a)}
+        onActressSelect={(a) => {
+          setActressFrom('list');
+          setDetailActress(a);
+        }}
         title={t('castList')}
       />
 

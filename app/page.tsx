@@ -11,6 +11,8 @@ import { getVideoUrl } from '@/lib/x-post-text';
 import { buildVideoDescription, getVideoNames, type VideoSeoRow } from '@/lib/video-seo';
 import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
 import { goHref } from '@/lib/go-link';
+import { fetchAnimeByContentId, fetchRandomAnime } from '@/lib/anime';
+import { productCode } from '@/lib/product-code';
 import { getLongSampleCounts } from '@/lib/long-sample-counts';
 import { isSale10yenActive } from '@/config/sale-10yen';
 
@@ -41,17 +43,35 @@ export async function generateMetadata({
     };
   }
   const contentId = typeof v === 'string' ? v : undefined;
+  // アニメ（?mode=anime&v=。2026-10-31）: リンクカードにその作品の名前とサムネイル。まだ検索には出さない（説明の薄いページが増えるため）
+  if (mode === 'anime') {
+    const anime = contentId && contentId.length <= 64 ? await fetchAnimeByContentId(contentId).catch(() => null) : null;
+    if (!anime?.thumbnail_url) return { robots: { index: false, follow: true } };
+    const animeCode = productCode(anime.dmm_content_id);
+    const title = `${animeCode ? `${animeCode} ` : ''}${anime.title} | Short AV`;
+    const description = `${animeCode ? `【${animeCode}】` : ''}${anime.title}のサンプル動画を縦スワイプで無料視聴。Short AV`;
+    return {
+      title,
+      description,
+      robots: { index: false, follow: true },
+      openGraph: { title, description, siteName: 'Short AV', images: [{ url: anime.thumbnail_url, alt: anime.title }], locale: 'ja_JP', type: 'website' },
+      twitter: { card: 'summary_large_image', title, description, images: [anime.thumbnail_url] },
+    };
+  }
   if (!contentId || contentId.length > 64) return {};
 
   const video = (await getVideoByContentId(contentId).catch(() => null)) as VideoSeoRow | null;
   if (!video?.thumbnail_url) return {};
 
-  const title = `${video.title} | Short AV`;
+  // 品番（STARS-840 など）で検索されたときにも当たるよう、題名の先頭に入れる（2026-10-31 ユーザーの希望）
+  const code = productCode(contentId);
+  const title = `${code ? `${code} ` : ''}${video.title} | Short AV`;
   // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる。
   // Claude が書いた紹介文（ai_description、sql/019）があればそちらを優先する（2026-10-25）
   const aiRaw = (video as unknown as { ai_description?: unknown }).ai_description;
   const ai = typeof aiRaw === 'string' ? aiRaw : '';
-  const description = ai ? (ai.length > 160 ? `${ai.slice(0, 157)}…` : ai) : buildVideoDescription(video, await getVideoNames(video));
+  const aiText = ai && code ? `【${code}】${ai}` : ai;
+  const description = aiText ? (aiText.length > 160 ? `${aiText.slice(0, 157)}…` : aiText) : buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
@@ -128,7 +148,7 @@ async function loadDoujin(doujinId?: string, doujinIds?: string[]): Promise<Douj
   }
 }
 
-async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, catalog }: { targetId?: string; doujinId?: string; doujinMode?: boolean; doujinIds?: string[]; catalog?: { kind: CatalogKind; slug: string } }) {
+async function VideoList({ targetId, doujinId, doujinMode = false, animeMode = false, doujinIds, catalog }: { targetId?: string; doujinId?: string; doujinMode?: boolean; animeMode?: boolean; doujinIds?: string[]; catalog?: { kind: CatalogKind; slug: string } }) {
   const doujinPromise = loadDoujin(doujinId, doujinIds);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   // プールサイズ。1人あたりのスワイプは平均2〜3回なので、200本（約260KB）を毎回データベースから取ると
@@ -177,10 +197,17 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   // プールを作成
   let videoPool = videosAll || [];
 
+  // ?mode=anime: アニメの作品を並べる（人気の上位からランダム。&v= があればその作品を先頭に。2026-10-31）
+  if (animeMode) {
+    const pool = await fetchRandomAnime(poolSize).catch(() => []);
+    const target = targetId ? await fetchAnimeByContentId(targetId).catch(() => null) : null;
+    if (pool.length > 0 || target) videoPool = (target ? [target, ...pool.filter((x) => x.dmm_content_id !== target.dmm_content_id)] : pool) as typeof videoPool;
+  }
+
   // ?v= で作品が指定された場合は、サーバー側で先頭に入れておく。
   // クライアント側で後から探すと、スワイプ画面の初期化（URL の書き換え）と競合して別の動画に戻ることがあった。
   let linkNotice: string | undefined;
-  if (targetId) {
+  if (targetId && !animeMode) {
     // 作品の情報は1時間使い回す（lib/video-by-content-id.ts）。掲載終了・サンプルなしはここで判定する
     const found = await getVideoByContentId(targetId).catch(() => null);
     const target = found && found.is_active && found.sample_video_url ? found : null;
@@ -241,7 +268,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   }
 
   // 最初に表示する作品の構造化データ（?v= 指定時はその作品）。説明文・出演・ジャンル・長さを足す
-  const firstVideoSchema = generateVideoSchema(videos[0]);
+  // アニメのときは作品の構造化データを出さない（作品ページ /v/ は動画だけのため）
+  const firstVideoSchema = animeMode ? null : generateVideoSchema(videos[0]);
   // Claude が書いた紹介文（ai_description、sql/019）。構造化データの説明文と、?v= のときの sr-only の本文に使う（2026-10-25）
   const firstAiRaw = videos[0] ? (videos[0] as unknown as { ai_description?: unknown }).ai_description : undefined;
   const firstAi = typeof firstAiRaw === 'string' ? firstAiRaw : '';
@@ -307,7 +335,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
       />
       {/* ?v= で開かれた作品の紹介文（Claude が書いたもの。画面には出さない。検索エンジン・AI 向けの独自の文章。2026-10-25） */}
-      {targetId && firstAi && <p className="sr-only">{firstAi}</p>}
+      {targetId && firstAi && <p className="sr-only">{productCode(targetId) ? `品番 ${productCode(targetId)}。` : ''}{firstAi}</p>}
       <VideoSwiper
         // FANZA の紹介リンクは /go を通した形で渡す（ページに埋め込まれるデータをロボットが読んでたどらないように。lib/go-link.ts、2026-10-27）
         videos={videos.map((v) => ({ ...v, dmm_product_url: goHref(v.dmm_product_url) ?? v.dmm_product_url }))}
@@ -315,6 +343,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         linkNotice={linkNotice}
         doujinList={doujinList.map((d) => ({ ...d, url: goHref(d.url) ?? d.url }))}
         doujinMode={doujinMode}
+        animeMode={animeMode}
         doujinOnly={doujinOnly}
         isFiniteList={isFiniteList}
         startIndex={doujinOnly ? Math.max(0, doujinList.findIndex((d) => d.contentId === doujinId)) : 0}
@@ -342,7 +371,7 @@ export default async function Home({
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} doujinIds={doujinIds} catalog={catalog} />
+        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} animeMode={mode === 'anime' && !catalog} doujinIds={doujinIds} catalog={catalog} />
       </Suspense>
     </>
   );

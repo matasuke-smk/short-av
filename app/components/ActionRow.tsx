@@ -11,6 +11,7 @@ import type { TextKey } from '@/lib/i18n';
  */
 type Props = {
   actresses: ActressInfo[] | null; // null = 読み込み中
+  studio?: string | null; // アニメ: 女優の代わりに制作会社（メーカー）の名前を出す（2026-10-31）
   hasActress: boolean;
   liked: boolean;
   reviewCount: number | null | undefined;
@@ -30,9 +31,11 @@ type Props = {
 // 左（女優）と右（FANZA）の列の幅。名前や価格の長さで変えない（変わると、スワイプのたびにいいね・作品詳細の位置がずれる。2026-10-31）
 const COL = 'flex w-16 flex-shrink-0 flex-col items-center';
 const PERSON = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
+// アニメの制作会社の印（フィルム）
+const FILM = 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z';
 const HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z';
 
-export default function ActionRow({ actresses, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
+export default function ActionRow({ actresses, studio, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
   const icon = size === 'pc' ? 'w-11 h-11' : 'w-11 h-11';
   const fanzaSize = size === 'pc' ? 'w-[58px] h-[58px]' : 'w-14 h-14';
   const label = 'mt-1 block w-full truncate text-center text-[10px] font-bold leading-tight text-gray-300';
@@ -61,10 +64,10 @@ export default function ActionRow({ actresses, hasActress, liked, reviewCount, r
         <span className={COL} aria-hidden>
           <span className={`flex ${icon} items-center justify-center rounded-full border border-gray-700 bg-gray-800`}>
             <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={PERSON} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={studio !== undefined ? FILM : PERSON} />
             </svg>
           </span>
-          <span className={`${label} !text-gray-500`}>{t('noActressInfo')}</span>
+          <span className={`${label} !text-gray-500`}>{studio !== undefined ? studio || '\u00a0' : t('noActressInfo')}</span>
         </span>
       )}
 

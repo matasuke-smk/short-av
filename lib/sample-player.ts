@@ -74,10 +74,11 @@ export async function getSampleSeconds(cid: string): Promise<number | null> {
  * まだ長さを調べていない作品のサンプル動画の長さを、締め切り時刻まで調べて videos.sample_seconds に記録する。
  * 新しい作品から順に。調べられなかった作品は -1 にして、次回以降に同じ作品で止まらないようにする。
  * 毎日の自動更新（cron）と、管理画面の「今すぐ調べる」ボタンから使う。戻り値は記録した件数。
+ * table: 'anime_videos' でアニメの作品（2026-10-31）
  */
-export async function measureSampleLengths(supabase: SupabaseClient, deadline: number, concurrency = 8): Promise<number> {
+export async function measureSampleLengths(supabase: SupabaseClient, deadline: number, concurrency = 8, table: 'videos' | 'anime_videos' = 'videos'): Promise<number> {
   const { data, error } = await supabase
-    .from('videos')
+    .from(table)
     .select('id, dmm_content_id, sample_video_url')
     .is('sample_seconds', null)
     .not('sample_video_url', 'is', null)
@@ -100,7 +101,7 @@ export async function measureSampleLengths(supabase: SupabaseClient, deadline: n
         failedIds.push(video.id as string);
         continue;
       }
-      const { error: updateError } = await supabase.from('videos').update({ sample_seconds: seconds }).eq('id', video.id);
+      const { error: updateError } = await supabase.from(table).update({ sample_seconds: seconds }).eq('id', video.id);
       if (!updateError) measured++;
     }
   };
@@ -110,7 +111,7 @@ export async function measureSampleLengths(supabase: SupabaseClient, deadline: n
   // 可能性が高いので記録しない（以前、海外のサーバーから実行して全件が -1 になったことがある）
   if (measured > 0 && failedIds.length > 0) {
     for (let i = 0; i < failedIds.length; i += 200) {
-      await supabase.from('videos').update({ sample_seconds: -1 }).in('id', failedIds.slice(i, i + 200));
+      await supabase.from(table).update({ sample_seconds: -1 }).in('id', failedIds.slice(i, i + 200));
     }
   } else if (measured === 0 && failedIds.length > 0) {
     console.error(`[sample-length] ${failedIds.length}件すべて調べられませんでした（記録はしません）`);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { productCode } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 import { sendGAEvent } from '@/lib/gtag';
 import { useSheetDrag } from '@/lib/useSheetDrag';
@@ -15,6 +16,7 @@ import { currentPrice, saleInfo, yen } from '@/lib/price';
  */
 type WorkVideo = {
   dmm_content_id: string;
+  kind?: 'anime';
   title: string;
   thumbnail_url: string;
   maker: string | null;
@@ -43,7 +45,7 @@ type Props = {
   onFanzaClick: (e: MouseEvent<HTMLAnchorElement>) => void;
   banner?: ReactNode;
   onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
-  t: (key: TextKey) => string;
+  t: (key: TextKey, vars?: Record<string, string | number>) => string;
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
@@ -53,6 +55,8 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
   const first = actresses?.[0];
+  // アニメの作品（anime_videos）。価格の取り直し・関連作品はアニメの表を見る（2026-10-31）
+  const isAnime = video.kind === 'anime';
   // 上のつまみ（「ー」）や見出しを下に引いて閉じる（スマホ。2026-10-31 ユーザーの希望）
   // 上の部分を下に引く・いちばん上で下へスワイプすると閉じる（lib/useSheetDrag.ts）
   const { panelRef, scrollRef, sheetStyle, sheetTransition } = useSheetDrag(onClose);
@@ -60,16 +64,19 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   // 最新の価格・セール・レビュー（データベースの価格はセールの値段のまま残ることがあるため）
   useEffect(() => {
     let alive = true;
-    fetch(`/api/work-info?cid=${encodeURIComponent(video.dmm_content_id)}`)
+    fetch(`/api/work-info?cid=${encodeURIComponent(video.dmm_content_id)}${isAnime ? '&floor=anime' : ''}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => alive && d?.found && setFresh(d))
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [video.dmm_content_id]);
+  }, [video.dmm_content_id, isAnime]);
   const v = fresh ? { ...video, ...fresh } : video;
   const sale = saleInfo(v);
+  // 終わりまで24時間を切ったら「あと○時間」（1時間を切ったら「あと○分」）も出す（2026-10-31 ユーザーの希望。スワイプ画面には出さない）
+  const msLeft = sale ? sale.endsAt.getTime() - Date.now() : 0;
+  const left = sale && msLeft < 24 * 3600_000 ? (msLeft < 3600_000 ? t('minutesLeft', { n: Math.max(1, Math.floor(msLeft / 60_000)) }) : t('hoursLeft', { n: Math.floor(msLeft / 3600_000) })) : null;
   const nowPrice = currentPrice(v);
 
   useEffect(() => {
@@ -90,7 +97,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
         .then(({ data }) => alive && setGenres(((data ?? []) as { name: string; slug: string }[]).filter((g) => g.name !== 'ハイビジョン')));
     }
     // 関連作品: 同じ女優 → 同じシリーズ → 同じメーカーの順に、人気の作品を8本まで
-    const base = () => supabase.from('videos').select('dmm_content_id, title, thumbnail_url, sample_seconds').eq('is_active', true).neq('dmm_content_id', video.dmm_content_id);
+    const base = () => supabase.from(isAnime ? 'anime_videos' : 'videos').select('dmm_content_id, title, thumbnail_url, sample_seconds').eq('is_active', true).neq('dmm_content_id', video.dmm_content_id);
     const q = first ? base().contains('actress_ids', [first.id]) : video.series ? base().eq('series', video.series) : video.maker ? base().eq('maker', video.maker) : null;
     if (q) {
       q.order('rank_position', { ascending: true, nullsFirst: false })
@@ -100,10 +107,11 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     return () => {
       alive = false;
     };
-  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first]);
+  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first, isAnime]);
 
   const avg = typeof v.review_average === 'number' && v.review_average > 0 ? v.review_average : null;
   const rows: [string, ReactNode][] = [
+    [t('productCode'), productCode(video.dmm_content_id)],
     [t('maker'), video.maker],
     [t('label'), video.label],
     [t('series'), video.series],
@@ -151,6 +159,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
                   <p className="mt-1 text-[11px] text-rose-200">
                     {sale.title ? `${sale.title}・` : ''}
                     {sale.endsAt.getMonth() + 1}/{sale.endsAt.getDate()} {String(sale.endsAt.getHours()).padStart(2, '0')}:{String(sale.endsAt.getMinutes()).padStart(2, '0')} まで
+                    {left && <b className="ml-1.5 rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-extrabold text-black">⏰ {left}</b>}
                   </p>
                 </div>
               ) : nowPrice ? (
@@ -199,11 +208,18 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
               <div className="min-w-0 flex-1">
                 <p className="mb-1.5 text-xs font-bold text-gray-400">{t('genres')}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {genres.map((g) => (
+                  {genres.map((g) =>
+                    // アニメのジャンルは動画のジャンルの一覧につながないので、文字だけ
+                    isAnime ? (
+                      <span key={g.slug} className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-200">
+                        {g.name}
+                      </span>
+                    ) : (
                     <a key={g.slug} href={`/?genre=${g.slug}`} onClick={() => sendGAEvent('work_details', { action: 'genre', content_id: video.dmm_content_id })} className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-200 hover:bg-gray-700">
                       {g.name}
                     </a>
-                  ))}
+                    ),
+                  )}
                 </div>
               </div>
             )}
@@ -214,7 +230,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
               <p className="mb-1.5 mt-4 text-xs font-bold text-gray-400">{relatedTitle}</p>
               <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
                 {related.map((r) => (
-                  <a key={r.dmm_content_id} href={`/?v=${r.dmm_content_id}`} onClick={() => sendGAEvent('work_details', { action: 'related', content_id: video.dmm_content_id })} className="w-24 flex-shrink-0 lg:w-[120px]">
+                  <a key={r.dmm_content_id} href={isAnime ? `/?mode=anime&v=${r.dmm_content_id}` : `/?v=${r.dmm_content_id}`} onClick={() => sendGAEvent('work_details', { action: 'related', content_id: video.dmm_content_id })} className="w-24 flex-shrink-0 lg:w-[120px]">
                     {/* eslint-disable-next-line @next/next/no-img-element -- FANZA のパッケージ画像（表面だけを見せる） */}
                     <img src={r.thumbnail_url} alt="" loading="lazy" className="h-32 w-24 rounded-lg object-cover object-right lg:h-40 lg:w-[120px]" />
                     <span className="mt-1 line-clamp-2 text-[10px] leading-snug text-gray-300">{r.title}</span>
