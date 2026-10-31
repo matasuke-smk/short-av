@@ -17,6 +17,8 @@ export type Doujin = {
   genres: string[];
   genreList: { id: string; name: string }[]; // ジャンル（検索の絞り込み用）
   circleId: string | null; // サークル（API ではメーカー）の ID
+  reviewCount?: number | null; // FANZA のレビュー数・平均点（スワイプ画面の作品の操作の行。2026-10-31）
+  reviewAverage?: number | null;
 };
 
 // 検索の選択肢（ジャンル・サークル）。count は人気上位の作品の中での件数（並び順の目安）

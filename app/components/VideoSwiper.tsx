@@ -147,6 +147,19 @@ function makeDoujinSlide(doujin: Doujin, id: string, base: Video, slides: Map<st
     price: doujin.price,
     actress_ids: null,
     sample_seconds: null,
+    // 2026-10-31: 動画と同じ操作の行・作品詳細を使うので、元の動画（base）の値が残らないよう同人誌の値で埋める
+    kind: 'doujin',
+    maker: doujin.circle,
+    label: null,
+    series: null,
+    genre_ids: null,
+    description: null,
+    release_date: null,
+    review_count: doujin.reviewCount ?? null,
+    review_average: doujin.reviewAverage ?? null,
+    list_price: doujin.listPrice,
+    campaign_end: null,
+    campaign_title: null,
   };
 }
 
@@ -265,7 +278,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌は残りの高さいっぱいに出す。null = 通常どおり（CSS の計算のまま）
   const [fit, setFit] = useState<{ available: number; panelHeight: number; showBanner: boolean; thumbWidth: number | null } | null>(null);
   // 同人誌のときの下の帯の高さ（価格ボタンなし）と、同人誌の表示の高さ（縦画面のスマホのみ。それ以外は null）
-  const [doujinFit, setDoujinFit] = useState<{ panelHeight: number; height: number } | null>(null);
   const priceRowRef = useRef<HTMLDivElement>(null);
   // 「動画｜同人誌」の帯。作品はこの帯の下端から表示する（時計の分の余白がある端末でも重ならないよう、実際の位置を測る）
   const topBarRef = useRef<HTMLDivElement>(null);
@@ -398,7 +410,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       const h = window.innerHeight;
       if (isLandscape || w >= 768) {
         setFit(null);
-        setDoujinFit(null);
         setTopOffset(null);
         return;
       }
@@ -410,7 +421,6 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       // 価格ボタンの行を除いた中身（メニューなど）の高さ。同人誌のときは価格ボタンの行を出さない
       const menu = content.offsetHeight - (priceRowRef.current ? priceRowRef.current.offsetHeight + 12 : 0);
       const panelHeight = menu + PRICE_ROW + padding;
-      setDoujinFit({ panelHeight: Math.ceil(menu + padding), height: Math.max(160, Math.floor(h - TOP - menu - padding)) });
       const available = h - TOP - panelHeight;
       if (available >= w * (0.75 + 0.3125)) {
         // 収まるときは通常どおり（バナーあり・縮めない）。下の帯は残りの高さ
@@ -889,7 +899,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   // 作品の操作の行（女優の顔・いいね・作品詳細・FANZA の丸）と作品詳細（2026-10-31 見本でユーザーと決めた形）。
   // 同人誌と、海外の人の動画（FANZA の代わりに JuicyAds を出す）は今までの形のまま
-  const useNewRow = !!currentVideo && !isDoujinSlide(currentVideo) && !hideFanzaFor(currentVideo);
+  // 同人誌も 2026-10-31 から同じ行（女優の代わりにサークル）。海外の人の動画だけ今までの形
+  const useNewRow = !!currentVideo && !hideFanzaFor(currentVideo);
+  const rowDoujin = currentVideo && isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo.id) ?? null : null;
   const sortedActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
   // 女優で絞って見ているとき（「この女優の作品だけスワイプで見る」・検索で女優を選んだとき・女優のページから）は、
   // 女優が複数の作品でもその女優を顔に出す（本当にその女優の作品か分かるように。2026-10-31 ユーザーの希望）
@@ -898,13 +910,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     const isFocus = (a: ActressInfo) => focusActress.ids.includes(a.id) || a.slug === focusActress.slug;
     return [...sortedActresses.filter(isFocus), ...sortedActresses.filter((a) => !isFocus(a))];
   }, [sortedActresses, focusActress]);
-  const rowFanzaHref = useNewRow && enableAffiliateLinks && currentVideo?.dmm_product_url ? goHref(currentVideo.dmm_product_url) ?? currentVideo.dmm_product_url : null;
+  // 同人誌で日本以外の人は DLsite の検索（FANZA は国外の購入を報酬にしない）
+  const rowDlsite = currentVideo ? dlsiteHrefFor(currentVideo) : null;
+  const rowFanzaHref = rowDlsite ?? (useNewRow && enableAffiliateLinks && currentVideo?.dmm_product_url ? goHref(currentVideo.dmm_product_url) ?? currentVideo.dmm_product_url : null);
   // 今の値段（セールが終わっていれば定価。DMM の price はセールの値段のまま残ることがある）とセールの割引（2026-10-31）
   const nowPrice = currentVideo ? currentPrice(currentVideo) : null;
-  const rowPrice = nowPrice ? `¥${nowPrice.toLocaleString()}〜` : null;
+  // 同人誌は1冊の値段なので「〜」を付けない。DLsite へ案内する人には値段を出さない
+  const rowPrice = rowDlsite ? null : nowPrice ? `¥${nowPrice.toLocaleString()}${rowDoujin ? '' : '〜'}` : null;
+  // 同人誌はセールの終わりが分からないので、定価より安ければ割引だけ出す
   const rowSale = currentVideo && useNewRow ? saleInfo(currentVideo) : null;
+  const rowSalePercent = rowSale?.percent ?? (rowDoujin && rowDoujin.price && rowDoujin.listPrice && rowDoujin.listPrice > rowDoujin.price ? Math.round(((rowDoujin.listPrice - rowDoujin.price) / rowDoujin.listPrice) * 100) : null);
   const onRowFanzaClick = (e: React.MouseEvent<HTMLAnchorElement>, kind: 'detail' | 'work_details') => {
     if (!currentVideo) return;
+    if (rowDlsite) return trackDlsiteClick('search', currentVideo.dmm_content_id || undefined);
+    if (rowDoujin) return handleFanzaClick(e, 'FANZA で続きを読む', () => trackDMMClick(currentVideo.id, rowDoujin.contentId, 'doujin', getViewContext()), rowDoujin.contentId);
     handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext(), !!saleInfo(currentVideo)));
   };
   useEffect(() => setShowDetails(false), [currentIndex]);
@@ -940,14 +959,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <ActionRow
         size={size}
         actresses={rowActresses}
-        studio={currentVideo.kind === 'anime' ? currentVideo.maker ?? null : undefined}
+        studio={currentVideo.kind === 'anime' || currentVideo.kind === 'doujin' ? currentVideo.maker ?? null : undefined}
+        studioIcon={currentVideo.kind === 'doujin' ? 'book' : 'film'}
         hasActress={!!currentVideo.actress_ids?.length}
         liked={likedVideos.has(currentVideo.dmm_content_id)}
         reviewCount={currentVideo.review_count}
         reviewAverage={currentVideo.review_average}
         priceLabel={rowPrice}
         lengthLabel={featureLabel(currentVideo.description)}
-        salePercent={rowSale?.percent ?? null}
+        salePercent={rowSalePercent}
         fanzaHref={rowFanzaHref}
         onFanzaClick={(e) => onRowFanzaClick(e, 'detail')}
         onLike={(e) => toggleLike(currentVideo, e)}
@@ -1188,28 +1208,24 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) && Math.abs(index - currentIndex) > 2 ? (
                   // 同人誌は表示中の前後2枚だけ中身を描く（検索結果など数百冊の一覧で、全部のサンプル画像を一度に読み込まないように）
                   <div className="h-full w-full bg-black" />
-                ) : isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
-                  // 同人テスト: 動画のサムネイル・広告の枠の位置に、左右スワイプで読める同人誌を置く（下の価格・ボタンは動画と同じ帯）
-                  <div className="flex h-full flex-col landscape:flex-row lg:flex-row">
-                    <div
-                      style={doujinFit ? { height: doujinFit.height } : undefined}
-                      data-nav-anchor={index}
-                      className="relative w-full h-[calc(75vw+31.25vw)] md:max-w-4xl md:mx-auto landscape:h-full landscape:w-[55%] landscape:max-w-none lg:h-full lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:max-w-none">
-                      <button
-                        onClick={(e) => toggleLike(video, e)}
-                        className="absolute right-3 top-14 z-20 rounded-full bg-black/60 p-2.5 backdrop-blur-sm active:scale-90 lg:hidden"
-                        aria-label={t('like')}
-                      >
-                        {likedVideos.has(video.dmm_content_id) ? (
-                          <svg className="w-7 h-7 text-red-500 fill-current" viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                          </svg>
-                        ) : (
-                          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                        )}
-                      </button>
+                ) : (
+                /* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */
+                <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
+                  {/* 左側: サムネイル・クレジット */}
+                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
+                    {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
+                    <div data-nav-anchor={index}
+                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-10rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
+                      style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
+                      onClick={isDoujinSlide(video) ? undefined : handleThumbnailClick}
+                    >
+                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生。
+                        先の2作品もプレイヤーを先に読み込んでおく（スワイプしてから読み込むと▶を押せるまで待たされたため。2026-10-31 ユーザーの希望。
+                        1つが動画のページ1枚分の重さなので2作品まで）。表示中になるまでタップは通さない */}
+                    {/* 同人誌（2026-10-31 から動画と同じ並び）: サムネイルの枠で、左右スワイプでサンプルを読む */}
+                    {isDoujinSlide(video) && doujinBySlideRef.current.get(video.id) ? (
+                      // 枠（4:3）にぴったり重ねる。中身の高さで枠が伸びないように（伸びると PC で作品名が画面の外に出た）
+                      <div className="absolute inset-0 overflow-hidden">
                       <DoujinReader
                         doujin={doujinBySlideRef.current.get(video.id)!}
                         onComplete={() => {
@@ -1223,23 +1239,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                         dlsiteHref={dlsiteHrefFor(video) ?? undefined}
                         onDlsiteClick={() => trackDlsiteClick('search', doujinBySlideRef.current.get(video.id)!.contentId)}
                       />
-                    </div>
-                  </div>
-                ) : (
-                /* メインコンテンツエリア - レスポンシブ対応（横画面時・PC時は左側のみ） */
-                <div className="flex flex-col landscape:flex-row landscape:items-center lg:flex-row lg:items-center items-center md:justify-center landscape:justify-start lg:justify-start h-full landscape:gap-0 landscape:px-0 lg:gap-0 lg:px-0">
-                  {/* 左側: サムネイル・クレジット */}
-                  <div className="landscape:w-[55%] landscape:h-full landscape:flex landscape:flex-col landscape:justify-center landscape:gap-0 landscape:py-0 landscape:px-0 landscape:overflow-hidden lg:w-[55%] lg:!w-[calc(100%-29rem)] lg:!ml-28 lg:!pr-36 lg:h-full lg:flex lg:flex-col lg:justify-center lg:gap-0 lg:py-0 lg:px-0 lg:overflow-hidden w-full flex-shrink-0">
-                    {/* サムネイル（タップで動画再生） - 4:3固定コンテナ、レスポンシブ対応 */}
-                    <div data-nav-anchor={index}
-                      className="relative w-full landscape:w-full landscape:aspect-[4/3] landscape:flex-shrink-0 lg:w-full lg:!w-[min(100%,calc((100dvh-10rem)*4/3))] lg:aspect-[4/3] lg:flex-shrink-0 md:max-w-4xl md:mx-auto landscape:max-w-none landscape:mx-0 lg:max-w-none lg:mx-0 lg:!mx-auto aspect-[4/3] cursor-pointer bg-black"
-                      style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
-                      onClick={handleThumbnailClick}
-                    >
-                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生。
-                        先の2作品もプレイヤーを先に読み込んでおく（スワイプしてから読み込むと▶を押せるまで待たされたため。2026-10-31 ユーザーの希望。
-                        1つが動画のページ1枚分の重さなので2作品まで）。表示中になるまでタップは通さない */}
-                    {index >= currentIndex && index <= currentIndex + PLAYER_PRELOAD && video.sample_video_url ? (
+                      </div>
+                    ) : index >= currentIndex && index <= currentIndex + PLAYER_PRELOAD && video.sample_video_url ? (
                       <InlineSamplePlayer
                         key={video.dmm_content_id}
                         active={index === currentIndex}
@@ -1690,18 +1691,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 下部固定エリア - レスポンシブ対応（横画面時・PC時は非表示） */}
       <div
         ref={bottomPanelRef}
-        style={doujinFit && isDoujinSlide(currentVideo) ? { height: doujinFit.panelHeight } : fit ? { height: fit.panelHeight } : undefined}
+        style={fit ? { height: fit.panelHeight } : undefined}
         className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-2.75rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
         {/* バナーと操作の行の間の余白に、作品名・サンプルの長さ・品番・ジャンル（入る分だけ。2026-10-31） */}
-        {currentVideo && !isDoujinSlide(currentVideo) && useNewRow && (
+        {currentVideo && useNewRow && (
           <div className="max-w-4xl mx-auto w-full min-h-0 flex-1 flex flex-col">
-            <WorkGapInfo title={currentVideo.title} contentId={currentVideo.dmm_content_id} sampleSeconds={currentVideo.sample_seconds} genreIds={currentVideo.genre_ids} />
+            <WorkGapInfo title={currentVideo.title} contentId={currentVideo.dmm_content_id} sampleSeconds={currentVideo.sample_seconds} genreIds={currentVideo.genre_ids} genreNames={rowDoujin?.genres} pages={rowDoujin?.samples.length} />
           </div>
         )}
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
-          {!isDoujinSlide(currentVideo) && (
+          {(useNewRow || !isDoujinSlide(currentVideo)) && (
           <div ref={priceRowRef} className={`mb-3 md:mb-4 ${useNewRow ? 'h-[68px] items-start' : 'h-12 items-stretch'} flex gap-3`}>
             {useNewRow ? actionRow('mobile') : (<>
             {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
@@ -2171,6 +2172,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
           t={t}
+          doujin={rowDoujin ? { genres: rowDoujin.genres, pages: rowDoujin.samples.length } : undefined}
         />
       )}
 

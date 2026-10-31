@@ -13,14 +13,16 @@ type Props = {
   contentId: string;
   sampleSeconds: number | null | undefined;
   genreIds: string[] | null | undefined;
+  genreNames?: string[]; // 同人誌: ジャンルの名前をそのまま（データベースのジャンルではないため）
+  pages?: number; // 同人誌: 読めるサンプルのページ数
 };
 
 // ジャンルの名前（同じジャンルを何度も問い合わせない）
-const genreNames = new Map<string, string>();
+const genreNameCache = new Map<string, string>();
 
 const len = (s: number | null | undefined) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
 
-export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds }: Props) {
+export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds, genreNames, pages }: Props) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const [genres, setGenres] = useState<string[]>([]);
@@ -37,8 +39,8 @@ export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds 
   const key = (genreIds ?? []).join(',');
   useEffect(() => {
     const ids = key ? key.split(',') : [];
-    const show = () => setGenres(ids.map((id) => genreNames.get(id)).filter((n): n is string => !!n && n !== 'ハイビジョン').slice(0, 4));
-    const missing = ids.filter((id) => !genreNames.has(id));
+    const show = () => setGenres(ids.map((id) => genreNameCache.get(id)).filter((n): n is string => !!n && n !== 'ハイビジョン').slice(0, 4));
+    const missing = ids.filter((id) => !genreNameCache.has(id));
     if (missing.length === 0) return show();
     let alive = true;
     supabase
@@ -46,7 +48,7 @@ export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds 
       .select('id, name')
       .in('id', missing)
       .then(({ data }) => {
-        for (const g of (data ?? []) as { id: string; name: string }[]) genreNames.set(g.id, g.name);
+        for (const g of (data ?? []) as { id: string; name: string }[]) genreNameCache.set(g.id, g.name);
         if (alive) show();
       });
     return () => {
@@ -59,6 +61,7 @@ export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds 
   const withTags = height >= 66;
   const code = productCode(contentId);
   const length = len(sampleSeconds);
+  const shownGenres = genreNames ? genreNames.slice(0, 4) : genres;
 
   return (
     <div ref={boxRef} className="min-h-0 flex-1 overflow-hidden">
@@ -68,8 +71,9 @@ export default function WorkGapInfo({ title, contentId, sampleSeconds, genreIds 
           {withTags && (
             <div className="flex gap-1.5 overflow-hidden whitespace-nowrap text-[11px]">
               {length && <span className="text-amber-300">▶ {length}</span>}
+              {pages ? <span className="text-amber-300">📖 {pages}ページ</span> : null}
               {code && <span className="text-gray-400">{code}</span>}
-              {genres.map((g) => (
+              {shownGenres.map((g) => (
                 <span key={g} className="rounded-full bg-gray-800 px-2 text-gray-300">
                   {g}
                 </span>

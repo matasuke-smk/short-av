@@ -23,6 +23,8 @@ export function toDoujin(item: DMMItem): Doujin | null {
     genres: (item.iteminfo?.genre ?? []).map((g) => g.name).slice(0, 6),
     genreList: (item.iteminfo?.genre ?? []).map((g) => ({ id: String(g.id), name: g.name })),
     circleId: item.iteminfo?.maker?.[0]?.id !== undefined ? String(item.iteminfo.maker[0].id) : null,
+    reviewCount: item.review?.count ?? null,
+    reviewAverage: item.review?.average ? Number(item.review.average) || null : null,
   };
 }
 
