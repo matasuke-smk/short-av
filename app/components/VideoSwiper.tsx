@@ -787,7 +787,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       lastSnapRef.current = index;
       if (prevIndex !== null && prevIndex !== index && videos[index]) {
         swipeCountRef.current += 1;
-        trackSwipe(index > prevIndex ? 'next' : 'prev', swipeCountRef.current, videos[index].dmm_content_id, isFiniteList ? 'list' : 'feed');
+        trackSwipe(index > prevIndex ? 'next' : 'prev', swipeCountRef.current, videos[index].dmm_content_id, isFiniteList ? 'list' : 'feed', !!saleInfo(videos[index]));
         // ホーム画面への追加の案内（ReturnHelpers）にスワイプの回数を知らせる
         window.dispatchEvent(new CustomEvent('sav-swipe', { detail: swipeCountRef.current }));
       }
@@ -868,7 +868,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const rowSale = currentVideo && useNewRow ? saleInfo(currentVideo) : null;
   const onRowFanzaClick = (e: React.MouseEvent<HTMLAnchorElement>, kind: 'detail' | 'work_details') => {
     if (!currentVideo) return;
-    handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext()));
+    handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext(), !!saleInfo(currentVideo)));
   };
   useEffect(() => setShowDetails(false), [currentIndex]);
   // 次の3本と前の1本の女優を先に読み込んでおく（スワイプしたとき顔がすぐ出るように。2026-10-31）
