@@ -13,6 +13,7 @@ type Props = {
   actresses: ActressInfo[] | null; // null = 読み込み中
   studio?: string | null; // アニメ・同人誌: 女優の代わりに制作会社・サークルの名前を出す（2026-10-31）
   studioIcon?: 'film' | 'book'; // アニメはフィルム、同人誌は本の印
+  onStudio?: () => void; // 同人誌のサークル（作者）・アニメの制作会社を押したとき、その詳細を開く（2026-11-01）
   hasActress: boolean;
   liked: boolean;
   reviewCount: number | null | undefined;
@@ -39,7 +40,7 @@ const BOOK = 'M12 6.253v13C10.832 18.477 9.246 18 7.5 18S4.168 18.477 3 19.253v-
 const FILM = 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z';
 const HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z';
 
-export default function ActionRow({ actresses, studio, studioIcon = 'film', hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, lengthLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
+export default function ActionRow({ actresses, studio, studioIcon = 'film', onStudio, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, lengthLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
   const icon = size === 'pc' ? 'w-11 h-11' : 'w-11 h-11';
   const fanzaSize = size === 'pc' ? 'w-[58px] h-[58px]' : 'w-14 h-14';
   const label = 'mt-1 block w-full truncate text-center text-[10px] font-bold leading-tight text-gray-300';
@@ -63,6 +64,16 @@ export default function ActionRow({ actresses, studio, studioIcon = 'film', hasA
           </span>
           {/* 読み込み中は文字を出さない（「女優」→名前に変わると見た目が揺れていた） */}
           <span className={label}>{first ? (more > 0 ? `${first.name} ${t('andOthers')}` : first.name) : actresses === null ? '\u00a0' : t('actress')}</span>
+        </button>
+      ) : onStudio && studio ? (
+        // 同人誌のサークル（作者）・アニメの制作会社: 押すと詳細（女優の顔と同じ紫の丸）
+        <button type="button" onClick={onStudio} className={`${COL} active:scale-95`} aria-label={studio}>
+          <span className={`flex ${icon} items-center justify-center rounded-full border-2 border-violet-400 bg-gray-800`}>
+            <svg className="h-5 w-5 text-violet-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={studioIcon === 'book' ? BOOK : FILM} />
+            </svg>
+          </span>
+          <span className={label}>{studio}</span>
         </button>
       ) : (
         <span className={COL} aria-hidden>
