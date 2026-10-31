@@ -41,12 +41,13 @@ type Props = {
   priceLabel: string | null;
   onFanzaClick: (e: MouseEvent<HTMLAnchorElement>) => void;
   banner?: ReactNode;
+  onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
   t: (key: TextKey) => string;
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
 
-export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, t }: Props) {
+export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, onActress, t }: Props) {
   const [genres, setGenres] = useState<{ name: string; slug: string }[]>([]);
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
@@ -177,7 +178,18 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
                 <p className="mb-1.5 text-xs font-bold text-gray-400">{t('cast')}</p>
                 <div className="flex flex-col gap-2">
                   {(actresses ?? []).slice(0, 4).map((a) => (
-                    <a key={a.id} href={`/?actress=${a.slug}`} onClick={() => sendGAEvent('work_details', { action: 'actress', content_id: video.dmm_content_id })} className="flex items-center gap-2.5">
+                    <a
+                      key={a.id}
+                      href={`/?actress=${a.slug}`}
+                      onClick={(e) => {
+                        sendGAEvent('work_details', { action: 'actress', content_id: video.dmm_content_id });
+                        if (onActress) {
+                          e.preventDefault();
+                          onActress(a);
+                        }
+                      }}
+                      className="flex items-center gap-2.5"
+                    >
                       <span className="h-11 w-11 flex-shrink-0 rounded-full border-2 border-violet-400 bg-gray-800 bg-cover bg-center" style={a.image ? { backgroundImage: `url(${a.image})` } : undefined} />
                       <span>
                         <b className="block text-sm">{a.name}</b>
