@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { featureLabel } from '@/lib/feature-length';
 import { fetchActressProfiles, profileLine, type ActressProfile } from '@/lib/actress-profile';
 import { productCode } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +19,7 @@ import { currentPrice, saleInfo, yen } from '@/lib/price';
 type WorkVideo = {
   dmm_content_id: string;
   kind?: 'anime';
+  description?: string | null; // 本編の長さ（分。DMM の volume）
   title: string;
   thumbnail_url: string;
   maker: string | null;
@@ -130,6 +132,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     [t('label'), video.label],
     [t('series'), video.series],
     [t('releaseDate'), video.release_date ? video.release_date.slice(0, 10).replaceAll('-', '/') : null],
+    [t('featureLength'), featureLabel(video.description)],
     [t('sampleLength'), len(video.sample_seconds)],
   ].filter(([, v]) => !!v) as [string, ReactNode][];
   const relatedTitle = first ? `${first.name} ${t('moreWorks')}` : video.series ? `${video.series} ${t('moreWorks')}` : video.maker ? `${video.maker} ${t('moreWorks')}` : t('moreWorks');

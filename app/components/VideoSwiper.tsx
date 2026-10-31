@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { featureLabel } from '@/lib/feature-length';
 import useEmblaCarousel from 'embla-carousel-react';
 import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
@@ -945,6 +946,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         reviewCount={currentVideo.review_count}
         reviewAverage={currentVideo.review_average}
         priceLabel={rowPrice}
+        lengthLabel={featureLabel(currentVideo.description)}
         salePercent={rowSale?.percent ?? null}
         fanzaHref={rowFanzaHref}
         onFanzaClick={(e) => onRowFanzaClick(e, 'detail')}
