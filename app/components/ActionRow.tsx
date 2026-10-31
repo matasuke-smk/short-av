@@ -95,7 +95,8 @@ export default function ActionRow({ actresses, studio, hasActress, liked, review
       {/* FANZA（波紋で目立たせる。動きを減らす設定の人には止める） */}
       {fanzaHref ? (
         <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className={`${COL} -mt-1.5 active:scale-95`}>
-          <span className={`fanza-ripple relative flex ${fanzaSize} flex-col items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-[11px] font-extrabold leading-tight text-white`}>
+          {/* セールの札があるときは、中の文字（長さ・FANZA）を少し下げて札とくっつかないようにする（2026-10-31） */}
+          <span className={`fanza-ripple relative flex ${fanzaSize} flex-col items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-[11px] font-extrabold leading-tight text-white ${salePercent ? 'pt-2' : ''}`}>
             {salePercent ? <span className="absolute -right-2.5 -top-1.5 rounded-full border-2 border-gray-950 bg-yellow-300 px-1.5 text-[10px] font-black leading-4 text-rose-700">{salePercent}%OFF</span> : null}
             {lengthLabel ? (
               <span className="text-[13px] font-black leading-none">{lengthLabel}</span>
