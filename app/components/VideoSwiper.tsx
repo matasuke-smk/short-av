@@ -1710,8 +1710,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               <span className="text-sm">…</span>
             ) : (
               <>
-                <span className="text-base font-black leading-none lg:!text-lg">{t('longBtnTop')}</span>
-                <span className="mt-1 text-[11px] leading-none lg:!text-xs">{t('longBtnBottom')}</span>
+                <span className="text-sm font-extrabold leading-none lg:!text-base">{t('longBtnTop')}</span>
+                <span className="mt-1 text-[10px] font-bold leading-none lg:!text-[11px]">{t('longBtnBottom')}</span>
               </>
             )}
           </button>
@@ -1854,8 +1854,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <span className="text-sm">…</span>
               ) : (
                 <>
-                  <span className="text-lg font-black leading-none md:text-xl">{t('longBtnTop')}</span>
-                  <span className="mt-1.5 text-[11px] leading-none md:text-xs">{t('longBtnBottom')}</span>
+                  <span className="text-sm font-extrabold leading-none md:text-base">{t('longBtnTop')}</span>
+                  <span className="mt-1 text-[10px] font-bold leading-none md:text-[11px]">{t('longBtnBottom')}</span>
                 </>
               )}
             </button>
