@@ -37,6 +37,8 @@ type WorkVideo = {
 };
 // 開いたときに DMM から取り直す最新の値（/api/work-info）
 type Fresh = Pick<WorkVideo, 'price' | 'list_price' | 'campaign_end' | 'campaign_title' | 'review_count' | 'review_average'>;
+// 同人誌の関連作品で使う項目（lib/doujin-types.ts の Doujin の一部）
+type DoujinLite = { contentId: string; title: string; cover: string; price: number | null };
 type Related = { dmm_content_id: string; title: string; thumbnail_url: string; sample_seconds: number | null };
 
 type Props = {
@@ -49,7 +51,7 @@ type Props = {
   banner?: ReactNode;
   onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
   t: (key: TextKey, vars?: Record<string, string | number>) => string;
-  doujin?: { genres: string[]; pages: number }; // 同人誌（2026-10-31）: ジャンルの名前と読めるサンプルのページ数
+  doujin?: { genres: string[]; pages: number; circleId: string | null; genreId: string | null; genreName: string | null }; // 同人誌（2026-10-31）: ジャンルの名前・読めるサンプルのページ数・関連作品を探すためのサークルとジャンル
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
@@ -58,6 +60,8 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   const [genres, setGenres] = useState<{ name: string; slug: string }[]>([]);
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
+  // 同人誌の関連作品（同じサークル・同じジャンルの人気。/api/doujin/related）
+  const [djRelated, setDjRelated] = useState<{ circle: DoujinLite[]; genre: DoujinLite[] } | null>(null);
   const first = actresses?.[0];
   // 出演欄: 3人まではカード、4人以上は2列（8人まで）。プロフィールと出演作の数は開いたときに取る
   const castList = (actresses ?? []).slice(0, 8);
@@ -110,7 +114,15 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     if (isDoujin) {
       setGenres((doujin?.genres ?? []).map((name) => ({ name, slug: name })));
       setRelated([]);
-      return;
+      let alive = true;
+      const q = new URLSearchParams({ id: video.dmm_content_id, ...(doujin?.circleId ? { circle: doujin.circleId } : {}), ...(doujin?.genreId ? { genre: doujin.genreId } : {}) });
+      fetch(`/api/doujin/related?${q}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => alive && d && setDjRelated({ circle: d.circle ?? [], genre: d.genre ?? [] }))
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
     }
     let alive = true;
     const ids = video.genre_ids ?? [];
@@ -132,7 +144,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     return () => {
       alive = false;
     };
-  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first, isAnime, isDoujin, doujin?.genres]);
+  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first, isAnime, isDoujin, doujin?.genres, doujin?.circleId, doujin?.genreId]);
 
   const avg = typeof v.review_average === 'number' && v.review_average > 0 ? v.review_average : null;
   const rows: [string, ReactNode][] = [
@@ -264,6 +276,29 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
             )}
           </div>
 
+          {/* 同人誌: 同じサークルの作品と、同じジャンルの人気の作品。押すとその同人誌から読む */}
+          {isDoujin &&
+            djRelated &&
+            ([
+              [`${video.maker ?? ''} ${t('moreWorks')}`, djRelated.circle],
+              [t('similarPopular', { genre: doujin?.genreName ?? '' }), djRelated.genre],
+            ] as [string, DoujinLite[]][])
+              .filter(([, list]) => list.length > 0)
+              .map(([title, list]) => (
+                <div key={title}>
+                  <p className="mb-1.5 mt-4 text-xs font-bold text-gray-400">{title}</p>
+                  <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+                    {list.map((d) => (
+                      <a key={d.contentId} href={`/?mode=doujin&d=${d.contentId}`} onClick={() => sendGAEvent('work_details', { action: 'related', content_id: video.dmm_content_id })} className="w-24 flex-shrink-0 lg:w-[120px]">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- FANZA の同人誌の表紙 */}
+                        <img src={d.cover} alt="" loading="lazy" className="h-32 w-24 rounded-lg bg-gray-800 object-cover lg:h-40 lg:w-[120px]" />
+                        <span className="mt-1 line-clamp-2 text-[10px] leading-snug text-gray-300">{d.title}</span>
+                        {d.price != null && <span className="text-[10px] text-amber-300">{yen(d.price)}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
           {related && related.length > 0 && (
             <>
               <p className="mb-1.5 mt-4 text-xs font-bold text-gray-400">{relatedTitle}</p>

@@ -153,3 +153,22 @@ export async function searchDoujinBy(options: { keyword?: string; genreIds?: str
   return { doujin, total };
 }
 
+
+/**
+ * 同人誌の作品詳細の「関連作品」（2026-10-31）: 同じサークルの人気の作品と、同じジャンルの人気の作品（それぞれ8冊まで。今の作品は除く）。
+ * DMM への問い合わせは fetchDMMProducts の中で1時間使い回す
+ */
+export async function relatedDoujin(options: { circleId?: string | null; genreId?: string | null; exclude: string }): Promise<{ circle: Doujin[]; genre: Doujin[] }> {
+  const get = async (article: { type: 'maker' | 'genre'; id: string } | null) => {
+    if (!article) return [];
+    const data = await fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 12, articles: [article] }).catch(() => null);
+    return (data?.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null && d.contentId !== options.exclude).slice(0, 8);
+  };
+  const [circle, genre] = await Promise.all([
+    get(options.circleId ? { type: 'maker', id: options.circleId } : null),
+    get(options.genreId ? { type: 'genre', id: options.genreId } : null),
+  ]);
+  // 同じサークルの作品は「似た作品」から除く（2回出さない）
+  const inCircle = new Set(circle.map((d) => d.contentId));
+  return { circle, genre: genre.filter((d) => !inCircle.has(d.contentId)) };
+}

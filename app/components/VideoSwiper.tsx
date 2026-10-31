@@ -2172,7 +2172,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
           t={t}
-          doujin={rowDoujin ? { genres: rowDoujin.genres, pages: rowDoujin.samples.length } : undefined}
+          doujin={rowDoujin ? { genres: rowDoujin.genres, pages: rowDoujin.samples.length, circleId: rowDoujin.circleId, genreId: rowDoujin.genreList[0]?.id ?? null, genreName: rowDoujin.genreList[0]?.name ?? null } : undefined}
         />
       )}
 
