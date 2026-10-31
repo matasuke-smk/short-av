@@ -14,6 +14,7 @@ const CRON_PATHS: Record<string, string> = {
   '0 1 * * *': '/api/cron/indexnow',
   '50 21 * * *': '/api/cron/long-scores',
   '0 22 * * *': '/api/cron/daily-summary',
+  '10 22 * * *': '/api/cron/update-anime', // アニメの毎日の更新（2026-10-31 追加）
   '0 1 * * 1': '/api/cron/article-ideas',
 };
 
