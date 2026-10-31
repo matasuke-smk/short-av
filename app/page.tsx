@@ -344,6 +344,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, animeMode = f
         doujinList={doujinList.map((d) => ({ ...d, url: goHref(d.url) ?? d.url }))}
         doujinMode={doujinMode}
         animeMode={animeMode}
+        focusActressSlug={catalog?.kind === 'actress' && isFiniteList ? catalog.slug : undefined}
         doujinOnly={doujinOnly}
         isFiniteList={isFiniteList}
         startIndex={doujinOnly ? Math.max(0, doujinList.findIndex((d) => d.contentId === doujinId)) : 0}

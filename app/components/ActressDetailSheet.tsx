@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { sendGAEvent } from '@/lib/gtag';
 import { useSheetDrag } from '@/lib/useSheetDrag';
 import { goHref } from '@/lib/go-link';
+import { ageOf } from '@/lib/actress-profile';
 import type { ActressInfo } from '@/lib/useActresses';
 import type { TextKey } from '@/lib/i18n';
 
@@ -38,13 +39,6 @@ type Props = {
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
-const ageOf = (birth: string) => {
-  const b = new Date(`${birth}T00:00:00+09:00`);
-  const n = new Date();
-  let age = n.getFullYear() - b.getFullYear();
-  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) age--;
-  return age;
-};
 
 export default function ActressDetailSheet({ actress, onClose, onBack, onSwipeWorks, enableAffiliateLinks, t }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
