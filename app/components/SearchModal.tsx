@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { productCodePattern } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 import { trackSearch } from '@/lib/gtag';
 import { LONG_SAMPLE_OPTIONS, longSampleLabel } from '@/config/site';
@@ -296,7 +297,11 @@ export default function SearchModal({
         .not('thumbnail_url', 'is', null)
         .not('sample_video_url', 'is', null);
 
-      if (by === 'keyword') {
+      // 品番（STARS-840 / stars840 など）で探したときは作品番号で当てる（2026-10-31）
+      const codePattern = by === 'keyword' ? productCodePattern(keyword) : null;
+      if (codePattern) {
+        query = query.filter('dmm_content_id', 'match', codePattern);
+      } else if (by === 'keyword') {
         // スペース区切りの語をすべて含むタイトル
         for (const word of words) {
           query = query.ilike('title', `%${escapeLike(word)}%`);
@@ -487,7 +492,7 @@ export default function SearchModal({
                       handleSearch('keyword');
                     }
                   }}
-                  placeholder="作品タイトルで検索（Enter）"
+                  placeholder="作品タイトル・品番で検索（Enter）"
                   className="flex-1 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
                 />
                 <button
@@ -723,7 +728,7 @@ export default function SearchModal({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="作品タイトルで検索（Enter）"
+                  placeholder="作品タイトル・品番で検索（Enter）"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => {

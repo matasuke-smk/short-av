@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { productCode } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 import { sendGAEvent } from '@/lib/gtag';
 import { useSheetDrag } from '@/lib/useSheetDrag';
@@ -110,6 +111,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
 
   const avg = typeof v.review_average === 'number' && v.review_average > 0 ? v.review_average : null;
   const rows: [string, ReactNode][] = [
+    [t('productCode'), productCode(video.dmm_content_id)],
     [t('maker'), video.maker],
     [t('label'), video.label],
     [t('series'), video.series],

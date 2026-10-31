@@ -12,6 +12,7 @@ import { buildVideoDescription, getVideoNames, type VideoSeoRow } from '@/lib/vi
 import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
 import { goHref } from '@/lib/go-link';
 import { fetchAnimeByContentId, fetchRandomAnime } from '@/lib/anime';
+import { productCode } from '@/lib/product-code';
 import { getLongSampleCounts } from '@/lib/long-sample-counts';
 import { isSale10yenActive } from '@/config/sale-10yen';
 
@@ -46,8 +47,9 @@ export async function generateMetadata({
   if (mode === 'anime') {
     const anime = contentId && contentId.length <= 64 ? await fetchAnimeByContentId(contentId).catch(() => null) : null;
     if (!anime?.thumbnail_url) return { robots: { index: false, follow: true } };
-    const title = `${anime.title} | Short AV`;
-    const description = 'アニメのサンプル動画を縦スワイプで無料視聴。Short AV';
+    const animeCode = productCode(anime.dmm_content_id);
+    const title = `${animeCode ? `${animeCode} ` : ''}${anime.title} | Short AV`;
+    const description = `${animeCode ? `【${animeCode}】` : ''}${anime.title}のサンプル動画を縦スワイプで無料視聴。Short AV`;
     return {
       title,
       description,
@@ -61,12 +63,15 @@ export async function generateMetadata({
   const video = (await getVideoByContentId(contentId).catch(() => null)) as VideoSeoRow | null;
   if (!video?.thumbnail_url) return {};
 
-  const title = `${video.title} | Short AV`;
+  // 品番（STARS-840 など）で検索されたときにも当たるよう、題名の先頭に入れる（2026-10-31 ユーザーの希望）
+  const code = productCode(contentId);
+  const title = `${code ? `${code} ` : ''}${video.title} | Short AV`;
   // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる。
   // Claude が書いた紹介文（ai_description、sql/019）があればそちらを優先する（2026-10-25）
   const aiRaw = (video as unknown as { ai_description?: unknown }).ai_description;
   const ai = typeof aiRaw === 'string' ? aiRaw : '';
-  const description = ai ? (ai.length > 160 ? `${ai.slice(0, 157)}…` : ai) : buildVideoDescription(video, await getVideoNames(video));
+  const aiText = ai && code ? `【${code}】${ai}` : ai;
+  const description = aiText ? (aiText.length > 160 ? `${aiText.slice(0, 157)}…` : aiText) : buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
@@ -330,7 +335,7 @@ async function VideoList({ targetId, doujinId, doujinMode = false, animeMode = f
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
       />
       {/* ?v= で開かれた作品の紹介文（Claude が書いたもの。画面には出さない。検索エンジン・AI 向けの独自の文章。2026-10-25） */}
-      {targetId && firstAi && <p className="sr-only">{firstAi}</p>}
+      {targetId && firstAi && <p className="sr-only">{productCode(targetId) ? `品番 ${productCode(targetId)}。` : ''}{firstAi}</p>}
       <VideoSwiper
         // FANZA の紹介リンクは /go を通した形で渡す（ページに埋め込まれるデータをロボットが読んでたどらないように。lib/go-link.ts、2026-10-27）
         videos={videos.map((v) => ({ ...v, dmm_product_url: goHref(v.dmm_product_url) ?? v.dmm_product_url }))}
