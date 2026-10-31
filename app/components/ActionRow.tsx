@@ -16,6 +16,7 @@ type Props = {
   reviewCount: number | null | undefined;
   reviewAverage: number | null | undefined;
   priceLabel: string | null;
+  salePercent?: number | null; // セール中なら定価から何%OFF か（FANZA の丸の右上に札で出す）
   fanzaHref: string | null; // null のときは FANZA の丸を出さない
   onFanzaClick: (e: MouseEvent<HTMLAnchorElement>) => void;
   onLike: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -31,7 +32,7 @@ const COL = 'flex w-16 flex-shrink-0 flex-col items-center';
 const PERSON = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
 const HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z';
 
-export default function ActionRow({ actresses, hasActress, liked, reviewCount, reviewAverage, priceLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
+export default function ActionRow({ actresses, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
   const icon = size === 'pc' ? 'w-11 h-11' : 'w-11 h-11';
   const fanzaSize = size === 'pc' ? 'w-[58px] h-[58px]' : 'w-14 h-14';
   const label = 'mt-1 block w-full truncate text-center text-[10px] font-bold leading-tight text-gray-300';
@@ -90,7 +91,8 @@ export default function ActionRow({ actresses, hasActress, liked, reviewCount, r
       {/* FANZA（波紋で目立たせる。動きを減らす設定の人には止める） */}
       {fanzaHref ? (
         <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className={`${COL} -mt-1.5 active:scale-95`}>
-          <span className={`fanza-ripple flex ${fanzaSize} flex-col items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-[11px] font-extrabold leading-tight text-white`}>
+          <span className={`fanza-ripple relative flex ${fanzaSize} flex-col items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-[11px] font-extrabold leading-tight text-white`}>
+            {salePercent ? <span className="absolute -right-2.5 -top-1.5 rounded-full border-2 border-gray-950 bg-yellow-300 px-1.5 text-[10px] font-black leading-4 text-rose-700">{salePercent}%OFF</span> : null}
             <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
             </svg>

@@ -35,6 +35,9 @@ export type Database = {
           sample_seconds: number | null; // サンプル動画の長さ（秒）。-1 は調べられなかった作品
           review_count?: number | null; // FANZA のレビュー件数（sql/022）
           review_average?: number | null; // FANZA のレビューの平均点（sql/026。まだ無い作品は null）
+          list_price?: number | null; // FANZA の定価（sql/027）
+          campaign_end?: string | null; // FANZA のセールの終わり（sql/027）
+          campaign_title?: string | null; // FANZA のセールの名前（sql/027）
           is_active: boolean;
           created_at: string;
           updated_at: string;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { currentPrice } from '@/lib/price';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import type { Database } from '@/lib/supabase';
@@ -164,7 +165,7 @@ export default function RankingPage() {
                       )}
                       {video.price && (
                         <p className="text-blue-400 font-medium">
-                          ¥{video.price}〜
+                          ¥{(currentPrice(video) ?? 0).toLocaleString()}〜
                         </p>
                       )}
                     </div>

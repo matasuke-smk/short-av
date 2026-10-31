@@ -95,9 +95,22 @@ export async function fillReviewAverages(supabase: SupabaseClient, deadline: num
     if (Date.now() > deadline) break;
     try {
       const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid: v.dmm_content_id as string, hits: 1 });
-      const review = res.result?.items?.[0]?.review;
-      // 平均点が取れなかった作品は 0 を入れて、毎日問い合わせ直さない（画面では 0 は「ー」と出す）
-      const { error: updateError } = await supabase.from('videos').update({ review_average: review?.average ? Number(review.average) || 0 : 0, ...(review?.count != null && { review_count: review.count }) }).eq('id', v.id);
+      const item = res.result?.items?.[0];
+      const review = item?.review;
+      // 平均点が取れなかった作品は 0 を入れて、毎日問い合わせ直さない（画面では 0 は「ー」と出す）。価格・定価・セールも新しくする（sql/027）
+      const { error: updateError } = await supabase
+        .from('videos')
+        .update({
+          review_average: review?.average ? Number(review.average) || 0 : 0,
+          ...(review?.count != null && { review_count: review.count }),
+          ...(item && {
+            price: parseInt(item.prices?.price) || undefined,
+            list_price: parseInt(item.prices?.list_price ?? '') || null,
+            campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+            campaign_title: item.campaign?.[0]?.title ?? null,
+          }),
+        })
+        .eq('id', v.id);
       if (!updateError) filled++;
     } catch (e) {
       if (e instanceof DMMBlockedError) break;

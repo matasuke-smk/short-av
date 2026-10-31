@@ -36,7 +36,8 @@ import { InstallPrompt, LikeHint, ReturnPanel } from './ReturnHelpers';
 import ActionRow from './ActionRow';
 import SiteMenu from './SiteMenu';
 import { useActresses } from '@/lib/useActresses';
-const WorkDetailSheet = dynamic(() => import('./WorkDetailSheet'), { ssr: false });
+import { currentPrice, saleInfo } from '@/lib/price';
+import WorkDetailSheet from './WorkDetailSheet';
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -858,7 +859,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const useNewRow = !!currentVideo && !isDoujinSlide(currentVideo) && !hideFanzaFor(currentVideo);
   const rowActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
   const rowFanzaHref = useNewRow && enableAffiliateLinks && currentVideo?.dmm_product_url ? goHref(currentVideo.dmm_product_url) ?? currentVideo.dmm_product_url : null;
-  const rowPrice = currentVideo?.price ? `¥${currentVideo.price.toLocaleString()}〜` : null;
+  // 今の値段（セールが終わっていれば定価。DMM の price はセールの値段のまま残ることがある）とセールの割引（2026-10-31）
+  const nowPrice = currentVideo ? currentPrice(currentVideo) : null;
+  const rowPrice = nowPrice ? `¥${nowPrice.toLocaleString()}〜` : null;
+  const rowSale = currentVideo && useNewRow ? saleInfo(currentVideo) : null;
   const onRowFanzaClick = (e: React.MouseEvent<HTMLAnchorElement>, kind: 'detail' | 'work_details') => {
     if (!currentVideo) return;
     handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext()));
@@ -874,6 +878,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         reviewCount={currentVideo.review_count}
         reviewAverage={currentVideo.review_average}
         priceLabel={rowPrice}
+        salePercent={rowSale?.percent ?? null}
         fanzaHref={rowFanzaHref}
         onFanzaClick={(e) => onRowFanzaClick(e, 'detail')}
         onLike={(e) => toggleLike(currentVideo, e)}
@@ -1454,7 +1459,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
               className="order-first col-span-2 h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95"
             >
-              {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-lg font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
+              {nowPrice && !dlsiteHrefFor(currentVideo) ? <span className="text-lg font-bold">¥{nowPrice.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
               <span className="text-sm font-bold">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
             </a>
           ) : hideFanzaFor(currentVideo) && juicyAds.enabled ? (
@@ -1514,7 +1519,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
               className={`${isDoujinSlide(currentVideo) ? 'col-span-2 ' : ''}bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg flex items-center justify-center gap-2 transition-colors active:scale-95`}
             >
-              {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-sm font-bold">¥{currentVideo.price.toLocaleString()}〜</span> : null}
+              {nowPrice && !dlsiteHrefFor(currentVideo) ? <span className="text-sm font-bold">¥{nowPrice.toLocaleString()}〜</span> : null}
               <span className="text-xs font-medium">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
             </a>
           ) : (
@@ -1652,7 +1657,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 onClick={(e) => { if (dlsiteHrefFor(currentVideo)) { trackDlsiteClick('search', currentVideo.dmm_content_id || undefined); return; } handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', isDoujinSlide(currentVideo) ? 'doujin' : 'detail', getViewContext()), isDoujinSlide(currentVideo) ? currentVideo.dmm_content_id || undefined : undefined); }}
                 className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow"
               >
-                {currentVideo.price && !dlsiteHrefFor(currentVideo) ? <span className="text-base font-bold">¥{currentVideo.price.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
+                {nowPrice && !dlsiteHrefFor(currentVideo) ? <span className="text-base font-bold">¥{nowPrice.toLocaleString()}{isDoujinSlide(currentVideo) ? '' : '〜'}</span> : null}
                 <span className="text-sm font-medium">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
               </a>
             )}
@@ -1813,7 +1818,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     }}
                   >
                     <div className="text-sm mb-2">{t('fullVideo')}</div>
-                    <div className="text-2xl">¥{currentVideo?.price || 0}〜</div>
+                    <div className="text-2xl">¥{(nowPrice ?? 0).toLocaleString()}〜</div>
                   </a>
                 ) : (
                   <div className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl px-4 py-4 text-center font-bold flex items-center justify-center">
@@ -1907,7 +1912,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     }}
                   >
                     <div className="text-sm mb-1">{t('fullVideo')}</div>
-                    <div className="text-xl">¥{currentVideo?.price || 0}〜</div>
+                    <div className="text-xl">¥{(nowPrice ?? 0).toLocaleString()}〜</div>
                   </a>
                 ) : (
                   <div className="block w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700 text-gray-400 rounded-xl py-3 text-center font-bold">
