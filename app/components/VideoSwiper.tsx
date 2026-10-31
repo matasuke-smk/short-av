@@ -113,6 +113,9 @@ function getPlayerSize(isLandscape: boolean): { width: number; height: number } 
 }
 
 // サンプル動画の URL から、画面に合う大きさのプレイヤー（/api/sample-player）の URL を作る
+// 表示中の作品の先、何作品分のプレイヤーを先に読み込んでおくか（2026-10-31）
+const PLAYER_PRELOAD = 2;
+
 function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: number }): string {
   const cid = sampleUrl.match(/\/cid=([0-9a-z_]+)\//)?.[1];
   if (!cid) return removeAffiliateIdFromUrl(sampleUrl);
@@ -242,6 +245,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [showDetails, setShowDetails] = useState(false);
   // 女優の詳細（女優が1人の作品で顔を押したとき・女優一覧で選んだとき。2026-10-31）
   const [detailActress, setDetailActress] = useState<ActressInfo | null>(null);
+  // 女優の詳細をどこから開いたか（女優一覧・作品詳細からなら「‹ 戻る」でそこへ戻る。2026-10-31 ユーザーの希望）
+  const [actressFrom, setActressFrom] = useState<'list' | 'details' | null>(null);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
@@ -914,8 +919,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         onLike={(e) => toggleLike(currentVideo, e)}
         onActress={() => {
           // 女優が1人ならその女優の詳細、2人以上なら一覧（一覧で選ぶと詳細）
-          if (rowActresses && rowActresses.length === 1) setDetailActress(rowActresses[0]);
-          else setShowActressModal(true);
+          if (rowActresses && rowActresses.length === 1) {
+            setActressFrom(null);
+            setDetailActress(rowActresses[0]);
+          } else setShowActressModal(true);
           trackModalOpen('actress');
         }}
         onDetails={() => setShowDetails(true)}
@@ -1195,14 +1202,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       style={fit?.thumbWidth ? { width: fit.thumbWidth, marginLeft: 'auto', marginRight: 'auto' } : undefined}
                       onClick={handleThumbnailClick}
                     >
-                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生 */}
-                    {index === currentIndex && video.sample_video_url ? (
+                    {/* 表示中の作品は、サムネイルの下に FANZA のプレイヤーを置き、中央の▶で1回タップ再生。
+                        先の2作品もプレイヤーを先に読み込んでおく（スワイプしてから読み込むと▶を押せるまで待たされたため。2026-10-31 ユーザーの希望。
+                        1つが動画のページ1枚分の重さなので2作品まで）。表示中になるまでタップは通さない */}
+                    {index >= currentIndex && index <= currentIndex + PLAYER_PRELOAD && video.sample_video_url ? (
                       <InlineSamplePlayer
                         key={video.dmm_content_id}
+                        active={index === currentIndex}
                         playerUrl={(size) => getSamplePlayerUrl(video.sample_video_url!, size)}
                         thumbnailUrl={video.thumbnail_url}
                         title={video.title}
-                        priority
+                        priority={index === currentIndex}
                         onStart={recordInlineView}
                         sampleSeconds={video.sample_seconds}
                       />
@@ -2123,6 +2133,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           onFanzaClick={(e) => onRowFanzaClick(e, 'work_details')}
           onActress={(a) => {
             setShowDetails(false);
+            setActressFrom('details');
             setDetailActress(a);
           }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
@@ -2134,7 +2145,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {detailActress && (
         <ActressDetailSheet
           actress={detailActress}
-          onClose={() => setDetailActress(null)}
+          onClose={() => {
+            setDetailActress(null);
+            setActressFrom(null);
+          }}
+          onBack={
+            actressFrom
+              ? () => {
+                  setDetailActress(null);
+                  if (actressFrom === 'list') setShowActressModal(true);
+                  else setShowDetails(true);
+                  setActressFrom(null);
+                }
+              : undefined
+          }
           onSwipeWorks={showActressVideos}
           enableAffiliateLinks={enableAffiliateLinks}
           t={t}
@@ -2149,7 +2173,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           trackModalClose('actress');
         }}
         actressIds={currentVideo?.actress_ids || []}
-        onActressSelect={(a) => setDetailActress(a)}
+        onActressSelect={(a) => {
+          setActressFrom('list');
+          setDetailActress(a);
+        }}
         title={t('castList')}
       />
 

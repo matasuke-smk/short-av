@@ -21,6 +21,7 @@ const TAP_H = 150;
  *   タップを通す範囲をプレイヤー全体に広げ、サムネイルを消す
  * プレイヤーの位置は変えずに、切り抜く範囲だけを変えるので、iframe は読み込み直されない。
  * - プレイヤーの読み込みが終わるまではタップを通さず、▶の下に「読み込み中…」と出す
+ * - 先の作品では active=false で先に読み込んでおく（タップは通さず、再生の検知もしない）。表示中になったら active=true（2026-10-31）
  */
 export default function InlineSamplePlayer({
   playerUrl,
@@ -29,6 +30,7 @@ export default function InlineSamplePlayer({
   priority,
   onStart,
   sampleSeconds,
+  active = true,
 }: {
   playerUrl: (size: { width: number; height: number }) => string;
   thumbnailUrl: string;
@@ -36,6 +38,7 @@ export default function InlineSamplePlayer({
   priority: boolean;
   onStart: () => void;
   sampleSeconds?: number | null;
+  active?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -51,12 +54,13 @@ export default function InlineSamplePlayer({
   onStartRef.current = onStart;
 
   // 枠の大きさに合わせてプレイヤーの大きさを決める（決まったら固定。途中で変えると読み込み直しになる）
+  // 先読みのときに大きさが取れなかった場合は、表示中になったときに測る
   useEffect(() => {
     const el = boxRef.current;
-    if (!el) return;
+    if (!el || box) return;
     const rect = el.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) setBox({ width: rect.width, height: rect.height });
-  }, []);
+  }, [active, box]);
 
   // 読み込み完了の合図（onLoad）が届かなかったときでも、再生できなくならないよう一定時間で受け付ける
   useEffect(() => {
@@ -64,8 +68,9 @@ export default function InlineSamplePlayer({
     return () => clearTimeout(timer);
   }, []);
 
-  // 再生が始まったことを検知する
+  // 再生が始まったことを検知する（表示中の作品だけ）
   useEffect(() => {
+    if (!active) return;
     const start = () => {
       if (startedRef.current) return;
       startedRef.current = true;
@@ -86,9 +91,9 @@ export default function InlineSamplePlayer({
     // blur を取りこぼしたときのため、フォーカスの位置も定期的に確認する
     const timer = setInterval(checkFocus, 300);
 
-    // プレイヤーは再生ボタンが押されると親ページに合図を送る
+    // プレイヤーは再生ボタンが押されると親ページに合図を送る（先読みのプレイヤーもあるので、自分のプレイヤーからの合図だけ受ける）
     const onMessage = (e: MessageEvent) => {
-      if (/^https:\/\/([a-z0-9-]+\.)*dmm\.co\.jp$/.test(e.origin) && e.data === 'clickSamplePlayBtn') start();
+      if (/^https:\/\/([a-z0-9-]+\.)*dmm\.co\.jp$/.test(e.origin) && e.data === 'clickSamplePlayBtn' && e.source === iframeRef.current?.contentWindow) start();
     };
     window.addEventListener('blur', onBlur);
     window.addEventListener('message', onMessage);
@@ -97,7 +102,7 @@ export default function InlineSamplePlayer({
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('message', onMessage);
     };
-  }, []);
+  }, [active]);
 
   const player = box && {
     width: Math.floor(Math.min(box.width, box.height * PLAYER_RATIO)),
@@ -131,7 +136,7 @@ export default function InlineSamplePlayer({
       }}
     >
       {player && clip && (
-        <div className="absolute overflow-hidden z-10" style={{ ...clip, pointerEvents: ready ? undefined : 'none' }}>
+        <div className="absolute overflow-hidden z-10" style={{ ...clip, pointerEvents: ready && active ? undefined : 'none' }}>
           <iframe
             ref={iframeRef}
             src={playerUrl(player)}

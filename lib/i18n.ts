@@ -54,6 +54,9 @@ const DICT = {
   reviewsUnit: { ja: '件', en: '', zhHant: '則', zhHans: '条', id: '', th: '', ko: '건' },
   // 女優の詳細・女優一覧（2026-10-31）
   birthday: { ja: '生年月日', en: 'Born', zhHant: '生日', zhHans: '生日', id: 'Lahir', th: 'วันเกิด', ko: '생년월일' },
+  back: { ja: '戻る', en: 'Back', zhHant: '返回', zhHans: '返回', id: 'Kembali', th: 'กลับ', ko: '뒤로' },
+  hoursLeft: { ja: 'あと{n}時間', en: '{n}h left', zhHant: '剩 {n} 小時', zhHans: '剩 {n} 小时', id: '{n} jam lagi', th: 'เหลือ {n} ชม.', ko: '{n}시간 남음' },
+  minutesLeft: { ja: 'あと{n}分', en: '{n} min left', zhHant: '剩 {n} 分鐘', zhHans: '剩 {n} 分钟', id: '{n} menit lagi', th: 'เหลือ {n} นาที', ko: '{n}분 남음' },
   ageUnit: { ja: '歳', en: ' y/o', zhHant: '歲', zhHans: '岁', id: ' th', th: ' ปี', ko: '세' },
   height: { ja: '身長', en: 'Height', zhHant: '身高', zhHans: '身高', id: 'Tinggi', th: 'ส่วนสูง', ko: '키' },
   sizes: { ja: 'サイズ', en: 'Sizes', zhHant: '三圍', zhHans: '三围', id: 'Ukuran', th: 'สัดส่วน', ko: '사이즈' },

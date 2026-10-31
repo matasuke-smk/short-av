@@ -43,7 +43,7 @@ type Props = {
   onFanzaClick: (e: MouseEvent<HTMLAnchorElement>) => void;
   banner?: ReactNode;
   onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
-  t: (key: TextKey) => string;
+  t: (key: TextKey, vars?: Record<string, string | number>) => string;
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
@@ -70,6 +70,9 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   }, [video.dmm_content_id]);
   const v = fresh ? { ...video, ...fresh } : video;
   const sale = saleInfo(v);
+  // 終わりまで24時間を切ったら「あと○時間」（1時間を切ったら「あと○分」）も出す（2026-10-31 ユーザーの希望。スワイプ画面には出さない）
+  const msLeft = sale ? sale.endsAt.getTime() - Date.now() : 0;
+  const left = sale && msLeft < 24 * 3600_000 ? (msLeft < 3600_000 ? t('minutesLeft', { n: Math.max(1, Math.floor(msLeft / 60_000)) }) : t('hoursLeft', { n: Math.floor(msLeft / 3600_000) })) : null;
   const nowPrice = currentPrice(v);
 
   useEffect(() => {
@@ -151,6 +154,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
                   <p className="mt-1 text-[11px] text-rose-200">
                     {sale.title ? `${sale.title}・` : ''}
                     {sale.endsAt.getMonth() + 1}/{sale.endsAt.getDate()} {String(sale.endsAt.getHours()).padStart(2, '0')}:{String(sale.endsAt.getMinutes()).padStart(2, '0')} まで
+                    {left && <b className="ml-1.5 rounded bg-amber-400 px-1.5 py-0.5 text-[11px] font-extrabold text-black">⏰ {left}</b>}
                   </p>
                 </div>
               ) : nowPrice ? (
