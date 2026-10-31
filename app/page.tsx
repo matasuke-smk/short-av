@@ -2,8 +2,7 @@ import { Suspense } from 'react';
 import { featureLabel } from '@/lib/feature-length';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
-import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
-import { getCachedSalePool, mixSale } from '@/lib/sale-pool';
+import { pickPopularVideos } from '@/lib/popular-pool';
 import { getVideoByContentId } from '@/lib/video-by-content-id';
 import { getCatalogPage, type CatalogKind } from '@/lib/catalog';
 import VideoSwiper from './components/VideoSwiper';
@@ -167,10 +166,10 @@ async function VideoList({ targetId, doujinId, doujinMode = false, animeMode = f
   // まずRPC関数を使用してランダム取得を試みる
   // （以前は存在しない get_random_videos を呼んでいたため、毎回フォールバックの「同じ200本」になっていた）
   try {
-    // 10分ごとにまとめて取った 200 本（lib/random-pool.ts）から、開くたびにランダムに選ぶ（Supabase の通信量を抑えるため）
-    // セール中の作品を8割にして混ぜる（lib/sale-pool.ts。2026-10-31）。セール作品が取れなければふつうの作品だけ
-    const salePool = await getCachedSalePool().catch(() => []);
-    videosAll = mixSale(shuffle(await getCachedRandomPool()) as { dmm_content_id: string }[], shuffle(salePool), poolSize);
+    // 人気の作品（レビュー30件以上・評価4.0以上、または FANZA の人気ランキング）だけから、開くたびにランダムに選ぶ。
+    // セール中の作品を8割にする（lib/popular-pool.ts。2026-11-01 ユーザーと決めた形。以前は全作品からのランダム2割＋セール8割）
+    videosAll = await pickPopularVideos(poolSize);
+    if (videosAll.length === 0) videosAll = null;
   } catch (error) {
     console.log('RPC関数が存在しない可能性があります。フォールバックを使用します。');
   }

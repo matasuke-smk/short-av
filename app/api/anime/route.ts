@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchRandomAnime } from '@/lib/anime';
 
-/** スワイプ画面のアニメ（切り替えたとき・補充のとき）。人気の上位からランダムに（2026-10-31） */
+/** スワイプ画面のアニメ（切り替えたとき・補充のとき）。人気の作品（レビュー3件以上・評価4.0以上）からランダムに（2026-11-01） */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const requested = parseInt(searchParams.get('limit') || '', 10);

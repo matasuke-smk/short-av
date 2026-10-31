@@ -105,7 +105,7 @@ export default function CircleDetailSheet({ circle, onClose, onSwipeWorks, onSwi
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 lg:px-6 lg:pt-5">
           <div className="flex items-start gap-4" data-sheet-handle>
             {/* 作者の顔写真は無いので、いちばん人気の作品の表紙を丸く出す */}
-            <span className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-full border-2 border-violet-400 bg-gray-800 bg-cover bg-center" style={cover ? { backgroundImage: `url(${cover})` } : undefined} />
+            <span className={`flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-full border-2 border-violet-400 bg-gray-800 bg-cover ${isAnime ? 'bg-right' : 'bg-center'}`} style={cover ? { backgroundImage: `url(${cover})` } : undefined} />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
