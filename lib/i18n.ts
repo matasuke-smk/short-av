@@ -66,6 +66,8 @@ const DICT = {
   hometown: { ja: '出身', en: 'From', zhHant: '出身', zhHans: '出身', id: 'Asal', th: 'บ้านเกิด', ko: '출신' },
   hobby: { ja: '趣味', en: 'Hobbies', zhHant: '興趣', zhHans: '爱好', id: 'Hobi', th: 'งานอดิเรก', ko: '취미' },
   actressWorks: { ja: '出演作', en: 'Works', zhHant: '演出作品', zhHans: '演出作品', id: 'Karya', th: 'ผลงาน', ko: '출연작' },
+  worksCount: { ja: '出演作 {n}本', en: '{n} works', zhHant: '{n} 部作品', zhHans: '{n} 部作品', id: '{n} karya', th: '{n} เรื่อง', ko: '출연작 {n}편' },
+  seeMore: { ja: '詳しく見る', en: 'Details', zhHant: '查看詳情', zhHans: '查看详情', id: 'Detail', th: 'ดูเพิ่ม', ko: '자세히' },
   worksInSite: { ja: 'Short AV の出演作 {n}本', en: '{n} works on Short AV', zhHant: 'Short AV 收錄 {n} 部', zhHans: 'Short AV 收录 {n} 部', id: '{n} karya di Short AV', th: '{n} เรื่องใน Short AV', ko: 'Short AV 출연작 {n}편' },
   swipeActressWorks: { ja: 'この女優の作品だけスワイプで見る', en: 'Swipe only her works', zhHant: '只滑動觀看她的作品', zhHans: '只滑动观看她的作品', id: 'Geser karyanya saja', th: 'ดูเฉพาะผลงานของเธอ', ko: '이 배우 작품만 보기' },
   fanzaActressWorks: { ja: 'FANZA で出演作を見る', en: 'Her works on FANZA', zhHant: '在 FANZA 看她的作品', zhHans: '在 FANZA 看她的作品', id: 'Karyanya di FANZA', th: 'ผลงานของเธอที่ FANZA', ko: 'FANZA에서 출연작 보기' },

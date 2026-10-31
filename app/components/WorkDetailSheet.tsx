@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
+import { fetchActressProfiles, profileLine, type ActressProfile } from '@/lib/actress-profile';
 import { productCode } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 import { sendGAEvent } from '@/lib/gtag';
@@ -55,6 +56,19 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
   const first = actresses?.[0];
+  // 出演欄: 3人まではカード、4人以上は2列（8人まで）。プロフィールと出演作の数は開いたときに取る
+  const castList = (actresses ?? []).slice(0, 8);
+  const wide = castList.length <= 3;
+  const castKey = castList.map((a) => a.id).join(',');
+  const [cast, setCast] = useState<{ profiles: Map<string, ActressProfile>; counts: Map<string, number> } | null>(null);
+  useEffect(() => {
+    if (!castKey) return;
+    let alive = true;
+    fetchActressProfiles(castKey.split(',')).then((r) => alive && setCast({ profiles: new Map(r.profiles), counts: new Map(r.counts) }));
+    return () => {
+      alive = false;
+    };
+  }, [castKey]);
   // アニメの作品（anime_videos）。価格の取り直し・関連作品はアニメの表を見る（2026-10-31）
   const isAnime = video.kind === 'anime';
   // 上のつまみ（「ー」）や見出しを下に引いて閉じる（スマホ。2026-10-31 ユーザーの希望）
@@ -178,29 +192,37 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
 
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:gap-6">
             {first && (
-              <div className="flex-shrink-0">
+              // 出演: 3人までは横いっぱいのカード（ふりがな・年齢・身長・サイズ、分からなければ出演作の数）、4人以上は2列（2026-10-31 ユーザーと決めた形）
+              <div className="w-full lg:w-72 lg:flex-shrink-0">
                 <p className="mb-1.5 text-xs font-bold text-gray-400">{t('cast')}</p>
-                <div className="flex flex-col gap-2">
-                  {(actresses ?? []).slice(0, 4).map((a) => (
-                    <a
-                      key={a.id}
-                      href={`/?actress=${a.slug}`}
-                      onClick={(e) => {
-                        sendGAEvent('work_details', { action: 'actress', content_id: video.dmm_content_id });
-                        if (onActress) {
-                          e.preventDefault();
-                          onActress(a);
-                        }
-                      }}
-                      className="flex items-center gap-2.5"
-                    >
-                      <span className="h-11 w-11 flex-shrink-0 rounded-full border-2 border-violet-400 bg-gray-800 bg-cover bg-center" style={a.image ? { backgroundImage: `url(${a.image})` } : undefined} />
-                      <span>
-                        <b className="block text-sm">{a.name}</b>
-                        <span className="text-xs text-blue-300">{t('seeWorks')} ›</span>
-                      </span>
-                    </a>
-                  ))}
+                <div className={wide ? 'flex flex-col gap-2' : 'grid grid-cols-2 gap-2'}>
+                  {castList.map((a) => {
+                    const p = cast?.profiles.get(a.id);
+                    const n = cast?.counts.get(a.id);
+                    const sub = profileLine(p, !wide) ?? (n != null ? (wide ? t('worksInSite', { n }) : `${t('worksCount', { n })}`) : '\u00a0');
+                    return (
+                      <a
+                        key={a.id}
+                        href={`/?actress=${a.slug}`}
+                        onClick={(e) => {
+                          sendGAEvent('work_details', { action: 'actress', content_id: video.dmm_content_id });
+                          if (onActress) {
+                            e.preventDefault();
+                            onActress(a);
+                          }
+                        }}
+                        className={`flex items-center rounded-xl border border-gray-800 bg-gray-900 ${wide ? 'gap-3 px-3 py-2.5' : 'gap-2 p-2'}`}
+                      >
+                        <span className={`${wide ? 'h-14 w-14' : 'h-10 w-10'} flex-shrink-0 rounded-full border-2 border-violet-400 bg-gray-800 bg-cover bg-center`} style={a.image ? { backgroundImage: `url(${a.image})` } : undefined} />
+                        <span className="min-w-0 flex-1">
+                          <b className={`block truncate ${wide ? 'text-[15px]' : 'text-[13px]'} text-gray-100`}>{a.name}</b>
+                          {wide && p?.kana && <span className="block truncate text-[11px] text-gray-400">{p.kana}</span>}
+                          <span className={`block truncate ${wide ? 'mt-0.5 text-xs text-gray-300' : 'text-[11px] text-gray-400'}`}>{sub}</span>
+                        </span>
+                        {wide && <span className="whitespace-nowrap text-xs text-blue-300">{t('seeMore')} ›</span>}
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             )}
