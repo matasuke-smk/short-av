@@ -66,12 +66,14 @@ export const trackSwipe = (
   swipeIndex: number,
   contentId: string,
   listType: ViewContext['list_type'],
+  onSale?: boolean, // セール中の作品か（セール作品を8割にした効果を見るため。2026-10-31）
 ) => {
   sendGAEvent('swipe', {
     direction: LABELS.direction[direction],
     swipe_index: swipeIndex,
     content_id: contentId,
     list_type: LABELS.list_type[listType],
+    ...(onSale !== undefined && { on_sale: onSale ? 'セール中' : 'セール外' }),
   });
 };
 
@@ -135,8 +137,10 @@ export const trackDMMClick = (
   contentId: string,
   linkType: 'detail' | 'affiliate' | 'doujin' | 'sample_end' | 'work_details',
   context?: ViewContext,
+  onSale?: boolean, // セール中の作品か（2026-10-31）
 ) => {
   sendGAEvent('dmm_link_click', {
+    ...(onSale !== undefined && { on_sale: onSale ? 'セール中' : 'セール外' }),
     video_id: videoId,
     content_id: contentId,
     link_type: LABELS.link_type[linkType],

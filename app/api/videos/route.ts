@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getCachedSalePool, mixSale } from '@/lib/sale-pool';
 
 // 1本あたり約1.3KB。補充1回あたりの Supabase の通信量を抑えるため少なめにする
 const DEFAULT_POOL_SIZE = 60;
@@ -46,7 +47,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
     const randomPool = (data ?? []) as Video[];
-    if (genres.length === 0 && actresses.length === 0) return NextResponse.json({ pool: randomPool });
+    // 好みが無い人は、セール中の作品を8割にして混ぜる（初期表示と同じ。lib/sale-pool.ts、2026-10-31）。好みがある人は下の好みの並びのまま
+    if (genres.length === 0 && actresses.length === 0) {
+      const salePool = await getCachedSalePool().catch(() => []);
+      return NextResponse.json({ pool: mixSale(randomPool, shuffle(salePool) as Video[], limit) });
+    }
 
     // 好みの系統の作品（当てはまる作品の中から、ランダムな位置の連続した範囲を取ってシャッフルする）
     const conditions = [

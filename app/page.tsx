@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
+import { getCachedSalePool, mixSale } from '@/lib/sale-pool';
 import { getVideoByContentId } from '@/lib/video-by-content-id';
 import { getCatalogPage, type CatalogKind } from '@/lib/catalog';
 import VideoSwiper from './components/VideoSwiper';
@@ -142,7 +143,9 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   // （以前は存在しない get_random_videos を呼んでいたため、毎回フォールバックの「同じ200本」になっていた）
   try {
     // 10分ごとにまとめて取った 200 本（lib/random-pool.ts）から、開くたびにランダムに選ぶ（Supabase の通信量を抑えるため）
-    videosAll = shuffle(await getCachedRandomPool()).slice(0, poolSize);
+    // セール中の作品を8割にして混ぜる（lib/sale-pool.ts。2026-10-31）。セール作品が取れなければふつうの作品だけ
+    const salePool = await getCachedSalePool().catch(() => []);
+    videosAll = mixSale(shuffle(await getCachedRandomPool()) as { dmm_content_id: string }[], shuffle(salePool), poolSize);
   } catch (error) {
     console.log('RPC関数が存在しない可能性があります。フォールバックを使用します。');
   }
