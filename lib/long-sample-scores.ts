@@ -108,6 +108,7 @@ export async function fillReviewAverages(supabase: SupabaseClient, deadline: num
             list_price: parseInt(item.prices?.list_price ?? '') || null,
             campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
             campaign_title: item.campaign?.[0]?.title ?? null,
+            price_checked_at: new Date().toISOString(),
           }),
         })
         .eq('id', v.id);
@@ -149,4 +150,42 @@ export async function fillActressImages(supabase: SupabaseClient, deadline: numb
     await new Promise((r) => setTimeout(r, 700));
   }
   return filled;
+}
+
+/**
+ * セールの終わる日時を過ぎた作品だけ、価格・定価・セールを DMM で取り直す（2026-10-31 ユーザーと決めた形）。
+ * 大事なのは「今の価格がいつまでか」なので、終わった作品を取り直せば次のセールが続いているかも分かる。
+ * 取り直すまでも画面は定価を出す（lib/price.ts）。終わったのが古い順に、締め切りまで1件ずつ。取り直した数を返す
+ */
+export async function refreshEndedSales(supabase: SupabaseClient, deadline: number): Promise<number> {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('id, dmm_content_id')
+    .eq('is_active', true)
+    .lt('campaign_end', new Date().toISOString())
+    .order('campaign_end', { ascending: true })
+    .limit(500);
+  if (error) throw error;
+  let done = 0;
+  for (const v of data ?? []) {
+    if (Date.now() > deadline) break;
+    try {
+      const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid: v.dmm_content_id as string, hits: 1 });
+      const item = res.result?.items?.[0];
+      const { error: updateError } = await supabase
+        .from('videos')
+        .update({
+          ...(item && { price: parseInt(item.prices?.price) || undefined, list_price: parseInt(item.prices?.list_price ?? '') || null }),
+          campaign_end: item?.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+          campaign_title: item?.campaign?.[0]?.title ?? null,
+          price_checked_at: new Date().toISOString(),
+        })
+        .eq('id', v.id);
+      if (!updateError) done++;
+    } catch (e) {
+      if (e instanceof DMMBlockedError) break;
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return done;
 }

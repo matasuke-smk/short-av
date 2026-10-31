@@ -529,6 +529,7 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
     list_price: parseInt(item.prices.list_price ?? '') || null,
     campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
     campaign_title: item.campaign?.[0]?.title ?? null,
+    price_checked_at: new Date().toISOString(),
     is_active: true,
   };
 }
