@@ -24,6 +24,8 @@ import JuicyAd, { OverseasAd } from './JuicyAd';
 import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
+import WorkGapInfo from './WorkGapInfo';
+import AnimeListModal from './AnimeListModal';
 import DoujinReader from './DoujinReader';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
 import DoujinSearchModal from './DoujinSearchModal';
@@ -206,6 +208,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const animeMode = mode === 'anime';
   // アニメの補充用の残り（/api/anime から60本ずつ取り、20本ずつ足す）
   const animePoolRef = useRef<Video[]>([]);
+  // アニメを見ているときの「検索」「人気」の一覧（AnimeListModal）
+  const [animeListKind, setAnimeListKind] = useState<'ranking' | 'search' | null>(null);
   // 10円セールの期間中は、下のボタンの「人気」を「¥10 セール」（アイコンが ¥10、文字が「セール」。特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
   const showSaleButton = !doujinMode && !isOverseas && enableAffiliateLinks && isSale10yenActive();
   // 同人誌の一覧（同人誌メインのときの 検索・人気、いいね・履歴の「同人誌」タブ）
@@ -562,8 +566,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setLongLoading(true);
     trackNavButton('long_sample');
     try {
-      const { data } = await supabase.from('videos').select('*').gte('sample_seconds', 240).limit(500);
-      const list = (data ?? []) as Video[];
+      // アニメを見ているときはアニメの中から（2026-10-31）
+      const { data } = await supabase.from(animeMode ? 'anime_videos' : 'videos').select('*').gte('sample_seconds', 240).limit(500);
+      const list = ((data ?? []) as Video[]).map((v) => (animeMode ? { ...v, kind: 'anime' as const } : v));
       if (list.length === 0) return;
       // 並べ順: このサイトでの反応（再生・クリック・いいね）と FANZA のレビュー数の点数が高い順。点数が近い作品は毎回少し入れ替える。
       // 点数が0（まだ反応もレビューもない）の作品は、発売日の新しい順に後ろへ（2026-10-26。以前の rank_position はほとんどの作品に無かった）
@@ -576,7 +581,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     } finally {
       setLongLoading(false);
     }
-  }, [longLoading, replaceVideos]);
+  }, [longLoading, replaceVideos, animeMode]);
 
   const replaceWithDoujin = useCallback((list: Doujin[], selectedId: string) => {
     const base = videos.find((v) => !isDoujinSlide(v)) ?? videos[0];
@@ -678,7 +683,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress;
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress || !!animeListKind;
 
   // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
   const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
@@ -1401,7 +1406,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                   <div className="flex flex-col gap-4">
                     <button
                       onClick={() => {
-                        if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+                        if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
                         trackModalOpen('search');
                       }}
                       className="inline-block bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg"
@@ -1621,7 +1626,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 検索ボタン */}
           <button
             onClick={() => {
-              if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+              if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
               trackModalOpen('search');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1645,7 +1650,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           ) : (
           <button
             onClick={() => {
-              if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
+              if (doujinMode) setDoujinListKind('ranking'); else if (animeMode) setAnimeListKind('ranking'); else setShowRankingModal(true);
               trackModalOpen('ranking');
             }}
             className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1717,6 +1722,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         ref={bottomPanelRef}
         style={doujinFit && isDoujinSlide(currentVideo) ? { height: doujinFit.panelHeight } : fit ? { height: fit.panelHeight } : undefined}
         className="landscape:hidden lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black via-gray-900/95 to-transparent px-6 pt-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:pb-6 h-[calc(100dvh-2.75rem-75vw-31.25vw)] md:h-auto flex flex-col justify-end">
+        {/* バナーと操作の行の間の余白に、作品名・サンプルの長さ・品番・ジャンル（入る分だけ。2026-10-31） */}
+        {currentVideo && !isDoujinSlide(currentVideo) && useNewRow && (
+          <div className="max-w-4xl mx-auto w-full min-h-0 flex-1 flex flex-col">
+            <WorkGapInfo title={currentVideo.title} contentId={currentVideo.dmm_content_id} sampleSeconds={currentVideo.sample_seconds} genreIds={currentVideo.genre_ids} />
+          </div>
+        )}
         <div className="max-w-4xl mx-auto w-full">
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
@@ -1759,7 +1770,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             {/* 検索ボタン */}
             <button
               onClick={() => {
-                if (doujinMode) setDoujinListKind('search'); else setShowSearchModal(true);
+                if (doujinMode) setDoujinListKind('search'); else if (animeMode) setAnimeListKind('search'); else setShowSearchModal(true);
                 trackModalOpen('search');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -1783,7 +1794,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             ) : (
             <button
               onClick={() => {
-                if (doujinMode) setDoujinListKind('ranking'); else setShowRankingModal(true);
+                if (doujinMode) setDoujinListKind('ranking'); else if (animeMode) setAnimeListKind('ranking'); else setShowRankingModal(true);
                 trackModalOpen('ranking');
               }}
               className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
@@ -2061,6 +2072,18 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       <AdminXCompose contentId={currentVideo?.dmm_content_id} doujin={isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo!.id) : undefined} />
 
       {/* 検索モーダル */}
+      {/* アニメの「検索」「人気」（2026-10-31） */}
+      {animeListKind && (
+        <AnimeListModal
+          kind={animeListKind}
+          onClose={() => setAnimeListKind(null)}
+          onSelect={(list, cid) => {
+            setAnimeListKind(null);
+            replaceVideos(list, cid);
+          }}
+        />
+      )}
+
       <SearchModal
         isOpen={showSearchModal}
         onClose={() => {

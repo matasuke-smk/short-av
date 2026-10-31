@@ -157,9 +157,10 @@ export async function fillActressImages(supabase: SupabaseClient, deadline: numb
  * 大事なのは「今の価格がいつまでか」なので、終わった作品を取り直せば次のセールが続いているかも分かる。
  * 取り直すまでも画面は定価を出す（lib/price.ts）。終わったのが古い順に、締め切りまで1件ずつ。取り直した数を返す
  */
-export async function refreshEndedSales(supabase: SupabaseClient, deadline: number): Promise<number> {
+export async function refreshEndedSales(supabase: SupabaseClient, deadline: number, table: 'videos' | 'anime_videos' = 'videos'): Promise<number> {
+  // table: 'anime_videos' でアニメの作品（アニメの売り場で聞き直す。2026-10-31）
   const { data, error } = await supabase
-    .from('videos')
+    .from(table)
     .select('id, dmm_content_id')
     .eq('is_active', true)
     .lt('campaign_end', new Date().toISOString())
@@ -170,10 +171,10 @@ export async function refreshEndedSales(supabase: SupabaseClient, deadline: numb
   for (const v of data ?? []) {
     if (Date.now() > deadline) break;
     try {
-      const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid: v.dmm_content_id as string, hits: 1 });
+      const res = await fetchDMMProducts({ service: 'digital', floor: table === 'anime_videos' ? 'anime' : 'videoa', cid: v.dmm_content_id as string, hits: 1 });
       const item = res.result?.items?.[0];
       const { error: updateError } = await supabase
-        .from('videos')
+        .from(table)
         .update({
           ...(item && { price: parseInt(item.prices?.price) || undefined, list_price: parseInt(item.prices?.list_price ?? '') || null }),
           campaign_end: item?.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
