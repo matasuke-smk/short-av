@@ -75,6 +75,9 @@ export default function RootLayout({
       <head>
         <GoogleAnalytics />
         {/* PWA設定 */}
+        {/* ブラウザのタブの印（黒地に青い S。2026-10-31） */}
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/icon-192x192.png" type="image/png" sizes="192x192" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

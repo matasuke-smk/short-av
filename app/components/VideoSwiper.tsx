@@ -1066,10 +1066,11 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setScrollSeq((n) => n + 1);
   }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
 
-  const modeToggle = longCount !== null ? (
+  // compact: スマホの上の帯（左にサイト名があるので短く「4分以上（n本）」にする。2026-10-31）
+  const modeToggle = (compact = false) => longCount !== null ? (
     // 「4分以上」で見ている間は、その表示と、普段の並びに戻るボタン
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 pl-3 pr-1 py-0.5 text-sm font-bold text-gray-950 shadow-lg shadow-amber-500/30">
-      <span>{t('longSampleNow')}（{longCount}{t('worksUnit')}）</span>
+    <div className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-amber-300 to-amber-500 pr-1 py-0.5 font-bold ${compact ? 'pl-2.5 text-xs' : 'pl-3 text-sm'} text-gray-950 shadow-lg shadow-amber-500/30`}>
+      <span>{compact ? t('longSample4') : t('longSampleNow')}（{longCount}{t('worksUnit')}）</span>
       <button
         type="button"
         onClick={() => {
@@ -1091,7 +1092,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           role="tab"
           aria-selected={mode === key}
           onClick={() => switchMode(key)}
-          className={`rounded-full px-5 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
+          className={`rounded-full px-4 py-1 transition-colors ${mode === key ? (key === 'doujin' ? 'bg-pink-600 text-white' : 'bg-white text-black') : 'text-gray-300'}`}
         >
           {key === 'video' ? t('modeVideo') : t('modeDoujin')}
         </button>
@@ -1112,12 +1113,25 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {notice}
         </div>
       )}
-      {/* 上の帯（縦画面のみ）: 広告の表示（PR）・「動画｜同人誌」の切り替え・記事のボタンを1行に。
-          ホーム画面アプリでは時計の分（safe-area）だけ上に余白を取る。FANZA のクレジットは下の帯に出す */}
+      {/* 上の帯（縦画面のみ）: 左にサイト名・広告の表示（PR）・FANZA のクレジット、右に「動画｜同人誌」の切り替えとメニュー。
+          ホーム画面アプリでは時計の分（safe-area）だけ上に余白を取る。
+          2026-10-31: 左上の PR だけだったのを、サイト名とクレジットの2段にした（クレジットは下の帯から移した）。切り替えはサイト名と重ならないよう右に寄せた */}
       <div ref={topBarRef} className="landscape:hidden lg:hidden fixed left-0 right-0 top-0 z-40 pt-[env(safe-area-inset-top)] bg-black/70 backdrop-blur-sm">
-        <div className="relative h-11 flex items-center justify-center">
-        <span className="absolute left-3 bg-yellow-400 text-black px-1.5 rounded-sm text-xs font-bold leading-4">PR</span>
-        {modeToggle}
+        <div className="relative h-11 flex items-center justify-end pr-[52px]">
+        <div className="absolute left-3 flex flex-col items-start leading-none">
+          <span className="flex items-center gap-1">
+            <span className="text-[15px] font-extrabold tracking-tight text-white">Short AV</span>
+            <span className="bg-yellow-400 text-black px-1 rounded-sm text-[9px] font-bold leading-[13px]">PR</span>
+          </span>
+          <span className="mt-[3px] whitespace-nowrap text-[8.5px] text-gray-300">
+            {enableAffiliateLinks ? (
+              <>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400">FANZA Webサービス</a></>
+            ) : (
+              'サイト認証後に表示'
+            )}
+          </span>
+        </div>
+        {modeToggle(true)}
         {/* 右から出るメニュー（記事・よくある質問・プライバシーポリシーなど。2026-10-31 に記事のボタンから変更） */}
         <button
           type="button"
@@ -1415,7 +1429,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
-        <div className="flex-shrink-0 flex justify-center">{modeToggle}</div>
+        <div className="flex-shrink-0 flex justify-center">{modeToggle()}</div>
         {/* PC: キャンペーン（10円セールなど）の期間中は、公式バナー（300×250）を商品ウィジェットの上に出す。
             PC では横長バナー（640×200）を出す場所が無く、キャンペーンのバナーがどこにも出ていなかった（2026-10-27 ユーザーの指摘）。同人誌のとき・海外の人には出さない */}
         {enableAffiliateLinks && !isOverseas && !doujinMode && isCampaignActive() && (
@@ -1789,15 +1803,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             )}
           </div>
 
-          {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31） */}
-          {/* FANZA のクレジット（以前は画面上部の帯に出していた） */}
-          <p className="mt-1 text-center text-[10px] text-gray-500">
-            {enableAffiliateLinks ? (
-              <>Powered by <a href="https://affiliate.dmm.com/api/" target="_blank" rel="noopener noreferrer" className="text-blue-400">FANZA Webサービス</a></>
-            ) : (
-              'サイト認証後に表示'
-            )}
-          </p>
+          {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31）。
+              FANZA のクレジットは上の帯のサイト名の下へ移した（同日） */}
         </div>
       </div>
 
