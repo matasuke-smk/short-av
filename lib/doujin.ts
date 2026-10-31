@@ -28,12 +28,19 @@ export function toDoujin(item: DMMItem): Doujin | null {
   };
 }
 
+// ホームの同人誌に出す作品のサンプルのページ数の下限（2026-11-01）
+const HOME_MIN_SAMPLES = 8;
+
 /** 同人作品（サンプル画像のあるものだけ。API の結果は1時間キャッシュ） */
 export async function fetchDoujin(order: DoujinOrder = 'mix', hits = 30): Promise<Doujin[]> {
-  // 人気＋高評価からランダム: 人気上位100冊と評価上位100冊を合わせ（重複は1回）、毎回ちがう順に並べる。サイトの標準
+  // サイトの標準（ホームの同人誌）: 人気上位500冊のうち、サンプルが8ページ以上ある作品から毎回ちがう順に（2026-11-01 ユーザーと決めた形。
+  // 11/1 時点で約320冊。以前は人気上位100冊と評価上位100冊を混ぜていて、サンプルが数ページしかない作品も出ていた）
   if (order === 'mix') {
-    const [rank, review] = await Promise.all([fetchDoujin('rank', 100), fetchDoujin('review', 100)]);
-    const pool = [...new Map([...rank, ...review].map((d) => [d.contentId, d])).values()];
+    const pages = await Promise.all([1, 101, 201, 301, 401].map((offset) => fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 100, offset }).catch(() => null)));
+    const seen = new Set<string>();
+    const pool = pages
+      .flatMap((p) => (p?.result?.items ?? []).map(toDoujin))
+      .filter((d): d is Doujin => d !== null && d.samples.length >= HOME_MIN_SAMPLES && !seen.has(d.contentId) && !!seen.add(d.contentId));
     return shuffle(pool).slice(0, hits);
   }
   const sort = order === 'cheap' ? '-price' : order === 'random' ? 'rank' : (order as 'rank' | 'date' | 'review');

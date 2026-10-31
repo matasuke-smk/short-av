@@ -26,7 +26,7 @@ export type DoujinFacet = { id: string; name: string; count: number };
 
 // 並べ方（管理画面の「同人テスト」で切り替えて比べる）
 export const DOUJIN_ORDERS = {
-  mix: '人気＋高評価からランダム',
+  mix: '人気上位500冊（サンプル8ページ以上）からランダム',
   rank: '人気順',
   date: '新着順',
   review: '評価順',
