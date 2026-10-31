@@ -17,6 +17,8 @@ export type Doujin = {
   genres: string[];
   genreList: { id: string; name: string }[]; // ジャンル（検索の絞り込み用）
   circleId: string | null; // サークル（API ではメーカー）の ID
+  reviewCount?: number | null; // FANZA のレビュー数・平均点（スワイプ画面の作品の操作の行。2026-10-31）
+  reviewAverage?: number | null;
 };
 
 // 検索の選択肢（ジャンル・サークル）。count は人気上位の作品の中での件数（並び順の目安）
@@ -24,7 +26,7 @@ export type DoujinFacet = { id: string; name: string; count: number };
 
 // 並べ方（管理画面の「同人テスト」で切り替えて比べる）
 export const DOUJIN_ORDERS = {
-  mix: '人気＋高評価からランダム',
+  mix: '人気上位500冊（サンプル8ページ以上）からランダム',
   rank: '人気順',
   date: '新着順',
   review: '評価順',

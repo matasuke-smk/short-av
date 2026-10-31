@@ -1,4 +1,4 @@
-import { DMMBlockedError, fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
+import { DMMBlockedError, fetchDMMProducts, jstDaysAgo, type DMMItem } from '@/lib/dmm-api';
 import type { Doujin, DoujinFacet, DoujinOrder } from '@/lib/doujin-types';
 
 export { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types';
@@ -23,15 +23,24 @@ export function toDoujin(item: DMMItem): Doujin | null {
     genres: (item.iteminfo?.genre ?? []).map((g) => g.name).slice(0, 6),
     genreList: (item.iteminfo?.genre ?? []).map((g) => ({ id: String(g.id), name: g.name })),
     circleId: item.iteminfo?.maker?.[0]?.id !== undefined ? String(item.iteminfo.maker[0].id) : null,
+    reviewCount: item.review?.count ?? null,
+    reviewAverage: item.review?.average ? Number(item.review.average) || null : null,
   };
 }
 
+// ホームの同人誌に出す作品のサンプルのページ数の下限（2026-11-01）
+const HOME_MIN_SAMPLES = 8;
+
 /** 同人作品（サンプル画像のあるものだけ。API の結果は1時間キャッシュ） */
 export async function fetchDoujin(order: DoujinOrder = 'mix', hits = 30): Promise<Doujin[]> {
-  // 人気＋高評価からランダム: 人気上位100冊と評価上位100冊を合わせ（重複は1回）、毎回ちがう順に並べる。サイトの標準
+  // サイトの標準（ホームの同人誌）: 人気上位500冊のうち、サンプルが8ページ以上ある作品から毎回ちがう順に（2026-11-01 ユーザーと決めた形。
+  // 11/1 時点で約320冊。以前は人気上位100冊と評価上位100冊を混ぜていて、サンプルが数ページしかない作品も出ていた）
   if (order === 'mix') {
-    const [rank, review] = await Promise.all([fetchDoujin('rank', 100), fetchDoujin('review', 100)]);
-    const pool = [...new Map([...rank, ...review].map((d) => [d.contentId, d])).values()];
+    const pages = await Promise.all([1, 101, 201, 301, 401].map((offset) => fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 100, offset }).catch(() => null)));
+    const seen = new Set<string>();
+    const pool = pages
+      .flatMap((p) => (p?.result?.items ?? []).map(toDoujin))
+      .filter((d): d is Doujin => d !== null && d.samples.length >= HOME_MIN_SAMPLES && !seen.has(d.contentId) && !!seen.add(d.contentId));
     return shuffle(pool).slice(0, hits);
   }
   const sort = order === 'cheap' ? '-price' : order === 'random' ? 'rank' : (order as 'rank' | 'date' | 'review');
@@ -151,3 +160,41 @@ export async function searchDoujinBy(options: { keyword?: string; genreIds?: str
   return { doujin, total };
 }
 
+
+/**
+ * 同人誌の作品詳細の「関連作品」（2026-10-31）: 同じサークルの人気の作品と、同じジャンルの人気の作品（それぞれ8冊まで。今の作品は除く）。
+ * DMM への問い合わせは fetchDMMProducts の中で1時間使い回す
+ */
+export async function relatedDoujin(options: { circleId?: string | null; genreId?: string | null; exclude: string }): Promise<{ circle: Doujin[]; genre: Doujin[] }> {
+  const get = async (article: { type: 'maker' | 'genre'; id: string } | null) => {
+    if (!article) return [];
+    const data = await fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 12, articles: [article] }).catch(() => null);
+    return (data?.result?.items ?? []).map(toDoujin).filter((d): d is Doujin => d !== null && d.contentId !== options.exclude).slice(0, 8);
+  };
+  const [circle, genre] = await Promise.all([
+    get(options.circleId ? { type: 'maker', id: options.circleId } : null),
+    get(options.genreId ? { type: 'genre', id: options.genreId } : null),
+  ]);
+  // 同じサークルの作品は「似た作品」から除く（2回出さない）
+  const inCircle = new Set(circle.map((d) => d.contentId));
+  return { circle, genre: genre.filter((d) => !inCircle.has(d.contentId)) };
+}
+
+// 同人誌の「新着」の条件（2026-11-01 ユーザーと決めた形）
+const NEW_DAYS = 30; // 発売から何日以内
+const NEW_MIN_SAMPLES = 10; // サンプルが何ページ以上（FANZA のデータで受け取れるサンプルは最大10ページ）
+
+/**
+ * 同人誌の「新着」: 発売から30日以内の作品を人気順に、サンプルが10ページある作品だけ（最大 hits 冊）。
+ * 出た順に並べると、まだ売れ行きも評価も分からない作品ばかりになっていた（新着300冊のうちレビューのある作品は23冊）。
+ * 人気順の上位300冊から選ぶ（DMM への問い合わせは fetchDMMProducts の中で1時間使い回す）
+ */
+export async function newDoujin(hits = 40): Promise<Doujin[]> {
+  const gte_date = jstDaysAgo(NEW_DAYS);
+  const pages = await Promise.all([1, 101, 201].map((offset) => fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 100, offset, gte_date }).catch(() => null)));
+  const seen = new Set<string>();
+  return pages
+    .flatMap((p) => (p?.result?.items ?? []).map(toDoujin))
+    .filter((d): d is Doujin => d !== null && d.samples.length >= NEW_MIN_SAMPLES && !seen.has(d.contentId) && !!seen.add(d.contentId))
+    .slice(0, hits);
+}

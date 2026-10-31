@@ -11,7 +11,10 @@ import type { TextKey } from '@/lib/i18n';
  */
 type Props = {
   actresses: ActressInfo[] | null; // null = 読み込み中
-  studio?: string | null; // アニメ: 女優の代わりに制作会社（メーカー）の名前を出す（2026-10-31）
+  studio?: string | null; // アニメ・同人誌: 女優の代わりに制作会社・サークルの名前を出す（2026-10-31）
+  studioIcon?: 'film' | 'book'; // アニメはフィルム、同人誌は本の印
+  studioImage?: string | null; // サークル・制作会社のいちばん人気の作品の表紙（丸に出す。無ければ印）
+  onStudio?: () => void; // 同人誌のサークル（作者）・アニメの制作会社を押したとき、その詳細を開く（2026-11-01）
   hasActress: boolean;
   liked: boolean;
   reviewCount: number | null | undefined;
@@ -33,10 +36,12 @@ type Props = {
 const COL = 'flex w-16 flex-shrink-0 flex-col items-center';
 const PERSON = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
 // アニメの制作会社の印（フィルム）
+// 同人誌のサークルの印（本）
+const BOOK = 'M12 6.253v13C10.832 18.477 9.246 18 7.5 18S4.168 18.477 3 19.253v-13C4.168 5.477 5.754 5 7.5 5s3.332.477 4.5 1.253zm0 0C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253';
 const FILM = 'M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z';
 const HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z';
 
-export default function ActionRow({ actresses, studio, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, lengthLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
+export default function ActionRow({ actresses, studio, studioIcon = 'film', studioImage, onStudio, hasActress, liked, reviewCount, reviewAverage, priceLabel, salePercent, lengthLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
   const icon = size === 'pc' ? 'w-11 h-11' : 'w-11 h-11';
   const fanzaSize = size === 'pc' ? 'w-[58px] h-[58px]' : 'w-14 h-14';
   const label = 'mt-1 block w-full truncate text-center text-[10px] font-bold leading-tight text-gray-300';
@@ -61,11 +66,27 @@ export default function ActionRow({ actresses, studio, hasActress, liked, review
           {/* 読み込み中は文字を出さない（「女優」→名前に変わると見た目が揺れていた） */}
           <span className={label}>{first ? (more > 0 ? `${first.name} ${t('andOthers')}` : first.name) : actresses === null ? '\u00a0' : t('actress')}</span>
         </button>
+      ) : onStudio && studio ? (
+        // 同人誌のサークル（作者）・アニメの制作会社: 押すと詳細（女優の顔と同じ紫の丸）
+        <button type="button" onClick={onStudio} className={`${COL} active:scale-95`} aria-label={studio}>
+          {/* いちばん人気の作品の表紙を丸く。アニメのパッケージは横長で右半分が表なので右寄せ。表紙が無ければ印 */}
+          <span
+            className={`flex ${icon} items-center justify-center rounded-full border-2 border-violet-400 bg-gray-800 bg-cover ${studioIcon === 'film' ? 'bg-right' : 'bg-center'}`}
+            style={studioImage ? { backgroundImage: `url(${studioImage})` } : undefined}
+          >
+            {!studioImage && (
+              <svg className="h-5 w-5 text-violet-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={studioIcon === 'book' ? BOOK : FILM} />
+              </svg>
+            )}
+          </span>
+          <span className={label}>{studio}</span>
+        </button>
       ) : (
         <span className={COL} aria-hidden>
           <span className={`flex ${icon} items-center justify-center rounded-full border border-gray-700 bg-gray-800`}>
             <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={studio !== undefined ? FILM : PERSON} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={studio !== undefined ? (studioIcon === 'book' ? BOOK : FILM) : PERSON} />
             </svg>
           </span>
           <span className={`${label} !text-gray-500`}>{studio !== undefined ? studio || '\u00a0' : t('noActressInfo')}</span>

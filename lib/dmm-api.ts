@@ -302,7 +302,7 @@ export async function fetchRankingVideos(limit: number = 20): Promise<DMMItem[]>
  * n 日前（日本時間）の 0 時を DMM API の gte_date 形式で返す
  * 秒単位にするとリクエストURLが毎回変わり、fetch のキャッシュが効かないため日単位にする
  */
-function jstDaysAgo(days: number): string {
+export function jstDaysAgo(days: number): string {
   const jst = new Date(Date.now() + 9 * 3_600_000 - days * 86_400_000);
   return `${jst.toISOString().slice(0, 10)}T00:00:00`;
 }

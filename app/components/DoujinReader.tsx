@@ -18,12 +18,14 @@ export default function DoujinReader({
   onComplete,
   dlsiteHref,
   onDlsiteClick,
+  active = true,
 }: {
   doujin: Doujin;
   onLinkClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   onComplete?: () => void; // 最後まで読んで購入ページに来たとき（1回だけ）
   dlsiteHref?: string; // 日本以外の訪問者: 購入ページに「DLsite で探す」を出す（サークル名で DLsite を検索。lib/dlsite.ts）
   onDlsiteClick?: () => void;
+  active?: boolean; // 表示中の同人誌か（← → キーでめくるのは表示中の1冊だけ）
 }) {
   const { t } = useT();
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
@@ -62,6 +64,17 @@ export default function DoujinReader({
     };
   }, [emblaApi]);
 
+  // PC の ← → キーでページをめくる（スワイプ画面の onKeyDown が sav-doujin-page を送る。2026-10-31）
+  useEffect(() => {
+    if (!active || !emblaApi) return;
+    const onPage = (e: Event) => {
+      if ((e as CustomEvent<number>).detail > 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+    };
+    window.addEventListener('sav-doujin-page', onPage);
+    return () => window.removeEventListener('sav-doujin-page', onPage);
+  }, [active, emblaApi]);
+
   // 画面の右側をタップすると次、左側で前のページ（スワイプしにくい PC でも読めるように。スワイプ直後のタップは無視）
   const onTap = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!emblaApi) return; // スワイプした直後のクリックは embla が止める
@@ -79,7 +92,7 @@ export default function DoujinReader({
       <div ref={emblaRef} className="h-full overflow-hidden" onClick={onTap}>
         <div className="flex h-full">
           {doujin.samples.map((src, i) => (
-            <div key={src} className="flex h-full min-w-0 flex-[0_0_100%] items-center justify-center pt-11">
+            <div key={src} className="flex h-full min-w-0 flex-[0_0_100%] items-center justify-center pt-5">
               {i <= loadedUntil ? (
                 // eslint-disable-next-line @next/next/no-img-element -- FANZA の画像をそのまま表示する（最適化の対象外）。元の画像が小さくても枠いっぱいまで拡大する
                 <img src={src} alt={`${doujin.title} サンプル ${i + 1}`} className="h-full w-full object-contain" draggable={false} />
@@ -90,7 +103,7 @@ export default function DoujinReader({
           ))}
 
           {/* 最後のページ: 作品名・価格・FANZA へのボタン。表紙は残りの高さに合わせて縮み、文字やボタンと重ならない */}
-          <div className="flex h-full min-w-0 flex-[0_0_100%] flex-col items-center px-5 pb-3 pt-12 text-center">
+          <div className="flex h-full min-w-0 flex-[0_0_100%] flex-col items-center px-5 pb-3 pt-6 text-center">
             <div className="flex min-h-0 w-full flex-1 items-center justify-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={doujin.cover} alt={doujin.title} className="h-full w-full object-contain" draggable={false} />
@@ -135,14 +148,13 @@ export default function DoujinReader({
         </div>
       </div>
 
-      {/* 上: 広告表記・ページ数・進み具合 */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 to-transparent px-3 pb-6 pt-2">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="min-w-0 flex-1 truncate text-gray-200">{doujin.title}</span>
-          <span className="flex-shrink-0 rounded-full bg-black/60 px-2 py-0.5">{isLast ? t('djPurchasePage') : `${page + 1} / ${doujin.samples.length}`}</span>
-        </div>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/20">
+      {/* 上: ページ数・進み具合（作品名は 2026-10-31 から下の余白に出すので、ここでは出さない） */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 px-3 pt-1.5">
+        <div className="h-1 overflow-hidden rounded-full bg-white/20">
           <div className="h-full rounded-full bg-pink-500 transition-all" style={{ width: `${((page + 1) / total) * 100}%` }} />
+        </div>
+        <div className="mt-1.5 flex justify-end text-xs">
+          <span className="rounded-full bg-black/60 px-2 py-0.5">{isLast ? t('djPurchasePage') : `${page + 1} / ${doujin.samples.length}`}</span>
         </div>
       </div>
 
