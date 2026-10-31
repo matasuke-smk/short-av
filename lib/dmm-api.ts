@@ -212,6 +212,36 @@ export async function fetchDMMProducts(options: {
 }
 
 /**
+ * 女優検索API で顔写真の住所を取る（作品の操作の行・作品詳細の顔。2026-10-31）。
+ * 写真が無い女優は空文字（もう一度問い合わせないため）。DMM の API は連打すると止まるので、商品検索と同じ順番待ちを通す
+ */
+export async function fetchDMMActressImage(actressId: string): Promise<string> {
+  const apiId = process.env.DMM_API_ID;
+  const affiliateId = process.env.DMM_AFFILIATE_ID;
+  if (!apiId || !affiliateId) throw new Error('DMM API credentials are not configured');
+  if (Date.now() < blockedUntil) throw new DMMBlockedError();
+  const params = new URLSearchParams({ api_id: apiId, affiliate_id: affiliateId, actress_id: actressId, output: 'json' });
+  await acquire();
+  try {
+    const response = await fetch(`https://api.dmm.com/affiliate/v3/ActressSearch?${params.toString()}`, { cache: 'no-store' });
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 400 && errorText.includes('Invalid Request Error')) {
+        blockedUntil = Date.now() + BLOCK_MS;
+        throw new DMMBlockedError();
+      }
+      throw new Error(`DMM ActressSearch failed: ${response.status}`);
+    }
+    const data = (await response.json()) as { result?: { actress?: { imageURL?: { small?: string; large?: string } }[] } };
+    const image = data.result?.actress?.[0]?.imageURL;
+    // 住所は http:// で返ってくる（https のページでは表示されない）。https でも同じ画像が開ける（2026-10-31 確認）
+    return (image?.large || image?.small || '').replace(/^http:\/\//, 'https://');
+  } finally {
+    release();
+  }
+}
+
+/**
  * ランキングTOP動画を取得
  */
 export async function fetchRankingVideos(limit: number = 20): Promise<DMMItem[]> {
@@ -456,6 +486,8 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
     rank_position: rankPosition || null,
     // FANZA のレビュー数（「4分以上」の並べ順に使う。sql/022）
     review_count: item.review?.count ?? null,
+    // FANZA のレビューの平均点（作品の操作の行・作品詳細の ⭐。sql/026、2026-10-31）
+    review_average: item.review?.average ? Number(item.review.average) || null : null,
     is_active: true,
   };
 }

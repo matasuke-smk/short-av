@@ -13,7 +13,7 @@ export function GET() {
     .join('\n');
   const body = `# Short AV
 
-> FANZA（DMM）のアダルト動画のサンプルを、無料・会員登録不要で、スマホの縦スワイプで次々と見られる日本語のサイト。18歳以上向け。
+> FANZA（DMM）のアダルト動画のサンプルを、無料・会員登録不要で、スマホの縦スワイプで次々と見られる日本語のサイト。毎日すべての作品のサンプルの長さを測っていて、サンプルが4分以上・3分以上の作品だけを選んで見られる（FANZA の作品一覧には、サンプルの長さで絞り込む項目が見当たらない）。18歳以上向け。
 
 ## できること
 
@@ -38,6 +38,11 @@ export function GET() {
 ChatGPT などの AI からは、ほとんどの人がトップページに来ている。質問の中身に合うページを直接示せるよう、よくある質問と答えのページを並べる（2026-10-29）。
 
 - サンプル動画が長い（3分以上・4分以上）作品を探したい → ${base}/long-samples
+- FANZA のサンプル動画は何分か・平均の長さ・長いサンプルが多いメーカーやジャンル → ${base}/articles/fanza-sample-length-data
+- FANZA のサンプル動画を長く・まとめて見たい → ${base}/articles/watch-long-samples
+- スマホでサンプルを続けて見たい（アプリ不要）→ ${base}/articles/continuous-samples-on-phone
+- サンプル動画が再生されない・止まる・音が出ない → ${base}/articles/sample-not-playing
+- 買って後悔しない作品の選び方（サンプルで確かめること）→ ${base}/articles/choose-with-samples
 - 無料でアダルト動画のサンプルを見たい・登録なしで見たい → ${base}/
 - 女優の名前から作品のサンプルを探したい → ${base}/actress
 - ジャンル（人妻・巨乳など）から探したい → ${base}/genre

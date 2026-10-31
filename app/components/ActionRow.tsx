@@ -1,0 +1,103 @@
+'use client';
+
+import type { MouseEvent, ReactNode } from 'react';
+import type { ActressInfo } from '@/lib/useActresses';
+import type { TextKey } from '@/lib/i18n';
+
+/**
+ * 作品の操作の行（2026-10-31 見本でユーザーと決めた形）。スマホは下の帯、PC は右の欄の下に出す。
+ * 左から 女優の顔（下に名前）・いいね・作品詳細（⭐ 平均点（件数））・FANZA の丸（下に価格。波紋で目立たせる）。
+ * 女優がいない作品は灰色の人のアイコン「女優情報なし」（押せない）。女優が2人以上なら顔に「+n」、名前は「○○ ほか」
+ */
+type Props = {
+  actresses: ActressInfo[] | null; // null = 読み込み中
+  hasActress: boolean;
+  liked: boolean;
+  reviewCount: number | null | undefined;
+  reviewAverage: number | null | undefined;
+  priceLabel: string | null;
+  fanzaHref: string | null; // null のときは FANZA の丸を出さない
+  onFanzaClick: (e: MouseEvent<HTMLAnchorElement>) => void;
+  onLike: (e: MouseEvent<HTMLButtonElement>) => void;
+  onActress: () => void;
+  onDetails: () => void;
+  t: (key: TextKey) => string;
+  size?: 'mobile' | 'pc';
+  fanzaFallback?: ReactNode; // 海外の人など FANZA の丸の代わりに出すもの
+};
+
+const PERSON = 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z';
+const HEART = 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z';
+
+export default function ActionRow({ actresses, hasActress, liked, reviewCount, reviewAverage, priceLabel, fanzaHref, onFanzaClick, onLike, onActress, onDetails, t, size = 'mobile', fanzaFallback }: Props) {
+  const icon = size === 'pc' ? 'w-11 h-11' : 'w-11 h-11';
+  const fanzaSize = size === 'pc' ? 'w-[58px] h-[58px]' : 'w-14 h-14';
+  const label = 'mt-1 block max-w-[4.5rem] truncate text-center text-[10px] font-bold leading-tight text-gray-300';
+  const first = actresses?.[0];
+  const more = (actresses?.length ?? 0) - 1;
+  const count = reviewCount ?? 0;
+  const avg = typeof reviewAverage === 'number' && reviewAverage > 0 ? reviewAverage : null;
+
+  return (
+    <div className="flex w-full items-start gap-2.5">
+      {/* 女優（顔・名前）。いないときは灰色の人のアイコン（押せない） */}
+      {hasActress ? (
+        <button type="button" onClick={onActress} className="flex flex-shrink-0 flex-col items-center active:scale-95" aria-label={t('actressOfWork')}>
+          <span className={`relative ${icon} rounded-full border-2 border-violet-400 bg-gray-800 bg-cover bg-center`} style={first?.image ? { backgroundImage: `url(${first.image})` } : undefined}>
+            {!first?.image && (
+              <svg className="absolute inset-0 m-auto h-5 w-5 text-violet-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={PERSON} />
+              </svg>
+            )}
+            {more > 0 && <span className="absolute -bottom-0.5 -right-1.5 rounded-full border-[1.5px] border-gray-950 bg-violet-600 px-1 text-[9px] font-extrabold leading-4 text-white">+{more}</span>}
+          </span>
+          <span className={label}>{first ? (more > 0 ? `${first.name} ${t('andOthers')}` : first.name) : t('actress')}</span>
+        </button>
+      ) : (
+        <span className="flex flex-shrink-0 flex-col items-center" aria-hidden>
+          <span className={`flex ${icon} items-center justify-center rounded-full border border-gray-700 bg-gray-800`}>
+            <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={PERSON} />
+            </svg>
+          </span>
+          <span className={`${label} !text-gray-500`}>{t('noActressInfo')}</span>
+        </span>
+      )}
+
+      {/* いいね */}
+      <button type="button" onClick={onLike} aria-pressed={liked} className="flex flex-shrink-0 flex-col items-center active:scale-95" aria-label={t('like')}>
+        <span className={`flex ${icon} items-center justify-center rounded-full border ${liked ? 'border-red-400 bg-red-500/90' : 'border-gray-700 bg-gray-800'}`}>
+          <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={HEART} />
+          </svg>
+        </span>
+        <span className={label}>{t('like')}</span>
+      </button>
+
+      {/* 作品詳細（⭐ 平均点（件数）。レビューが無ければ灰色の ⭐ ー（0件）） */}
+      <button type="button" onClick={onDetails} className="flex min-w-0 flex-1 flex-col items-center active:scale-[0.98]">
+        <span className="flex h-11 w-full items-center justify-center gap-1 whitespace-nowrap rounded-full border border-gray-700 bg-gray-800 px-2 font-extrabold text-white">
+          <span className={avg ? '' : 'opacity-60 grayscale'}>⭐</span>
+          <span className={`text-[15px] ${avg ? '' : 'text-gray-400'}`}>{avg ? avg.toFixed(1) : 'ー'}</span>
+          <span className="text-[11px] font-semibold text-gray-400">（{count.toLocaleString()}{t('reviewsUnit')}）</span>
+        </span>
+        <span className={label}>{t('workDetails')}</span>
+      </button>
+
+      {/* FANZA（波紋で目立たせる。動きを減らす設定の人には止める） */}
+      {fanzaHref ? (
+        <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className="-mt-1.5 flex flex-shrink-0 flex-col items-center active:scale-95">
+          <span className={`fanza-ripple flex ${fanzaSize} flex-col items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-[11px] font-extrabold leading-tight text-white`}>
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+            </svg>
+            FANZA
+          </span>
+          <span className="mt-1 block whitespace-nowrap text-center text-[11px] font-extrabold leading-tight text-white">{priceLabel ?? ''}</span>
+        </a>
+      ) : (
+        fanzaFallback ?? null
+      )}
+    </div>
+  );
+}

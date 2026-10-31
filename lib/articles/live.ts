@@ -1,6 +1,7 @@
 import { firstTimeLinks } from '@/config/banners';
 import { unstable_cache } from 'next/cache';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { supabase } from '@/lib/supabase';
 import { runReports } from '@/lib/ga-data';
 import { getSizeStatisticsRows, LENGTH_RANGE_MM, summarizeForAdmin, summarizeSizeStatistics } from '@/lib/sizeStats';
 
@@ -143,6 +144,68 @@ ${byAge ? `<div><p class="text-sm text-gray-700 font-bold mb-2">年代別（勃�
   { revalidate: CACHE_SECONDS },
 );
 
+// サンプル動画の長さの集計（記事「FANZA のサンプル動画は何分？」）。配信中で長さを測れた全作品が対象。
+// 1万件以上を読むので1日1回だけ数え直す。公開している作品の情報だけなので、管理用ではなく通常の読み取りの接続を使う（2026-10-31）
+const sampleLengthStats = unstable_cache(
+  async () => {
+    const rows: { sample_seconds: number; maker: string | null; genre_ids: number[] | null }[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('sample_seconds, maker, genre_ids')
+        .eq('is_active', true)
+        .gt('sample_seconds', 0)
+        .order('id')
+        .range(offset, offset + 999);
+      if (error) throw error;
+      rows.push(...((data ?? []) as typeof rows));
+      if (!data || data.length < 1000) break;
+    }
+    if (rows.length === 0) return '<p class="text-gray-500">いま表示できるデータがありません。</p>';
+    const secs = rows.map((r) => r.sample_seconds).sort((a, b) => a - b);
+    const total = secs.length;
+    const avg = Math.round(secs.reduce((a, b) => a + b, 0) / total);
+    const median = secs[Math.floor(total / 2)];
+    const pct = (n: number) => `${((n / total) * 100).toFixed(1)}%`;
+    const bands: [string, number, number][] = [['1分未満', 0, 60], ['1分台', 60, 120], ['2分台', 120, 180], ['3分台', 180, 240], ['4分以上', 240, Infinity]];
+    const bars = bands
+      .map(([label, lo, hi]) => {
+        const n = secs.filter((x) => x >= lo && x < hi).length;
+        return `<li class="flex items-center gap-2 text-sm"><span class="w-16 flex-shrink-0 text-gray-600">${label}</span><span class="flex-1 h-4 rounded bg-gray-100 overflow-hidden"><span class="block h-full bg-amber-400" style="width:${Math.max(0.5, (n / total) * 100).toFixed(1)}%"></span></span><span class="w-36 flex-shrink-0 text-right text-gray-800 whitespace-nowrap">${n.toLocaleString('ja-JP')}本（${pct(n)}）</span></li>`;
+      })
+      .join('');
+    // メーカー・ジャンルごとの「4分以上」の数。作品が少ないものは割合がぶれるので、作品数の下限を置く
+    const tally = (keys: (r: (typeof rows)[number]) => (string | number)[]) => {
+      const m = new Map<string | number, { n: number; long: number }>();
+      for (const r of rows) for (const k of keys(r)) {
+        const e = m.get(k) ?? { n: 0, long: 0 };
+        e.n++;
+        if (r.sample_seconds >= 240) e.long++;
+        m.set(k, e);
+      }
+      return m;
+    };
+    const makers = [...tally((r) => (r.maker ? [r.maker] : []))].filter(([, e]) => e.long > 0).sort((a, b) => b[1].long - a[1].long).slice(0, 8);
+    const genreTally = [...tally((r) => r.genre_ids ?? [])].filter(([, e]) => e.n >= 150 && e.long > 0).sort((a, b) => b[1].long / b[1].n - a[1].long / a[1].n).slice(0, 8);
+    const { data: genreNames } = await supabase.from('genres').select('id, name').in('id', genreTally.map(([id]) => Number(id)));
+    const gname = new Map((genreNames ?? []).map((g: { id: number; name: string }) => [g.id, g.name]));
+    const table = (head: string, tail: string, items: [string, string][]) =>
+      `<table class="w-full text-sm my-4"><thead><tr><th class="text-left">${head}</th><th class="text-right">${tail}</th></tr></thead><tbody>${items.map(([a, b]) => `<tr><td>${escapeHtml(a)}</td><td class="text-right">${b}</td></tr>`).join('')}</tbody></table>`;
+    const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10).replaceAll('-', '/');
+    return `<div class="not-prose my-6 rounded-2xl border border-gray-200 p-5">
+      <p class="font-bold text-gray-900 m-0">最新の集計（${today} 時点・配信中の${total.toLocaleString('ja-JP')}本）</p>
+      <p class="mt-2 text-sm text-gray-700 m-0">平均 ${sampleLength(avg)}・真ん中の作品 ${sampleLength(median)}・いちばん長い作品 ${sampleLength(secs[total - 1])}</p>
+      <ul class="mt-4 space-y-1.5 list-none p-0">${bars}</ul>
+    </div>
+    <h3>4分以上の作品が多いメーカー</h3>
+    ${table('メーカー', '4分以上の作品', makers.map(([k, e]) => [String(k), `${e.long}本（全${e.n}本中）`]))}
+    <h3>4分以上の作品の割合が高いジャンル（作品150本以上のジャンル）</h3>
+    ${table('ジャンル', '4分以上の割合', genreTally.map(([k, e]) => [gname.get(Number(k)) ?? String(k), `${((e.long / e.n) * 100).toFixed(1)}%（${e.long}本／${e.n}本）`]))}`;
+  },
+  ['article-live-sample-length-stats-v1'],
+  { revalidate: 86400 },
+);
+
 // ちんこ偏差値チェッカーへの導線（平均を調べる人は「自分はどのくらいの位置か」が知りたいので、答えの直後に目立つ枠で出す）
 const checkerCta = async () =>
   `<div class="not-prose my-6 rounded-2xl border border-yellow-300 bg-yellow-50 p-5 md:p-6">
@@ -165,6 +228,7 @@ const SECTIONS: Record<string, () => Promise<string>> = {
   'fanza-tv': fanzaTvCta,
   'long-samples': longSamples,
   'popular-week': popularWeek,
+  'sample-length-stats': sampleLengthStats,
   'size-report': sizeReport,
 };
 
