@@ -1,9 +1,12 @@
 {
-  // Cloudflare Workers の設定（2026-10-29 Vercel からの移行の準備。OpenNext で組み立てる。まだ本番のドメインにはつながない）
+  // Cloudflare Workers の設定（2026-10-29 Vercel からの移行の準備、11/1 本番をつなぎ替え。OpenNext で組み立てる）
   "$schema": "node_modules/wrangler/config-schema.json",
   // 入口は worker.ts（ページの表示は OpenNext、定期実行は worker.ts の scheduled）
   "main": "worker.ts",
   "name": "short-av",
+  // 本番のドメイン（2026-11-01 Vercel からつなぎ替え）。DNS の short-av.com はプロキシあり（オレンジの雲）にしてある。
+  // www.short-av.com は当面 Vercel のまま（Vercel が short-av.com へ 308 で転送する。11/7 の Vercel 解約までに Cloudflare の転送に替える）
+  "routes": [{ "pattern": "short-av.com/*", "zone_name": "short-av.com" }],
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
