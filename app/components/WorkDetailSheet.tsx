@@ -51,12 +51,13 @@ type Props = {
   banner?: ReactNode;
   onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
   t: (key: TextKey, vars?: Record<string, string | number>) => string;
+  onMaker?: () => void; // 同人誌のサークル・アニメの制作会社を押したとき（その詳細を開く。2026-11-01）
   doujin?: { genres: string[]; pages: number; circleId: string | null; genreId: string | null; genreName: string | null }; // 同人誌（2026-10-31）: ジャンルの名前・読めるサンプルのページ数・関連作品を探すためのサークルとジャンル
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
 
-export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, onActress, t, doujin }: Props) {
+export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, onActress, t, doujin, onMaker }: Props) {
   const [genres, setGenres] = useState<{ name: string; slug: string }[]>([]);
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
@@ -149,7 +150,17 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   const avg = typeof v.review_average === 'number' && v.review_average > 0 ? v.review_average : null;
   const rows: [string, ReactNode][] = [
     [t('productCode'), productCode(video.dmm_content_id)],
-    [isDoujin ? t('circle') : t('maker'), video.maker],
+    [
+      isDoujin ? t('circle') : t('maker'),
+      // 同人誌・アニメは押すとそのサークル（作者）・制作会社の詳細
+      onMaker && video.maker ? (
+        <button type="button" onClick={onMaker} className="text-left text-blue-300 underline-offset-2 hover:underline">
+          {video.maker} ›
+        </button>
+      ) : (
+        video.maker
+      ),
+    ],
     [t('label'), video.label],
     [t('series'), video.series],
     [t('releaseDate'), video.release_date ? video.release_date.slice(0, 10).replaceAll('-', '/') : null],

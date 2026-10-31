@@ -25,6 +25,7 @@ import { useIsOverseas } from '@/lib/useCountry';
 import AdminXCompose from './AdminXCompose';
 import InlineSamplePlayer from './InlineSamplePlayer';
 import WorkGapInfo from './WorkGapInfo';
+import CircleDetailSheet from './CircleDetailSheet';
 import AnimeListModal from './AnimeListModal';
 import DoujinReader from './DoujinReader';
 import DoujinListModal, { type DoujinListKind } from './DoujinListModal';
@@ -271,6 +272,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [detailActress, setDetailActress] = useState<ActressInfo | null>(null);
   // 女優の詳細をどこから開いたか（女優一覧・作品詳細からなら「‹ 戻る」でそこへ戻る。2026-10-31 ユーザーの希望）
   const [actressFrom, setActressFrom] = useState<'list' | 'details' | null>(null);
+  // 同人誌のサークル（作者）・アニメの制作会社の詳細（CircleDetailSheet。2026-11-01）。作品詳細から開いたときは「‹ 戻る」で作品詳細へ
+  const [detailCircle, setDetailCircle] = useState<{ kind: 'doujin'; id: string; name: string } | { kind: 'anime'; name: string } | null>(null);
+  const [circleFromDetails, setCircleFromDetails] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
@@ -711,7 +715,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress || !!animeListKind;
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress || !!animeListKind || !!detailCircle;
 
   // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
   const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
@@ -920,6 +924,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 同人誌も 2026-10-31 から同じ行（女優の代わりにサークル）。海外の人の動画だけ今までの形
   const useNewRow = !!currentVideo && !hideFanzaFor(currentVideo);
   const rowDoujin = currentVideo && isDoujinSlide(currentVideo) ? doujinBySlideRef.current.get(currentVideo.id) ?? null : null;
+  // 操作の行・作品詳細で押せるサークル（作者）・制作会社（同人誌はサークルの番号があるとき、アニメはメーカー名があるとき）
+  const studioTarget = rowDoujin?.circleId && rowDoujin.circle
+    ? { kind: 'doujin' as const, id: rowDoujin.circleId, name: rowDoujin.circle }
+    : currentVideo?.kind === 'anime' && currentVideo.maker
+      ? { kind: 'anime' as const, name: currentVideo.maker }
+      : null;
   const sortedActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
   // 女優で絞って見ているとき（「この女優の作品だけスワイプで見る」・検索で女優を選んだとき・女優のページから）は、
   // 女優が複数の作品でもその女優を顔に出す（本当にその女優の作品か分かるように。2026-10-31 ユーザーの希望）
@@ -979,6 +989,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         actresses={rowActresses}
         studio={currentVideo.kind === 'anime' || currentVideo.kind === 'doujin' ? currentVideo.maker ?? null : undefined}
         studioIcon={currentVideo.kind === 'doujin' ? 'book' : 'film'}
+        onStudio={studioTarget ? () => { setCircleFromDetails(false); setDetailCircle(studioTarget); } : undefined}
         hasActress={!!currentVideo.actress_ids?.length}
         liked={likedVideos.has(currentVideo.dmm_content_id)}
         reviewCount={currentVideo.review_count}
@@ -2215,7 +2226,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
           t={t}
+          onMaker={studioTarget ? () => { setShowDetails(false); setCircleFromDetails(true); setDetailCircle(studioTarget); } : undefined}
           doujin={rowDoujin ? { genres: rowDoujin.genres, pages: rowDoujin.samples.length, circleId: rowDoujin.circleId, genreId: rowDoujin.genreList[0]?.id ?? null, genreName: rowDoujin.genreList[0]?.name ?? null } : undefined}
+        />
+      )}
+
+      {/* 同人誌のサークル（作者）・アニメの制作会社の詳細（2026-11-01） */}
+      {detailCircle && (
+        <CircleDetailSheet
+          circle={detailCircle}
+          onClose={() => setDetailCircle(null)}
+          onBack={circleFromDetails ? () => { setDetailCircle(null); setShowDetails(true); } : undefined}
+          onSwipeWorks={(list, id) => replaceWithDoujin(list, id)}
+          onSwipeAnime={(list, id) => replaceVideos(list, id)}
+          t={t}
         />
       )}
 
