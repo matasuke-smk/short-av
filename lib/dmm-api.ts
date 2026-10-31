@@ -101,24 +101,34 @@ const MAX_CONCURRENT = 2;
 const MIN_GAP_MS = 150;
 const BLOCK_MS = 60_000;
 
-let running = 0;
 let lastStartedAt = 0;
 let blockedUntil = 0;
-const waiting: (() => void)[] = [];
+// 使用中の枠（番号 → 使い始めた時刻）。2026-11-01 Cloudflare Workers に移したとき、以前の「待ち行列（別の閲覧の終わりで起こしてもらう）」は
+// Workers では使えない（別の閲覧が作った約束を待つと「止まった」として打ち切られ、打ち切られた閲覧の枠も返らないので、以後の問い合わせが全部止まる）。
+// そこで、空くまで自分で少しずつ待って確かめる形にし、30秒以上返らない枠は終わったものとして扱う（lib/ga-data.ts の withSlot と同じ）
+const slots = new Map<number, number>();
+let nextSlotId = 0;
+const SLOT_STALE_MS = 30_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function acquire(): Promise<void> {
-  if (running >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
-  running++;
+async function acquire(): Promise<number> {
+  for (;;) {
+    const now = Date.now();
+    for (const [id, startedAt] of slots) if (now - startedAt > SLOT_STALE_MS) slots.delete(id);
+    if (slots.size < MAX_CONCURRENT) break;
+    await sleep(50);
+  }
+  const id = nextSlotId++;
+  slots.set(id, Date.now());
   const gap = lastStartedAt + MIN_GAP_MS - Date.now();
   if (gap > 0) await sleep(gap);
   lastStartedAt = Date.now();
+  return id;
 }
 
-function release() {
-  running--;
-  waiting.shift()?.();
+function release(id: number) {
+  slots.delete(id);
 }
 
 /** DMM の API に一時停止されているときのエラー（やり直しても無駄なので、呼ぶ側はすぐあきらめる） */
@@ -185,7 +195,7 @@ export async function fetchDMMProducts(options: {
 
   if (Date.now() < blockedUntil) throw new DMMBlockedError();
 
-  await acquire();
+  const slot = await acquire();
   try {
     const response = await fetch(url, {
       next: { revalidate: 3600 }, // 1時間キャッシュ
@@ -209,7 +219,7 @@ export async function fetchDMMProducts(options: {
     console.error('DMM API Error:', error);
     throw error;
   } finally {
-    release();
+    release(slot);
   }
 }
 
@@ -238,7 +248,7 @@ export async function fetchDMMActress(actressId: string): Promise<DMMActressProf
   if (!apiId || !affiliateId) throw new Error('DMM API credentials are not configured');
   if (Date.now() < blockedUntil) throw new DMMBlockedError();
   const params = new URLSearchParams({ api_id: apiId, affiliate_id: affiliateId, actress_id: actressId, output: 'json' });
-  await acquire();
+  const slot = await acquire();
   try {
     const response = await fetch(`https://api.dmm.com/affiliate/v3/ActressSearch?${params.toString()}`, { next: { revalidate: 3600 } });
     if (!response.ok) {
@@ -269,7 +279,7 @@ export async function fetchDMMActress(actressId: string): Promise<DMMActressProf
       fanza_list_url: a.listURL?.digital || null,
     };
   } finally {
-    release();
+    release(slot);
   }
 }
 

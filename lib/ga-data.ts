@@ -86,17 +86,26 @@ export type ReportRow = { dimensions: string[]; metrics: number[] };
 // このサーバーから同時に送るのを MAX_CONCURRENT 件までに抑え、それでも上限に当たったら少し待って送り直す
 // 2026-10-26: 管理画面は画面の描画と残りの期間の取得が別のサーバーで同時に動くため、4 でも上限に当たった（ユーザー報告）。2 に下げる
 const MAX_CONCURRENT = 2;
-let running = 0;
-const waiting: (() => void)[] = [];
+// 使用中の枠（番号 → 使い始めた時刻）。2026-11-01 Cloudflare Workers に移したとき、以前の「待ち行列（別の閲覧の終わりで起こしてもらう）」が
+// Workers では使えず（別の閲覧が作った約束を待つと「止まった」として打ち切られる。打ち切られた閲覧の枠も返らない）、管理画面が開かなくなった。
+// そこで、空くまで自分で少しずつ待って確かめる形にし、30秒以上返らない枠は終わったものとして扱う
+const slots = new Map<number, number>();
+let nextSlotId = 0;
+const SLOT_STALE_MS = 30_000;
 
 async function withSlot<T>(task: () => Promise<T>): Promise<T> {
-  if (running >= MAX_CONCURRENT) await new Promise<void>((resolve) => waiting.push(resolve));
-  running++;
+  for (;;) {
+    const now = Date.now();
+    for (const [id, startedAt] of slots) if (now - startedAt > SLOT_STALE_MS) slots.delete(id);
+    if (slots.size < MAX_CONCURRENT) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  const id = nextSlotId++;
+  slots.set(id, Date.now());
   try {
     return await task();
   } finally {
-    running--;
-    waiting.shift()?.();
+    slots.delete(id);
   }
 }
 
