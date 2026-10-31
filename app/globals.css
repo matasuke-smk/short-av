@@ -163,3 +163,14 @@ html {
   70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
   100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
 }
+
+/* FANZA の丸いボタンの波紋（作品の操作の行。2026-10-31 ユーザーが見本の4案から選んだ「② 波紋」）。動きを減らす設定の人には出さない */
+@keyframes fanza-ripple {
+  0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.75); }
+  70% { box-shadow: 0 0 0 16px rgba(244, 63, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+}
+.fanza-ripple { animation: fanza-ripple 1.6s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fanza-ripple { animation: none; box-shadow: 0 4px 14px rgba(244, 63, 94, 0.5); }
+}

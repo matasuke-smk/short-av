@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { runReports } from '@/lib/ga-data';
-import { fetchDMMProducts, DMMBlockedError } from '@/lib/dmm-api';
+import { fetchDMMProducts, fetchDMMActress, DMMBlockedError } from '@/lib/dmm-api';
 
 /**
  * 「4分以上」のボタンで作品を並べる順のための数字を集める（サーバー専用。2026-10-26）。毎日 /api/cron/long-scores から呼ぶ
@@ -65,7 +65,7 @@ export async function fillReviewCounts(supabase: SupabaseClient, deadline: numbe
     try {
       const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid: v.dmm_content_id as string, hits: 1 });
       const item = res.result?.items?.[0];
-      const { error: updateError } = await supabase.from('videos').update({ review_count: item?.review?.count ?? 0 }).eq('id', v.id);
+      const { error: updateError } = await supabase.from('videos').update({ review_count: item?.review?.count ?? 0, review_average: item?.review?.average ? Number(item.review.average) || null : null }).eq('id', v.id);
       if (!updateError) filled++;
     } catch (e) {
       if (e instanceof DMMBlockedError) break; // 止められたら今日はやめる（本番の検索などを止めないため）
@@ -73,4 +73,120 @@ export async function fillReviewCounts(supabase: SupabaseClient, deadline: numbe
     await new Promise((r) => setTimeout(r, 700));
   }
   return filled;
+}
+
+/**
+ * レビューがあるのに平均点がまだない作品に、FANZA の平均点を入れる（作品の操作の行・作品詳細の ⭐。sql/026、2026-10-31）。
+ * 作品の取り込みでも入るが、それより前に入った作品のため。人気の作品から1件ずつゆっくり。入れた数を返す
+ */
+export async function fillReviewAverages(supabase: SupabaseClient, deadline: number): Promise<number> {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('id, dmm_content_id')
+    .eq('is_active', true)
+    .gt('review_count', 0)
+    .is('review_average', null)
+    .order('rank_position', { ascending: true, nullsFirst: false })
+    .order('release_date', { ascending: false })
+    .limit(300);
+  if (error) throw error;
+  let filled = 0;
+  for (const v of data ?? []) {
+    if (Date.now() > deadline) break;
+    try {
+      const res = await fetchDMMProducts({ service: 'digital', floor: 'videoa', cid: v.dmm_content_id as string, hits: 1 });
+      const item = res.result?.items?.[0];
+      const review = item?.review;
+      // 平均点が取れなかった作品は 0 を入れて、毎日問い合わせ直さない（画面では 0 は「ー」と出す）。価格・定価・セールも新しくする（sql/027）
+      const { error: updateError } = await supabase
+        .from('videos')
+        .update({
+          review_average: review?.average ? Number(review.average) || 0 : 0,
+          ...(review?.count != null && { review_count: review.count }),
+          ...(item && {
+            price: parseInt(item.prices?.price) || undefined,
+            list_price: parseInt(item.prices?.list_price ?? '') || null,
+            campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+            campaign_title: item.campaign?.[0]?.title ?? null,
+            price_checked_at: new Date().toISOString(),
+          }),
+        })
+        .eq('id', v.id);
+      if (!updateError) filled++;
+    } catch (e) {
+      if (e instanceof DMMBlockedError) break;
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return filled;
+}
+
+/**
+ * 女優の顔写真・プロフィール・FANZA の出演作一覧のリンクを、DMM の女優検索で少しずつ入れる（作品の操作の行・女優の詳細。2026-10-31）。
+ * まだ問い合わせていない女優（profile_at が空）から。見つからない女優も profile_at を入れて、問い合わせ直さない。actresses.slug が DMM の女優 ID。入れた数を返す
+ */
+export async function fillActressImages(supabase: SupabaseClient, deadline: number): Promise<number> {
+  const { data, error } = await supabase
+    .from('actresses')
+    .select('id, slug')
+    .is('profile_at', null)
+    .order('slug', { ascending: false }) // ID が大きいほど新しい女優（よく出ている人が多い）
+    .limit(400);
+  if (error) throw error;
+  let filled = 0;
+  for (const a of data ?? []) {
+    if (Date.now() > deadline) break;
+    if (!/^\d+$/.test(String(a.slug))) continue;
+    try {
+      const profile = await fetchDMMActress(String(a.slug));
+      const { error: updateError } = await supabase
+        .from('actresses')
+        .update({ ...(profile ?? { profile_image_url: '' }), profile_at: new Date().toISOString() })
+        .eq('id', a.id);
+      if (!updateError) filled++;
+    } catch (e) {
+      if (e instanceof DMMBlockedError) break;
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return filled;
+}
+
+/**
+ * セールの終わる日時を過ぎた作品だけ、価格・定価・セールを DMM で取り直す（2026-10-31 ユーザーと決めた形）。
+ * 大事なのは「今の価格がいつまでか」なので、終わった作品を取り直せば次のセールが続いているかも分かる。
+ * 取り直すまでも画面は定価を出す（lib/price.ts）。終わったのが古い順に、締め切りまで1件ずつ。取り直した数を返す
+ */
+export async function refreshEndedSales(supabase: SupabaseClient, deadline: number, table: 'videos' | 'anime_videos' = 'videos'): Promise<number> {
+  // table: 'anime_videos' でアニメの作品（アニメの売り場で聞き直す。2026-10-31）
+  const { data, error } = await supabase
+    .from(table)
+    .select('id, dmm_content_id')
+    .eq('is_active', true)
+    .lt('campaign_end', new Date().toISOString())
+    .order('campaign_end', { ascending: true })
+    .limit(500);
+  if (error) throw error;
+  let done = 0;
+  for (const v of data ?? []) {
+    if (Date.now() > deadline) break;
+    try {
+      const res = await fetchDMMProducts({ service: 'digital', floor: table === 'anime_videos' ? 'anime' : 'videoa', cid: v.dmm_content_id as string, hits: 1 });
+      const item = res.result?.items?.[0];
+      const { error: updateError } = await supabase
+        .from(table)
+        .update({
+          ...(item && { price: parseInt(item.prices?.price) || undefined, list_price: parseInt(item.prices?.list_price ?? '') || null }),
+          campaign_end: item?.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+          campaign_title: item?.campaign?.[0]?.title ?? null,
+          price_checked_at: new Date().toISOString(),
+        })
+        .eq('id', v.id);
+      if (!updateError) done++;
+    } catch (e) {
+      if (e instanceof DMMBlockedError) break;
+    }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return done;
 }

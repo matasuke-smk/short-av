@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
+import { getCachedSalePool, mixSale } from '@/lib/sale-pool';
 import { getVideoByContentId } from '@/lib/video-by-content-id';
 import { getCatalogPage, type CatalogKind } from '@/lib/catalog';
 import VideoSwiper from './components/VideoSwiper';
@@ -10,6 +11,10 @@ import { getVideoUrl } from '@/lib/x-post-text';
 import { buildVideoDescription, getVideoNames, type VideoSeoRow } from '@/lib/video-seo';
 import { DOUJIN_ID_PATTERN, fetchDoujin, fetchDoujinById, fetchDoujinByIds, type Doujin } from '@/lib/doujin';
 import { goHref } from '@/lib/go-link';
+import { fetchAnimeByContentId, fetchRandomAnime } from '@/lib/anime';
+import { productCode } from '@/lib/product-code';
+import { getLongSampleCounts } from '@/lib/long-sample-counts';
+import { isSale10yenActive } from '@/config/sale-10yen';
 
 // 動的レンダリング：毎回新しいランダム動画を表示
 // revalidate = 0 により、キャッシュせず毎回サーバー側で動画を取得
@@ -38,17 +43,35 @@ export async function generateMetadata({
     };
   }
   const contentId = typeof v === 'string' ? v : undefined;
+  // アニメ（?mode=anime&v=。2026-10-31）: リンクカードにその作品の名前とサムネイル。まだ検索には出さない（説明の薄いページが増えるため）
+  if (mode === 'anime') {
+    const anime = contentId && contentId.length <= 64 ? await fetchAnimeByContentId(contentId).catch(() => null) : null;
+    if (!anime?.thumbnail_url) return { robots: { index: false, follow: true } };
+    const animeCode = productCode(anime.dmm_content_id);
+    const title = `${animeCode ? `${animeCode} ` : ''}${anime.title} | Short AV`;
+    const description = `${animeCode ? `【${animeCode}】` : ''}${anime.title}のサンプル動画を縦スワイプで無料視聴。Short AV`;
+    return {
+      title,
+      description,
+      robots: { index: false, follow: true },
+      openGraph: { title, description, siteName: 'Short AV', images: [{ url: anime.thumbnail_url, alt: anime.title }], locale: 'ja_JP', type: 'website' },
+      twitter: { card: 'summary_large_image', title, description, images: [anime.thumbnail_url] },
+    };
+  }
   if (!contentId || contentId.length > 64) return {};
 
   const video = (await getVideoByContentId(contentId).catch(() => null)) as VideoSeoRow | null;
   if (!video?.thumbnail_url) return {};
 
-  const title = `${video.title} | Short AV`;
+  // 品番（STARS-840 など）で検索されたときにも当たるよう、題名の先頭に入れる（2026-10-31 ユーザーの希望）
+  const code = productCode(contentId);
+  const title = `${code ? `${code} ` : ''}${video.title} | Short AV`;
   // 作品名で検索されたときに当たるよう、出演・ジャンル・メーカー・発売日・サンプルの長さを説明文に入れる。
   // Claude が書いた紹介文（ai_description、sql/019）があればそちらを優先する（2026-10-25）
   const aiRaw = (video as unknown as { ai_description?: unknown }).ai_description;
   const ai = typeof aiRaw === 'string' ? aiRaw : '';
-  const description = ai ? (ai.length > 160 ? `${ai.slice(0, 157)}…` : ai) : buildVideoDescription(video, await getVideoNames(video));
+  const aiText = ai && code ? `【${code}】${ai}` : ai;
+  const description = aiText ? (aiText.length > 160 ? `${aiText.slice(0, 157)}…` : aiText) : buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
   return {
@@ -84,26 +107,30 @@ const websiteSchema = {
   url: 'https://short-av.com',
   inLanguage: 'ja',
   description:
-    'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが3分以上・4分以上の作品だけに絞る検索、女優・ジャンル別のページ、同人誌の試し読みも。',
+    'FANZA（DMM）のサンプル動画が4分以上・3分以上ある作品だけを選んで、スマホの縦スワイプで次々と見られる無料サイト。毎日サンプルの長さを測って記録。会員登録不要。女優・ジャンル別のページ、同人誌の試し読みも。',
   isFamilyFriendly: false,
   publisher: { '@type': 'Organization', name: 'Short AV', url: 'https://short-av.com' },
 };
 
 // トップページのよくある質問（FAQPage）。ChatGPT などの AI がトップページを読んで答えに使うため、
-// サイトでできることを質問と答えの形で書いておく（2026-10-27。ChatGPT が回答のために読むのはほぼトップページだった）
-const TOP_FAQ: { q: string; a: string }[] = [
-  { q: 'Short AV とは何ですか？', a: 'FANZA（DMM）のアダルト動画のサンプルを、スマホの縦スワイプで次々と見られる日本語のサイトです。サンプルは FANZA 公式のプレイヤーで再生します（18歳以上）。' },
-  { q: '料金や会員登録は必要ですか？', a: '無料で、会員登録やログインも不要です。いいね・履歴はブラウザに保存されます。' },
-  { q: 'サンプル動画が長い作品だけを見られますか？', a: '見られます。毎日サンプルの長さを調べていて、サンプルが4分以上・3分以上の作品だけに絞って見られます（https://short-av.com/long-samples）。' },
+// サイトでできることを質問と答えの形で書いておく（2026-10-27。ChatGPT が回答のために読むのはほぼトップページだった）。
+// ChatGPT に「サンプルが長い作品だけを探す方法」を聞くと「FANZA にその機能は無い」と答えていたので、その問いを先頭に置き、
+// 作品の数（1時間ごとに数え直す）も添える（2026-10-31）
+type LongCounts = Awaited<ReturnType<typeof getLongSampleCounts>>;
+const countsText = (c: LongCounts) => (c ? `（今はサンプルが4分以上の作品が${c.extraLong.toLocaleString('ja-JP')}本、3分以上が${c.long.toLocaleString('ja-JP')}本）` : '');
+const topFaq = (c: LongCounts): { q: string; a: string }[] => [
+  { q: 'FANZA でサンプル動画が長い作品だけを探す方法は？', a: `FANZA の作品一覧にはサンプルの長さで絞り込む項目が見当たりませんが、Short AV では毎日すべての作品のサンプルの長さを測って記録していて、サンプルが4分以上・3分以上の作品だけを縦スワイプで続けて見られます${countsText(c)}。一覧は https://short-av.com/long-samples 、スワイプ画面の下の「4分以上」ボタンでも絞り込めます。無料・会員登録不要です。` },
+  { q: 'Short AV とは何ですか？', a: 'FANZA（DMM）のアダルト動画のサンプルを、スマホの縦スワイプで次々と見られる日本語のサイトです。サンプルの長さで作品を選べるのが特徴です。サンプルは FANZA 公式のプレイヤーで再生します（18歳以上）。' },
+  { q: '料金や会員登録は必要ですか？', a: '無料で、会員登録やログインも不要です。いいねはブラウザごとの匿名IDで記録し、履歴はブラウザの中だけに保存します（名前などとは結びつきません）。' },
   { q: '女優やジャンルから探せますか？', a: '探せます。女優ごと（https://short-av.com/actress）・ジャンルごと（https://short-av.com/genre）のページ、人気ランキング（https://short-av.com/ranking）、キーワード検索があります。FANZA 同人の試し読み（https://short-av.com/doujin）もあります。' },
-  { q: '本編を見るにはどうすればいいですか？', a: '作品の「FANZA で見る」から FANZA の公式サイトへ進み、購入するか、月額の見放題 FANZA TV で見ます。' },
+  { q: '本編を見るにはどうすればいいですか？', a: '作品の「詳細はこちら」から FANZA の公式サイトへ進み、購入するか、月額の見放題 FANZA TV で見ます。' },
   { q: 'FANZA の作品を安く見る方法は？', a: '月額550円（税込）の見放題 FANZA TV（初回14日間無料）を使うか、初回購入向けのクーポンやセールを使う方法があります。詳しくは https://short-av.com/articles/fanza-tv-guide と https://short-av.com/articles/fanza-save-money にまとめています。' },
 ];
-const topFaqSchema = {
+const topFaqSchema = (faq: { q: string; a: string }[]) => ({
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  mainEntity: TOP_FAQ.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-};
+  mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+});
 
 // ?v= の作品IDとして受け付ける形式
 const VIDEO_PARAM_PATTERN = /^[0-9a-z_]{1,64}$/;
@@ -121,7 +148,7 @@ async function loadDoujin(doujinId?: string, doujinIds?: string[]): Promise<Douj
   }
 }
 
-async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, catalog }: { targetId?: string; doujinId?: string; doujinMode?: boolean; doujinIds?: string[]; catalog?: { kind: CatalogKind; slug: string } }) {
+async function VideoList({ targetId, doujinId, doujinMode = false, animeMode = false, doujinIds, catalog }: { targetId?: string; doujinId?: string; doujinMode?: boolean; animeMode?: boolean; doujinIds?: string[]; catalog?: { kind: CatalogKind; slug: string } }) {
   const doujinPromise = loadDoujin(doujinId, doujinIds);
   // データベースから直接ランダムに取得（高速かつ全動画が対象）
   // プールサイズ。1人あたりのスワイプは平均2〜3回なので、200本（約260KB）を毎回データベースから取ると
@@ -136,7 +163,9 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   // （以前は存在しない get_random_videos を呼んでいたため、毎回フォールバックの「同じ200本」になっていた）
   try {
     // 10分ごとにまとめて取った 200 本（lib/random-pool.ts）から、開くたびにランダムに選ぶ（Supabase の通信量を抑えるため）
-    videosAll = shuffle(await getCachedRandomPool()).slice(0, poolSize);
+    // セール中の作品を8割にして混ぜる（lib/sale-pool.ts。2026-10-31）。セール作品が取れなければふつうの作品だけ
+    const salePool = await getCachedSalePool().catch(() => []);
+    videosAll = mixSale(shuffle(await getCachedRandomPool()) as { dmm_content_id: string }[], shuffle(salePool), poolSize);
   } catch (error) {
     console.log('RPC関数が存在しない可能性があります。フォールバックを使用します。');
   }
@@ -168,10 +197,17 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   // プールを作成
   let videoPool = videosAll || [];
 
+  // ?mode=anime: アニメの作品を並べる（人気の上位からランダム。&v= があればその作品を先頭に。2026-10-31）
+  if (animeMode) {
+    const pool = await fetchRandomAnime(poolSize).catch(() => []);
+    const target = targetId ? await fetchAnimeByContentId(targetId).catch(() => null) : null;
+    if (pool.length > 0 || target) videoPool = (target ? [target, ...pool.filter((x) => x.dmm_content_id !== target.dmm_content_id)] : pool) as typeof videoPool;
+  }
+
   // ?v= で作品が指定された場合は、サーバー側で先頭に入れておく。
   // クライアント側で後から探すと、スワイプ画面の初期化（URL の書き換え）と競合して別の動画に戻ることがあった。
   let linkNotice: string | undefined;
-  if (targetId) {
+  if (targetId && !animeMode) {
     // 作品の情報は1時間使い回す（lib/video-by-content-id.ts）。掲載終了・サンプルなしはここで判定する
     const found = await getVideoByContentId(targetId).catch(() => null);
     const target = found && found.is_active && found.sample_video_url ? found : null;
@@ -232,7 +268,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   }
 
   // 最初に表示する作品の構造化データ（?v= 指定時はその作品）。説明文・出演・ジャンル・長さを足す
-  const firstVideoSchema = generateVideoSchema(videos[0]);
+  // アニメのときは作品の構造化データを出さない（作品ページ /v/ は動画だけのため）
+  const firstVideoSchema = animeMode ? null : generateVideoSchema(videos[0]);
   // Claude が書いた紹介文（ai_description、sql/019）。構造化データの説明文と、?v= のときの sr-only の本文に使う（2026-10-25）
   const firstAiRaw = videos[0] ? (videos[0] as unknown as { ai_description?: unknown }).ai_description : undefined;
   const firstAi = typeof firstAiRaw === 'string' ? firstAiRaw : '';
@@ -249,21 +286,24 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
   const doujinList = await doujinPromise;
   // アクセス解析の「作品ごと」から開いたときは、その一覧の同人誌だけをスワイプで見る（動画は挟まない）
   const doujinOnly = !!doujinIds && doujinList.length > 0;
+  const longCounts = await getLongSampleCounts().catch(() => null);
+  const faq = topFaq(longCounts);
   return (
     <>
       {/* ページの見出しと説明（画面には出さない。スワイプ画面には見出しがないため、検索エンジン・AI・読み上げ用。Bing の推奨）。
           ロボットが読むトップの本文は作品名の羅列だけだったので、「何ができるサイトか」と主なページへの道筋を短く書いておく（2026-10-24） */}
-      <h1 className="sr-only">DMM（FANZA）動画のサンプルを縦スワイプで次々と見られる Short AV</h1>
+      <h1 className="sr-only">FANZA（DMM）のサンプル動画が長い作品だけを縦スワイプで見られる Short AV</h1>
       <p className="sr-only">
         Short AV は、FANZA（DMM）のアダルト動画のサンプルを無料・会員登録不要で、スマホの縦スワイプで次々と見られるサイトです（18歳以上）。
-        サンプルが3分以上・4分以上の作品だけに絞る検索、女優やジャンルごとのページ、人気ランキング、同人誌の試し読みがあります。
+        毎日すべての作品のサンプルの長さを測って記録していて、サンプルが4分以上・3分以上の作品だけに絞って見られます{countsText(longCounts)}。
+        FANZA の作品一覧には、サンプルの長さで絞り込む項目が見当たりません。女優やジャンルごとのページ、人気ランキング、同人誌の試し読みもあります。
         本編の購入や見放題は FANZA の公式サイトで行います。
       </p>
       {/* よくある質問（画面には出さない。AI・検索エンジン・読み上げ用。上の FAQPage と同じ内容。2026-10-27） */}
       <section className="sr-only" aria-label="よくある質問">
         <h2>よくある質問</h2>
         <dl>
-          {TOP_FAQ.map((f) => (
+          {faq.map((f) => (
             <div key={f.q}>
               <dt>{f.q}</dt>
               <dd>{f.a}</dd>
@@ -274,7 +314,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
       <nav className="sr-only" aria-label="主なページ">
         <ul>
           <li><a href="/long-samples">サンプル動画が長い作品一覧（4分以上・3分以上）</a></li>
-          <li><a href="/sale/10yen">FANZA 10円セールの対象作品のサンプル（2026年10月30日朝まで）</a></li>
+          {/* セール中だけ出す（終わったあとも「10月30日朝まで」の案内が残っていた。2026-10-31） */}
+          {isSale10yenActive() && <li><a href="/sale/10yen">FANZA 10円セールの対象作品のサンプル</a></li>}
           <li><a href="/actress">女優から探す</a></li>
           <li><a href="/genre">ジャンルから探す</a></li>
           <li><a href="/ranking">人気ランキング</a></li>
@@ -288,13 +329,13 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(topFaqSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(topFaqSchema(faq)) }} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(firstVideoSchema) }}
       />
       {/* ?v= で開かれた作品の紹介文（Claude が書いたもの。画面には出さない。検索エンジン・AI 向けの独自の文章。2026-10-25） */}
-      {targetId && firstAi && <p className="sr-only">{firstAi}</p>}
+      {targetId && firstAi && <p className="sr-only">{productCode(targetId) ? `品番 ${productCode(targetId)}。` : ''}{firstAi}</p>}
       <VideoSwiper
         // FANZA の紹介リンクは /go を通した形で渡す（ページに埋め込まれるデータをロボットが読んでたどらないように。lib/go-link.ts、2026-10-27）
         videos={videos.map((v) => ({ ...v, dmm_product_url: goHref(v.dmm_product_url) ?? v.dmm_product_url }))}
@@ -302,6 +343,8 @@ async function VideoList({ targetId, doujinId, doujinMode = false, doujinIds, ca
         linkNotice={linkNotice}
         doujinList={doujinList.map((d) => ({ ...d, url: goHref(d.url) ?? d.url }))}
         doujinMode={doujinMode}
+        animeMode={animeMode}
+        focusActressSlug={catalog?.kind === 'actress' && isFiniteList ? catalog.slug : undefined}
         doujinOnly={doujinOnly}
         isFiniteList={isFiniteList}
         startIndex={doujinOnly ? Math.max(0, doujinList.findIndex((d) => d.contentId === doujinId)) : 0}
@@ -329,7 +372,7 @@ export default async function Home({
   return (
     <>
       <Suspense fallback={<div className="min-h-screen bg-black" />}>
-        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} doujinIds={doujinIds} catalog={catalog} />
+        <VideoList targetId={targetId} doujinId={doujinId} doujinMode={doujinMode} animeMode={mode === 'anime' && !catalog} doujinIds={doujinIds} catalog={catalog} />
       </Suspense>
     </>
   );

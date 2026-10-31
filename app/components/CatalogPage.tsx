@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { productCode } from '@/lib/product-code';
 import BrowseLinks from './BrowseLinks';
 import { CONTACT_FORM_URL } from '@/config/site';
 import { generateVideoListSchema } from '@/lib/video-schema';
@@ -89,7 +90,8 @@ export default function CatalogPage({
                 <p className="mt-1.5 text-xs leading-snug line-clamp-2 text-gray-200 group-hover:text-white">{v.title}</p>
                 {(v.maker || v.release_date) && (
                   <p className="mt-0.5 text-[11px] text-gray-500 truncate">
-                    {[v.maker, v.release_date ? v.release_date.slice(0, 10).replace(/-/g, '/') : null].filter(Boolean).join('・')}
+                    {/* 品番も出す（品番で検索されたときに当たるように。2026-10-31） */}
+                    {[productCode(v.dmm_content_id), v.maker, v.release_date ? v.release_date.slice(0, 10).replace(/-/g, '/') : null].filter(Boolean).join('・')}
                   </p>
                 )}
               </Link>

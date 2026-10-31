@@ -7,8 +7,10 @@ import AdminUserSync from './components/AdminUserSync';
 
 
 export const metadata: Metadata = {
-  title: 'Short AV - DMM動画レビュー＆紹介サイト | スワイプで楽しむ次世代UI',
-  description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが3分以上・4分以上の作品だけに絞る検索、女優・ジャンル別のページ、同人誌の試し読みも。',
+  // ChatGPT に「サンプルが長い作品を探す方法」を聞くと「FANZA にその機能は無い」と答え、縦スワイプのサイトとしては
+  // 似たサイトが紹介されていた（2026-10-31 に試した）。ほかに無い「長いサンプルだけ」を先頭に出す。以前は「レビュー」「次世代UI」
+  title: 'Short AV｜FANZAのサンプル動画が4分以上・3分以上の作品だけを縦スワイプで無料視聴',
+  description: 'FANZA（DMM）のサンプル動画が4分以上・3分以上ある作品だけを選んで、スマホの縦スワイプで次々と見られる無料サイト。毎日サンプルの長さを測って記録。会員登録不要。女優・ジャンル別のページ、同人誌の試し読みも。',
   metadataBase: new URL('https://short-av.com'),
   // ホーム画面に追加したときの設定。管理画面（app/admin/layout.tsx）では別のものに差し替える
   manifest: '/manifest.json',
@@ -16,8 +18,8 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'Short AV - DMM動画レビュー＆紹介サイト',
-    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが長い作品の検索、女優・ジャンル別のページ、同人誌の試し読みも。',
+    title: 'Short AV｜サンプルが長いFANZA作品だけを縦スワイプで',
+    description: 'FANZA（DMM）のサンプル動画が4分以上・3分以上ある作品だけを選んで、スマホの縦スワイプで次々と見られる無料サイト。毎日サンプルの長さを測って記録。会員登録不要。女優・ジャンル別のページ、同人誌の試し読みも。',
     url: 'https://short-av.com',
     siteName: 'Short AV',
     images: [
@@ -33,8 +35,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Short AV - DMM動画レビュー＆紹介サイト',
-    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で、縦スワイプで次々と見られるサイト。サンプルが長い作品の検索、女優・ジャンル別のページ、同人誌の試し読みも。',
+    title: 'Short AV｜サンプルが長いFANZA作品だけを縦スワイプで',
+    description: 'FANZA（DMM）のサンプル動画が4分以上・3分以上ある作品だけを選んで、スマホの縦スワイプで次々と見られる無料サイト。毎日サンプルの長さを測って記録。会員登録不要。女優・ジャンル別のページ、同人誌の試し読みも。',
     images: ['/og-image.jpg'],
   },
   verification: {
@@ -62,7 +64,7 @@ export default function RootLayout({
     name: 'Short AV',
     url: 'https://short-av.com',
     logo: 'https://short-av.com/logo.png',
-    description: 'FANZA（DMM）のサンプル動画を無料・会員登録不要で縦スワイプで見られるサイト',
+    description: 'FANZA（DMM）のサンプル動画が長い作品だけを縦スワイプで見られる無料サイト（会員登録不要）',
     sameAs: [
       // SNSアカウントがあれば追加
     ],
@@ -73,6 +75,9 @@ export default function RootLayout({
       <head>
         <GoogleAnalytics />
         {/* PWA設定 */}
+        {/* ブラウザのタブの印（黒地に青い S。2026-10-31） */}
+        <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/icon-192x192.png" type="image/png" sizes="192x192" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

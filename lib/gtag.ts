@@ -34,7 +34,7 @@ const LABELS = {
     actress: '女優',
     actress_videos: '女優の作品一覧',
   },
-  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌', sample_end: 'サンプル終了' },
+  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌', sample_end: 'サンプル終了', work_details: '作品詳細から' },
 } as const;
 
 const contextLabels = (context?: ViewContext) =>
@@ -66,12 +66,14 @@ export const trackSwipe = (
   swipeIndex: number,
   contentId: string,
   listType: ViewContext['list_type'],
+  onSale?: boolean, // セール中の作品か（セール作品を8割にした効果を見るため。2026-10-31）
 ) => {
   sendGAEvent('swipe', {
     direction: LABELS.direction[direction],
     swipe_index: swipeIndex,
     content_id: contentId,
     list_type: LABELS.list_type[listType],
+    ...(onSale !== undefined && { on_sale: onSale ? 'セール中' : 'セール外' }),
   });
 };
 
@@ -133,10 +135,12 @@ export const browserLabel = () => {
 export const trackDMMClick = (
   videoId: string,
   contentId: string,
-  linkType: 'detail' | 'affiliate' | 'doujin' | 'sample_end',
+  linkType: 'detail' | 'affiliate' | 'doujin' | 'sample_end' | 'work_details',
   context?: ViewContext,
+  onSale?: boolean, // セール中の作品か（2026-10-31）
 ) => {
   sendGAEvent('dmm_link_click', {
+    ...(onSale !== undefined && { on_sale: onSale ? 'セール中' : 'セール外' }),
     video_id: videoId,
     content_id: contentId,
     link_type: LABELS.link_type[linkType],
@@ -195,8 +199,8 @@ export const trackJuicyAdsClick = (zone: number) => {
 };
 
 // 「動画｜同人誌」の切り替え
-export const trackModeSwitch = (mode: 'video' | 'doujin') => {
-  sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : '動画' });
+export const trackModeSwitch = (mode: 'video' | 'anime' | 'doujin') => {
+  sendGAEvent('mode_switch', { mode: mode === 'doujin' ? '同人誌' : mode === 'anime' ? 'アニメ' : '動画' });
 };
 
 // モーダル開閉イベント

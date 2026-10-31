@@ -33,6 +33,13 @@ export type Database = {
           likes_count: number;
           rank_position: number | null;
           sample_seconds: number | null; // サンプル動画の長さ（秒）。-1 は調べられなかった作品
+          review_count?: number | null; // FANZA のレビュー件数（sql/022）
+          review_average?: number | null; // FANZA のレビューの平均点（sql/026。まだ無い作品は null）
+          list_price?: number | null; // FANZA の定価（sql/027）
+          campaign_end?: string | null; // FANZA のセールの終わり（sql/027）
+          campaign_title?: string | null; // FANZA のセールの名前（sql/027）
+          price_checked_at?: string | null; // 価格・セールを DMM で最後に確かめた日時（sql/029）
+          kind?: 'anime'; // アニメの表（anime_videos）の作品（lib/anime.ts が付ける目印。データベースの列ではない）
           is_active: boolean;
           created_at: string;
           updated_at: string;

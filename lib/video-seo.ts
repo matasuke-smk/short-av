@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { productCode } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -50,7 +51,9 @@ export function buildVideoDescription(video: VideoSeoRow, names: { actresses: st
     jpDate(video.release_date) ? `${jpDate(video.release_date)}発売` : null,
   ].filter((p): p is string => p !== null);
   const length = sampleLength(video.sample_seconds);
-  const head = `${video.title}のサンプル動画${length ? `（${length}）` : ''}を無料で視聴。`;
+  // 品番（STARS-840 など）でも検索に当たるよう先頭に入れる（2026-10-31 ユーザーの希望）
+  const code = productCode(video.dmm_content_id);
+  const head = `${code ? `【${code}】` : ''}${video.title}のサンプル動画${length ? `（${length}）` : ''}を無料で視聴。`;
   const tail = '縦スワイプで次の作品へ。会員登録不要の Short AV。';
   const body = parts.length > 0 ? `${parts.join('。')}。` : '';
   const text = `${head}${body}${tail}`;

@@ -24,6 +24,11 @@ import { article as sexDurationAverageReality } from './content/sex-duration-ave
 import { article as sizeComparisonTool } from './content/size-comparison-tool';
 import { article as sizeStatisticsReport } from './content/size-statistics-report';
 import { article as stdRiskReductionMethods } from './content/std-risk-reduction-methods';
+import { article as chooseWithSamples } from './content/choose-with-samples';
+import { article as continuousSamplesOnPhone } from './content/continuous-samples-on-phone';
+import { article as fanzaSampleLengthData } from './content/fanza-sample-length-data';
+import { article as sampleNotPlaying } from './content/sample-not-playing';
+import { article as watchLongSamples } from './content/watch-long-samples';
 
 export const articles: Article[] = [
   adultIndustryKnowledge,
@@ -50,4 +55,9 @@ export const articles: Article[] = [
   sizeComparisonTool,
   sizeStatisticsReport,
   stdRiskReductionMethods,
+  chooseWithSamples,
+  continuousSamplesOnPhone,
+  fanzaSampleLengthData,
+  sampleNotPlaying,
+  watchLongSamples,
 ];

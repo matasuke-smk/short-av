@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { productCodePattern } from '@/lib/product-code';
 import { supabase } from '@/lib/supabase';
 import { trackSearch } from '@/lib/gtag';
 import { LONG_SAMPLE_OPTIONS, longSampleLabel } from '@/config/site';
@@ -15,7 +16,7 @@ type FacetCounts = Record<string, number>;
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
+  onReplaceVideos: (videos: Video[], selectedVideoId: string, focusActressIds?: string[]) => void; // focusActressIds: 女優で絞ったとき、その女優を顔に出す
   currentVideoId?: string;
 }
 
@@ -112,7 +113,7 @@ export default function SearchModal({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   // 検索結果（まず一覧で見せて、選んだ作品から見始める）。閉じても残し、次に開いたときに選び直せる
-  const [results, setResults] = useState<{ videos: Video[]; label: string } | null>(null);
+  const [results, setResults] = useState<{ videos: Video[]; label: string; focus?: string[] } | null>(null);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
   // 「人妻で4分以上」のような言葉を AI で条件に変える（/api/ai-search）。結果は通常のジャンル検索として実行する（2026-10-25）
@@ -296,7 +297,11 @@ export default function SearchModal({
         .not('thumbnail_url', 'is', null)
         .not('sample_video_url', 'is', null);
 
-      if (by === 'keyword') {
+      // 品番（STARS-840 / stars840 など）で探したときは作品番号で当てる（2026-10-31）
+      const codePattern = by === 'keyword' ? productCodePattern(keyword) : null;
+      if (codePattern) {
+        query = query.filter('dmm_content_id', 'match', codePattern);
+      } else if (by === 'keyword') {
         // スペース区切りの語をすべて含むタイトル
         for (const word of words) {
           query = query.ilike('title', `%${escapeLike(word)}%`);
@@ -345,7 +350,8 @@ export default function SearchModal({
               ...(minSampleSeconds > 0 ? [longSampleLabel(minSampleSeconds)] : []),
               ...names(selectedIds, searchMode === 'genre' ? genres : actresses),
             ].join('・');
-      setResults({ videos, label });
+      // 女優で絞ったときは、スワイプ画面の顔をその女優にする（2026-10-31 ユーザーの希望）
+      setResults({ videos, label, focus: by === 'filter' && searchMode === 'actress' ? selectedActressIds : undefined });
     } catch (error) {
       if (searchId !== searchIdRef.current) return;
       console.error('検索実行エラー:', error);
@@ -438,7 +444,7 @@ export default function SearchModal({
                       key={video.id}
                       type="button"
                       onClick={() => {
-                        onReplaceVideos(results.videos, video.dmm_content_id);
+                        onReplaceVideos(results.videos, video.dmm_content_id, results.focus);
                         setTimeout(() => onClose(), 100);
                       }}
                       className="group text-left"
@@ -487,7 +493,7 @@ export default function SearchModal({
                       handleSearch('keyword');
                     }
                   }}
-                  placeholder="作品タイトルで検索（Enter）"
+                  placeholder="作品タイトル・品番で検索（Enter）"
                   className="flex-1 h-12 px-4 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-white"
                 />
                 <button
@@ -723,7 +729,7 @@ export default function SearchModal({
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="作品タイトルで検索（Enter）"
+                  placeholder="作品タイトル・品番で検索（Enter）"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => {

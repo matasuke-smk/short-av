@@ -24,6 +24,10 @@
       "schedule": "50 21 * * *"
     },
     {
+      "path": "/api/cron/update-anime",
+      "schedule": "10 22 * * *"
+    },
+    {
       "path": "/api/cron/daily-summary",
       "schedule": "0 22 * * *"
     },

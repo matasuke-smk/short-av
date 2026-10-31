@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { productCode } from '@/lib/product-code';
+import { currentPrice } from '@/lib/price';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import type { Database } from '@/lib/supabase';
@@ -151,6 +153,12 @@ export default function RankingPage() {
                       {video.title}
                     </h3>
                     <div className="space-y-1 text-xs text-gray-400">
+                      {/* 品番（品番で検索されたときに当たるように。2026-10-31） */}
+                      {productCode(video.dmm_content_id) && (
+                        <p>
+                          <span className="text-gray-500">品番:</span> {productCode(video.dmm_content_id)}
+                        </p>
+                      )}
                       {video.maker && (
                         <p className="truncate">
                           <span className="text-gray-500">メーカー:</span> {video.maker}
@@ -164,7 +172,7 @@ export default function RankingPage() {
                       )}
                       {video.price && (
                         <p className="text-blue-400 font-medium">
-                          ¥{video.price}〜
+                          ¥{(currentPrice(video) ?? 0).toLocaleString()}〜
                         </p>
                       )}
                     </div>

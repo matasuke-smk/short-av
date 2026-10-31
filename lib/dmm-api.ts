@@ -17,6 +17,8 @@ export type DMMItem = {
     count: number;
     average: number;
   };
+  // セール中の作品だけにある（date_end は日本時間の 'YYYY-MM-DD HH:MM:SS'）
+  campaign?: { date_begin: string; date_end: string; title: string }[];
   URL: string;
   affiliateURL: string;
   imageURL: {
@@ -209,6 +211,71 @@ export async function fetchDMMProducts(options: {
   } finally {
     release();
   }
+}
+
+/** 女優検索API で取れる女優の情報（作品の操作の行・女優の詳細。2026-10-31） */
+export type DMMActressProfile = {
+  profile_image_url: string; // 写真が無ければ空文字
+  kana: string | null;
+  birth_date: string | null;
+  height: number | null;
+  bust: number | null;
+  waist: number | null;
+  hip: number | null;
+  blood_type: string | null;
+  hobby: string | null;
+  prefectures: string | null;
+  fanza_list_url: string | null; // FANZA の出演作一覧（紹介リンク）
+};
+
+/**
+ * 女優検索API で顔写真・プロフィール・FANZA の出演作一覧のリンクを取る。見つからなければ null。
+ * DMM の API は連打すると止まるので、商品検索と同じ順番待ちを通す
+ */
+export async function fetchDMMActress(actressId: string): Promise<DMMActressProfile | null> {
+  const apiId = process.env.DMM_API_ID;
+  const affiliateId = process.env.DMM_AFFILIATE_ID;
+  if (!apiId || !affiliateId) throw new Error('DMM API credentials are not configured');
+  if (Date.now() < blockedUntil) throw new DMMBlockedError();
+  const params = new URLSearchParams({ api_id: apiId, affiliate_id: affiliateId, actress_id: actressId, output: 'json' });
+  await acquire();
+  try {
+    const response = await fetch(`https://api.dmm.com/affiliate/v3/ActressSearch?${params.toString()}`, { next: { revalidate: 3600 } });
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (response.status === 400 && errorText.includes('Invalid Request Error')) {
+        blockedUntil = Date.now() + BLOCK_MS;
+        throw new DMMBlockedError();
+      }
+      throw new Error(`DMM ActressSearch failed: ${response.status}`);
+    }
+    type Raw = { ruby?: string; bust?: string | number; waist?: string | number; hip?: string | number; height?: string | number; birthday?: string; blood_type?: string; hobby?: string; prefectures?: string; imageURL?: { small?: string; large?: string }; listURL?: { digital?: string } };
+    const a = ((await response.json()) as { result?: { actress?: Raw[] } }).result?.actress?.[0];
+    if (!a) return null;
+    const num = (v: string | number | undefined) => (v != null && Number(v) > 0 ? Number(v) : null);
+    const text = (v: string | undefined) => (v && v.trim() ? v.trim() : null);
+    return {
+      // 住所は http:// で返ってくる（https のページでは表示されない）。https でも同じ画像が開ける（2026-10-31 確認）
+      profile_image_url: (a.imageURL?.large || a.imageURL?.small || '').replace(/^http:\/\//, 'https://'),
+      kana: text(a.ruby),
+      birth_date: a.birthday && /^\d{4}-\d{2}-\d{2}$/.test(a.birthday) ? a.birthday : null,
+      height: num(a.height),
+      bust: num(a.bust),
+      waist: num(a.waist),
+      hip: num(a.hip),
+      blood_type: text(a.blood_type),
+      hobby: text(a.hobby),
+      prefectures: text(a.prefectures),
+      fanza_list_url: a.listURL?.digital || null,
+    };
+  } finally {
+    release();
+  }
+}
+
+/** 女優の顔写真の住所だけ（写真が無ければ空文字） */
+export async function fetchDMMActressImage(actressId: string): Promise<string> {
+  return (await fetchDMMActress(actressId))?.profile_image_url ?? '';
 }
 
 /**
@@ -456,6 +523,13 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
     rank_position: rankPosition || null,
     // FANZA のレビュー数（「4分以上」の並べ順に使う。sql/022）
     review_count: item.review?.count ?? null,
+    // FANZA のレビューの平均点（作品の操作の行・作品詳細の ⭐。sql/026、2026-10-31）
+    review_average: item.review?.average ? Number(item.review.average) || null : null,
+    // 定価とセール（作品詳細のセール情報・スワイプ画面の ○%OFF。セールが終わったら定価を出す。sql/027）
+    list_price: parseInt(item.prices.list_price ?? '') || null,
+    campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+    campaign_title: item.campaign?.[0]?.title ?? null,
+    price_checked_at: new Date().toISOString(),
     is_active: true,
   };
 }

@@ -25,13 +25,13 @@ type DailySummaryItem = { date: string; summary: string; yen: number | null; cre
 // yesterday・lastMonth は比べる相手。dayBefore・7d・28d は以前のボタン用で、28d は同人誌の日別の表に使う
 export type DataKey = 'today' | 'yesterday' | 'dayBefore' | '7d' | '28d' | 'month' | 'lastMonth';
 type RangeKey = ViewKey;
-const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', month: '今月' };
+const VIEW_LABELS: Record<ViewKey, string> = { today: '今日', yesterday: '昨日', month: '今月' };
 
 // 日本時間の今日が何日か（今月の日数）
 const jstDayOfMonth = () => new Date(Date.now() + 9 * 3_600_000).getUTCDate();
 
 // 1日だけの期間が何日前か（リアルタイムで補う時間帯の判定に使う）
-const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, month: 0 };
+const RANGE_SPAN_DAYS_AGO: Record<RangeKey, number> = { today: 0, yesterday: 1, month: 0 };
 
 // 各期間の日数（同人誌の時間帯グラフは1日あたりの平均で描く）
 export const rangeDays = (key: RangeKey) => (key === 'month' ? jstDayOfMonth() : 1);
@@ -40,7 +40,7 @@ const jstDate = (daysAgo: number) => {
   const d = new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000);
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
-const rangeDates = (key: ViewKey) => (key === 'month' ? `${jstDate(jstDayOfMonth() - 1)}〜${jstDate(0)}` : jstDate(0));
+const rangeDates = (key: ViewKey) => (key === 'month' ? `${jstDate(jstDayOfMonth() - 1)}〜${jstDate(0)}` : jstDate(key === 'yesterday' ? 1 : 0));
 
 // 曜日（0=日〜6=土）ごとの、時間帯別の合計（[人数, FANZA へのクリック, 表示回数] × 24）と集計した日（YYYYMMDD）
 export type WeekdayHourly = { dates: string[]; hours: number[][] }[];
@@ -59,8 +59,10 @@ const LOADING_MESSAGE = '読み込み中…';
 const LOADING: RangeData = { error: LOADING_MESSAGE };
 const LOADING_PAIR: RangePair = { jp: LOADING, all: LOADING };
 // 取得する順番（表示中の期間とその比べる相手を先に。28d は同人誌の日別の表用）
-const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'month', 'lastMonth', '28d'];
+const LOAD_ORDER: DataKey[] = ['today', 'yesterday', 'month', 'lastMonth', '28d', 'dayBefore'];
 const dataKeyOf = (view: ViewKey): DataKey => view;
+// 比べる相手（「今日」は昨日、「昨日」は一昨日、「今月」は先月の同じ日まで）。表示中の期間の次に読み込む
+const compareKeyOf = (view: ViewKey): DataKey => (view === 'today' ? 'yesterday' : view === 'yesterday' ? 'dayBefore' : 'lastMonth');
 
 
 // GA の流入元（デフォルト チャネル グループ）を日本語にする
@@ -223,6 +225,9 @@ export function TrendLine({ data, height, labels = false }: { data: { date: stri
   const points = data.map((d, i) => `${x(i).toFixed(1)},${y(d.users).toFixed(1)}`).join(' ');
   const last = data[n - 1];
   const md = (s: string) => `${Number(s.slice(4, 6))}/${Number(s.slice(6, 8))}`;
+  // 右端の日の呼び方（グラフは昨日までなので、ふだんは「昨日」。2026-10-29 まではいつも「今日」と書いていた）
+  const ymd = (daysAgo: number) => new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
+  const lastLabel = !last ? '' : last.date === ymd(0) ? '今日' : last.date === ymd(1) ? '昨日' : md(last.date);
   return (
     <div className="w-full">
       <svg viewBox={`0 0 ${w} ${height}`} className="w-full" style={{ height }} preserveAspectRatio="none" aria-hidden>
@@ -232,13 +237,13 @@ export function TrendLine({ data, height, labels = false }: { data: { date: stri
       {labels ? (
         <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
           <span>{data[0] ? md(data[0].date) : ''}</span>
-          <span>最大 {fmt(max)}人・今日 {fmt(last?.users ?? 0)}人</span>
+          <span>最大 {fmt(max)}人・{lastLabel} {fmt(last?.users ?? 0)}人</span>
           <span>{last ? md(last.date) : ''}</span>
         </div>
       ) : (
         <div className="flex justify-between text-[10px] text-gray-500 -mt-0.5 mb-1">
           <span>28日の推移</span>
-          <span>今日 {fmt(last?.users ?? 0)}人・最大 {fmt(max)}人</span>
+          <span>{lastLabel} {fmt(last?.users ?? 0)}人・最大 {fmt(max)}人</span>
         </div>
       )}
     </div>
@@ -417,7 +422,9 @@ function withLive(rows: ReportRow[], live: LiveHourly | null, totalUsers: number
     const row = rows.find((r) => Number(r.dimensions[0]) === h);
     const users = row?.metrics[0] ?? 0;
     const events = row?.metrics[1] ?? 0;
-    const pending = nowHours - (h + 1) < LIVE_HOURS || (users === 0 && events === 0);
+    // GA が0件の時間帯を補うのは今日だけ。昨日は集計が終わっているので、0時を過ぎた直後の夜の時間帯（直近 LIVE_HOURS 時間）だけ補う
+    // （リアルタイムの記録は年齢確認の前の人も数えるため、人がいなかった時間帯まで埋めると昨日が多く出る。2026-10-29）
+    const pending = nowHours - (h + 1) < LIVE_HOURS || (daysAgo === 0 && users === 0 && events === 0);
     const liveUsers = pending ? live?.[h]?.users ?? 0 : 0;
     const liveEvents = pending ? live?.[h]?.events ?? 0 : 0;
     return {
@@ -703,7 +710,7 @@ function RangeBody({
   const { reports, db, warning } = data;
   // この期間の DMM の実績（日本時間の日付で合わせる）
   const dmm = (() => {
-    const [from, to] = rangeKey === 'month' ? [jstDayOfMonth() - 1, 0] : [0, 0];
+    const [from, to] = rangeKey === 'month' ? [jstDayOfMonth() - 1, 0] : rangeKey === 'yesterday' ? [1, 1] : [0, 0];
     const dates = new Set<string>();
     for (let daysAgo = to; daysAgo <= from; daysAgo++) dates.add(new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10));
     return sumDmmReports(dmmReports.filter((r) => dates.has(r.date)));
@@ -881,15 +888,17 @@ function RangeBody({
           // 比べる相手の取得に失敗したときは「読み込み中」のままにせず、そう伝える（2026-10-26 ユーザー指摘）
           const compareError = compareData && 'error' in compareData && compareData.error !== LOADING_MESSAGE ? compareData.error : null;
           const isToday = rangeKey === 'today';
-          const ghostName = isToday ? '昨日' : '先月の同じ日まで';
+          // 「今日」「昨日」は1日（時間帯のグラフ）。「昨日」は一昨日と比べる（2026-10-29）
+          const isDay = rangeKey !== 'month';
+          const ghostName = isToday ? '昨日' : isDay ? '一昨日' : '先月の同じ日まで';
           const cmp = (unit: string, pick: (k: KeyNumbers) => number, soFar?: number) =>
             before === null
               ? `${ghostName}: ${compareError ? '取得できませんでした（開き直してください）' : '読み込み中…'}`
               : isToday
                 ? `${soFar !== undefined && compare?.soFar ? `昨日の${compare.soFar.until}まで ${fmtOverview(soFar)}${unit}／` : ''}昨日 ${fmtOverview(pick(before))}${unit}`
-                : `先月の同じ日まで ${fmtOverview(pick(before))}${unit}`;
-          // 28日の推移（今日まで）
-          const last28 = (series: number[] | undefined) => (series ? series.slice(-28) : null);
+                : `${ghostName} ${fmtOverview(pick(before))}${unit}`;
+          // 28日の推移は昨日まで（途中の今日を入れると右端が急に下がって見えるため。2026-10-29 ユーザーの判断）
+          const last28 = (series: number[] | undefined) => (series ? series.slice(-29, -1) : null);
           // FANZA 実績（DMM）。日付は YYYY-MM-DD
           const jstYmd = (daysAgo: number) => new Date(Date.now() + 9 * 3_600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10);
           const conv = (r: DmmReportRow) => r.direct_count + r.category_count + r.new_count;
@@ -902,7 +911,7 @@ function RangeBody({
           const yRow = dmmReports.find((r) => r.date === jstYmd(1));
           const total = (rows: DmmReportRow[], f: (r: DmmReportRow) => number) => rows.reduce((a, r) => a + f(r), 0);
           const dmmTrend = Array.from({ length: 28 }, (_, i) => {
-            const row = dmmReports.find((r) => r.date === jstYmd(27 - i));
+            const row = dmmReports.find((r) => r.date === jstYmd(28 - i));
             return row ? conv(row) : 0;
           });
           const topLabel = now.topNonX ? `${channelLabel(now.topNonX.channel).split('（')[0]} ${fmtOverview(now.topNonX.users)}人` : '-';
@@ -911,7 +920,7 @@ function RangeBody({
           const cards: TopCardProps[] = [
             {
               label: 'FANZA へのクリック',
-              value: fmtOverview(now.fanzaClicks + (isToday ? pendingFanzaClicks : 0)),
+              value: fmtOverview(now.fanzaClicks + (isDay ? pendingFanzaClicks : 0)),
               unit: '回',
               compare: cmp('回', (k) => k.fanzaClicks, compare?.soFar?.events),
               // 内訳は GA の集計だけで出す。「今日」でリアルタイムの記録から補った分（ブラウザは集計後に分かる）は
@@ -919,10 +928,11 @@ function RangeBody({
               // （2026-10-26 ユーザー指摘: 合計6回なのに通常のブラウザ5回（100%）。行を増やすとカードの高さが他とずれるので同じ3行のまま）
               rows: [
                 // アプリ内（X のアプリの中で完結した人）と他（X から開き直した人を含む見込み客）で分ける（2026-10-28 ユーザーの判断。文字は短く「アプリ内」「他」）
-                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(Math.max(0, now.clickers - now.inAppClickers))}人）`],
+                // 他の人数は引き算でなく他の行から数える。同じ人が両方に入ったときは「重なり ○人」を添える（2026-10-30 ユーザー指摘「クリック数と押した人が合っていない」、B 案）
+                ['押した人', `${fmtOverview(now.clickers)}人（アプリ内 ${fmtOverview(now.inAppClickers)}人・他 ${fmtOverview(now.otherClickers)}人${now.overlapClickers > 0 ? `・重なり ${fmtOverview(now.overlapClickers)}人` : ''}）`],
                 // 内訳は足すと合計になるように全部出す: 通常のブラウザ＋アプリ内（X などのアプリ内ブラウザ）＋集計待ち（2026-10-26 ユーザー指摘）
                 // 内訳は X のカード・X 以外のカードと同じ数字（人数・回数）にして、足すと合計になるように（2026-10-27 ユーザー要望「数字を合わせる」）
-                ['内訳', `アプリ内 ${fmtOverview(now.inAppClicks)}回・他 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isToday && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
+                ['内訳', `アプリ内 ${fmtOverview(now.inAppClicks)}回・他 ${fmtOverview(Math.max(0, now.fanzaClicks - now.inAppClicks))}回${isDay && pendingFanzaClicks > 0 ? `・集計待ち ${fmtOverview(pendingFanzaClicks)}回` : ''}`],
               ],
               trend: last28(trends?.fanzaClicks),
               color: '#34d399',
@@ -954,7 +964,7 @@ function RangeBody({
               color: '#a78bfa',
               onClick: () => setDetail('channels'),
             },
-            isToday
+            isDay
               ? {
                   label: 'FANZA 実績（昨日の成約）',
                   value: yRow ? fmtOverview(conv(yRow)) : '—',
@@ -985,14 +995,14 @@ function RangeBody({
                   onClick: toDmm,
                 },
           ];
-          // グラフ: 今日は時間帯、今月は日ごと
+          // グラフ: 今日・昨日は時間帯、今月は日ごと
           let slots: OverlaySlot[];
-          if (isToday) {
+          if (isDay) {
             const ghostHours = compareData && 'reports' in compareData ? compareData.reports[10] ?? [] : [];
             slots = hours.map((x) => {
               const g = ghostHours.find((r) => Number(r.dimensions[0]) === x.h)?.metrics ?? [0, 0];
               const nowHour = new Date(Date.now() + 9 * 3_600_000).getUTCHours();
-              return { tick: x.h % 3 === 0 ? String(x.h) : '', name: `${x.h}時台`, users: x.users, clicks: x.events, ghostUsers: g[0] ?? 0, ghostClicks: g[1] ?? 0, pending: x.fromLive, future: x.h > nowHour };
+              return { tick: x.h % 3 === 0 ? String(x.h) : '', name: `${x.h}時台`, users: x.users, clicks: x.events, ghostUsers: g[0] ?? 0, ghostClicks: g[1] ?? 0, pending: x.fromLive, future: isToday && x.h > nowHour };
             });
           } else {
             const dates = trends?.dates ?? [];
@@ -1029,10 +1039,10 @@ function RangeBody({
             <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
               <TopCards cards={cards} />
               <OverlayChart
-                title={isToday ? '時間帯ごとの利用者と FANZA へのクリック' : '日ごとの利用者と FANZA へのクリック'}
+                title={isDay ? '時間帯ごとの利用者と FANZA へのクリック' : '日ごとの利用者と FANZA へのクリック'}
                 slots={slots}
-                currentLabel={isToday ? '今日' : '今月'}
-                ghostLabel={isToday ? '昨日' : '先月'}
+                currentLabel={isToday ? '今日' : isDay ? '昨日' : '今月'}
+                ghostLabel={isToday ? '昨日' : isDay ? '一昨日' : '先月'}
                 // 合計の人数を押すと開けることが分かりにくかったので、題名のすぐ右に黄色のボタンでも開けるようにした（2026-10-28 ユーザーの要望）
                 titleAction={
                   <button type="button" onClick={() => setDetail('daily')} className="rounded-md bg-amber-400 px-2 py-0.5 text-xs font-bold text-gray-950 hover:bg-amber-300">
@@ -1043,10 +1053,10 @@ function RangeBody({
                   <>
                     合計{' '}
                     <button type="button" onClick={() => setDetail('daily')} className="underline decoration-dotted">
-                      <span className="text-base font-bold text-white">{fmtOverview(isToday ? gaUsers : users)}</span>人
+                      <span className="text-base font-bold text-white">{fmtOverview(isDay ? gaUsers : users)}</span>人
                     </button>
                     {/* 合計はカード（X から来た人＋X 以外）と同じ GA の集計の人数にし、リアルタイムで補った分は別に出す（2026-10-27 ユーザー指摘: カードの合計とグラフが合わない） */}
-                    {isToday && users > gaUsers && <span className="ml-1 text-gray-500">＋集計待ち {fmtOverview(users - gaUsers)}人</span>}
+                    {isDay && users > gaUsers && <span className="ml-1 text-gray-500">＋集計待ち {fmtOverview(users - gaUsers)}人</span>}
                     {compare?.soFar && <span className="ml-2">昨日の{compare.soFar.until}まで {fmtOverview(compare.soFar.users)}人</span>}
                   </>
                 }
@@ -1088,7 +1098,7 @@ function RangeBody({
             {trends && (
               <div className="mb-5">
                 <div className="text-xs text-gray-400 mb-1">X から来た人の推移（直近28日・1日の人数）</div>
-                <TrendLine data={trends.dates.slice(-28).map((date, i) => ({ date, users: trends.xUsers.slice(-28)[i] ?? 0 }))} height={110} labels />
+                <TrendLine data={trends.dates.slice(-29, -1).map((date, i) => ({ date, users: trends.xUsers.slice(-29, -1)[i] ?? 0 }))} height={110} labels />
               </div>
             )}
             <h3 className="text-sm font-bold mb-1">X の動画の投稿ごと</h3>
@@ -1450,7 +1460,7 @@ function RangeBody({
             <div className="mb-5">
               <div className="text-xs text-gray-400 mb-1">X 以外から来た人の推移（直近28日・1日の人数）</div>
               {/* カードの28日の推移と同じ数字（取れなければ以前の日別の流入元から） */}
-              <TrendLine data={trends ? trends.dates.slice(-28).map((date, i) => ({ date, users: trends.nonXUsers.slice(-28)[i] ?? 0 })) : nonXDaily} height={110} labels />
+              <TrendLine data={trends ? trends.dates.slice(-29, -1).map((date, i) => ({ date, users: trends.nonXUsers.slice(-29, -1)[i] ?? 0 })) : nonXDaily.slice(0, -1)} height={110} labels />
             </div>
             <h3 className="text-sm font-bold mb-1">流入元ごと</h3>
             <p className="text-xs text-gray-400 mb-2">上が X 以外の流入元（太字の行がカードの数）、灰色は上に入れていない流入元。</p>
@@ -2097,8 +2107,8 @@ export default function AnalyticsView({
       while (!cancelled) {
         const missing = LOAD_ORDER.filter((key) => !have.has(key));
         if (missing.length === 0) break;
-        const wanted = dataKeyOf(viewKeyRef.current);
-        const key = missing.includes(wanted) ? wanted : missing[0];
+        const wanted = [dataKeyOf(viewKeyRef.current), compareKeyOf(viewKeyRef.current)].find((k) => missing.includes(k));
+        const key = wanted ?? missing[0];
         have.add(key);
         const pair: RangePair = await fetch(`/api/admin/analytics?key=${key}`, { cache: 'no-store' })
           .then((r) => r.json())
@@ -2189,8 +2199,7 @@ export default function AnalyticsView({
     </button>
   );
   const current = data[viewKey];
-  // 比べる相手（「今日」は昨日、「今月」は先月の同じ日まで）
-  const compareData = data[viewKey === 'today' ? 'yesterday' : 'lastMonth'];
+  const compareData = data[compareKeyOf(viewKey)];
   // 「今日」は昨日の同じ時刻までと比べる
   const compare = viewKey === 'today' ? { soFar: yesterdaySoFar } : null;
 
@@ -2212,8 +2221,8 @@ export default function AnalyticsView({
         </p>
         </div>
 
-        {/* 「今日」（昨日と比べる）と「今月」（先月の同じ日までと比べる）の2つ */}
-        <nav className="mt-3 lg:mt-0 grid grid-cols-2 gap-1.5 md:gap-2 max-w-md lg:flex-1 lg:min-w-[10rem] lg:max-w-[15rem] lg:ml-auto">{VIEW_KEYS.map(button)}</nav>
+        {/* 「今日」（昨日と比べる）・「昨日」（一昨日と比べる）・「今月」（先月の同じ日までと比べる）の3つ */}
+        <nav className="mt-3 lg:mt-0 grid grid-cols-3 gap-1.5 md:gap-2 max-w-md lg:flex-1 lg:min-w-[14rem] lg:max-w-[20rem] lg:ml-auto">{VIEW_KEYS.map(button)}</nav>
 
         {/* 動画｜同人誌 */}
         <div className="mt-3 lg:mt-0 flex rounded-full bg-gray-800 p-1 max-w-xs lg:w-44 lg:flex-shrink-0 mx-auto lg:mx-0">
@@ -2263,7 +2272,7 @@ export default function AnalyticsView({
                   info={{ ...('reports' in month ? month.doujinInfo : {}), ...range.doujinInfo }}
                   days={rangeDays(viewKey)}
                   compareReports={'reports' in compareData ? compareData.reports : null}
-                  compareDays={viewKey === 'today' ? 1 : Math.max(1, Math.min(jstDayOfMonth(), new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 0)).getUTCDate()))}
+                  compareDays={viewKey !== 'month' ? 1 : Math.max(1, Math.min(jstDayOfMonth(), new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 0)).getUTCDate()))}
                   mode={viewKey}
                 />
               </>
@@ -2284,7 +2293,7 @@ export default function AnalyticsView({
             }
             realtimeViews={realtime === null ? null : realtime.reduce((sum, r) => sum + r.metrics[0], 0)}
             fixedDaily={'reports' in month ? month.reports : null}
-            live={viewKey === 'today' ? live.today : null}
+            live={viewKey === 'today' ? live.today : viewKey === 'yesterday' ? live.yesterday : null}
             hourlyAxis={hourlyAxis}
             compare={compare}
             compareData={compareData}

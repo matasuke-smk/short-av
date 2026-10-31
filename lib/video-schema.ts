@@ -1,6 +1,7 @@
 // Google構造化データ（VideoObject）生成ヘルパー関数
 
 import type { Database } from '@/lib/supabase';
+import { productCode } from '@/lib/product-code';
 
 type Video = Database['public']['Tables']['videos']['Row'];
 
@@ -57,6 +58,9 @@ export function generateVideoSchema(video: Video) {
     uploadDate: formatDateWithTimezone(video.release_date || video.created_at),
     contentUrl: `https://short-av.com/v/${encodeURIComponent(video.dmm_content_id)}`,
   };
+  // 品番（STARS-840 など。2026-10-31）
+  const code = productCode(video.dmm_content_id);
+  if (code) schema.identifier = code;
 
   // 埋め込み動画URL（推奨）
   if (video.sample_video_url) {
