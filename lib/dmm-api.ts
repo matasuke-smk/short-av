@@ -17,6 +17,8 @@ export type DMMItem = {
     count: number;
     average: number;
   };
+  // セール中の作品だけにある（date_end は日本時間の 'YYYY-MM-DD HH:MM:SS'）
+  campaign?: { date_begin: string; date_end: string; title: string }[];
   URL: string;
   affiliateURL: string;
   imageURL: {
@@ -488,6 +490,10 @@ export function convertDMMItemToVideo(item: DMMItem, rankPosition?: number) {
     review_count: item.review?.count ?? null,
     // FANZA のレビューの平均点（作品の操作の行・作品詳細の ⭐。sql/026、2026-10-31）
     review_average: item.review?.average ? Number(item.review.average) || null : null,
+    // 定価とセール（作品詳細のセール情報・スワイプ画面の ○%OFF。セールが終わったら定価を出す。sql/027）
+    list_price: parseInt(item.prices.list_price ?? '') || null,
+    campaign_end: item.campaign?.[0]?.date_end ? `${item.campaign[0].date_end}+09` : null,
+    campaign_title: item.campaign?.[0]?.title ?? null,
     is_active: true,
   };
 }
