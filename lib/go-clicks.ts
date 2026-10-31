@@ -7,9 +7,13 @@
 export async function recordGoClick(click: { target: string; owner: boolean; country: string | null; referer: string | null; userAgent: string | null }): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return;
+  // 記録できないときは理由を1行だけ残す（Cloudflare の Observability・Vercel の記録で調べられるように。2026-11-01）
+  if (!url || !key) {
+    console.error('[go-click] 記録の設定がない', { url: !!url, key: !!key });
+    return;
+  }
   try {
-    await fetch(`${url}/rest/v1/go_clicks`, {
+    const res = await fetch(`${url}/rest/v1/go_clicks`, {
       method: 'POST',
       headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({
@@ -20,7 +24,9 @@ export async function recordGoClick(click: { target: string; owner: boolean; cou
         user_agent: click.userAgent?.slice(0, 300) ?? null,
       }),
     });
-  } catch {
-    // 記録できなくても何もしない
+    if (!res.ok) console.error('[go-click] 記録できない', res.status, (await res.text().catch(() => '')).slice(0, 200));
+  } catch (e) {
+    // 記録できなくても利用者の転送には影響させない
+    console.error('[go-click] 記録の通信エラー', e instanceof Error ? e.message : e);
   }
 }
