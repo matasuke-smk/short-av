@@ -100,9 +100,9 @@ const countsText = (c: LongCounts) => (c ? `（今はサンプルが4分以上�
 const topFaq = (c: LongCounts): { q: string; a: string }[] => [
   { q: 'FANZA でサンプル動画が長い作品だけを探す方法は？', a: `FANZA の公式サイトにはサンプルの長さで絞り込む機能がありませんが、Short AV では毎日すべての作品のサンプルの長さを測って記録していて、サンプルが4分以上・3分以上の作品だけを縦スワイプで続けて見られます${countsText(c)}。一覧は https://short-av.com/long-samples 、スワイプ画面の下の「4分以上」ボタンでも絞り込めます。無料・会員登録不要です。` },
   { q: 'Short AV とは何ですか？', a: 'FANZA（DMM）のアダルト動画のサンプルを、スマホの縦スワイプで次々と見られる日本語のサイトです。サンプルの長さで作品を選べるのが特徴です。サンプルは FANZA 公式のプレイヤーで再生します（18歳以上）。' },
-  { q: '料金や会員登録は必要ですか？', a: '無料で、会員登録やログインも不要です。いいね・履歴はブラウザに保存されます。' },
+  { q: '料金や会員登録は必要ですか？', a: '無料で、会員登録やログインも不要です。いいねはブラウザごとの匿名IDで記録し、履歴はブラウザの中だけに保存します（名前などとは結びつきません）。' },
   { q: '女優やジャンルから探せますか？', a: '探せます。女優ごと（https://short-av.com/actress）・ジャンルごと（https://short-av.com/genre）のページ、人気ランキング（https://short-av.com/ranking）、キーワード検索があります。FANZA 同人の試し読み（https://short-av.com/doujin）もあります。' },
-  { q: '本編を見るにはどうすればいいですか？', a: '作品の「FANZA で見る」から FANZA の公式サイトへ進み、購入するか、月額の見放題 FANZA TV で見ます。' },
+  { q: '本編を見るにはどうすればいいですか？', a: '作品の「詳細はこちら」から FANZA の公式サイトへ進み、購入するか、月額の見放題 FANZA TV で見ます。' },
   { q: 'FANZA の作品を安く見る方法は？', a: '月額550円（税込）の見放題 FANZA TV（初回14日間無料）を使うか、初回購入向けのクーポンやセールを使う方法があります。詳しくは https://short-av.com/articles/fanza-tv-guide と https://short-av.com/articles/fanza-save-money にまとめています。' },
 ];
 const topFaqSchema = (faq: { q: string; a: string }[]) => ({
