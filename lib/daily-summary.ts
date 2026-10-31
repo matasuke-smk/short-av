@@ -21,7 +21,6 @@ export type DailyData = {
     sessions: Row[]; // 昨日・一昨日・7日平均の人数（2026-10-28 から人間＝年齢確認で「はい」を押した人。以前は訪問＝セッション）
     sources: { source: string; yesterday: number; dayBefore: number }[];
     events: { name: string; yesterday: number; dayBefore: number; week: number }[];
-    sampleEnd: { show: number; click: number };
     // X のアプリの中（アプリ内ブラウザで、来た元が X か記録なし）の分。昨日のレポートのカードの「アプリ内 ○・他 ○」に使う（2026-10-28。無い記録もある）
     // otherUsers: X のアプリの中以外の人数（人間）。同じ人が両方に入ることがあるので「来た人 − アプリ内」で出さない（2026-10-30。無い記録もある）
     inApp?: { users: number; usersDayBefore: number; plays: number; clicks: number; otherUsers?: number };
@@ -105,10 +104,10 @@ const IN_APP_X = {
 // ChatGPT から来た訪問（来た元が chatgpt.com など）
 const FROM_CHATGPT = { filter: { fieldName: 'sessionSource', stringFilter: { matchType: 'CONTAINS', value: 'chatgpt' } } };
 const HUMANS = { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', stringFilter: { value: 'age_verification' } } }, { filter: { fieldName: 'customEvent:action', stringFilter: { value: 'はい' } } }] } };
-const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'sample_end_cta', 'session_start'];
+const EVENTS = ['video_view', 'dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click', 'session_start'];
 
 // サイトの主なページ（開けるかを毎朝確かめる。2026-10-26）
-// FANZA（DMM）へのクリックのイベント（DMM のクリックと比べる。sample_end_cta は表示も含むので入れない）
+// FANZA（DMM）へのクリックのイベント（DMM のクリックと比べる）。サンプル終了時の案内（sample_end_cta）は 2026-10-31 に外したので数えない
 const FANZA_CLICK_EVENTS = ['dmm_link_click', 'fanza_banner_click', 'fanza_widget_click', 'fanza_coupon_click', 'first_time_link_click'];
 
 const HEALTH_URLS = [
@@ -171,7 +170,7 @@ export async function collectDailyData(): Promise<DailyData> {
 
 async function collectStable(y: string): Promise<StablePart> {
   const d2 = jstDate(2);
-  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [cta], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv, otherY], [gptY, gptD, gptW]] = await Promise.all([
+  const [[yS, dS, wS], [ySrc, dSrc], [yEv, dEv, wEv], [mS], [mSrc], [fanzaAll], [mAd], [inAppY, inAppD, inAppEv, otherY], [gptY, gptD, gptW]] = await Promise.all([
     runReports([
       // 人数は人間（年齢確認で「はい」を押した人）。管理画面のカード・グラフと同じ数え方（2026-10-28。以前は訪問＝セッション）。7日は日ごとに数えて足す
       { dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'totalUsers' }], dimensionFilter: HUMANS },
@@ -187,9 +186,6 @@ async function collectStable(y: string): Promise<StablePart> {
       { dateRanges: [{ startDate: d2, endDate: d2 }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', inListFilter: { values: EVENTS } } }] } } },
       { dateRanges: [{ startDate: jstDate(7), endDate: y }], dimensions: [{ name: 'eventName' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', inListFilter: { values: EVENTS } } }] } } },
     ]),
-    runReports([
-      { dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'customEvent:action' }], metrics: [{ name: 'eventCount' }], dimensionFilter: { andGroup: { expressions: [JP, { filter: { fieldName: 'eventName', stringFilter: { value: 'sample_end_cta' } } }] } } },
-    ]).catch(() => [[]]),
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], metrics: [{ name: 'sessions' }], dimensionFilter: JP }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
     runReports([{ dateRanges: [{ startDate: y, endDate: y }], dimensions: [{ name: 'sessionSource' }], metrics: [{ name: 'sessions' }], dimensionFilter: JP, limit: 6, orderBys: [{ metric: { metricName: 'sessions' }, desc: true }] }], MENSLAB_PROPERTY_ID).catch(() => [[]]),
     // FANZA へのクリック（全部の国。DMM は海外からのクリックも数えるので、比べるときはこちらを使う）
@@ -238,7 +234,6 @@ async function collectStable(y: string): Promise<StablePart> {
       ],
       sources: ySrc.map((r) => ({ source: r.dimensions[0], yesterday: r.metrics[0], dayBefore: find(dSrc, r.dimensions[0]) })),
       events: EVENTS.filter((e) => e !== 'session_start').map((e) => ({ name: e, yesterday: find(yEv, e), dayBefore: find(dEv, e), week: Math.round(find(wEv, e) / 7) })),
-      sampleEnd: { show: find(cta, 'show'), click: find(cta, 'click') },
       inApp: {
         users: one(inAppY),
         usersDayBefore: one(inAppD),
@@ -418,7 +413,6 @@ const SYSTEM = `あなたは、アダルト動画のサンプル紹介サイト�
 Short AV（アクセス解析）
 ・昨日: 人数（年齢確認で「はい」を押した人。「訪問 ○人」ではなく「来た人 ○人」と書く）と主な来た元（多い順に3つまで）、サンプルの再生回数、FANZA へのクリック（合計と内訳: 作品のリンク・バナー・ウィジェット・クーポン・初めての人向け のうち 0 でないもの）
 ・一昨日・7日平均と比べて大きく変わったもの（半分以下・2倍以上）があれば1行
-・サンプル終了時の案内（sampleEnd）の表示とクリック
 ・ChatGPT から（chatgpt があるときは必ず1行）:「ChatGPT から来た人 ○人（一昨日 ○人・7日平均 ○人）、ChatGPT が回答のために読んだ回数 ○回（reads）」。chatgpt.drop が true のときは、悪い点の先頭にも「ChatGPT から来た人が ○人（7日平均 ○人）に減った」を書き、対応は「ChatGPT が読んだ回数（reads）が減っていなければ、ChatGPT 側の紹介の揺れの可能性。2日続けば、読まれているページ（トップ・よくある質問）の中身と /llms.txt を確かめる。reads も減っていれば、サイトがロボットを止めていないか（Cloudflare の設定・robots.txt）を確かめる」と書く。short-av の来る人の大半は ChatGPT からなので、この行は省かない
 
 男のからだ研究室（アクセス解析）
@@ -465,7 +459,7 @@ siteCheck について: siteCheck はログインして確かめた数字（chec
 
 決まり:
 - 数字は必ず渡されたものだけを使う。推測で数字を作らない。null の項目は書かない
-- 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「作品のリンク」、「fanza_banner_click」は「バナー」、「fanza_widget_click」は「ウィジェット」、「fanza_coupon_click」は「クーポン」、「first_time_link_click」は「初めての人向け」、「video_view」は「サンプルの再生」、「sample_end_cta」は「サンプル終了時の案内」、「chatgpt.com」は「ChatGPT」、「x」「t.co」は「X」、「(direct)」は「直接」）
+- 専門用語を避ける（「セッション」は「訪問」、「dmm_link_click」は「作品のリンク」、「fanza_banner_click」は「バナー」、「fanza_widget_click」は「ウィジェット」、「fanza_coupon_click」は「クーポン」、「first_time_link_click」は「初めての人向け」、「video_view」は「サンプルの再生」、「chatgpt.com」は「ChatGPT」、「x」「t.co」は「X」、「(direct)」は「直接」）
 - 丁寧だが簡潔に。各見出しの下は「・」の箇条書き。Markdown の記号（#や**）は使わない`;
 
 export async function writeDailySummary(data: DailyData): Promise<{ summary: string; yen: number }> {

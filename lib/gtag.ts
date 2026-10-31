@@ -34,7 +34,7 @@ const LABELS = {
     actress: '女優',
     actress_videos: '女優の作品一覧',
   },
-  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌', sample_end: 'サンプル終了', work_details: '作品詳細から' },
+  link_type: { detail: '作品ページ', affiliate: 'アフィリエイト', doujin: '同人誌', work_details: '作品詳細から' },
 } as const;
 
 const contextLabels = (context?: ViewContext) =>
@@ -135,7 +135,7 @@ export const browserLabel = () => {
 export const trackDMMClick = (
   videoId: string,
   contentId: string,
-  linkType: 'detail' | 'affiliate' | 'doujin' | 'sample_end' | 'work_details',
+  linkType: 'detail' | 'affiliate' | 'doujin' | 'work_details',
   context?: ViewContext,
   onSale?: boolean, // セール中の作品か（2026-10-31）
 ) => {

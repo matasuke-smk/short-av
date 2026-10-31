@@ -79,7 +79,6 @@ const DICT = {
   // 操作の案内
   swipeNextVideo: { ja: '上にスワイプで次の動画', en: 'Swipe up for the next video', zhHant: '上滑看下一部', zhHans: '上滑看下一部', id: 'Geser ke atas untuk video berikutnya', th: 'ปัดขึ้นเพื่อดูวิดีโอถัดไป', ko: '위로 스와이프하면 다음 동영상' },
   wheelNextVideo: { ja: 'ホイール・↓キーで次の動画', en: 'Scroll or press ↓ for the next video', zhHant: '滾輪或 ↓ 鍵看下一部', zhHans: '滚轮或 ↓ 键看下一部', id: 'Scroll atau tekan ↓ untuk video berikutnya', th: 'เลื่อนเมาส์หรือกด ↓ เพื่อดูวิดีโอถัดไป', ko: '휠 또는 ↓ 키로 다음 동영상' },
-  sampleEnd: { ja: 'サンプルはここまで', en: 'End of sample', zhHant: '試看到此結束', zhHans: '试看到此结束', id: 'Sampel selesai', th: 'ตัวอย่างจบแล้ว', ko: '샘플 끝' },
   close: { ja: '閉じる', en: 'Close', zhHant: '關閉', zhHans: '关闭', id: 'Tutup', th: 'ปิด', ko: '닫기' },
   swipeNextWork: { ja: '↑ 上にスワイプで次の作品', en: '↑ Swipe up for the next title', zhHant: '↑ 上滑看下一部作品', zhHans: '↑ 上滑看下一部作品', id: '↑ Geser ke atas untuk judul berikutnya', th: '↑ ปัดขึ้นเพื่อดูเรื่องถัดไป', ko: '↑ 위로 스와이프하면 다음 작품' },
   keyNextWork: { ja: '↓ キーかホイールで次の作品', en: '↓ key or scroll for the next title', zhHant: '↓ 鍵或滾輪看下一部作品', zhHans: '↓ 键或滚轮看下一部作品', id: 'Tekan ↓ atau scroll untuk judul berikutnya', th: 'กด ↓ หรือเลื่อนเมาส์เพื่อดูเรื่องถัดไป', ko: '↓ 키 또는 휠로 다음 작품' },
