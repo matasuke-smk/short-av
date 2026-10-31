@@ -1,4 +1,4 @@
-import { DMMBlockedError, fetchDMMProducts, type DMMItem } from '@/lib/dmm-api';
+import { DMMBlockedError, fetchDMMProducts, jstDaysAgo, type DMMItem } from '@/lib/dmm-api';
 import type { Doujin, DoujinFacet, DoujinOrder } from '@/lib/doujin-types';
 
 export { DOUJIN_ORDERS, type Doujin, type DoujinOrder } from '@/lib/doujin-types';
@@ -171,4 +171,23 @@ export async function relatedDoujin(options: { circleId?: string | null; genreId
   // 同じサークルの作品は「似た作品」から除く（2回出さない）
   const inCircle = new Set(circle.map((d) => d.contentId));
   return { circle, genre: genre.filter((d) => !inCircle.has(d.contentId)) };
+}
+
+// 同人誌の「新着」の条件（2026-11-01 ユーザーと決めた形）
+const NEW_DAYS = 30; // 発売から何日以内
+const NEW_MIN_SAMPLES = 10; // サンプルが何ページ以上（FANZA のデータで受け取れるサンプルは最大10ページ）
+
+/**
+ * 同人誌の「新着」: 発売から30日以内の作品を人気順に、サンプルが10ページある作品だけ（最大 hits 冊）。
+ * 出た順に並べると、まだ売れ行きも評価も分からない作品ばかりになっていた（新着300冊のうちレビューのある作品は23冊）。
+ * 人気順の上位300冊から選ぶ（DMM への問い合わせは fetchDMMProducts の中で1時間使い回す）
+ */
+export async function newDoujin(hits = 40): Promise<Doujin[]> {
+  const gte_date = jstDaysAgo(NEW_DAYS);
+  const pages = await Promise.all([1, 101, 201].map((offset) => fetchDMMProducts({ ...DOUJIN_FLOOR, sort: 'rank', hits: 100, offset, gte_date }).catch(() => null)));
+  const seen = new Set<string>();
+  return pages
+    .flatMap((p) => (p?.result?.items ?? []).map(toDoujin))
+    .filter((d): d is Doujin => d !== null && d.samples.length >= NEW_MIN_SAMPLES && !seen.has(d.contentId) && !!seen.add(d.contentId))
+    .slice(0, hits);
 }
