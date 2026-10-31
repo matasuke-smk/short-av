@@ -1467,7 +1467,20 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       {/* 右側固定エリア - 横画面時・PC時のみ表示 */}
       <div ref={sidePanelRef} className="hidden landscape:flex landscape:fixed landscape:right-0 landscape:top-0 landscape:w-[45%] landscape:h-full landscape:flex-col landscape:justify-center landscape:gap-4 landscape:py-4 landscape:px-4 landscape:z-20 landscape:pointer-events-auto lg:flex lg:fixed lg:right-0 lg:top-0 lg:w-[45%] lg:!w-[22rem] lg:h-full lg:flex-col lg:justify-center lg:!justify-start lg:gap-4 lg:py-6 lg:!pt-10 lg:px-6 lg:!px-5 lg:!bg-gray-950/60 lg:!border-l lg:!border-gray-800 lg:z-20 lg:pointer-events-auto">
         {/* 「動画｜同人誌」の切り替え（横画面・PC） */}
-        <div className="flex-shrink-0 flex justify-center">{modeToggle()}</div>
+        <div className="relative flex-shrink-0 flex justify-center">
+          {modeToggle()}
+          {/* 右から出るメニュー（右上。2026-10-31） */}
+          <button
+            type="button"
+            onClick={() => setShowMenu(true)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-lg p-1.5 active:scale-95"
+            aria-label={t('menu')}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeWidth={2.4} d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        </div>
         {/* PC: キャンペーン（10円セールなど）の期間中は、公式バナー（300×250）を商品ウィジェットの上に出す。
             PC では横長バナー（640×200）を出す場所が無く、キャンペーンのバナーがどこにも出ていなかった（2026-10-27 ユーザーの指摘）。同人誌のとき・海外の人には出さない */}
         {enableAffiliateLinks && !isOverseas && !doujinMode && isCampaignActive() && (
@@ -1703,17 +1716,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           </button>
           )}
 
-          {/* メニューボタン（右から出るメニュー。2026-10-31 に記事のボタンから変更） */}
-          <button
-            type="button"
-            onClick={() => setShowMenu(true)}
-            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
-          >
-            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeWidth={2.4} d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-            <span className="text-xs lg:!text-sm">{t('menu')}</span>
-          </button>
+          {/* メニューボタンは右側の切り替えの隣（右上）へ移した。メニューは右から出るので、左にボタンがあると分かりにくかった（2026-10-31 ユーザーの指摘） */}
         </div>
       </div>
 
