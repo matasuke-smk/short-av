@@ -35,7 +35,8 @@ import { longSampleScore } from '@/lib/long-sample-score';
 import { InstallPrompt, LikeHint, ReturnPanel } from './ReturnHelpers';
 import ActionRow from './ActionRow';
 import SiteMenu from './SiteMenu';
-import { useActresses } from '@/lib/useActresses';
+import { prefetchActresses, useActresses, type ActressInfo } from '@/lib/useActresses';
+import ActressDetailSheet from './ActressDetailSheet';
 import { currentPrice, saleInfo } from '@/lib/price';
 import WorkDetailSheet from './WorkDetailSheet';
 
@@ -239,6 +240,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 右から出るメニューと、作品詳細（2026-10-31）
   const [showMenu, setShowMenu] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  // 女優の詳細（女優が1人の作品で顔を押したとき・女優一覧で選んだとき。2026-10-31）
+  const [detailActress, setDetailActress] = useState<ActressInfo | null>(null);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
@@ -654,7 +657,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails;
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails || !!detailActress;
 
   // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
   const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
@@ -868,6 +871,33 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext()));
   };
   useEffect(() => setShowDetails(false), [currentIndex]);
+  // 次の3本と前の1本の女優を先に読み込んでおく（スワイプしたとき顔がすぐ出るように。2026-10-31）
+  useEffect(() => {
+    const ids = [currentIndex + 1, currentIndex + 2, currentIndex + 3, currentIndex - 1].flatMap((i) => (videos[i] && !isDoujinSlide(videos[i]) ? videos[i].actress_ids ?? [] : []));
+    if (ids.length) prefetchActresses(ids).catch(() => {});
+  }, [currentIndex, videos]);
+  // 女優の作品だけでスワイプする（女優の詳細の「この女優の作品だけスワイプで見る」・出演作から。startContentId の作品から見る）
+  const showActressVideos = async (actressId: string, startContentId?: string) => {
+    const { data: actressVideos, error } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('is_active', true)
+      .not('thumbnail_url', 'is', null)
+      .not('sample_video_url', 'is', null)
+      .contains('actress_ids', [actressId])
+      .order('release_date', { ascending: false, nullsFirst: false })
+      .order('id', { ascending: true })
+      .limit(300);
+    if (error) {
+      console.error('女優の動画取得エラー:', error);
+      return;
+    }
+    if (actressVideos && actressVideos.length > 0) {
+      const start = startContentId && actressVideos.some((v) => v.dmm_content_id === startContentId) ? startContentId : actressVideos[0].dmm_content_id;
+      replaceVideos(actressVideos as Video[], start);
+      trackModalOpen('actress_videos');
+    }
+  };
   const actionRow = (size: 'mobile' | 'pc') =>
     currentVideo ? (
       <ActionRow
@@ -883,7 +913,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         onFanzaClick={(e) => onRowFanzaClick(e, 'detail')}
         onLike={(e) => toggleLike(currentVideo, e)}
         onActress={() => {
-          setShowActressModal(true);
+          // 女優が1人ならその女優の詳細、2人以上なら一覧（一覧で選ぶと詳細）
+          if (rowActresses && rowActresses.length === 1) setDetailActress(rowActresses[0]);
+          else setShowActressModal(true);
           trackModalOpen('actress');
         }}
         onDetails={() => setShowDetails(true)}
@@ -2089,7 +2121,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           fanzaHref={rowFanzaHref}
           priceLabel={rowPrice}
           onFanzaClick={(e) => onRowFanzaClick(e, 'work_details')}
+          onActress={(a) => {
+            setShowDetails(false);
+            setDetailActress(a);
+          }}
           banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
+          t={t}
+        />
+      )}
+
+      {/* 女優の詳細（2026-10-31） */}
+      {detailActress && (
+        <ActressDetailSheet
+          actress={detailActress}
+          onClose={() => setDetailActress(null)}
+          onSwipeWorks={showActressVideos}
+          enableAffiliateLinks={enableAffiliateLinks}
           t={t}
         />
       )}
@@ -2102,32 +2149,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           trackModalClose('actress');
         }}
         actressIds={currentVideo?.actress_ids || []}
-        onActressSelect={async (actressId, actressName) => {
-          console.log('女優選択:', actressId, actressName);
-          // 女優の動画を取得
-          const { data: actressVideos, error } = await supabase
-            .from('videos')
-            .select('*')
-            .eq('is_active', true)
-            .not('thumbnail_url', 'is', null)
-            .not('sample_video_url', 'is', null)
-            .contains('actress_ids', [actressId])
-            .order('release_date', { ascending: false, nullsFirst: false })
-            .order('id', { ascending: true })
-            .limit(300);
-
-          if (error) {
-            console.error('女優の動画取得エラー:', error);
-            return;
-          }
-
-          if (actressVideos && actressVideos.length > 0) {
-            replaceVideos(actressVideos as Video[], actressVideos[0].dmm_content_id);
-
-            // GA4トラッキング
-            trackModalOpen('actress_videos');
-          }
-        }}
+        onActressSelect={(a) => setDetailActress(a)}
+        title={t('castList')}
       />
 
     </div>

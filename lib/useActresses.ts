@@ -30,6 +30,24 @@ async function sortByWorks(list: ActressInfo[]): Promise<ActressInfo[]> {
     .map((x) => x.a);
 }
 
+/** 女優の作品の数（女優が複数の作品で並べたときに数えた分だけ。まだなら null） */
+export const worksOf = (id: string): number | null => works.get(id) ?? null;
+
+/** 次に見る作品の女優を先に読み込んでおく（顔の表示が遅れないように。2026-10-31）。顔写真も読み込んでおく */
+export async function prefetchActresses(ids: string[]): Promise<void> {
+  const missing = [...new Set(ids)].filter((id) => !cache.has(id));
+  if (missing.length) {
+    const { data } = await supabase.from('actresses').select('id, name, slug, profile_image_url').in('id', missing);
+    for (const a of (data ?? []) as { id: string; name: string; slug: string; profile_image_url: string | null }[]) {
+      cache.set(a.id, { id: a.id, name: a.name, slug: a.slug, image: a.profile_image_url || null });
+    }
+  }
+  for (const id of ids) {
+    const img = cache.get(id)?.image;
+    if (img && typeof window !== 'undefined') new window.Image().src = img;
+  }
+}
+
 export function useActresses(ids: string[] | null | undefined): ActressInfo[] | null {
   const key = (ids ?? []).join(',');
   const [list, setList] = useState<ActressInfo[] | null>(() => (ids?.length ? null : []));

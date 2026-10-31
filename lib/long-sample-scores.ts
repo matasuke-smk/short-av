@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { runReports } from '@/lib/ga-data';
-import { fetchDMMProducts, fetchDMMActressImage, DMMBlockedError } from '@/lib/dmm-api';
+import { fetchDMMProducts, fetchDMMActress, DMMBlockedError } from '@/lib/dmm-api';
 
 /**
  * 「4分以上」のボタンで作品を並べる順のための数字を集める（サーバー専用。2026-10-26）。毎日 /api/cron/long-scores から呼ぶ
@@ -121,14 +121,14 @@ export async function fillReviewAverages(supabase: SupabaseClient, deadline: num
 }
 
 /**
- * 女優の顔写真の住所を、DMM の女優検索で少しずつ入れる（作品の操作の行・作品詳細の顔。2026-10-31）。
- * 写真が無い女優は空文字にして、問い合わせ直さない。actresses.slug が DMM の女優 ID。入れた数を返す
+ * 女優の顔写真・プロフィール・FANZA の出演作一覧のリンクを、DMM の女優検索で少しずつ入れる（作品の操作の行・女優の詳細。2026-10-31）。
+ * まだ問い合わせていない女優（profile_at が空）から。見つからない女優も profile_at を入れて、問い合わせ直さない。actresses.slug が DMM の女優 ID。入れた数を返す
  */
 export async function fillActressImages(supabase: SupabaseClient, deadline: number): Promise<number> {
   const { data, error } = await supabase
     .from('actresses')
     .select('id, slug')
-    .is('profile_image_url', null)
+    .is('profile_at', null)
     .order('slug', { ascending: false }) // ID が大きいほど新しい女優（よく出ている人が多い）
     .limit(400);
   if (error) throw error;
@@ -137,8 +137,11 @@ export async function fillActressImages(supabase: SupabaseClient, deadline: numb
     if (Date.now() > deadline) break;
     if (!/^\d+$/.test(String(a.slug))) continue;
     try {
-      const image = await fetchDMMActressImage(String(a.slug));
-      const { error: updateError } = await supabase.from('actresses').update({ profile_image_url: image }).eq('id', a.id);
+      const profile = await fetchDMMActress(String(a.slug));
+      const { error: updateError } = await supabase
+        .from('actresses')
+        .update({ ...(profile ?? { profile_image_url: '' }), profile_at: new Date().toISOString() })
+        .eq('id', a.id);
       if (!updateError) filled++;
     } catch (e) {
       if (e instanceof DMMBlockedError) break;
