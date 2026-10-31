@@ -16,7 +16,7 @@ type FacetCounts = Record<string, number>;
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onReplaceVideos: (videos: Video[], selectedVideoId: string) => void;
+  onReplaceVideos: (videos: Video[], selectedVideoId: string, focusActressIds?: string[]) => void; // focusActressIds: 女優で絞ったとき、その女優を顔に出す
   currentVideoId?: string;
 }
 
@@ -113,7 +113,7 @@ export default function SearchModal({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   // 検索結果（まず一覧で見せて、選んだ作品から見始める）。閉じても残し、次に開いたときに選び直せる
-  const [results, setResults] = useState<{ videos: Video[]; label: string } | null>(null);
+  const [results, setResults] = useState<{ videos: Video[]; label: string; focus?: string[] } | null>(null);
   const [actressSearchKeyword, setActressSearchKeyword] = useState('');
   const [genreSearchKeyword, setGenreSearchKeyword] = useState('');
   // 「人妻で4分以上」のような言葉を AI で条件に変える（/api/ai-search）。結果は通常のジャンル検索として実行する（2026-10-25）
@@ -350,7 +350,8 @@ export default function SearchModal({
               ...(minSampleSeconds > 0 ? [longSampleLabel(minSampleSeconds)] : []),
               ...names(selectedIds, searchMode === 'genre' ? genres : actresses),
             ].join('・');
-      setResults({ videos, label });
+      // 女優で絞ったときは、スワイプ画面の顔をその女優にする（2026-10-31 ユーザーの希望）
+      setResults({ videos, label, focus: by === 'filter' && searchMode === 'actress' ? selectedActressIds : undefined });
     } catch (error) {
       if (searchId !== searchIdRef.current) return;
       console.error('検索実行エラー:', error);
@@ -443,7 +444,7 @@ export default function SearchModal({
                       key={video.id}
                       type="button"
                       onClick={() => {
-                        onReplaceVideos(results.videos, video.dmm_content_id);
+                        onReplaceVideos(results.videos, video.dmm_content_id, results.focus);
                         setTimeout(() => onClose(), 100);
                       }}
                       className="group text-left"

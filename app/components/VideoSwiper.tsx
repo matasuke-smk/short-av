@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import dynamic from 'next/dynamic';
 import type { Database } from '@/lib/supabase';
@@ -89,6 +89,7 @@ interface VideoSwiperProps {
   linkNotice?: string; // ?v= の作品が見つからなかった場合などに表示するお知らせ
   doujinList?: Doujin[]; // 動画の間に挟む同人誌（サーバーで人気＋高評価からランダムに取得）
   animeMode?: boolean; // ?mode=anime: アニメの作品を並べる（2026-10-31）
+  focusActressSlug?: string; // 女優のページの「スワイプで全部見る」から来たとき（?actress=）: その女優を顔に出す
   doujinMode?: boolean; // X の同人誌のリンク（?mode=doujin&d=）から来たとき: 同人誌モード（先頭はその作品。同人誌だけを並べる）
   doujinOnly?: boolean; // 管理画面のアクセス解析（同人誌の「作品ごと」）から開いたとき: doujinList の同人誌だけを並べる（動画は挟まない・補充しない）
 }
@@ -158,7 +159,7 @@ function doujinSlides(doujins: Doujin[], base: Video, slides: Map<string, Doujin
 // 指を離したときにこれ以上動いていれば次・前の作品へ進める（速さに関係なく）
 const SWIPE_MIN_PX = 60;
 
-export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, animeMode: initialAnimeMode = false, doujinOnly = false }: VideoSwiperProps) {
+export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isFiniteList: initialIsFiniteList = false, videoPool: initialVideoPool, linkNotice, doujinList: initialDoujinList = [], doujinMode: initialDoujinMode = false, animeMode: initialAnimeMode = false, focusActressSlug, doujinOnly = false }: VideoSwiperProps) {
   const [notice, setNotice] = useState(linkNotice);
   useEffect(() => {
     if (!notice) return;
@@ -208,6 +209,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const animeMode = mode === 'anime';
   // アニメの補充用の残り（/api/anime から60本ずつ取り、20本ずつ足す）
   const animePoolRef = useRef<Video[]>([]);
+  // 女優で絞って見ているときの、顔に出す女優（ids は女優の番号、slug は女優のページから来たとき）
+  const [focusActress, setFocusActress] = useState<{ ids: string[]; slug?: string }>(() => ({ ids: [], slug: focusActressSlug }));
   // アニメを見ているときの「検索」「人気」の一覧（AnimeListModal）
   const [animeListKind, setAnimeListKind] = useState<'ranking' | 'search' | null>(null);
   // 10円セールの期間中は、下のボタンの「人気」を「¥10 セール」（アイコンが ¥10、文字が「セール」。特設ページ /sale/10yen）に変える。同人誌のとき・海外の人には出さない（2026-10-27）
@@ -545,9 +548,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 描き直しが起きない → 下の useLayoutEffect が走らず移動しない（残った要求が次の補充などで古い位置に消化され、別の動画に飛んでいた）
   const pendingScrollRef = useRef<number | null>(null);
   const [scrollSeq, setScrollSeq] = useState(0);
-  const replaceVideos = useCallback((newVideos: Video[], selectedVideoId: string) => {
+  const replaceVideos = useCallback((newVideos: Video[], selectedVideoId: string, focusIds: string[] = []) => {
     const targetIndex = newVideos.findIndex(v => v.dmm_content_id === selectedVideoId);
     if (targetIndex === -1) return;
+    setFocusActress({ ids: focusIds });
     pendingScrollRef.current = targetIndex;
     setVideos(newVideos);
     setCurrentIndex(targetIndex);
@@ -886,7 +890,14 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // 作品の操作の行（女優の顔・いいね・作品詳細・FANZA の丸）と作品詳細（2026-10-31 見本でユーザーと決めた形）。
   // 同人誌と、海外の人の動画（FANZA の代わりに JuicyAds を出す）は今までの形のまま
   const useNewRow = !!currentVideo && !isDoujinSlide(currentVideo) && !hideFanzaFor(currentVideo);
-  const rowActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
+  const sortedActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
+  // 女優で絞って見ているとき（「この女優の作品だけスワイプで見る」・検索で女優を選んだとき・女優のページから）は、
+  // 女優が複数の作品でもその女優を顔に出す（本当にその女優の作品か分かるように。2026-10-31 ユーザーの希望）
+  const rowActresses = useMemo(() => {
+    if (!sortedActresses || (focusActress.ids.length === 0 && !focusActress.slug)) return sortedActresses;
+    const isFocus = (a: ActressInfo) => focusActress.ids.includes(a.id) || a.slug === focusActress.slug;
+    return [...sortedActresses.filter(isFocus), ...sortedActresses.filter((a) => !isFocus(a))];
+  }, [sortedActresses, focusActress]);
   const rowFanzaHref = useNewRow && enableAffiliateLinks && currentVideo?.dmm_product_url ? goHref(currentVideo.dmm_product_url) ?? currentVideo.dmm_product_url : null;
   // 今の値段（セールが終わっていれば定価。DMM の price はセールの値段のまま残ることがある）とセールの割引（2026-10-31）
   const nowPrice = currentVideo ? currentPrice(currentVideo) : null;
@@ -920,7 +931,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
     if (actressVideos && actressVideos.length > 0) {
       const start = startContentId && actressVideos.some((v) => v.dmm_content_id === startContentId) ? startContentId : actressVideos[0].dmm_content_id;
-      replaceVideos(actressVideos as Video[], start);
+      replaceVideos(actressVideos as Video[], start, [actressId]);
       trackModalOpen('actress_videos');
     }
   };
@@ -1097,6 +1108,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     }
     window.history.replaceState(window.history.state, '', url.toString());
     setMode(next);
+    setFocusActress({ ids: [] });
     pendingScrollRef.current = nextIndex;
     setVideos(nextVideos);
     setCurrentIndex(nextIndex);
