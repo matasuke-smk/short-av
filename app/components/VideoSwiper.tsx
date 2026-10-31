@@ -127,6 +127,9 @@ function getSamplePlayerUrl(sampleUrl: string, size: { width: number; height: nu
   return `/api/sample-player?cid=${cid}&w=${size.width}&h=${size.height}`;
 }
 
+// サークル（作者）・制作会社のいちばん人気の作品の表紙（キー: d:サークルの番号 / a:制作会社名。無ければ null）
+const studioCoverCache = new Map<string, string | null>();
+
 const SWIPED_KEY = 'short-av-has-swiped';
 
 // 同人誌は id が doujin- で始まる動画の形で一覧に入れる（位置の番号で動く既存の処理をそのまま使うため）。
@@ -930,6 +933,38 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     : currentVideo?.kind === 'anime' && currentVideo.maker
       ? { kind: 'anime' as const, name: currentVideo.maker }
       : null;
+  // サークル（作者）・制作会社の丸に出す、いちばん人気の作品の表紙（2026-11-01 ユーザーの希望）。同じ作者は覚えておく
+  const studioKey = studioTarget ? (studioTarget.kind === 'doujin' ? `d:${studioTarget.id}` : `a:${studioTarget.name}`) : null;
+  const [studioImage, setStudioImage] = useState<string | null>(null);
+  useEffect(() => {
+    if (!studioKey) return setStudioImage(null);
+    const cached = studioCoverCache.get(studioKey);
+    if (cached !== undefined) return setStudioImage(cached);
+    setStudioImage(null);
+    let alive = true;
+    const done = (url: string | null) => {
+      studioCoverCache.set(studioKey, url);
+      if (alive) setStudioImage(url);
+    };
+    if (studioKey.startsWith('d:')) {
+      fetch(`/api/doujin/circle?id=${encodeURIComponent(studioKey.slice(2))}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => done(d?.doujin?.[0]?.cover ?? null))
+        .catch(() => done(null));
+    } else {
+      supabase
+        .from('anime_videos')
+        .select('thumbnail_url')
+        .eq('is_active', true)
+        .eq('maker', studioKey.slice(2))
+        .order('rank_position', { ascending: true, nullsFirst: false })
+        .limit(1)
+        .then(({ data }) => done((data?.[0]?.thumbnail_url as string | undefined) ?? null));
+    }
+    return () => {
+      alive = false;
+    };
+  }, [studioKey]);
   const sortedActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
   // 女優で絞って見ているとき（「この女優の作品だけスワイプで見る」・検索で女優を選んだとき・女優のページから）は、
   // 女優が複数の作品でもその女優を顔に出す（本当にその女優の作品か分かるように。2026-10-31 ユーザーの希望）
@@ -989,6 +1024,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         actresses={rowActresses}
         studio={currentVideo.kind === 'anime' || currentVideo.kind === 'doujin' ? currentVideo.maker ?? null : undefined}
         studioIcon={currentVideo.kind === 'doujin' ? 'book' : 'film'}
+        studioImage={studioImage}
         onStudio={studioTarget ? () => { setCircleFromDetails(false); setDetailCircle(studioTarget); } : undefined}
         hasActress={!!currentVideo.actress_ids?.length}
         liked={likedVideos.has(currentVideo.dmm_content_id)}
@@ -1118,6 +1154,12 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       }
     } else {
       const backup = videoModeBackupRef.current;
+      // アニメの画面（?mode=anime）を開き直したあとは、最初の並び（initialVideos）がアニメなので使わず、動画の画面を読み直す
+      // （以前は動画に戻してもアニメが並んでいた。2026-11-01 ユーザーの指摘）
+      if (!(backup && backup.videos.length > 0) && initialAnimeMode) {
+        window.location.href = url.toString();
+        return;
+      }
       nextVideos = backup && backup.videos.length > 0 ? backup.videos : initialVideos;
       nextIndex = backup && backup.videos.length > 0 ? backup.index : 0;
       if (nextVideos.length === 0) {
@@ -1132,7 +1174,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     setVideos(nextVideos);
     setCurrentIndex(nextIndex);
     setScrollSeq((n) => n + 1);
-  }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos]);
+  }, [mode, isFiniteList, videos, currentIndex, doujinList, initialVideos, initialAnimeMode]);
 
   // compact: スマホの上の帯（左にサイト名があるので短く「4分以上（n本）」にする。2026-10-31）
   const modeToggle = (compact = false) => longCount !== null ? (
