@@ -33,6 +33,8 @@ export type Database = {
           likes_count: number;
           rank_position: number | null;
           sample_seconds: number | null; // サンプル動画の長さ（秒）。-1 は調べられなかった作品
+          review_count?: number | null; // FANZA のレビュー件数（sql/022）
+          review_average?: number | null; // FANZA のレビューの平均点（sql/026。まだ無い作品は null）
           is_active: boolean;
           created_at: string;
           updated_at: string;

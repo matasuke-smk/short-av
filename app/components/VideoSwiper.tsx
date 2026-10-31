@@ -33,6 +33,10 @@ import { CONTACT_FORM_URL } from '@/config/site';
 import { fetchMyLikes, markHasLikes } from '@/lib/my-likes';
 import { longSampleScore } from '@/lib/long-sample-score';
 import { InstallPrompt, LikeHint, ReturnPanel } from './ReturnHelpers';
+import ActionRow from './ActionRow';
+import SiteMenu from './SiteMenu';
+import { useActresses } from '@/lib/useActresses';
+const WorkDetailSheet = dynamic(() => import('./WorkDetailSheet'), { ssr: false });
 
 // モーダルコンポーネントを動的インポート（初期バンドルサイズ削減）
 const InitialTutorial = dynamic(() => import('./InitialTutorial'), {
@@ -231,6 +235,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   const [showLikedModal, setShowLikedModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showActressModal, setShowActressModal] = useState(false);
+  // 右から出るメニューと、作品詳細（2026-10-31）
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [isFiniteList, setIsFiniteList] = useState(initialIsFiniteList || doujinOnly);
   const [isLandscape, setIsLandscape] = useState(false);
   // スマホの縦画面で高さが足りないとき（ブラウザのアドレスバーなどで画面が低いとき）、下の帯と作品の画像が重ならないよう画像側を小さくする。
@@ -364,8 +371,9 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
     const panel = bottomPanelRef.current;
     const content = panel?.firstElementChild as HTMLElement | null;
     if (!panel || !content) return;
-    const PRICE_ROW = 48 + 12; // 価格ボタンの行（h-12 + mb-3）
     const update = () => {
+      // 作品の操作の行の高さ（＋mb-3）。2026-10-31 から女優の顔・いいね・作品詳細・FANZA の丸の行（68px）。海外の人などは今までの 48px
+      const PRICE_ROW = (priceRowRef.current?.offsetHeight || 68) + 12;
       const w = window.innerWidth;
       const h = window.innerHeight;
       if (isLandscape || w >= 768) {
@@ -645,7 +653,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
   // モーダルや動画プレイヤーを開いている間は、キー操作で裏の動画を動かさない
   const overlayOpenRef = useRef(false);
   overlayOpenRef.current =
-    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal;
+    showVideoModal || showSearchModal || showRankingModal || showLikedModal || showHistoryModal || showActressModal || showMenu || showDetails;
 
   // PC: 作品を送るボタンの位置。表示中の作品の画像のすぐ右・縦の真ん中に置く（画像の大きさは窓やバナーで変わるので、測って合わせる）
   const [navPos, setNavPos] = useState<{ left: number; top: number } | null>(null);
@@ -845,6 +853,39 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
 
   const currentVideo = videos[currentIndex];
 
+  // 作品の操作の行（女優の顔・いいね・作品詳細・FANZA の丸）と作品詳細（2026-10-31 見本でユーザーと決めた形）。
+  // 同人誌と、海外の人の動画（FANZA の代わりに JuicyAds を出す）は今までの形のまま
+  const useNewRow = !!currentVideo && !isDoujinSlide(currentVideo) && !hideFanzaFor(currentVideo);
+  const rowActresses = useActresses(useNewRow ? currentVideo?.actress_ids : null);
+  const rowFanzaHref = useNewRow && enableAffiliateLinks && currentVideo?.dmm_product_url ? goHref(currentVideo.dmm_product_url) ?? currentVideo.dmm_product_url : null;
+  const rowPrice = currentVideo?.price ? `¥${currentVideo.price.toLocaleString()}〜` : null;
+  const onRowFanzaClick = (e: React.MouseEvent<HTMLAnchorElement>, kind: 'detail' | 'work_details') => {
+    if (!currentVideo) return;
+    handleFanzaClick(e, '詳細はこちら', () => trackDMMClick(currentVideo.id, currentVideo.dmm_content_id || '', kind, getViewContext()));
+  };
+  useEffect(() => setShowDetails(false), [currentIndex]);
+  const actionRow = (size: 'mobile' | 'pc') =>
+    currentVideo ? (
+      <ActionRow
+        size={size}
+        actresses={rowActresses}
+        hasActress={!!currentVideo.actress_ids?.length}
+        liked={likedVideos.has(currentVideo.dmm_content_id)}
+        reviewCount={currentVideo.review_count}
+        reviewAverage={currentVideo.review_average}
+        priceLabel={rowPrice}
+        fanzaHref={rowFanzaHref}
+        onFanzaClick={(e) => onRowFanzaClick(e, 'detail')}
+        onLike={(e) => toggleLike(currentVideo, e)}
+        onActress={() => {
+          setShowActressModal(true);
+          trackModalOpen('actress');
+        }}
+        onDetails={() => setShowDetails(true)}
+        t={t}
+      />
+    ) : null;
+
   const handleThumbnailClick = useCallback(() => {
     if (currentVideo?.sample_video_url) {
       // アフィリエイトIDを削除してからモーダルに設定
@@ -1033,15 +1074,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
         <div className="relative h-11 flex items-center justify-center">
         <span className="absolute left-3 bg-yellow-400 text-black px-1.5 rounded-sm text-xs font-bold leading-4">PR</span>
         {modeToggle}
-        <Link
-          href="/articles" prefetch={false}
-          className="absolute right-3 bg-blue-600/90 hover:bg-blue-500 text-white rounded-lg p-1.5 shadow-lg active:scale-95"
-          aria-label={t('articlesAria')}
+        {/* 右から出るメニュー（記事・よくある質問・プライバシーポリシーなど。2026-10-31 に記事のボタンから変更） */}
+        <button
+          type="button"
+          onClick={() => setShowMenu(true)}
+          className="absolute right-3 bg-white/10 hover:bg-white/20 text-white rounded-lg p-1.5 active:scale-95"
+          aria-label={t('menu')}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <path strokeLinecap="round" strokeWidth={2.4} d="M4 7h16M4 12h16M4 17h16" />
           </svg>
-        </Link>
+        </button>
         </div>
       </div>
 
@@ -1140,10 +1183,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                     />
                     )}
 
-                    {/* いいねボタン - サムネイル左下 */}
+                    {/* いいねボタン - サムネイル左下（2026-10-31 から作品の操作の行に移した。海外の人の動画だけ残す） */}
                     <button
                       onClick={(e) => toggleLike(video, e)}
-                      className={`lg:hidden absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
+                      className={`${hideFanzaFor(video) ? 'lg:hidden' : 'hidden'} absolute ${inlinePlayingId === video.dmm_content_id && index === currentIndex ? 'top-3 p-2.5' : 'bottom-6 p-4'} left-3 z-50 bg-black/70 backdrop-blur-sm rounded-full transition-all active:scale-90 hover:bg-black/90 shadow-lg`}
                       aria-label={t('like')}
                     >
                       {likedVideos.has(video.dmm_content_id) ? (
@@ -1361,8 +1404,15 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
+        {/* PC: 作品の操作の行（女優の顔・いいね・作品詳細・FANZA の丸。2026-10-31）。同人誌・海外の人は今までのボタン */}
+        {useNewRow && (
+          <div className="hidden lg:!flex flex-col gap-2 flex-shrink-0">
+            {actionRow('pc')}
+            {enableAffiliateLinks && !isOverseas && <FirstTimeLinks position="pc_price" />}
+          </div>
+        )}
         {/* PC: 主な操作（いいね・女優・作品ページ）をタイトルの直下に大きく並べる。高さは固定（作品ごとに位置がずれないように） */}
-        <div className="hidden lg:!grid grid-cols-2 gap-2 flex-shrink-0">
+        <div className={`${useNewRow ? '!hidden' : 'hidden lg:!grid'} grid-cols-2 gap-2 flex-shrink-0`}>
           <button
             onClick={(e) => currentVideo && toggleLike(currentVideo, e)}
             aria-pressed={!!currentVideo && likedVideos.has(currentVideo.dmm_content_id)}
@@ -1432,8 +1482,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           )}
         </div>
 
+        {/* 横画面（スマホ）: 作品の操作の行。同人誌・海外の人は今までのボタン（2026-10-31） */}
+        {useNewRow && <div className="lg:!hidden flex-shrink-0">{actionRow('mobile')}</div>}
         {/* 女優ボタンと、価格・作品ページへのボタン（1行・高さ固定。ない場合も枠は残してボタンの位置を揃える） */}
-        <div className="grid lg:!hidden grid-cols-2 gap-2 h-11 flex-shrink-0">
+        <div className={`${useNewRow ? '!hidden' : 'grid lg:!hidden'} grid-cols-2 gap-2 h-11 flex-shrink-0`}>
           {/* 同人誌には女優がいないので出さない（価格のボタンを横いっぱいに） */}
           {!isDoujinSlide(currentVideo) && (() => {
             const hasActress = !!currentVideo?.actress_ids && currentVideo.actress_ids.length > 0;
@@ -1552,16 +1604,17 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           </button>
           )}
 
-          {/* 記事ボタン */}
-          <Link
-            href="/articles" prefetch={false}
-            className="bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
+          {/* メニューボタン（右から出るメニュー。2026-10-31 に記事のボタンから変更） */}
+          <button
+            type="button"
+            onClick={() => setShowMenu(true)}
+            className="bg-gray-700/80 hover:bg-gray-600 text-white rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all backdrop-blur-sm active:scale-95"
           >
             <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <path strokeLinecap="round" strokeWidth={2.4} d="M4 7h16M4 12h16M4 17h16" />
             </svg>
-            <span className="text-xs lg:!text-sm">{t('articles')}</span>
-          </Link>
+            <span className="text-xs lg:!text-sm">{t('menu')}</span>
+          </button>
         </div>
       </div>
 
@@ -1574,7 +1627,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           {/* 女優ボタンと、価格・FANZA の作品ページへのボタン（高さ固定）
               メーカー・発売日は FANZA の作品ページで見られるため出さず、押しやすさを優先する */}
           {!isDoujinSlide(currentVideo) && (
-          <div ref={priceRowRef} className="mb-3 md:mb-4 h-12 flex items-stretch gap-3">
+          <div ref={priceRowRef} className={`mb-3 md:mb-4 ${useNewRow ? 'h-[68px] items-start' : 'h-12 items-stretch'} flex gap-3`}>
+            {useNewRow ? actionRow('mobile') : (<>
             {currentVideo?.actress_ids && currentVideo.actress_ids.length > 0 && (
               <button
                 onClick={() => {
@@ -1602,6 +1656,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                 <span className="text-sm font-medium">{dlsiteHrefFor(currentVideo) ? t('dlsiteSearch') : t('details')}</span>
               </a>
             )}
+            </>)}
           </div>
           )}
 
@@ -1687,21 +1742,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             )}
           </div>
 
-          {/* ポリシーリンク - レスポンシブ対応 */}
-          <div className="flex items-center justify-center gap-4 md:gap-6 mt-2 md:mt-3 text-xs md:text-sm">
-            <Link href="/articles" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              記事一覧
-            </Link>
-            <Link href="/privacy" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              プライバシーポリシー
-            </Link>
-            <Link href="/terms" prefetch={false} className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              利用規約
-            </Link>
-            <a href={CONTACT_FORM_URL} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-gray-300 transition-colors underline">
-              お問い合わせ
-            </a>
-          </div>
+          {/* 記事一覧・プライバシーポリシー・利用規約・お問い合わせは右から出るメニューへ移した（2026-10-31） */}
           {/* FANZA のクレジット（以前は画面上部の帯に出していた） */}
           <p className="mt-1 text-center text-[10px] text-gray-500">
             {enableAffiliateLinks ? (
@@ -2030,6 +2071,23 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           setDoujinListKind('history');
         }}
       />
+
+      {/* 右から出るメニュー（2026-10-31） */}
+      <SiteMenu open={showMenu} onClose={() => setShowMenu(false)} t={t} />
+
+      {/* 作品詳細（作品の操作の行の「作品詳細」から。2026-10-31） */}
+      {showDetails && currentVideo && useNewRow && (
+        <WorkDetailSheet
+          video={currentVideo}
+          actresses={rowActresses}
+          onClose={() => setShowDetails(false)}
+          fanzaHref={rowFanzaHref}
+          priceLabel={rowPrice}
+          onFanzaClick={(e) => onRowFanzaClick(e, 'work_details')}
+          banner={enableAffiliateLinks && !isOverseas ? <DMMBanner bannerId={landscapeBannerIds[0]} className="w-full aspect-[640/200]" /> : undefined}
+          t={t}
+        />
+      )}
 
       {/* 女優モーダル */}
       <ActressModal
