@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { featureLabel } from '@/lib/feature-length';
 import type { Metadata } from 'next';
 import { supabase } from '@/lib/supabase';
 import { getCachedRandomPool, shuffle } from '@/lib/random-pool';
@@ -49,7 +50,8 @@ export async function generateMetadata({
     if (!anime?.thumbnail_url) return { robots: { index: false, follow: true } };
     const animeCode = productCode(anime.dmm_content_id);
     const title = `${animeCode ? `${animeCode} ` : ''}${anime.title} | Short AV`;
-    const description = `${animeCode ? `【${animeCode}】` : ''}${anime.title}のサンプル動画を縦スワイプで無料視聴。Short AV`;
+    const animeFeature = featureLabel(anime.description);
+    const description = `${animeCode ? `【${animeCode}】` : ''}${anime.title}のサンプル動画${animeFeature ? `（本編${animeFeature}）` : ''}を縦スワイプで無料視聴。Short AV`;
     return {
       title,
       description,
@@ -70,7 +72,10 @@ export async function generateMetadata({
   // Claude が書いた紹介文（ai_description、sql/019）があればそちらを優先する（2026-10-25）
   const aiRaw = (video as unknown as { ai_description?: unknown }).ai_description;
   const ai = typeof aiRaw === 'string' ? aiRaw : '';
-  const aiText = ai && code ? `【${code}】${ai}` : ai;
+  // Claude の紹介文を使うときも、先頭に品番と本編の長さを入れる（2026-10-31）
+  const feature = featureLabel(video.description);
+  const lead = [code, feature ? `本編${feature}` : null].filter(Boolean).join('・');
+  const aiText = ai && lead ? `【${lead}】${ai}` : ai;
   const description = aiText ? (aiText.length > 160 ? `${aiText.slice(0, 157)}…` : aiText) : buildVideoDescription(video, await getVideoNames(video));
   const images = [{ url: video.thumbnail_url, alt: video.title }];
 
