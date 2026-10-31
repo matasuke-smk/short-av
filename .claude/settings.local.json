@@ -14,7 +14,8 @@
       "Bash(git log:*)",
       "Bash(git restore:*)",
       "Bash(npm run dev:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "mcp__claude-in-chrome__file_upload"
     ],
     "deny": [],
     "ask": []
