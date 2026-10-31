@@ -39,7 +39,7 @@ export type Database = {
           campaign_end?: string | null; // FANZA のセールの終わり（sql/027）
           campaign_title?: string | null; // FANZA のセールの名前（sql/027）
           price_checked_at?: string | null; // 価格・セールを DMM で最後に確かめた日時（sql/029）
-          kind?: 'anime'; // アニメの表（anime_videos）の作品（lib/anime.ts が付ける目印。データベースの列ではない）
+          kind?: 'anime' | 'doujin'; // アニメの表（anime_videos）の作品（lib/anime.ts が付ける目印）・同人誌の枠（makeDoujinSlide）。データベースの列ではない
           is_active: boolean;
           created_at: string;
           updated_at: string;

@@ -18,7 +18,7 @@ import { currentPrice, saleInfo, yen } from '@/lib/price';
  */
 type WorkVideo = {
   dmm_content_id: string;
-  kind?: 'anime';
+  kind?: 'anime' | 'doujin';
   description?: string | null; // 本編の長さ（分。DMM の volume）
   title: string;
   thumbnail_url: string;
@@ -37,6 +37,8 @@ type WorkVideo = {
 };
 // 開いたときに DMM から取り直す最新の値（/api/work-info）
 type Fresh = Pick<WorkVideo, 'price' | 'list_price' | 'campaign_end' | 'campaign_title' | 'review_count' | 'review_average'>;
+// 同人誌の関連作品で使う項目（lib/doujin-types.ts の Doujin の一部）
+type DoujinLite = { contentId: string; title: string; cover: string; price: number | null };
 type Related = { dmm_content_id: string; title: string; thumbnail_url: string; sample_seconds: number | null };
 
 type Props = {
@@ -49,14 +51,17 @@ type Props = {
   banner?: ReactNode;
   onActress?: (actress: ActressInfo) => void; // 出演の女優を押したとき（女優の詳細を開く）
   t: (key: TextKey, vars?: Record<string, string | number>) => string;
+  doujin?: { genres: string[]; pages: number; circleId: string | null; genreId: string | null; genreName: string | null }; // 同人誌（2026-10-31）: ジャンルの名前・読めるサンプルのページ数・関連作品を探すためのサークルとジャンル
 };
 
 const len = (s: number | null) => (s && s > 0 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : null);
 
-export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, onActress, t }: Props) {
+export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, priceLabel, onFanzaClick, banner, onActress, t, doujin }: Props) {
   const [genres, setGenres] = useState<{ name: string; slug: string }[]>([]);
   const [related, setRelated] = useState<Related[] | null>(null);
   const [fresh, setFresh] = useState<Fresh | null>(null);
+  // 同人誌の関連作品（同じサークル・同じジャンルの人気。/api/doujin/related）
+  const [djRelated, setDjRelated] = useState<{ circle: DoujinLite[]; genre: DoujinLite[] } | null>(null);
   const first = actresses?.[0];
   // 出演欄: 3人まではカード、4人以上は2列（8人まで）。プロフィールと出演作の数は開いたときに取る
   const castList = (actresses ?? []).slice(0, 8);
@@ -73,12 +78,15 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   }, [castKey]);
   // アニメの作品（anime_videos）。価格の取り直し・関連作品はアニメの表を見る（2026-10-31）
   const isAnime = video.kind === 'anime';
+  // 同人誌: 価格の取り直し・関連作品はない（データベースに入れていない）。ジャンルは名前をそのまま出す
+  const isDoujin = video.kind === 'doujin';
   // 上のつまみ（「ー」）や見出しを下に引いて閉じる（スマホ。2026-10-31 ユーザーの希望）
   // 上の部分を下に引く・いちばん上で下へスワイプすると閉じる（lib/useSheetDrag.ts）
   const { panelRef, scrollRef, sheetStyle, sheetTransition } = useSheetDrag(onClose);
 
   // 最新の価格・セール・レビュー（データベースの価格はセールの値段のまま残ることがあるため）
   useEffect(() => {
+    if (isDoujin) return;
     let alive = true;
     fetch(`/api/work-info?cid=${encodeURIComponent(video.dmm_content_id)}${isAnime ? '&floor=anime' : ''}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -87,7 +95,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     return () => {
       alive = false;
     };
-  }, [video.dmm_content_id, isAnime]);
+  }, [video.dmm_content_id, isAnime, isDoujin]);
   const v = fresh ? { ...video, ...fresh } : video;
   const sale = saleInfo(v);
   // 終わりまで24時間を切ったら「あと○時間」（1時間を切ったら「あと○分」）も出す（2026-10-31 ユーザーの希望。スワイプ画面には出さない）
@@ -103,6 +111,19 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   }, [video.dmm_content_id, onClose]);
 
   useEffect(() => {
+    if (isDoujin) {
+      setGenres((doujin?.genres ?? []).map((name) => ({ name, slug: name })));
+      setRelated([]);
+      let alive = true;
+      const q = new URLSearchParams({ id: video.dmm_content_id, ...(doujin?.circleId ? { circle: doujin.circleId } : {}), ...(doujin?.genreId ? { genre: doujin.genreId } : {}) });
+      fetch(`/api/doujin/related?${q}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => alive && d && setDjRelated({ circle: d.circle ?? [], genre: d.genre ?? [] }))
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }
     let alive = true;
     const ids = video.genre_ids ?? [];
     if (ids.length) {
@@ -123,17 +144,17 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     return () => {
       alive = false;
     };
-  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first, isAnime]);
+  }, [video.dmm_content_id, video.genre_ids, video.series, video.maker, first, isAnime, isDoujin, doujin?.genres, doujin?.circleId, doujin?.genreId]);
 
   const avg = typeof v.review_average === 'number' && v.review_average > 0 ? v.review_average : null;
   const rows: [string, ReactNode][] = [
     [t('productCode'), productCode(video.dmm_content_id)],
-    [t('maker'), video.maker],
+    [isDoujin ? t('circle') : t('maker'), video.maker],
     [t('label'), video.label],
     [t('series'), video.series],
     [t('releaseDate'), video.release_date ? video.release_date.slice(0, 10).replaceAll('-', '/') : null],
     [t('featureLength'), featureLabel(video.description)],
-    [t('sampleLength'), len(video.sample_seconds)],
+    [t('sampleLength'), isDoujin ? (doujin?.pages ? t('samplePages', { n: doujin.pages }) : null) : len(video.sample_seconds)],
   ].filter(([, v]) => !!v) as [string, ReactNode][];
   const relatedTitle = first ? `${first.name} ${t('moreWorks')}` : video.series ? `${video.series} ${t('moreWorks')}` : video.maker ? `${video.maker} ${t('moreWorks')}` : t('moreWorks');
 
@@ -158,7 +179,7 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
           </div>
           <div className="mt-3 flex gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element -- FANZA のパッケージ画像（表面だけを見せる） */}
-            <img src={video.thumbnail_url} alt="" className="hidden h-[200px] w-[150px] flex-shrink-0 rounded-lg object-cover object-right lg:block" />
+            <img src={video.thumbnail_url} alt="" className={`hidden h-[200px] w-[150px] flex-shrink-0 rounded-lg lg:block ${isDoujin ? 'object-contain bg-black' : 'object-cover object-right'}`} />
             <div className="min-w-0 flex-1">
               <h2 className="text-[15px] font-bold leading-snug">{video.title}</h2>
               <p className="mt-1.5 text-sm">
@@ -180,7 +201,12 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
                   </p>
                 </div>
               ) : nowPrice ? (
-                <p className="mt-1 text-sm text-gray-300">{yen(nowPrice)}〜</p>
+                // 同人誌は1冊の値段（「〜」なし）。定価より安ければ定価に線を引く
+                <p className="mt-1 text-sm text-gray-300">
+                  {isDoujin && v.list_price && v.list_price > nowPrice && <span className="mr-1.5 text-gray-500 line-through">{yen(v.list_price)}</span>}
+                  {yen(nowPrice)}
+                  {isDoujin ? '' : '〜'}
+                </p>
               ) : null}
               <dl className="mt-2">
                 {rows.map(([k, v]) => (
@@ -234,8 +260,8 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
                 <p className="mb-1.5 text-xs font-bold text-gray-400">{t('genres')}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {genres.map((g) =>
-                    // アニメのジャンルは動画のジャンルの一覧につながないので、文字だけ
-                    isAnime ? (
+                    // アニメ・同人誌のジャンルは動画のジャンルの一覧につながないので、文字だけ
+                    isAnime || isDoujin ? (
                       <span key={g.slug} className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-200">
                         {g.name}
                       </span>
@@ -250,6 +276,29 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
             )}
           </div>
 
+          {/* 同人誌: 同じサークルの作品と、同じジャンルの人気の作品。押すとその同人誌から読む */}
+          {isDoujin &&
+            djRelated &&
+            ([
+              [`${video.maker ?? ''} ${t('moreWorks')}`, djRelated.circle],
+              [t('similarPopular', { genre: doujin?.genreName ?? '' }), djRelated.genre],
+            ] as [string, DoujinLite[]][])
+              .filter(([, list]) => list.length > 0)
+              .map(([title, list]) => (
+                <div key={title}>
+                  <p className="mb-1.5 mt-4 text-xs font-bold text-gray-400">{title}</p>
+                  <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+                    {list.map((d) => (
+                      <a key={d.contentId} href={`/?mode=doujin&d=${d.contentId}`} onClick={() => sendGAEvent('work_details', { action: 'related', content_id: video.dmm_content_id })} className="w-24 flex-shrink-0 lg:w-[120px]">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- FANZA の同人誌の表紙 */}
+                        <img src={d.cover} alt="" loading="lazy" className="h-32 w-24 rounded-lg bg-gray-800 object-cover lg:h-40 lg:w-[120px]" />
+                        <span className="mt-1 line-clamp-2 text-[10px] leading-snug text-gray-300">{d.title}</span>
+                        {d.price != null && <span className="text-[10px] text-amber-300">{yen(d.price)}</span>}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
           {related && related.length > 0 && (
             <>
               <p className="mb-1.5 mt-4 text-xs font-bold text-gray-400">{relatedTitle}</p>
@@ -272,7 +321,8 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
         <div className="flex items-center gap-2 border-t border-gray-800 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2.5 lg:px-6 lg:pb-4">
           {fanzaHref ? (
             <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 font-extrabold text-white active:scale-[0.98]">
-              {nowPrice ? <span className="text-base">{yen(nowPrice)}〜</span> : priceLabel && <span className="text-base">{priceLabel}</span>}
+              {/* 同人誌はスワイプ画面と同じ値段の表示（日本以外で DLsite に案内する人には値段を出さない） */}
+              {isDoujin ? priceLabel && <span className="text-base">{priceLabel}</span> : nowPrice ? <span className="text-base">{yen(nowPrice)}〜</span> : priceLabel && <span className="text-base">{priceLabel}</span>}
               <span className="whitespace-nowrap text-sm">{t('viewOnFanza')} ↗</span>
             </a>
           ) : (
