@@ -18,12 +18,14 @@ export default function DoujinReader({
   onComplete,
   dlsiteHref,
   onDlsiteClick,
+  active = true,
 }: {
   doujin: Doujin;
   onLinkClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
   onComplete?: () => void; // 最後まで読んで購入ページに来たとき（1回だけ）
   dlsiteHref?: string; // 日本以外の訪問者: 購入ページに「DLsite で探す」を出す（サークル名で DLsite を検索。lib/dlsite.ts）
   onDlsiteClick?: () => void;
+  active?: boolean; // 表示中の同人誌か（← → キーでめくるのは表示中の1冊だけ）
 }) {
   const { t } = useT();
   const [emblaRef, emblaApi] = useEmblaCarousel({ axis: 'x', loop: false });
@@ -61,6 +63,17 @@ export default function DoujinReader({
       emblaApi.off('select', onSelect);
     };
   }, [emblaApi]);
+
+  // PC の ← → キーでページをめくる（スワイプ画面の onKeyDown が sav-doujin-page を送る。2026-10-31）
+  useEffect(() => {
+    if (!active || !emblaApi) return;
+    const onPage = (e: Event) => {
+      if ((e as CustomEvent<number>).detail > 0) emblaApi.scrollNext();
+      else emblaApi.scrollPrev();
+    };
+    window.addEventListener('sav-doujin-page', onPage);
+    return () => window.removeEventListener('sav-doujin-page', onPage);
+  }, [active, emblaApi]);
 
   // 画面の右側をタップすると次、左側で前のページ（スワイプしにくい PC でも読めるように。スワイプ直後のタップは無視）
   const onTap = (e: React.MouseEvent<HTMLDivElement>) => {

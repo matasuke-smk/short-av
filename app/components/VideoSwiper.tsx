@@ -776,6 +776,10 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
       } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         emblaApi.scrollPrev();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        // 同人誌を表示中は ← → でページをめくる（PC。2026-10-31 ユーザーの希望）。表示中の同人誌（DoujinReader の active）が受け取る
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('sav-doujin-page', { detail: e.key === 'ArrowRight' ? 1 : -1 }));
       }
     };
 
@@ -1242,6 +1246,7 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
                       <div className="absolute inset-0 overflow-hidden">
                       <DoujinReader
                         doujin={doujinBySlideRef.current.get(video.id)!}
+                        active={index === currentIndex}
                         onComplete={() => {
                           const d = doujinBySlideRef.current.get(video.id)!;
                           trackDoujinComplete(d.contentId, d.samples.length);
@@ -1443,6 +1448,8 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
           <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
         </button>
         <p className="w-36 text-center text-xs leading-relaxed text-gray-300 whitespace-pre-line">{t('navKeyHint')}</p>
+        {/* 同人誌を表示中は ← → でページをめくれることも書く（2026-10-31） */}
+        {currentVideo && isDoujinSlide(currentVideo) && <p className="w-36 text-center text-xs leading-relaxed text-pink-300 whitespace-pre-line">{t('pageKeyHint')}</p>}
       </div>
       )}
 
@@ -1691,10 +1698,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
             onClick={doujinMode ? showDoujinNew : showLongSamples}
             className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-lg py-3 lg:!py-4 flex flex-col items-center justify-center transition-all active:scale-95"
           >
-            <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={doujinMode ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z'} />
-            </svg>
-            <span className="text-xs lg:!text-sm">{longLoading ? '…' : doujinMode ? t('newArrivals') : t('longSample4')}</span>
+            {/* 「4分以上」はアイコンなしで「4分超 / サンプル」の2行（2026-10-31 ユーザーの希望）。同人誌の「新着」はアイコン付き */}
+            {doujinMode ? (
+              <>
+                <svg className="w-5 h-5 mb-1 lg:!w-7 lg:!h-7 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs lg:!text-sm">{longLoading ? '…' : t('newArrivals')}</span>
+              </>
+            ) : longLoading ? (
+              <span className="text-sm">…</span>
+            ) : (
+              <>
+                <span className="text-base font-black leading-none lg:!text-lg">{t('longBtnTop')}</span>
+                <span className="mt-1 text-[11px] leading-none lg:!text-xs">{t('longBtnBottom')}</span>
+              </>
+            )}
           </button>
 
           {/* メニューボタンは右側の切り替えの隣（右上）へ移した。メニューは右から出るので、左にボタンがあると分かりにくかった（2026-10-31 ユーザーの指摘） */}
@@ -1823,10 +1842,22 @@ export default function VideoSwiper({ videos: initialVideos, startIndex = 0, isF
               onClick={doujinMode ? showDoujinNew : showLongSamples}
               className="bg-gradient-to-b from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-gray-950 font-bold shadow-lg shadow-amber-500/30 rounded-xl py-3 md:py-4 flex flex-col items-center justify-center transition-all active:scale-95"
             >
-              <svg className="w-6 h-6 md:w-7 md:h-7 mb-1 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={doujinMode ? 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' : 'M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664zM21 12a9 9 0 11-18 0 9 9 0 0118 0z'} />
-              </svg>
-              <span className="text-xs md:text-sm">{longLoading ? '…' : doujinMode ? t('newArrivals') : t('longSample4')}</span>
+              {/* 「4分以上」はアイコンなしで「4分超 / サンプル」の2行（2026-10-31 ユーザーの希望）。同人誌の「新着」はアイコン付き */}
+              {doujinMode ? (
+                <>
+                  <svg className="w-6 h-6 md:w-7 md:h-7 mb-1 text-gray-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-xs md:text-sm">{longLoading ? '…' : t('newArrivals')}</span>
+                </>
+              ) : longLoading ? (
+                <span className="text-sm">…</span>
+              ) : (
+                <>
+                  <span className="text-lg font-black leading-none md:text-xl">{t('longBtnTop')}</span>
+                  <span className="mt-1.5 text-[11px] leading-none md:text-xs">{t('longBtnBottom')}</span>
+                </>
+              )}
             </button>
           </div>
 
