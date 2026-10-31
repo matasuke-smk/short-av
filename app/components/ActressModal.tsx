@@ -1,6 +1,7 @@
 'use client';
 
 import { useActresses, worksOf, type ActressInfo } from '@/lib/useActresses';
+import { useSheetDrag } from '@/lib/useSheetDrag';
 
 /**
  * 出演女優の一覧（女優が2人以上の作品で顔を押したとき）。顔写真・名前・Short AV にある出演作の数を、作品の多い順に並べる。
@@ -17,11 +18,20 @@ interface ActressModalProps {
 export default function ActressModal({ isOpen, onClose, actressIds, onActressSelect, title }: ActressModalProps) {
   const actresses = useActresses(isOpen ? actressIds : null);
   if (!isOpen) return null;
+  return <Sheet actresses={actresses} onClose={onClose} onActressSelect={onActressSelect} title={title} />;
+}
+
+// 開いているときだけ作る（下に引いて閉じる仕組みを、開くたびに付け直すため）
+function Sheet({ actresses, onClose, onActressSelect, title }: { actresses: ActressInfo[] | null; onClose: () => void; onActressSelect: (a: ActressInfo) => void; title: string }) {
+  const { panelRef, scrollRef, sheetStyle, sheetTransition } = useSheetDrag(onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 sm:items-center" onClick={onClose}>
-      <div className="flex max-h-[80vh] w-full flex-col rounded-t-2xl bg-gray-900 sm:max-w-lg lg:max-w-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-gray-700 p-4">
+      <div ref={panelRef} style={sheetStyle} className={`flex max-h-[80vh] w-full flex-col rounded-t-2xl bg-gray-900 sm:max-w-lg lg:max-w-xl sm:rounded-2xl ${sheetTransition}`} onClick={(e) => e.stopPropagation()}>
+        <div data-sheet-handle className="flex justify-center pt-2.5 sm:hidden">
+          <span className="h-1.5 w-12 rounded-full bg-gray-600" />
+        </div>
+        <div data-sheet-handle className="flex items-center justify-between border-b border-gray-700 p-4 pt-2 sm:pt-4">
           <h2 className="text-lg font-bold text-white">{title}</h2>
           <button onClick={onClose} className="p-2 text-gray-400 transition-colors hover:text-white" aria-label="閉じる">
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,7 +39,7 @@ export default function ActressModal({ isOpen, onClose, actressIds, onActressSel
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-3">
           {actresses === null ? (
             <div className="py-12 text-center text-gray-400">読み込み中...</div>
           ) : actresses.length === 0 ? (

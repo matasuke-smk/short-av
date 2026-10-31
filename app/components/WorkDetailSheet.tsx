@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react';
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { sendGAEvent } from '@/lib/gtag';
+import { useSheetDrag } from '@/lib/useSheetDrag';
 import type { ActressInfo } from '@/lib/useActresses';
 import type { TextKey } from '@/lib/i18n';
 import { currentPrice, saleInfo, yen } from '@/lib/price';
@@ -53,15 +54,8 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
   const [fresh, setFresh] = useState<Fresh | null>(null);
   const first = actresses?.[0];
   // 上のつまみ（「ー」）や見出しを下に引いて閉じる（スマホ。2026-10-31 ユーザーの希望）
-  const [dragY, setDragY] = useState(0);
-  const dragStart = useRef<number | null>(null);
-  const onDragStart = (e: TouchEvent) => (dragStart.current = e.touches[0].clientY);
-  const onDragMove = (e: TouchEvent) => dragStart.current !== null && setDragY(Math.max(0, e.touches[0].clientY - dragStart.current));
-  const onDragEnd = () => {
-    if (dragY > 90) onClose();
-    else setDragY(0);
-    dragStart.current = null;
-  };
+  // 上の部分を下に引く・いちばん上で下へスワイプすると閉じる（lib/useSheetDrag.ts）
+  const { panelRef, scrollRef, sheetStyle, sheetTransition } = useSheetDrag(onClose);
 
   // 最新の価格・セール・レビュー（データベースの価格はセールの値段のまま残ることがあるため）
   useEffect(() => {
@@ -122,15 +116,16 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label={t('workDetails')}>
       <button type="button" className="absolute inset-0 bg-black/60" aria-label={t('close')} onClick={onClose} />
       <div
-        className={`absolute inset-x-0 bottom-0 flex h-[85%] flex-col rounded-t-2xl bg-[#0b1220] text-gray-200 shadow-2xl lg:inset-auto lg:bottom-[4%] lg:left-1/2 lg:top-[4%] lg:h-auto lg:w-[640px] lg:-translate-x-1/2 lg:rounded-2xl ${dragStart.current === null ? 'transition-transform duration-200' : ''}`}
-        style={dragY ? { transform: `translateY(${dragY}px)` } : undefined}
+        className={`absolute inset-x-0 bottom-0 flex h-[85%] flex-col rounded-t-2xl bg-[#0b1220] text-gray-200 shadow-2xl lg:inset-auto lg:bottom-[4%] lg:left-1/2 lg:top-[4%] lg:h-auto lg:w-[640px] lg:-translate-x-1/2 lg:rounded-2xl ${sheetTransition}`}
+        style={sheetStyle}
+        ref={panelRef}
       >
         {/* つまみ（「ー」）。ここを下に引くと閉じる。指で掴みやすいように上下に余白を取る */}
-        <div className="flex justify-center py-3 lg:hidden touch-none" onTouchStart={onDragStart} onTouchMove={onDragMove} onTouchEnd={onDragEnd}>
+        <div data-sheet-handle className="flex justify-center py-3 lg:hidden">
           <span className="h-1.5 w-12 rounded-full bg-gray-600" />
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 lg:px-6 lg:pt-5">
-          <div className="flex items-center justify-between touch-none lg:touch-auto" onTouchStart={onDragStart} onTouchMove={onDragMove} onTouchEnd={onDragEnd}>
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 lg:px-6 lg:pt-5">
+          <div className="flex items-center justify-between" data-sheet-handle>
             <b className="text-base">{t('workDetails')}</b>
             <button type="button" onClick={onClose} className="text-2xl leading-none text-gray-400 hover:text-white" aria-label={t('close')}>
               ×
@@ -232,15 +227,25 @@ export default function WorkDetailSheet({ video, actresses, onClose, fanzaHref, 
 
           {banner && <div className="mt-4">{banner}</div>}
         </div>
-        {fanzaHref && (
-          <div className="border-t border-gray-800 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2.5 lg:px-6 lg:pb-4">
-            <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className="flex h-12 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 font-extrabold text-white active:scale-[0.98]">
+        {/* 下の端: FANZA で見る（あれば）と閉じるボタン */}
+        <div className="flex items-center gap-2 border-t border-gray-800 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2.5 lg:px-6 lg:pb-4">
+          {fanzaHref ? (
+            <a href={fanzaHref} target="_blank" rel="noopener noreferrer sponsored" onClick={onFanzaClick} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 font-extrabold text-white active:scale-[0.98]">
               {nowPrice ? <span className="text-base">{yen(nowPrice)}〜</span> : priceLabel && <span className="text-base">{priceLabel}</span>}
-              {sale && <span className="rounded bg-white/20 px-1.5 text-xs">{sale.percent}%OFF</span>}
-              <span className="text-sm">{t('viewOnFanza')} ↗</span>
+              <span className="whitespace-nowrap text-sm">{t('viewOnFanza')} ↗</span>
             </a>
-          </div>
-        )}
+          ) : (
+            <span className="flex-1" />
+          )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full border border-gray-600 bg-gray-800 text-xl text-gray-200 active:scale-95"
+              aria-label={t('close')}
+            >
+              ×
+            </button>
+        </div>
       </div>
     </div>
   );
